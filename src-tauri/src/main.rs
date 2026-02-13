@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    akira_maintainer_lib::run()
+    unified_dev_lib::run()
 }
