@@ -6,6 +6,7 @@ export const translations: Record<Locale, Dictionary> = {
   en: {
     "app.name": "Unified Dev",
     "app.workspace": "Workspace",
+    "app.search": "Search...",
     "nav.dashboard": "Dashboard",
     "nav.repository": "Repositories",
     "nav.repositories": "Repositories",
@@ -116,6 +117,7 @@ export const translations: Record<Locale, Dictionary> = {
   "pt-PT": {
     "app.name": "Unified Dev",
     "app.workspace": "Workspace",
+    "app.search": "Pesquisar...",
     "nav.dashboard": "Dashboard",
     "nav.repository": "Repositórios",
     "nav.repositories": "Repositórios",

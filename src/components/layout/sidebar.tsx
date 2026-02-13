@@ -42,7 +42,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
             <button
               type="button"
               onClick={toggleSidebar}
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
               title="Expand Sidebar"
             >
               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/toggle:opacity-100 transition-opacity" />
@@ -91,7 +91,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     className={cn(
                       "transition-all duration-200 rounded-xl h-11 px-4",
                       activeId === item!.id
-                        ? "bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-foreground dark:text-white font-bold shadow-sm"
+                        ? "bg-zinc-100 dark:bg-zinc-900 text-foreground dark:text-white font-bold shadow-sm"
                         : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
                       "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
                     )}
@@ -125,7 +125,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     className={cn(
                       "transition-all duration-200 rounded-xl h-11 px-4",
                       activeId === settingsItem.id
-                        ? "bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-foreground dark:text-white font-bold shadow-sm"
+                        ? "bg-zinc-100 dark:bg-zinc-900 text-foreground dark:text-white font-bold shadow-sm"
                         : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
                       "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
                     )}
@@ -147,7 +147,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
       <SidebarFooter className="border-t border-border/10 p-5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:h-16 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
         <div className="flex items-center gap-4 px-1 group-data-[collapsible=icon]:px-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] font-bold uppercase text-muted-foreground dark:text-zinc-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 text-[10px] font-bold uppercase text-muted-foreground dark:text-zinc-400">
             v0
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">

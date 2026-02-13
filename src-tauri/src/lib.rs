@@ -1,6 +1,8 @@
 mod config;
+mod core;
 mod db;
 mod error;
+mod providers;
 mod security;
 mod state;
 
@@ -12,6 +14,7 @@ use config::commands::{
 };
 use config::service::OrganizationService;
 use config::sqlite_repository::{SqliteOrganizationRepoRepository, SqliteOrganizationRepository};
+use providers::default_registry;
 use security::{KeyStore, TokenCipher};
 use state::AppState;
 use tauri::Manager;
@@ -30,7 +33,9 @@ pub fn run() {
                 let repos = Arc::new(SqliteOrganizationRepoRepository::new(pool.clone()));
                 let service = Arc::new(OrganizationService::new(organizations, repos, cipher));
 
-                app.manage(AppState::new(service));
+                let registry = Arc::new(default_registry()?);
+
+                app.manage(AppState::new(service, registry));
                 Ok(())
             });
 
