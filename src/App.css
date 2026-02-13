@@ -14,7 +14,7 @@
         'Noto Color Emoji';
 
     --radius-lg: var(--radius);
-    --radius-md: calc(var(--radius) - 2px);
+    --radius-md: calc(var(--radius) - 8px);
     --radius-sm: calc(var(--radius) - 4px);
 
     --animate-fade-in: fadeIn 0.5s ease-out;

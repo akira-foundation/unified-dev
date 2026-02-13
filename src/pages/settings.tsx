@@ -4,16 +4,12 @@ import {
   CheckCircle,
   CreditCard,
   Crown,
-  Database,
-  Info,
   Mail,
-  Smartphone,
   Trash2,
-  User,
 } from "lucide-react";
 
 import AppearanceTabs from "@/components/appearance-tabs";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import UpgradeModal from "@/components/upgrade-modal";
@@ -21,12 +17,11 @@ import { useI18n } from "@/i18n/i18n";
 import { useDateLabel } from "@/hooks/use-date-label";
 import {
   PageHeader,
-  PageHeaderActions,
   PageHeaderMeta,
   PageHeaderTitle,
 } from "@/components/layout/page-header";
 import { PageLayout } from "@/components/layout/page-layout";
-import { NotificationButton } from "@/components/layout/notification-button";
+import {Button} from "@/components/ui/button.tsx";
 
 export function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
@@ -72,13 +67,15 @@ export function SettingsPage() {
     window.location.assign("/settings/billing");
   };
 
-  const SettingsSection = ({ title, icon: Icon, colorClass, children }: any) => (
-    <Card className="mb-6 overflow-hidden gap-0">
-      <div className="flex items-center gap-3 border-b border-zinc-100 px-6 py-3 dark:border-zinc-800/50">
-        <Icon size={18} className={cn("text-zinc-500 dark:text-zinc-400", colorClass)} />
-        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white">{title}</h3>
-      </div>
-      <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">{children}</div>
+  const SettingsSection = ({ title, description, children }: any) => (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 gap-0">
+        {children}
+      </CardContent>
     </Card>
   );
 
@@ -120,56 +117,14 @@ export function SettingsPage() {
             {toastMessage}
           </div>
         )}
+        
 
-        <Card className="mb-8">
-          <div className="relative z-10 mb-6 flex items-start justify-between">
-            <div>
-              <span className="mb-2 inline-flex items-center rounded-full border border-zinc-200 bg-zinc-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                Plano Atual
-              </span>
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Plano Gratuito</h2>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Funcionalidades básicas.</p>
-            </div>
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-2.5 dark:border-zinc-800 dark:bg-zinc-900">
-              <CreditCard size={20} className="text-purple-600 dark:text-purple-400" />
-            </div>
-          </div>
-
-          <div className="relative z-10 mb-6">
-            <div className="mb-2 flex items-end justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Uso Diário</span>
-              <span className="font-mono text-xs font-semibold text-zinc-900 dark:text-white">
-                {dailyUsage} / {dailyLimit}
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-              <div
-                className={`h-full rounded-full transition-all duration-1000 ease-out ${usagePercent > 90 ? "bg-red-500" : "bg-purple-600 dark:bg-purple-500"}`}
-                style={{ width: `${usagePercent}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="relative z-10 flex items-center gap-3">
-            <button
-              onClick={onShowUpgrade}
-              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 text-sm font-bold text-white shadow-lg shadow-purple-600/20 transition-colors hover:bg-purple-700 dark:bg-white dark:text-purple-700 dark:shadow-none dark:hover:bg-zinc-100"
-            >
-              <Crown size={18} className="text-purple-200 dark:text-purple-600" /> Fazer Upgrade
-            </button>
-            <button
-              onClick={onManageBilling}
-              className="h-11 rounded-xl bg-zinc-100 px-6 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200 dark:bg-[#1f1f22] dark:text-zinc-300 dark:hover:bg-[#27272a] dark:hover:text-white"
-            >
-              Faturação
-            </button>
-          </div>
-        </Card>
-
-        <SettingsSection title="Conta" icon={User} colorClass="text-zinc-500">
+        <SettingsSection
+          title={t("settings.section.account")}
+          description={t("settings.account.profileDesc")}>
           <SettingsItem
-            label="Perfil & Segurança"
-            description="Informação pessoal, email e palavra-passe."
+            label={t("settings.account.profile")}
+            description={t("settings.account.profileDesc")}
             action={
               <button
                 onClick={() => window.location.assign("/settings/profile")}
@@ -181,7 +136,10 @@ export function SettingsPage() {
           />
         </SettingsSection>
 
-        <SettingsSection title={t("settings.section.general")} icon={Smartphone} colorClass="text-purple-500">
+        <SettingsSection
+          title={t("settings.section.general")}
+          description={t("settings.general.appearanceDesc")}
+        >
           <SettingsItem
             label={t("settings.general.language")}
             description={t("settings.general.languageValue")}
@@ -204,10 +162,13 @@ export function SettingsPage() {
           />
         </SettingsSection>
 
-        <SettingsSection title="Dados & Privacidade" icon={Database} colorClass="text-purple-500">
+        <SettingsSection
+          title={t("settings.section.privacy")}
+          description={t("settings.privacy.clearHistoryDesc")}
+        >
           <SettingsItem
-            label="Limpar Histórico de Pesquisa"
-            description="Remove todas as sugestões de pesquisa recente."
+            label={t("settings.privacy.clearHistory")}
+            description={t("settings.privacy.clearHistoryDesc")}
             action={
               <button
                 onClick={handleClearHistory}
@@ -218,8 +179,8 @@ export function SettingsPage() {
             }
           />
           <SettingsItem
-            label="Limpar Itens Guardados"
-            description="Apaga itens guardados da memória local."
+            label={t("settings.privacy.clearSaved")}
+            description={t("settings.privacy.clearSavedDesc")}
             action={
               <button
                 onClick={handleClearSaved}
@@ -230,8 +191,8 @@ export function SettingsPage() {
             }
           />
           <SettingsItem
-            label="Reiniciar Aplicação"
-            description="Restaura as definições de fábrica e limpa todos os dados."
+            label={t("settings.privacy.reset")}
+            description={t("settings.privacy.resetDesc")}
             destructive
             action={
               <button
@@ -244,14 +205,17 @@ export function SettingsPage() {
           />
         </SettingsSection>
 
-        <SettingsSection title="Sobre" icon={Info} colorClass="text-purple-500">
+        <SettingsSection
+          title={t("settings.section.about")}
+          description={t("settings.about.supportDesc")}
+        >
           <SettingsItem
-            label="Versão"
+            label={t("settings.about.version")}
             action={<span className="font-mono text-xs text-zinc-500 dark:text-zinc-500">v1.3.0 (Beta)</span>}
           />
           <SettingsItem
-            label="Contacto / Suporte"
-            description="Reportar bugs ou sugerir funcionalidades."
+            label={t("settings.about.support")}
+            description={t("settings.about.supportDesc")}
             action={
               <a
                 href="mailto:suporte@noxdireit.cv"
@@ -262,12 +226,12 @@ export function SettingsPage() {
             }
           />
           <SettingsItem
-            label="Desenvolvido por"
+            label={t("settings.about.developed")}
             action={<span className="text-sm font-bold text-zinc-900 dark:text-white">Kidiatoliny Gonçalves</span>}
           />
           <div className="py-4 text-center border-t border-zinc-100 dark:border-zinc-800/50">
             <p className="text-[10px] uppercase tracking-widest text-zinc-500 dark:text-zinc-600">
-              Feito com <span className="text-red-500">❤</span> em Cabo Verde
+              {t("settings.about.made")} <span className="text-red-500">❤</span> em Cabo Verde
             </p>
           </div>
         </SettingsSection>
