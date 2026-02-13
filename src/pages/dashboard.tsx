@@ -1,7 +1,14 @@
-import { Activity, Bell, FileText, Plus, Search } from "lucide-react";
+import { Activity, FileText, Plus, Search } from "lucide-react";
 
 import { ActionButton } from "@/components/ui/action-button";
-import { IconButton } from "@/components/ui/icon-button";
+import {
+  PageHeader,
+  PageHeaderActions,
+  PageHeaderMeta,
+  PageHeaderTitle,
+} from "@/components/layout/page-header";
+import { PageLayout } from "@/components/layout/page-layout";
+import { NotificationButton } from "@/components/layout/notification-button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,27 +17,29 @@ import { KanbanBoard } from "@/components/kanban-board";
 import { AgendaView } from "@/components/agenda-view";
 import { TeamView } from "@/components/team-view";
 import { useI18n } from "@/i18n/i18n";
+import { useDateLabel } from "@/hooks/use-date-label";
 
 export function DashboardPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const dateLabel = useDateLabel(locale);
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-1 flex-col space-y-8 overflow-hidden p-4 pt-6 md:p-8">
-      <div className="flex shrink-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <PageLayout scroll={false}>
+      <PageHeader>
         <div>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground">{t("dashboard.header.title")}</h2>
-          <div className="mt-1 flex items-center text-sm text-muted-foreground">
+          <PageHeaderTitle>{t("dashboard.header.title")}</PageHeaderTitle>
+          <PageHeaderMeta>
             <span>{t("app.name")}</span>
             <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span className="text-zinc-500">Domingo, 14 Dez</span>
-          </div>
+            <span className="text-zinc-500">{dateLabel}</span>
+          </PageHeaderMeta>
         </div>
-        <div className="flex items-center gap-3">
-          <IconButton icon={Bell} className="h-10 w-10 text-zinc-500" />
+        <PageHeaderActions>
+          <NotificationButton />
           <ActionButton>
             <Plus className="mr-2 h-4 w-4" /> {t("dashboard.header.newOrg")}
           </ActionButton>
-        </div>
-      </div>
+        </PageHeaderActions>
+      </PageHeader>
 
       <div className="flex min-h-0 flex-1 flex-col">
         <Tabs defaultValue="overview" className="flex h-full w-full flex-col">
@@ -152,6 +161,6 @@ export function DashboardPage() {
           </div>
         </Tabs>
       </div>
-    </div>
+    </PageLayout>
   );
 }

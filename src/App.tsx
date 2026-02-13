@@ -2,6 +2,7 @@ import { Building2, FolderGit2, LayoutDashboard, Settings } from "lucide-react";
 
 import { AppContent } from "./components/layout/app-content";
 import { AppShell } from "./components/layout/app-shell";
+import { AppHeader } from "./components/layout/app-header";
 import { AppSidebar } from "./components/layout/sidebar";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationsPage } from "./pages/organizations";
@@ -20,17 +21,19 @@ const navigationItems: NavItem[] = [
 export default function App() {
   const { currentPage, setCurrentPage } = useNavigation("dashboard");
 
-  const activeItem = navigationItems.find((item) => item.id === currentPage) ?? navigationItems[0];
   return (
     <AppShell variant="sidebar">
       <AppSidebar items={navigationItems} activeId={currentPage} onSelect={setCurrentPage} />
-      <AppContent>
-        <div className="mx-auto flex h-full w-full max-w-7xl flex-1 flex-col gap-4 p-4 md:p-8">
-          {currentPage === "dashboard" && <DashboardPage />}
-          {currentPage === "organizations" && <OrganizationsPage />}
-          {currentPage === "repository" && <RepositoryPage />}
-          {currentPage === "settings" && <SettingsPage />}
-        </div>
+      <AppContent className="flex h-svh flex-col overflow-hidden">
+        <AppHeader />
+        <main className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="mx-auto min-h-full w-full max-w-7xl">
+            {currentPage === "dashboard" && <DashboardPage />}
+            {currentPage === "organizations" && <OrganizationsPage />}
+            {currentPage === "repository" && <RepositoryPage />}
+            {currentPage === "settings" && <SettingsPage />}
+          </div>
+        </main>
       </AppContent>
     </AppShell>
   );

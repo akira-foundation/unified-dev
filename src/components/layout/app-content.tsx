@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 
 import { SidebarInset } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 
 interface AppContentProps extends ComponentProps<"main"> {
   variant?: "header" | "sidebar";
@@ -8,7 +9,11 @@ interface AppContentProps extends ComponentProps<"main"> {
 
 export function AppContent({ variant = "sidebar", children, ...props }: AppContentProps) {
   if (variant === "sidebar") {
-    return <SidebarInset {...props}>{children}</SidebarInset>;
+    return (
+      <SidebarInset className={cn("min-h-0", props.className)} {...props}>
+        {children}
+      </SidebarInset>
+    );
   }
 
   return (
