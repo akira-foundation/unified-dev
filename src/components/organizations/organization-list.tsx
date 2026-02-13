@@ -1,15 +1,13 @@
 import type { OrganizationSummary } from "../../types/organization";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { Button } from "../ui/button";
 import { OrganizationItem } from "./organization-item";
 
 interface OrganizationListProps {
   organizations: OrganizationSummary[];
   onRemove: (id: string) => void;
-  onAdd: () => void;
 }
 
-export function OrganizationList({ organizations, onRemove, onAdd }: OrganizationListProps) {
+export function OrganizationList({ organizations, onRemove }: OrganizationListProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -17,9 +15,6 @@ export function OrganizationList({ organizations, onRemove, onAdd }: Organizatio
           <CardTitle>Organizations</CardTitle>
           <CardDescription>Connect GitHub organizations and manage sync settings.</CardDescription>
         </div>
-        <Button variant="secondary" onClick={onAdd}>
-          Add organization
-        </Button>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {organizations.length === 0 ? (

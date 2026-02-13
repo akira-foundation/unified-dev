@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { RepoList } from "../components/repos/repo-list";
 import type { OrganizationRepoSummary } from "../types/organization";
 import {
@@ -10,6 +11,7 @@ import { PageLayout } from "../components/layout/page-layout";
 import { NotificationButton } from "../components/layout/notification-button";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
+import {Button} from "@/components/ui/button.tsx";
 
 const repos: OrganizationRepoSummary[] = [];
 
@@ -24,15 +26,18 @@ export function RepositoryPage() {
           <PageHeaderMeta>
             <span>{t("app.name")}</span>
             <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span className="text-zinc-500">{dateLabel}</span>
+            <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
         <PageHeaderActions>
-          <NotificationButton />
+          <Button >
+            <Plus size={18} />
+            {t("dashboard.quick.newRepo")}
+          </Button>
         </PageHeaderActions>
       </PageHeader>
       <div className="flex flex-col gap-6">
-          <RepoList repos={repos} />
+        <RepoList repos={repos} />
       </div>
     </PageLayout>
   );

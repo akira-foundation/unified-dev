@@ -7,6 +7,7 @@ import {
   PageHeaderTitle,
 } from "@/components/layout/page-header";
 import { PageLayout } from "@/components/layout/page-layout";
+import { NotificationButton } from "@/components/layout/notification-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -23,22 +24,22 @@ export function DashboardPage() {
 
   return (
     <PageLayout scroll={false}>
-      <PageHeader className="border-none bg-transparent backdrop-blur-0 mb-2">
+      <PageHeader>
         <div>
-          <PageHeaderTitle className="text-4xl font-bold tracking-tight">
+          <PageHeaderTitle>
             {t("dashboard.header.title") ?? "Overview"}
           </PageHeaderTitle>
-          <PageHeaderMeta className="text-zinc-500 font-medium">
+          <PageHeaderMeta>
             <span>{t("app.name")}</span>
-            <span className="mx-2">•</span>
+            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
             <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
-        <PageHeaderActions className="gap-3">
-          <button className="flex h-10 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-black transition-all hover:bg-zinc-200 active:scale-95">
+        <PageHeaderActions>
+          <Button>
             <Plus size={18} />
             {t("dashboard.header.newOrg") ?? "New Organization"}
-          </button>
+          </Button>
         </PageHeaderActions>
       </PageHeader>
 
