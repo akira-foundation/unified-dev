@@ -1,0 +1,27 @@
+import type { OrganizationRepoSummary } from "../../types/organization";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { RepoItem } from "./repo-item";
+
+interface RepoListProps {
+  repos: OrganizationRepoSummary[];
+}
+
+export function RepoList({ repos }: RepoListProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Repositories</CardTitle>
+        <CardDescription>Repositories attached to the selected organization.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {repos.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
+            No repositories attached yet.
+          </div>
+        ) : (
+          repos.map((repo) => <RepoItem key={repo.id} repo={repo} />)
+        )}
+      </CardContent>
+    </Card>
+  );
+}

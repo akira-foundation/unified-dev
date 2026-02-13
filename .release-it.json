@@ -1,0 +1,19 @@
+{
+  "git": {
+    "requireCleanWorkingDir": true,
+    "commit": true,
+    "commitMessage": "chore: release ${version}",
+    "tag": true,
+    "tagName": "v${version}",
+    "push": true
+  },
+  "npm": {
+    "publish": false
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": "conventionalcommits",
+      "infile": "CHANGELOG.md"
+    }
+  }
+}
