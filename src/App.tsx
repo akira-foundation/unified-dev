@@ -6,6 +6,7 @@ import { AppHeader } from "./components/layout/app-header";
 import { AppSidebar } from "./components/layout/sidebar";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationsPage } from "./pages/organizations";
+import { OrganizationReposPage } from "./pages/organization-repos";
 import { RepositoryPage } from "./pages/repository";
 import { SettingsPage } from "./pages/settings";
 import { useNavigation } from "./hooks/useNavigation";
@@ -30,6 +31,7 @@ export default function App() {
           <div className="mx-auto min-h-full w-full max-w-7xl">
             {currentPage === "dashboard" && <DashboardPage />}
             {currentPage === "organizations" && <OrganizationsPage />}
+            {currentPage === "organization-repos" && <OrganizationReposPage />}
             {currentPage === "repository" && <RepositoryPage />}
             {currentPage === "settings" && <SettingsPage />}
           </div>

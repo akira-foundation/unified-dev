@@ -5,9 +5,11 @@ import { OrganizationItem } from "./organization-item";
 interface OrganizationListProps {
   organizations: OrganizationSummary[];
   onRemove: (id: string) => void;
+  activeId?: string | null;
+  onSelect?: (id: string) => void;
 }
 
-export function OrganizationList({ organizations, onRemove }: OrganizationListProps) {
+export function OrganizationList({ organizations, onRemove, activeId, onSelect }: OrganizationListProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -23,7 +25,13 @@ export function OrganizationList({ organizations, onRemove }: OrganizationListPr
           </div>
         ) : (
           organizations.map((organization) => (
-            <OrganizationItem key={organization.id} organization={organization} onRemove={onRemove} />
+            <OrganizationItem
+              key={organization.id}
+              organization={organization}
+              onRemove={onRemove}
+              isActive={activeId === organization.id}
+              onSelect={onSelect}
+            />
           ))
         )}
       </CardContent>

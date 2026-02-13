@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type AppPage = "dashboard" | "organizations" | "repository" | "settings";
+export type AppPage = "dashboard" | "organizations" | "organization-repos" | "repository" | "settings";
 
 export interface NavItem {
   id: AppPage;

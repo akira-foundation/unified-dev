@@ -2,30 +2,31 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
-use crate::core::provider::traits::VcsProvider;
-use crate::core::provider::types::{ProviderAuth, ProviderId, PullRequestState, VcsPullRequest, VcsRepository};
+use crate::core::provider::traits::{VcsProvider, VcsProviderFactory};
+use crate::core::provider::types::{ProviderAuth, ProviderId, ProviderRepo, PullRequestState, VcsPullRequest};
 use crate::error::{AppError, AppResult};
 
 const GITHUB_API: &str = "https://api.github.com";
 
 pub struct GitHubDriver {
     client: reqwest::Client,
+    token: String,
 }
 
 impl GitHubDriver {
-    pub fn new() -> AppResult<Self> {
+    pub fn new(token: String) -> AppResult<Self> {
         let client = reqwest::Client::builder()
             .user_agent("UnifiedDev/1.0")
             .build()?;
 
-        Ok(Self { client })
+        Ok(Self { client, token })
     }
 
-    async fn get_json<T: DeserializeOwned>(&self, url: String, token: &str) -> AppResult<T> {
+    async fn get_json<T: DeserializeOwned>(&self, url: String) -> AppResult<T> {
         let response = self
             .client
             .get(url)
-            .bearer_auth(token)
+            .bearer_auth(&self.token)
             .header("Accept", "application/vnd.github+json")
             .send()
             .await?;
@@ -44,7 +45,6 @@ impl GitHubDriver {
     async fn fetch_paginated<T: DeserializeOwned>(
         &self,
         mut url: String,
-        token: &str,
     ) -> AppResult<Vec<T>> {
         let mut page = 1;
         let mut results = Vec::new();
@@ -52,7 +52,7 @@ impl GitHubDriver {
         loop {
             let separator = if url.contains('?') { '&' } else { '?' };
             let paged_url = format!("{url}{separator}per_page=100&page={page}");
-            let chunk: Vec<T> = self.get_json(paged_url, token).await?;
+            let chunk: Vec<T> = self.get_json(paged_url).await?;
             if chunk.is_empty() {
                 break;
             }
@@ -61,6 +61,29 @@ impl GitHubDriver {
         }
 
         Ok(results)
+    }
+}
+
+pub struct GitHubFactory;
+
+impl GitHubFactory {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl VcsProviderFactory for GitHubFactory {
+    fn id(&self) -> ProviderId {
+        ProviderId::GitHub
+    }
+
+    fn name(&self) -> &str {
+        "GitHub"
+    }
+
+    fn create(&self, auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
+        let token = auth_token(&auth)?.to_string();
+        Ok(std::sync::Arc::new(GitHubDriver::new(token)?))
     }
 }
 
@@ -74,19 +97,17 @@ impl VcsProvider for GitHubDriver {
         "GitHub"
     }
 
-    async fn list_repositories(&self, organization: &str, auth: &ProviderAuth) -> AppResult<Vec<VcsRepository>> {
-        let token = auth_token(auth)?;
-        let url = format!("{GITHUB_API}/orgs/{organization}/repos?type=all");
-        let repositories: Vec<GitHubRepo> = self.fetch_paginated(url, token).await?;
+    async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>> {
+        let url = format!("{GITHUB_API}/user/repos?type=all");
+        let repositories: Vec<GitHubRepo> = self.fetch_paginated(url).await?;
 
         Ok(repositories
             .into_iter()
-            .map(|repo| VcsRepository {
+            .map(|repo| ProviderRepo {
                 id: repo.id.to_string(),
                 owner: repo.owner.login,
                 name: repo.name,
-                full_name: repo.full_name,
-                default_branch: repo.default_branch,
+                visibility: if repo.private { "private".to_string() } else { "public".to_string() },
                 is_private: repo.private,
             })
             .collect())
@@ -96,13 +117,11 @@ impl VcsProvider for GitHubDriver {
         &self,
         owner: &str,
         repository: &str,
-        auth: &ProviderAuth,
     ) -> AppResult<Vec<VcsPullRequest>> {
-        let token = auth_token(auth)?;
         let url = format!(
             "{GITHUB_API}/repos/{owner}/{repository}/pulls?state=all"
         );
-        let pulls: Vec<GitHubPullRequest> = self.fetch_paginated(url, token).await?;
+        let pulls: Vec<GitHubPullRequest> = self.fetch_paginated(url).await?;
 
         Ok(pulls
             .into_iter()

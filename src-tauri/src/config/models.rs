@@ -29,7 +29,10 @@ pub struct OrganizationRepoSummary {
     pub organization_id: String,
     pub owner: String,
     pub repo_name: String,
+    pub visibility: String,
+    pub is_selected: bool,
     pub auto_sync: bool,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,5 +47,16 @@ pub struct AttachRepoInput {
     pub organization_id: String,
     pub owner: String,
     pub repo_name: String,
+    pub visibility: Option<String>,
+    pub is_selected: Option<bool>,
+    pub auto_sync: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelectedRepositoryInput {
+    pub owner: String,
+    pub repo_name: String,
+    pub visibility: String,
+    pub is_selected: bool,
     pub auto_sync: Option<bool>,
 }

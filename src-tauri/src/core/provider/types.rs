@@ -17,6 +17,15 @@ impl ProviderId {
             ProviderId::Other(value) => value.as_str(),
         }
     }
+
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "github" => ProviderId::GitHub,
+            "gitlab" => ProviderId::GitLab,
+            "bitbucket" => ProviderId::Bitbucket,
+            other => ProviderId::Other(other.to_string()),
+        }
+    }
 }
 
 impl fmt::Display for ProviderId {
@@ -32,6 +41,15 @@ pub struct VcsRepository {
     pub name: String,
     pub full_name: String,
     pub default_branch: String,
+    pub is_private: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProviderRepo {
+    pub id: String,
+    pub owner: String,
+    pub name: String,
+    pub visibility: String,
     pub is_private: bool,
 }
 

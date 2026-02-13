@@ -9,8 +9,8 @@ mod state;
 use std::sync::Arc;
 
 use config::commands::{
-    attach_repo_to_organization, create_organization, delete_organization, list_organization_repos,
-    list_organizations,
+    attach_repo_to_organization, create_organization, delete_organization, fetch_organization_repositories,
+    list_organization_repos, list_organizations, list_selected_repositories, save_selected_repositories,
 };
 use config::service::OrganizationService;
 use config::sqlite_repository::{SqliteOrganizationRepoRepository, SqliteOrganizationRepository};
@@ -46,7 +46,10 @@ pub fn run() {
             create_organization,
             delete_organization,
             attach_repo_to_organization,
-            list_organization_repos
+            list_organization_repos,
+            fetch_organization_repositories,
+            save_selected_repositories,
+            list_selected_repositories
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

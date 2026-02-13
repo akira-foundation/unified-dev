@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::config::models::{OrganizationConfig, OrganizationRepoSummary, OrganizationSummary};
+use crate::config::models::{OrganizationConfig, OrganizationRepoSummary, OrganizationSummary, SelectedRepositoryInput};
 use crate::config::repository::{OrganizationRepoRepository, OrganizationRepository};
 use crate::error::AppResult;
 
@@ -45,6 +45,17 @@ impl OrganizationRepository for SqliteOrganizationRepository {
         Ok(())
     }
 
+    async fn find_by_id(&self, organization_id: &str) -> AppResult<OrganizationConfig> {
+        let organization = sqlx::query_as::<_, OrganizationConfig>(
+            "SELECT id, name, provider_id, auth_json FROM organizations WHERE id = ?",
+        )
+        .bind(organization_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(organization)
+    }
+
     async fn list(&self) -> AppResult<Vec<OrganizationSummary>> {
         let organizations = sqlx::query_as::<_, OrganizationSummary>(
             "SELECT id, name, provider_id, created_at FROM organizations ORDER BY created_at DESC",
@@ -83,15 +94,21 @@ impl OrganizationRepoRepository for SqliteOrganizationRepoRepository {
         organization_id: &str,
         owner: &str,
         repo_name: &str,
+        visibility: &str,
+        is_selected: bool,
         auto_sync: bool,
+        created_at: &str,
     ) -> AppResult<OrganizationRepoSummary> {
         let result = sqlx::query(
-            "INSERT INTO organization_repos (organization_id, owner, repo_name, auto_sync) VALUES (?, ?, ?, ?)",
+            "INSERT INTO organization_repos (organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(organization_id)
         .bind(owner)
         .bind(repo_name)
+        .bind(visibility)
+        .bind(is_selected)
         .bind(auto_sync)
+        .bind(created_at)
         .execute(&self.pool)
         .await?;
 
@@ -100,18 +117,75 @@ impl OrganizationRepoRepository for SqliteOrganizationRepoRepository {
             organization_id: organization_id.to_string(),
             owner: owner.to_string(),
             repo_name: repo_name.to_string(),
+            visibility: visibility.to_string(),
+            is_selected,
             auto_sync,
+            created_at: created_at.to_string(),
         })
     }
 
     async fn list_by_org(&self, organization_id: &str) -> AppResult<Vec<OrganizationRepoSummary>> {
         let repos = sqlx::query_as::<_, OrganizationRepoSummary>(
-            "SELECT id, organization_id, owner, repo_name, auto_sync FROM organization_repos WHERE organization_id = ? ORDER BY repo_name",
+            "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at FROM organization_repos WHERE organization_id = ? ORDER BY repo_name",
         )
         .bind(organization_id)
         .fetch_all(&self.pool)
         .await?;
 
         Ok(repos)
+    }
+
+    async fn list_selected_by_org(&self, organization_id: &str) -> AppResult<Vec<OrganizationRepoSummary>> {
+        let repos = sqlx::query_as::<_, OrganizationRepoSummary>(
+            "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
+        )
+        .bind(organization_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(repos)
+    }
+
+    async fn list_sync_candidates(&self, organization_id: &str) -> AppResult<Vec<OrganizationRepoSummary>> {
+        let repos = sqlx::query_as::<_, OrganizationRepoSummary>(
+            "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 AND auto_sync = 1 ORDER BY repo_name",
+        )
+        .bind(organization_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(repos)
+    }
+
+    async fn replace_selected_repos(
+        &self,
+        organization_id: &str,
+        repos: &[SelectedRepositoryInput],
+        created_at: &str,
+    ) -> AppResult<()> {
+        let mut transaction = self.pool.begin().await?;
+
+        sqlx::query("DELETE FROM organization_repos WHERE organization_id = ?")
+            .bind(organization_id)
+            .execute(&mut *transaction)
+            .await?;
+
+        for repo in repos {
+            sqlx::query(
+                "INSERT INTO organization_repos (organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(organization_id)
+            .bind(&repo.owner)
+            .bind(&repo.repo_name)
+            .bind(&repo.visibility)
+            .bind(repo.is_selected)
+            .bind(repo.auto_sync.unwrap_or(true))
+            .bind(created_at)
+            .execute(&mut *transaction)
+            .await?;
+        }
+
+        transaction.commit().await?;
+        Ok(())
     }
 }

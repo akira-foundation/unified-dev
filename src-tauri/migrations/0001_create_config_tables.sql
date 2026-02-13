@@ -13,7 +13,10 @@ CREATE TABLE IF NOT EXISTS organization_repos (
   organization_id TEXT NOT NULL,
   owner TEXT NOT NULL,
   repo_name TEXT NOT NULL,
+  visibility TEXT NOT NULL,
+  is_selected INTEGER NOT NULL DEFAULT 0,
   auto_sync INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
   FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
 );
 

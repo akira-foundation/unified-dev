@@ -10,9 +10,9 @@ use crate::error::AppResult;
 pub fn default_registry() -> AppResult<ProviderRegistry> {
     let mut registry = ProviderRegistry::new();
 
-    registry.register(Arc::new(github::GitHubDriver::new()?));
-    registry.register(Arc::new(gitlab::GitLabDriver::new()));
-    registry.register(Arc::new(bitbucket::BitbucketDriver::new()));
+    registry.register(Arc::new(github::GitHubFactory::new()));
+    registry.register(Arc::new(gitlab::GitLabFactory::new()));
+    registry.register(Arc::new(bitbucket::BitbucketFactory::new()));
 
     Ok(registry)
 }

@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { organizationService } from "../services/organizationService";
+import { useNavigationStore } from "../stores/navigation-store";
 import type { OrganizationSummary } from "../types/organization";
 
 export function useOrganizations() {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { setCurrentPage, setActiveOrganizationId } = useNavigationStore();
 
   const loadOrganizations = useCallback(async () => {
     setIsLoading(true);
@@ -22,10 +24,15 @@ export function useOrganizations() {
     loadOrganizations();
   }, [loadOrganizations]);
 
-  const createOrganization = useCallback(async (input: { name: string; token: string }) => {
-    const created = await organizationService.createOrganization(input);
-    setOrganizations((prev) => [created, ...prev]);
-  }, []);
+  const createOrganization = useCallback(
+    async (input: { name: string; token: string }) => {
+      const created = await organizationService.createOrganization(input);
+      setOrganizations((prev) => [created, ...prev]);
+      setActiveOrganizationId(created.id);
+      setCurrentPage("organization-repos");
+    },
+    [setActiveOrganizationId, setCurrentPage],
+  );
 
   const removeOrganization = useCallback(async (organizationId: string) => {
     await organizationService.deleteOrganization(organizationId);
