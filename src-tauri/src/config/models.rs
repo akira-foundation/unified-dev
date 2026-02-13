@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::core::provider::types::ProviderAuth;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub organizations: Vec<OrganizationConfig>,
@@ -9,13 +11,15 @@ pub struct AppConfig {
 pub struct OrganizationConfig {
     pub id: String,
     pub name: String,
-    pub token: String,
+    pub provider_id: String,
+    pub auth_json: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct OrganizationSummary {
     pub id: String,
     pub name: String,
+    pub provider_id: String,
     pub created_at: String,
 }
 
@@ -31,7 +35,8 @@ pub struct OrganizationRepoSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrganizationInput {
     pub name: String,
-    pub token: String,
+    pub provider_id: String,
+    pub auth: ProviderAuth,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

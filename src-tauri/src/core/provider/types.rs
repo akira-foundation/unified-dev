@@ -54,3 +54,9 @@ pub enum PullRequestState {
     Open,
     Closed,
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "auth_type", content = "auth_payload")]
+pub enum ProviderAuth {
+    Pat { token: String },
+}

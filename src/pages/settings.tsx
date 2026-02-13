@@ -112,7 +112,7 @@ export function SettingsPage() {
         </div>
       </PageHeader>
 
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="mx-auto w-full">
 
         {toastMessage && (
           <div className="animate-fade-in-up fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-6 py-4 font-medium text-black shadow-2xl">

@@ -19,11 +19,12 @@ impl SqliteOrganizationRepository {
 impl OrganizationRepository for SqliteOrganizationRepository {
     async fn create(&self, organization: &OrganizationConfig, created_at: &str) -> AppResult<OrganizationSummary> {
         sqlx::query(
-            "INSERT INTO organizations (id, name, token, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO organizations (id, name, provider_id, auth_json, created_at) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(&organization.id)
         .bind(&organization.name)
-        .bind(&organization.token)
+        .bind(&organization.provider_id)
+        .bind(&organization.auth_json)
         .bind(created_at)
         .execute(&self.pool)
         .await?;
@@ -31,6 +32,7 @@ impl OrganizationRepository for SqliteOrganizationRepository {
         Ok(OrganizationSummary {
             id: organization.id.clone(),
             name: organization.name.clone(),
+            provider_id: organization.provider_id.clone(),
             created_at: created_at.to_string(),
         })
     }
@@ -45,7 +47,7 @@ impl OrganizationRepository for SqliteOrganizationRepository {
 
     async fn list(&self) -> AppResult<Vec<OrganizationSummary>> {
         let organizations = sqlx::query_as::<_, OrganizationSummary>(
-            "SELECT id, name, created_at FROM organizations ORDER BY created_at DESC",
+            "SELECT id, name, provider_id, created_at FROM organizations ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -55,7 +57,7 @@ impl OrganizationRepository for SqliteOrganizationRepository {
 
     async fn list_with_tokens(&self) -> AppResult<Vec<OrganizationConfig>> {
         let organizations = sqlx::query_as::<_, OrganizationConfig>(
-            "SELECT id, name, token FROM organizations ORDER BY created_at DESC",
+            "SELECT id, name, provider_id, auth_json FROM organizations ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
         .await?;

@@ -3,7 +3,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS organizations (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  token TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  auth_json TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
 

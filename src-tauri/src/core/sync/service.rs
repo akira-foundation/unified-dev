@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::core::provider::registry::ProviderRegistry;
-use crate::core::provider::types::{ProviderId, VcsPullRequest, VcsRepository};
+use crate::core::provider::types::{ProviderAuth, ProviderId, VcsPullRequest, VcsRepository};
 use crate::error::AppResult;
 
 #[derive(Clone)]
@@ -18,10 +18,10 @@ impl VcsSyncService {
         &self,
         provider_id: ProviderId,
         organization: &str,
-        token: &str,
+        auth: &ProviderAuth,
     ) -> AppResult<Vec<VcsRepository>> {
         let provider = self.registry.get(&provider_id)?;
-        provider.list_repositories(organization, token).await
+        provider.list_repositories(organization, auth).await
     }
 
     pub async fn sync_pull_requests(
@@ -29,11 +29,11 @@ impl VcsSyncService {
         provider_id: ProviderId,
         owner: &str,
         repository: &str,
-        token: &str,
+        auth: &ProviderAuth,
     ) -> AppResult<Vec<VcsPullRequest>> {
         let provider = self.registry.get(&provider_id)?;
         provider
-            .list_pull_requests(owner, repository, token)
+            .list_pull_requests(owner, repository, auth)
             .await
     }
 }

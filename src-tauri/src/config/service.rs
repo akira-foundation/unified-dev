@@ -8,6 +8,7 @@ use crate::config::models::{
     AppConfig, AttachRepoInput, CreateOrganizationInput, OrganizationConfig, OrganizationRepoSummary,
     OrganizationSummary,
 };
+use crate::core::provider::types::ProviderAuth;
 use crate::config::repository::{OrganizationRepoRepository, OrganizationRepository};
 use crate::error::AppResult;
 use crate::security::TokenCipher;
@@ -34,12 +35,13 @@ impl OrganizationService {
     pub async fn create_organization(&self, input: CreateOrganizationInput) -> AppResult<OrganizationSummary> {
         let id = Uuid::new_v4().to_string();
         let created_at = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
-        let encrypted = self.cipher.encrypt(&input.token)?;
+        let auth_json = self.encrypt_auth(input.auth)?;
 
         let organization = OrganizationConfig {
             id,
             name: input.name,
-            token: encrypted,
+            provider_id: input.provider_id,
+            auth_json,
         };
 
         self.organizations.create(&organization, &created_at).await
@@ -66,10 +68,16 @@ impl OrganizationService {
 
     pub async fn app_config(&self) -> AppResult<AppConfig> {
         let mut organizations = self.organizations.list_with_tokens().await?;
-        for organization in &mut organizations {
-            organization.token = self.cipher.decrypt(&organization.token)?;
-        }
-
         Ok(AppConfig { organizations })
+    }
+
+    fn encrypt_auth(&self, auth: ProviderAuth) -> AppResult<String> {
+        let encrypted_auth = match auth {
+            ProviderAuth::Pat { token } => ProviderAuth::Pat {
+                token: self.cipher.encrypt(&token)?,
+            },
+        };
+
+        Ok(serde_json::to_string(&encrypted_auth)?)
     }
 }

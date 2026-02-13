@@ -16,6 +16,8 @@ pub enum AppError {
     Keyring(#[from] keyring::Error),
     #[error("decode error: {0}")]
     Decode(#[from] base64::DecodeError),
+    #[error("json error: {0}")]
+    Json(#[from] serde_json::Error),
     #[error("http error: {0}")]
     Http(#[from] reqwest::Error),
     #[error("provider error: {0}")]

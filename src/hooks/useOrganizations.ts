@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { organizationService } from "../services/organizationService";
-import type { CreateOrganizationInput, OrganizationSummary } from "../types/organization";
+import type { OrganizationSummary } from "../types/organization";
 
 export function useOrganizations() {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
@@ -22,7 +22,7 @@ export function useOrganizations() {
     loadOrganizations();
   }, [loadOrganizations]);
 
-  const createOrganization = useCallback(async (input: CreateOrganizationInput) => {
+  const createOrganization = useCallback(async (input: { name: string; token: string }) => {
     const created = await organizationService.createOrganization(input);
     setOrganizations((prev) => [created, ...prev]);
   }, []);

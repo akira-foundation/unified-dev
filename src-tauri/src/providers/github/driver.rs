@@ -3,7 +3,7 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
 use crate::core::provider::traits::VcsProvider;
-use crate::core::provider::types::{ProviderId, PullRequestState, VcsPullRequest, VcsRepository};
+use crate::core::provider::types::{ProviderAuth, ProviderId, PullRequestState, VcsPullRequest, VcsRepository};
 use crate::error::{AppError, AppResult};
 
 const GITHUB_API: &str = "https://api.github.com";
@@ -74,7 +74,8 @@ impl VcsProvider for GitHubDriver {
         "GitHub"
     }
 
-    async fn list_repositories(&self, organization: &str, token: &str) -> AppResult<Vec<VcsRepository>> {
+    async fn list_repositories(&self, organization: &str, auth: &ProviderAuth) -> AppResult<Vec<VcsRepository>> {
+        let token = auth_token(auth)?;
         let url = format!("{GITHUB_API}/orgs/{organization}/repos?type=all");
         let repositories: Vec<GitHubRepo> = self.fetch_paginated(url, token).await?;
 
@@ -95,8 +96,9 @@ impl VcsProvider for GitHubDriver {
         &self,
         owner: &str,
         repository: &str,
-        token: &str,
+        auth: &ProviderAuth,
     ) -> AppResult<Vec<VcsPullRequest>> {
+        let token = auth_token(auth)?;
         let url = format!(
             "{GITHUB_API}/repos/{owner}/{repository}/pulls?state=all"
         );
@@ -120,6 +122,12 @@ impl VcsProvider for GitHubDriver {
                 merged_at: pr.merged_at,
             })
             .collect())
+    }
+}
+
+fn auth_token(auth: &ProviderAuth) -> AppResult<&str> {
+    match auth {
+        ProviderAuth::Pat { token } => Ok(token.as_str()),
     }
 }
 
