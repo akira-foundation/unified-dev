@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { useSettingsStore } from "@/stores/settings-store";
+
 export type Appearance = "light" | "dark" | "system";
 
 const prefersDark = () => {
@@ -40,28 +42,32 @@ const handleSystemThemeChange = () => {
 };
 
 export function initializeTheme() {
-  const savedAppearance = (localStorage.getItem("appearance") as Appearance) || "system";
+  const savedAppearance = useSettingsStore.getState().appearance;
 
-  applyTheme(savedAppearance);
+  applyTheme(savedAppearance || "system");
   mediaQuery()?.addEventListener("change", handleSystemThemeChange);
 }
 
 export function useAppearance() {
-  const [appearance, setAppearance] = useState<Appearance>("system");
+  const storedAppearance = useSettingsStore((state) => state.appearance);
+  const setStoredAppearance = useSettingsStore((state) => state.setAppearance);
+  const [appearance, setAppearance] = useState<Appearance>(storedAppearance ?? "system");
 
-  const updateAppearance = useCallback((mode: Appearance) => {
-    setAppearance(mode);
-    localStorage.setItem("appearance", mode);
-    setCookie("appearance", mode);
-    applyTheme(mode);
-  }, []);
+  const updateAppearance = useCallback(
+    (mode: Appearance) => {
+      setAppearance(mode);
+      setStoredAppearance(mode);
+      setCookie("appearance", mode);
+      applyTheme(mode);
+    },
+    [setStoredAppearance],
+  );
 
   useEffect(() => {
-    const savedAppearance = localStorage.getItem("appearance") as Appearance | null;
-    updateAppearance(savedAppearance || "system");
+    updateAppearance(storedAppearance || "system");
 
     return () => mediaQuery()?.removeEventListener("change", handleSystemThemeChange);
-  }, [updateAppearance]);
+  }, [updateAppearance, storedAppearance]);
 
   return { appearance, updateAppearance } as const;
 }

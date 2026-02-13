@@ -15,10 +15,13 @@ import {
 
 import AppearanceTabs from "@/components/appearance-tabs";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import UpgradeModal from "@/components/upgrade-modal";
+import { useI18n } from "@/i18n/i18n";
 
 export function SettingsPage() {
+  const { t, locale, setLocale } = useI18n();
   const dailyUsage = 0;
   const dailyLimit = 20;
 
@@ -37,7 +40,7 @@ export function SettingsPage() {
   };
 
   const handleClearSaved = () => {
-    if (window.confirm("Tem a certeza? Isto apagará todas as leis, minutas e briefings guardados.")) {
+    if (window.confirm("Tem a certeza? Isto apagará todos os itens guardados.")) {
       localStorage.removeItem("noxdireit_saved_laws");
       localStorage.removeItem("noxdireit_saved_drafts");
       localStorage.removeItem("noxdireit_saved_meetings");
@@ -161,19 +164,25 @@ export function SettingsPage() {
         />
       </SettingsSection>
 
-      <SettingsSection title="Geral" icon={Smartphone} colorClass="text-purple-500">
+      <SettingsSection title={t("settings.section.general")} icon={Smartphone} colorClass="text-purple-500">
         <SettingsItem
-          label="Idioma"
-          description="Português (Cabo Verde)"
+          label={t("settings.general.language")}
+          description={t("settings.general.languageValue")}
           action={
-            <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-              <Globe size={12} /> PT-CV
-            </div>
+            <Select value={locale} onValueChange={(value) => setLocale(value as any)}>
+              <SelectTrigger className="h-8 rounded-full border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">{t("settings.general.languageEnglish")}</SelectItem>
+                <SelectItem value="pt-PT">{t("settings.general.languagePortuguese")}</SelectItem>
+              </SelectContent>
+            </Select>
           }
         />
         <SettingsItem
-          label="Aparência"
-          description="Alternar entre tema claro, escuro ou sistema."
+          label={t("settings.general.appearance")}
+          description={t("settings.general.appearanceDesc")}
           action={<AppearanceTabs />}
         />
       </SettingsSection>
@@ -193,7 +202,7 @@ export function SettingsPage() {
         />
         <SettingsItem
           label="Limpar Itens Guardados"
-          description="Apaga leis, minutas e briefings da memória local."
+          description="Apaga itens guardados da memória local."
           action={
             <button
               onClick={handleClearSaved}
@@ -254,7 +263,7 @@ export function SettingsPage() {
             </div>
             <h3 className="mb-2 text-center text-xl font-bold text-zinc-900 dark:text-white">Apagar tudo?</h3>
             <p className="mb-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              Esta ação é irreversível. Todos os seus dados locais (histórico, leis guardadas, minutas) serão eliminados.
+              Esta ação é irreversível. Todos os seus dados locais serão eliminados.
             </p>
             <div className="flex gap-3">
               <button

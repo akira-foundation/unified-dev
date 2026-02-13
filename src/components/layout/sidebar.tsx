@@ -13,6 +13,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import type { NavItem } from "@/types/navigation";
+import { useI18n } from "@/i18n/i18n";
 
 interface AppSidebarProps {
   items: NavItem[];
@@ -21,6 +22,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
+  const { t } = useI18n();
   const { state } = useSidebar();
   const dashboardItem = items.find((item) => item.id === "dashboard");
   const repositoryItem = items.find((item) => item.id === "repository");
@@ -50,8 +52,8 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                       AM
                     </div>
                     <div className="flex flex-col text-left">
-                      <span className="text-sm font-semibold text-zinc-900 dark:text-white">Unified Dev</span>
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Workspace</span>
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-white">{t("app.name")}</span>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400">{t("app.workspace")}</span>
                     </div>
                   </div>
                   <SidebarTrigger className="h-7 w-7 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100" />
@@ -65,7 +67,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
-            Principal
+            {t("nav.section.primary")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -82,7 +84,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     size="default"
                   >
                     {dashboardItem.icon}
-                    <span>{dashboardItem.label}</span>
+                    <span>{t("nav.dashboard")}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -92,7 +94,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
-            Repositories
+            {t("nav.section.repositories")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -109,7 +111,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     size="default"
                   >
                     {repositoryItem.icon}
-                    <span>{repositoryItem.label}</span>
+                    <span>{t("nav.repositories")}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -119,7 +121,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
-            Settings
+            {t("nav.section.settings")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -136,7 +138,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     size="default"
                   >
                     {settingsItem.icon}
-                    <span>{settingsItem.label}</span>
+                    <span>{t("nav.settings")}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -153,7 +155,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     size="default"
                   >
                     {organizationsItem.icon}
-                    <span>{organizationsItem.label}</span>
+                    <span>{t("nav.organizations")}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}

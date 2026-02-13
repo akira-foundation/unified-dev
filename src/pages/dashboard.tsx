@@ -9,15 +9,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KanbanBoard } from "@/components/kanban-board";
 import { AgendaView } from "@/components/agenda-view";
 import { TeamView } from "@/components/team-view";
+import { useI18n } from "@/i18n/i18n";
 
 export function DashboardPage() {
+  const { t } = useI18n();
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-1 flex-col space-y-8 overflow-hidden p-4 pt-6 md:p-8">
       <div className="flex shrink-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-3xl font-semibold tracking-tight text-foreground">Visao Geral</h2>
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground">{t("dashboard.header.title")}</h2>
           <div className="mt-1 flex items-center text-sm text-muted-foreground">
-            <span>Unified Dev</span>
+            <span>{t("app.name")}</span>
             <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
             <span className="text-zinc-500">Domingo, 14 Dez</span>
           </div>
@@ -25,7 +27,7 @@ export function DashboardPage() {
         <div className="flex items-center gap-3">
           <IconButton icon={Bell} className="h-10 w-10 text-zinc-500" />
           <ActionButton>
-            <Plus className="mr-2 h-4 w-4" /> Nova Organizacao
+            <Plus className="mr-2 h-4 w-4" /> {t("dashboard.header.newOrg")}
           </ActionButton>
         </div>
       </div>
@@ -34,13 +36,18 @@ export function DashboardPage() {
         <Tabs defaultValue="overview" className="flex h-full w-full flex-col">
           <div className="-mx-4 flex shrink-0 overflow-auto px-4 pb-4 md:mx-0 md:px-0">
             <TabsList className="h-auto gap-2 bg-transparent p-0">
-              {["Overview", "PRs", "Syncs", "Equipa"].map((tab) => (
+              {[
+                { key: "overview", label: t("dashboard.tabs.overview") },
+                { key: "prs", label: t("dashboard.tabs.prs") },
+                { key: "syncs", label: t("dashboard.tabs.syncs") },
+                { key: "team", label: t("dashboard.tabs.team") },
+              ].map((tab) => (
                 <TabsTrigger
-                  key={tab}
-                  value={tab.toLowerCase()}
+                  key={tab.key}
+                  value={tab.key}
                   className="rounded-full border border-transparent px-5 py-2 text-sm font-medium text-muted-foreground transition-all hover:text-foreground data-[state=active]:border-zinc-200 data-[state=active]:bg-white data-[state=active]:text-foreground data-[state=active]:shadow-sm dark:data-[state=active]:border-zinc-700 dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-white"
                 >
-                  {tab}
+                  {tab.label}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -50,10 +57,10 @@ export function DashboardPage() {
             <TabsContent value="overview" className="mt-0 h-full space-y-8 overflow-auto pr-2 pb-10">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {[
-                  { label: "Organizacoes", value: "3", trend: "+1", icon: Search, color: "text-blue-500" },
-                  { label: "Repos", value: "18", trend: "+2", icon: FileText, color: "text-indigo-500" },
-                  { label: "Syncs Ativos", value: "12", trend: "2 online", icon: Activity, color: "text-emerald-500" },
-                  { label: "Issues", value: "85", trend: "+5%", icon: FileText, color: "text-purple-500" },
+                  { label: t("dashboard.stats.organizations"), value: "3", trend: "+1", icon: Search, color: "text-blue-500" },
+                  { label: t("dashboard.stats.repos"), value: "18", trend: "+2", icon: FileText, color: "text-indigo-500" },
+                  { label: t("dashboard.stats.syncs"), value: "12", trend: "2 online", icon: Activity, color: "text-emerald-500" },
+                  { label: t("dashboard.stats.issues"), value: "85", trend: "+5%", icon: FileText, color: "text-purple-500" },
                 ].map((stat) => (
                   <Card key={stat.label} className="flex flex-col justify-between p-6">
                     <div className="flex items-start justify-between">
@@ -77,7 +84,7 @@ export function DashboardPage() {
               <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
                 <div className="space-y-6 lg:col-span-2">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-foreground">Atividade Recente</h3>
+                    <h3 className="text-lg font-semibold text-foreground">{t("dashboard.activity.title")}</h3>
                     <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                       Ver tudo
                     </Button>
@@ -108,12 +115,12 @@ export function DashboardPage() {
                 </div>
 
                 <div className="space-y-6">
-                  <h3 className="text-lg font-semibold text-foreground">Acesso Rapido</h3>
+                  <h3 className="text-lg font-semibold text-foreground">{t("dashboard.quick.title")}</h3>
                   <div className="grid gap-4">
                     {[
-                      { label: "Nova Org", icon: Plus, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20" },
-                      { label: "Importar", icon: Search, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-                      { label: "Novo Repo", icon: Plus, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20" },
+                      { label: t("dashboard.quick.newOrg"), icon: Plus, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20" },
+                      { label: t("dashboard.quick.import"), icon: Search, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+                      { label: t("dashboard.quick.newRepo"), icon: Plus, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20" },
                     ].map((action) => (
                       <button
                         key={action.label}
@@ -138,7 +145,7 @@ export function DashboardPage() {
               <AgendaView />
             </TabsContent>
 
-            <TabsContent value="equipa" className="mt-0 h-full overflow-auto pr-2 pb-10">
+            <TabsContent value="team" className="mt-0 h-full overflow-auto pr-2 pb-10">
               <TeamView />
             </TabsContent>
 

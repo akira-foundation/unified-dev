@@ -1,28 +1,31 @@
 import { useState } from "react";
 import { Building2, Check, Crown, Shield, X, Zap } from "lucide-react";
 
+import { useI18n } from "@/i18n/i18n";
+
 interface UpgradeModalProps {
   onClose: () => void;
 }
 
 export default function UpgradeModal({ onClose }: UpgradeModalProps) {
+  const { t } = useI18n();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
   const plans = {
     plus: {
-      price: billingCycle === "monthly" ? "990" : "9.900",
+      price: billingCycle === "monthly" ? "9" : "90",
       period: billingCycle === "monthly" ? "/mês" : "/ano",
-      description: "Essencial para estudantes e pesquisa básica.",
+      description: "Essencial para equipas pequenas e setups simples.",
     },
     pro: {
-      price: billingCycle === "monthly" ? "1.990" : "19.900",
+      price: billingCycle === "monthly" ? "19" : "190",
       period: billingCycle === "monthly" ? "/mês" : "/ano",
-      description: "Para advogados e prática jurídica avançada.",
+      description: "Para equipas com workflows de PR e sync avançados.",
     },
     enterprise: {
       price: "Sob Consulta",
       period: "",
-      description: "Para escritórios, departamentos e grandes equipas.",
+      description: "Para organizações com governança e compliance dedicados.",
     },
   };
 
@@ -43,13 +46,13 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
                 Planos Premium
               </span>
               <h2 className="text-3xl font-bold text-white mb-4 leading-tight">
-                Eleve a sua <br />
+                Eleve o seu <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                  Prática Jurídica
+                  Workflow de PRs
                 </span>
               </h2>
               <p className="text-gray-400 leading-relaxed text-sm">
-                Desbloqueie ferramentas de IA avançadas, análise de impacto e auditoria jurídica para trabalhar com mais rapidez e segurança.
+                Desbloqueie automação de PRs, inteligência de sync e governança técnica para trabalhar com mais rapidez e segurança.
               </p>
             </div>
 
@@ -95,13 +98,13 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-bold text-white">{plans.plus.price}</span>
-                    <span className="text-xs font-bold text-gray-500">CVE</span>
+                    <span className="text-xs font-bold text-gray-500">{t("currency.eur")}</span>
                     <span className="text-[10px] text-gray-500">{plans.plus.period}</span>
                   </div>
                 </div>
 
                 <ul className="space-y-3 mb-8 flex-1">
-                  {["20 pesquisas/dia", "Notas Pessoais (Limitadas)", "Sugestões de Próxima Ação", "5 Leis offline"].map((item) => (
+                  {["20 PRs/dia", "Sync básico por organização", "Sugestões de próxima ação", "Relatórios essenciais"].map((item) => (
                     <li key={item} className="flex items-start gap-2 text-xs text-gray-400">
                       <Check size={14} className="text-gray-600 mt-0.5 flex-shrink-0" />
                       <span>{item}</span>
@@ -133,7 +136,7 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
                 <div className="mb-6">
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-bold text-white">{plans.pro.price}</span>
-                    <span className="text-xs font-bold text-amber-500">CVE</span>
+                    <span className="text-xs font-bold text-amber-500">{t("currency.eur")}</span>
                     <span className="text-[10px] text-gray-500">{plans.pro.period}</span>
                   </div>
                 </div>
@@ -141,13 +144,13 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
                 <ul className="space-y-3 mb-8 flex-1">
                   {
                     [
-                      { text: "50 pesquisas/dia", highlight: false },
-                      { text: "Análise de Impacto Legal", highlight: true },
-                      { text: "Gerador de Minutas", highlight: true },
-                      { text: "Preparar Reunião", highlight: true },
-                      { text: "Auditoria de Coerência", highlight: true },
-                      { text: "Modo Checklist de Caso", highlight: false },
-                      { text: "Notas Pessoais Ilimitadas", highlight: false },
+                      { text: "PRs ilimitados", highlight: false },
+                      { text: "Auto-merge com regras", highlight: true },
+                      { text: "Checks e gates avançados", highlight: true },
+                      { text: "Insights de performance", highlight: true },
+                      { text: "Governança por equipa", highlight: true },
+                      { text: "Queues de merge", highlight: false },
+                      { text: "Notificações inteligentes", highlight: false },
                     ].map((item) => (
                       <li
                         key={item.text}
@@ -189,12 +192,12 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
                 <ul className="space-y-3 mb-8 flex-1">
                   {
                     [
-                      "Multi-utilizador & Equipas",
-                      "Base de Conhecimento Interna",
-                      "Templates Partilhados",
-                      "Logs de Auditoria & Compliance",
-                      "Suporte Prioritário",
-                      "Limites Personalizados",
+                      "SSO & SCIM",
+                      "Logs de auditoria",
+                      "Políticas de merge por org",
+                      "SLAs e suporte prioritário",
+                      "Registos de compliance",
+                      "Limites personalizados",
                     ].map((item) => (
                       <li key={item} className="flex items-start gap-2 text-xs text-gray-400">
                         <Check size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
