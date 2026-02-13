@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::core::provider::traits::{VcsProvider, VcsProviderFactory};
-use crate::core::provider::types::{ProviderAuth, ProviderId, ProviderRepo, VcsPullRequest};
+use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderRepo, VcsPullRequest};
 use crate::error::{AppError, AppResult};
 
 pub struct BitbucketDriver;
@@ -20,9 +20,9 @@ impl BitbucketFactory {
     }
 }
 
-impl VcsProviderFactory for BitbucketFactory {
-    fn id(&self) -> ProviderId {
-        ProviderId::Bitbucket
+impl ProviderDriverFactory for BitbucketFactory {
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::Bitbucket
     }
 
     fn name(&self) -> &str {
@@ -36,8 +36,8 @@ impl VcsProviderFactory for BitbucketFactory {
 
 #[async_trait]
 impl VcsProvider for BitbucketDriver {
-    fn id(&self) -> ProviderId {
-        ProviderId::Bitbucket
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::Bitbucket
     }
 
     fn name(&self) -> &str {

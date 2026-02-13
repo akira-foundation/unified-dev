@@ -5,18 +5,9 @@ export interface OrganizationSummary {
   created_at: string;
 }
 
-export type ProviderAuth =
-  | {
-      auth_type: "pat";
-      auth_payload: {
-        token: string;
-      };
-    };
-
 export interface CreateOrganizationInput {
   name: string;
   provider_id: string;
-  auth: ProviderAuth;
 }
 
 export interface OrganizationRepoSummary {

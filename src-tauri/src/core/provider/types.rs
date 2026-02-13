@@ -1,34 +1,34 @@
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum ProviderId {
+pub enum ProviderKind {
     GitHub,
     GitLab,
     Bitbucket,
     Other(String),
 }
 
-impl ProviderId {
+impl ProviderKind {
     pub fn as_str(&self) -> &str {
         match self {
-            ProviderId::GitHub => "github",
-            ProviderId::GitLab => "gitlab",
-            ProviderId::Bitbucket => "bitbucket",
-            ProviderId::Other(value) => value.as_str(),
+            ProviderKind::GitHub => "github",
+            ProviderKind::GitLab => "gitlab",
+            ProviderKind::Bitbucket => "bitbucket",
+            ProviderKind::Other(value) => value.as_str(),
         }
     }
 
     pub fn from_str(value: &str) -> Self {
         match value {
-            "github" => ProviderId::GitHub,
-            "gitlab" => ProviderId::GitLab,
-            "bitbucket" => ProviderId::Bitbucket,
-            other => ProviderId::Other(other.to_string()),
+            "github" => ProviderKind::GitHub,
+            "gitlab" => ProviderKind::GitLab,
+            "bitbucket" => ProviderKind::Bitbucket,
+            other => ProviderKind::Other(other.to_string()),
         }
     }
 }
 
-impl fmt::Display for ProviderId {
+impl fmt::Display for ProviderKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(self.as_str())
     }
@@ -76,5 +76,6 @@ pub enum PullRequestState {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "auth_type", content = "auth_payload")]
 pub enum ProviderAuth {
-    Pat { token: String },
+    #[serde(rename = "pat")]
+    PersonalAccessToken { token: String },
 }

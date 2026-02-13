@@ -25,11 +25,11 @@ export function useOrganizations() {
   }, [loadOrganizations]);
 
   const createOrganization = useCallback(
-    async (input: { name: string; token: string }) => {
+    async (input: { name: string; provider_id: string }) => {
       const created = await organizationService.createOrganization(input);
       setOrganizations((prev) => [created, ...prev]);
       setActiveOrganizationId(created.id);
-      setCurrentPage("organization-repos");
+      setCurrentPage("organization");
     },
     [setActiveOrganizationId, setCurrentPage],
   );

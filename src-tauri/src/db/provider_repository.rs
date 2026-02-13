@@ -1,0 +1,86 @@
+use async_trait::async_trait;
+use sqlx::SqlitePool;
+
+use crate::db::models::{ProviderRecord, ProviderSummary};
+use crate::error::AppResult;
+
+#[async_trait]
+pub trait ProviderRepository: Send + Sync {
+    async fn create(&self, provider: &ProviderRecord) -> AppResult<ProviderSummary>;
+    async fn delete(&self, provider_id: &str) -> AppResult<()>;
+    async fn list(&self) -> AppResult<Vec<ProviderSummary>>;
+    async fn find_by_id(&self, provider_id: &str) -> AppResult<ProviderRecord>;
+    async fn exists(&self, provider_id: &str) -> AppResult<bool>;
+}
+
+pub struct SqliteProviderRepository {
+    pool: SqlitePool,
+}
+
+impl SqliteProviderRepository {
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+}
+
+#[async_trait]
+impl ProviderRepository for SqliteProviderRepository {
+    async fn create(&self, provider: &ProviderRecord) -> AppResult<ProviderSummary> {
+        sqlx::query(
+            "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&provider.id)
+        .bind(&provider.name)
+        .bind(&provider.kind)
+        .bind(&provider.auth_type)
+        .bind(&provider.auth_payload)
+        .bind(&provider.created_at)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(ProviderSummary {
+            id: provider.id.clone(),
+            name: provider.name.clone(),
+            kind: provider.kind.clone(),
+            created_at: provider.created_at.clone(),
+        })
+    }
+
+    async fn delete(&self, provider_id: &str) -> AppResult<()> {
+        sqlx::query("DELETE FROM providers WHERE id = ?")
+            .bind(provider_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn list(&self) -> AppResult<Vec<ProviderSummary>> {
+        let providers = sqlx::query_as::<_, ProviderSummary>(
+            "SELECT id, name, kind, created_at FROM providers ORDER BY created_at DESC",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(providers)
+    }
+
+    async fn find_by_id(&self, provider_id: &str) -> AppResult<ProviderRecord> {
+        let provider = sqlx::query_as::<_, ProviderRecord>(
+            "SELECT id, name, kind, auth_type, auth_payload, created_at FROM providers WHERE id = ?",
+        )
+        .bind(provider_id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(provider)
+    }
+
+    async fn exists(&self, provider_id: &str) -> AppResult<bool> {
+        let exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM providers WHERE id = ?")
+            .bind(provider_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(exists > 0)
+    }
+}

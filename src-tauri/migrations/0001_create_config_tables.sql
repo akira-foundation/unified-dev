@@ -1,11 +1,20 @@
 PRAGMA foreign_keys = ON;
 
+CREATE TABLE IF NOT EXISTS providers (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  auth_type TEXT NOT NULL,
+  auth_payload TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS organizations (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   provider_id TEXT NOT NULL,
-  auth_json TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS organization_repos (

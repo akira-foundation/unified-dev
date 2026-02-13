@@ -18,6 +18,9 @@ import {
 import type { NavItem } from "@/types/navigation";
 import { useI18n } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
+import { useProviderHierarchy } from "@/hooks/useProviderHierarchy";
+import { useNavigation } from "@/hooks/useNavigation";
+import { SidebarProviderSection } from "@/components/layout/sidebar-provider-section";
 
 interface AppSidebarProps {
   items: NavItem[];
@@ -28,10 +31,12 @@ interface AppSidebarProps {
 export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const { t } = useI18n();
   const { state, toggleSidebar } = useSidebar();
+  const { providersWithOrganizations } = useProviderHierarchy();
+  const { activeOrganizationId, setActiveOrganizationId, setCurrentPage } = useNavigation("dashboard");
 
   const dashboardItem = items.find((item) => item.id === "dashboard");
   const repositoryItem = items.find((item) => item.id === "repository");
-  const organizationsItem = items.find((item) => item.id === "organizations");
+  const providersItem = items.find((item) => item.id === "providers");
   const settingsItem = items.find((item) => item.id === "settings");
 
   return (
@@ -82,7 +87,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5 px-3 group-data-[collapsible=icon]:px-0">
-              {[dashboardItem, repositoryItem, organizationsItem].filter(Boolean).map((item) => (
+              {[dashboardItem, repositoryItem, providersItem].filter(Boolean).map((item) => (
                 <SidebarMenuItem key={item!.id} className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                   <SidebarMenuButton
                     isActive={activeId === item!.id}
@@ -107,6 +112,28 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup className="mt-8">
+          <SidebarGroupLabel className="px-5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mb-4 group-data-[collapsible=icon]:hidden">
+            Providers
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="px-3 group-data-[collapsible=icon]:hidden">
+            <div className="flex flex-col gap-3">
+              {providersWithOrganizations.map((provider) => (
+                <SidebarProviderSection
+                  key={provider.id}
+                  provider={provider}
+                  organizations={provider.organizations}
+                  activeOrganizationId={activeOrganizationId}
+                  onSelectOrganization={(organizationId) => {
+                    setActiveOrganizationId(organizationId);
+                    setCurrentPage("organization");
+                  }}
+                />
+              ))}
+            </div>
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -159,4 +186,3 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     </Sidebar>
   );
 }
-

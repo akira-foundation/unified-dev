@@ -6,6 +6,10 @@ use tauri::Manager;
 
 use crate::error::AppResult;
 
+pub mod models;
+pub mod organization_repository;
+pub mod provider_repository;
+
 fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&app_dir)?;

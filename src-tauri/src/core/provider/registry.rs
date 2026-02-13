@@ -1,37 +1,37 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::core::provider::traits::{VcsProvider, VcsProviderFactory};
-use crate::core::provider::types::{ProviderAuth, ProviderId};
+use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
+use crate::core::provider::types::{ProviderAuth, ProviderKind};
 use crate::error::{AppError, AppResult};
 
 #[derive(Clone, Default)]
-pub struct ProviderRegistry {
-    factories: HashMap<ProviderId, Arc<dyn VcsProviderFactory>>,
+pub struct ProviderFactory {
+    factories: HashMap<ProviderKind, Arc<dyn ProviderDriverFactory>>,
 }
 
-impl ProviderRegistry {
+impl ProviderFactory {
     pub fn new() -> Self {
         Self {
             factories: HashMap::new(),
         }
     }
 
-    pub fn register(&mut self, factory: Arc<dyn VcsProviderFactory>) {
-        self.factories.insert(factory.id(), factory);
+    pub fn register(&mut self, factory: Arc<dyn ProviderDriverFactory>) {
+        self.factories.insert(factory.kind(), factory);
     }
 
-    pub fn create(&self, provider_id: &ProviderId, auth: ProviderAuth) -> AppResult<Arc<dyn VcsProvider>> {
+    pub fn create(&self, provider_kind: &ProviderKind, auth: ProviderAuth) -> AppResult<Arc<dyn VcsProvider>> {
         let factory = self
             .factories
-            .get(provider_id)
+            .get(provider_kind)
             .cloned()
-            .ok_or_else(|| AppError::Provider(format!("provider not found: {provider_id}")))?;
+            .ok_or_else(|| AppError::Provider(format!("provider not found: {provider_kind}")))?;
 
         factory.create(auth)
     }
 
-    pub fn list(&self) -> Vec<ProviderId> {
+    pub fn list(&self) -> Vec<ProviderKind> {
         self.factories.keys().cloned().collect()
     }
 }

@@ -12,13 +12,15 @@ import { PageLayout } from "../components/layout/page-layout";
 import { NotificationButton } from "../components/layout/notification-button";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
-import {Button} from "@/components/ui/button.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { useProviders } from "../hooks/useProviders";
 
 export function OrganizationsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
   const { organizations, isLoading, isDialogOpen, setIsDialogOpen, createOrganization, removeOrganization } =
     useOrganizations();
+  const { providers } = useProviders();
 
   return (
     <PageLayout>
@@ -46,13 +48,14 @@ export function OrganizationsPage() {
           onRemove={removeOrganization}
         />
         {isLoading && (
-          <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-500 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+          <div className="rounded-xl  bg-white px-4 py-3 text-sm text-gray-500 shadow-sm dark:bg-gray-900 dark:text-gray-400">
             Loading organizations...
           </div>
         )}
         <AddOrganizationDialog
           open={isDialogOpen}
           onOpenChange={setIsDialogOpen}
+          providers={providers}
           onSubmit={createOrganization}
         />
       </div>

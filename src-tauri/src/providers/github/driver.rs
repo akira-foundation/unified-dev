@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
-use crate::core::provider::traits::{VcsProvider, VcsProviderFactory};
-use crate::core::provider::types::{ProviderAuth, ProviderId, ProviderRepo, PullRequestState, VcsPullRequest};
+use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderRepo, PullRequestState, VcsPullRequest};
 use crate::error::{AppError, AppResult};
 
 const GITHUB_API: &str = "https://api.github.com";
@@ -72,9 +72,9 @@ impl GitHubFactory {
     }
 }
 
-impl VcsProviderFactory for GitHubFactory {
-    fn id(&self) -> ProviderId {
-        ProviderId::GitHub
+impl ProviderDriverFactory for GitHubFactory {
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::GitHub
     }
 
     fn name(&self) -> &str {
@@ -89,8 +89,8 @@ impl VcsProviderFactory for GitHubFactory {
 
 #[async_trait]
 impl VcsProvider for GitHubDriver {
-    fn id(&self) -> ProviderId {
-        ProviderId::GitHub
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::GitHub
     }
 
     fn name(&self) -> &str {
@@ -146,7 +146,7 @@ impl VcsProvider for GitHubDriver {
 
 fn auth_token(auth: &ProviderAuth) -> AppResult<&str> {
     match auth {
-        ProviderAuth::Pat { token } => Ok(token.as_str()),
+        ProviderAuth::PersonalAccessToken { token } => Ok(token.as_str()),
     }
 }
 

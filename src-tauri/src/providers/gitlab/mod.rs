@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::core::provider::traits::{VcsProvider, VcsProviderFactory};
-use crate::core::provider::types::{ProviderAuth, ProviderId, ProviderRepo, VcsPullRequest};
+use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderRepo, VcsPullRequest};
 use crate::error::{AppError, AppResult};
 
 pub struct GitLabDriver;
@@ -20,9 +20,9 @@ impl GitLabFactory {
     }
 }
 
-impl VcsProviderFactory for GitLabFactory {
-    fn id(&self) -> ProviderId {
-        ProviderId::GitLab
+impl ProviderDriverFactory for GitLabFactory {
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::GitLab
     }
 
     fn name(&self) -> &str {
@@ -36,8 +36,8 @@ impl VcsProviderFactory for GitLabFactory {
 
 #[async_trait]
 impl VcsProvider for GitLabDriver {
-    fn id(&self) -> ProviderId {
-        ProviderId::GitLab
+    fn kind(&self) -> ProviderKind {
+        ProviderKind::GitLab
     }
 
     fn name(&self) -> &str {
