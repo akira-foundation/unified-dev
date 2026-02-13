@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Building2, Check, Crown, Shield, X, Zap } from "lucide-react";
-
+import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 
 interface UpgradeModalProps {
@@ -12,209 +12,200 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
   const plans = {
-    plus: {
+    developer: {
+      name: t("upgrade.plan.developer"),
       price: billingCycle === "monthly" ? "9" : "90",
-      period: billingCycle === "monthly" ? "/mês" : "/ano",
-      description: "Essencial para equipas pequenas e setups simples.",
+      period: t("upgrade.billing.monthly") === "Monthly" ? "/mo" : "/mês",
+      description: t("upgrade.desc.developer"),
+      features: [
+        t("upgrade.feature.developer.1"),
+        t("upgrade.feature.developer.2"),
+        t("upgrade.feature.developer.3"),
+        t("upgrade.feature.developer.4"),
+      ],
     },
-    pro: {
+    team: {
+      name: t("upgrade.plan.team"),
       price: billingCycle === "monthly" ? "19" : "190",
-      period: billingCycle === "monthly" ? "/mês" : "/ano",
-      description: "Para equipas com workflows de PR e sync avançados.",
+      period: t("upgrade.billing.monthly") === "Monthly" ? "/mo" : "/mês",
+      description: t("upgrade.desc.team"),
+      features: [
+        t("upgrade.feature.team.1"),
+        t("upgrade.feature.team.2"),
+        t("upgrade.feature.team.3"),
+        t("upgrade.feature.team.4"),
+        t("upgrade.feature.team.5"),
+      ],
     },
     enterprise: {
-      price: "Sob Consulta",
+      name: t("upgrade.plan.enterprise"),
+      price: t("upgrade.query"),
       period: "",
-      description: "Para organizações com governança e compliance dedicados.",
+      description: t("upgrade.desc.enterprise"),
+      features: [
+        t("upgrade.feature.enterprise.1"),
+        t("upgrade.feature.enterprise.2"),
+        t("upgrade.feature.enterprise.3"),
+        t("upgrade.feature.enterprise.4"),
+        t("upgrade.feature.enterprise.5"),
+      ],
     },
   };
 
   return (
-    <div className="fixed inset-0 z-[150] overflow-y-auto bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-6xl bg-[#09090b] rounded-3xl shadow-2xl border border-gray-800 overflow-hidden animate-scale-in my-8 flex flex-col lg:flex-row">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4 overflow-y-auto">
+      <div className="relative w-full max-w-6xl bg-[#0c0c0e] rounded-[32px] shadow-[0_0_100px_rgba(0,0,0,1)] border border-zinc-800/80 overflow-hidden flex flex-col md:flex-row animate-scale-in my-auto min-h-[680px]">
+
+        {/* Sidebar */}
+        <div className="w-full md:w-[320px] bg-black p-12 flex flex-col justify-between shrink-0 border-r border-zinc-800/80">
+          <div>
+            <div className="inline-flex px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 mb-10">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">{t("upgrade.title")}</span>
+            </div>
+
+            <h2 className="text-4xl font-black leading-tight text-white mb-6 whitespace-pre-line">
+              {t("upgrade.headline").split("\n").map((line, i) => (
+                <span key={i} className={line.toLowerCase().includes("workflow") || line.toLowerCase().includes("pr") ? "text-purple-400" : ""}>
+                  {line}
+                  {i === 0 && <br />}
+                </span>
+              ))}
+            </h2>
+
+            <p className="text-sm text-zinc-400 leading-relaxed font-medium">
+              {t("upgrade.description")}
+            </p>
+          </div>
+
+          <div className="mt-12">
+            <div
+              className="bg-zinc-900/80 p-1 rounded-full flex items-center border border-zinc-800 w-fit cursor-pointer shadow-xl"
+              onClick={() => setBillingCycle(billingCycle === "monthly" ? "yearly" : "monthly")}
+            >
+              <div className={cn(
+                "px-6 py-2 rounded-full text-[12px] font-bold transition-all duration-300",
+                billingCycle === "monthly" ? "bg-purple-600 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
+              )}>
+                {t("upgrade.billing.monthly")}
+              </div>
+              <div className={cn(
+                "px-6 py-2 rounded-full text-[12px] font-bold transition-all duration-300 flex items-center gap-2",
+                billingCycle === "yearly" ? "bg-purple-600 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
+              )}>
+                {t("upgrade.billing.yearly")} <span className={cn("font-black text-[10px]", billingCycle === "yearly" ? "text-emerald-200" : "text-emerald-400")}>{t("upgrade.billing.discount")}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Plan Cards */}
+        <div className="flex-1 p-8 lg:p-12 relative flex items-center bg-[#0c0c0e]">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-white bg-gray-900/50 hover:bg-gray-800 rounded-full transition-colors"
+            className="absolute top-8 right-8 p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors z-20 border border-zinc-800"
           >
             <X size={20} />
           </button>
 
-          <div className="w-full lg:w-1/4 p-8 lg:p-10 flex flex-col justify-center bg-gradient-to-br from-gray-900 via-[#09090b] to-black border-b lg:border-b-0 lg:border-r border-gray-800 text-center lg:text-left">
-            <div className="mb-6">
-              <span className="inline-block px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-bold uppercase tracking-wider mb-4 border border-purple-500/20">
-                Planos Premium
-              </span>
-              <h2 className="text-3xl font-bold text-white mb-4 leading-tight">
-                Eleve o seu <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
-                  Workflow de PRs
-                </span>
-              </h2>
-              <p className="text-gray-400 leading-relaxed text-sm">
-                Desbloqueie automação de PRs, inteligência de sync e governança técnica para trabalhar com mais rapidez e segurança.
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
 
-            <div
-              className="bg-gray-800/60 p-1 rounded-lg flex relative border border-gray-700/50 w-max mx-auto lg:mx-0 cursor-pointer mb-6 lg:mb-0 shadow-inner"
-              onClick={() => setBillingCycle(billingCycle === "monthly" ? "yearly" : "monthly")}
-            >
-              <div
-                className={`absolute top-1 bottom-1 w-[calc(50%-0.25rem)] bg-gray-600 rounded-md transition-all duration-300 shadow-sm ${billingCycle === "monthly" ? "left-1" : "left-[50%]"}`}
-              />
-              <button
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setBillingCycle("monthly");
-                }}
-                className={`relative z-10 w-20 py-1 text-[11px] font-bold text-center transition-colors rounded-md flex items-center justify-center ${billingCycle === "monthly" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
-              >
-                Mensal
-              </button>
-              <button
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setBillingCycle("yearly");
-                }}
-                className={`relative z-10 w-24 py-1 text-[11px] font-bold text-center transition-colors rounded-md flex items-center justify-center gap-1 ${billingCycle === "yearly" ? "text-white" : "text-gray-400 hover:text-gray-200"}`}
-              >
-                Anual <span className="text-[9px] text-emerald-400 font-extrabold">-17%</span>
+            {/* Developer Card */}
+            <div className="group bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800 flex flex-col hover:border-zinc-700 transition-all">
+              <div className="mb-6 text-center md:text-left">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-400 mb-6 border border-zinc-700 mx-auto md:mx-0 group-hover:scale-110 transition-transform">
+                  <Zap size={24} fill="currentColor" strokeWidth={0} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">{plans.developer.name}</h3>
+                <p className="text-[13px] text-zinc-400 leading-snug h-10 line-clamp-2">
+                  {plans.developer.description}
+                </p>
+              </div>
+
+              <div className="flex items-baseline gap-1 mb-8 justify-center md:justify-start">
+                <span className="text-4xl font-black text-white tracking-tight">{plans.developer.price}</span>
+                <span className="text-lg font-bold text-zinc-500">€</span>
+                <span className="text-[13px] text-zinc-600 font-bold ml-1">{plans.developer.period}</span>
+              </div>
+
+              <div className="space-y-4 mb-10 flex-1">
+                {plans.developer.features.map((f) => (
+                  <div key={f} className="flex items-center gap-4 text-zinc-300">
+                    <Check size={16} className="text-zinc-500" strokeWidth={3} />
+                    <span className="text-[13px] font-medium">{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button className="w-full py-4 rounded-xl bg-white text-black font-black text-[13px] hover:bg-zinc-200 transition-all active:scale-95">
+                {t("upgrade.cta.developer")}
               </button>
             </div>
-          </div>
 
-          <div className="w-full lg:w-3/4 p-6 lg:p-10 bg-[#0c0c0e]">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
-              <div className="flex flex-col p-5 rounded-2xl border border-gray-800 bg-gray-900/20 hover:border-gray-700 transition-all relative group">
-                <div className="mb-4">
-                  <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center text-gray-300 mb-4 group-hover:scale-110 transition-transform">
-                    <Zap size={20} />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">Plus</h3>
-                  <p className="text-xs text-gray-500 mt-1 h-8 line-clamp-2">{plans.plus.description}</p>
+            {/* Team Card (Recommended Visual but no badge) */}
+            <div className="relative group bg-black/40 rounded-3xl p-8 border border-purple-500/50 flex flex-col shadow-2xl shadow-purple-900/20 hover:border-purple-500 transition-all lg:scale-105 z-10">
+              <div className="mb-6 text-center md:text-left">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400 mb-6 border border-purple-500/30 mx-auto md:mx-0 group-hover:rotate-12 transition-transform">
+                  <Crown size={24} />
                 </div>
-
-                <div className="mb-6">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-white">{plans.plus.price}</span>
-                    <span className="text-xs font-bold text-gray-500">{t("currency.eur")}</span>
-                    <span className="text-[10px] text-gray-500">{plans.plus.period}</span>
-                  </div>
-                </div>
-
-                <ul className="space-y-3 mb-8 flex-1">
-                  {["20 PRs/dia", "Sync básico por organização", "Sugestões de próxima ação", "Relatórios essenciais"].map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-xs text-gray-400">
-                      <Check size={14} className="text-gray-600 mt-0.5 flex-shrink-0" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={() => alert("Em breve!")}
-                  className="w-full py-3 rounded-xl border border-gray-700 text-white font-semibold hover:bg-gray-800 transition-colors text-xs"
-                >
-                  Começar com Plus
-                </button>
+                <h3 className="text-xl font-bold text-white mb-2">{plans.team.name}</h3>
+                <p className="text-[13px] text-zinc-300 leading-snug h-10 line-clamp-2 font-medium">
+                  {plans.team.description}
+                </p>
               </div>
 
-              <div className="flex flex-col p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent relative group shadow-lg shadow-amber-900/10 scale-[1.02] z-10">
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-amber-500 text-black text-[9px] font-bold px-3 py-1 rounded-full uppercase tracking-wider shadow-lg">
-                  Recomendado
-                </div>
-
-                <div className="mb-4">
-                  <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center text-amber-500 mb-4 group-hover:scale-110 transition-transform border border-amber-500/20">
-                    <Crown size={20} />
-                  </div>
-                  <h3 className="text-lg font-bold text-white">Profissional</h3>
-                  <p className="text-xs text-amber-500/80 mt-1 h-8 line-clamp-2">{plans.pro.description}</p>
-                </div>
-
-                <div className="mb-6">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold text-white">{plans.pro.price}</span>
-                    <span className="text-xs font-bold text-amber-500">{t("currency.eur")}</span>
-                    <span className="text-[10px] text-gray-500">{plans.pro.period}</span>
-                  </div>
-                </div>
-
-                <ul className="space-y-3 mb-8 flex-1">
-                  {
-                    [
-                      { text: "PRs ilimitados", highlight: false },
-                      { text: "Auto-merge com regras", highlight: true },
-                      { text: "Checks e gates avançados", highlight: true },
-                      { text: "Insights de performance", highlight: true },
-                      { text: "Governança por equipa", highlight: true },
-                      { text: "Queues de merge", highlight: false },
-                      { text: "Notificações inteligentes", highlight: false },
-                    ].map((item) => (
-                      <li
-                        key={item.text}
-                        className={`flex items-start gap-2 text-xs ${item.highlight ? "text-white font-medium" : "text-gray-400"}`}
-                      >
-                        <Check
-                          size={14}
-                          className={`${item.highlight ? "text-amber-500" : "text-gray-600"} mt-0.5 flex-shrink-0`}
-                        />
-                        <span className="leading-snug">{item.text}</span>
-                      </li>
-                    ))
-                  }
-                </ul>
-
-                <button
-                  onClick={() => alert("Em breve!")}
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold hover:from-amber-600 hover:to-orange-700 transition-all shadow-lg shadow-amber-900/20 transform active:scale-[0.98] text-xs flex items-center justify-center gap-2"
-                >
-                  <Shield size={14} /> Desbloquear Pro
-                </button>
+              <div className="flex items-baseline gap-1 mb-8 justify-center md:justify-start">
+                <span className="text-4xl font-black text-white tracking-tight">{plans.team.price}</span>
+                <span className="text-lg font-bold text-purple-400">€</span>
+                <span className="text-[13px] text-zinc-600 font-bold ml-1">{plans.team.period}</span>
               </div>
 
-              <div className="flex flex-col p-5 rounded-2xl border border-blue-900/30 bg-gradient-to-b from-blue-900/5 to-transparent hover:border-blue-800 transition-all relative group">
-                <div className="mb-4">
-                  <div className="w-10 h-10 bg-blue-900/20 rounded-lg flex items-center justify-center text-blue-400 mb-4 group-hover:scale-110 transition-transform border border-blue-500/20">
-                    <Building2 size={20} />
+              <div className="space-y-4 mb-10 flex-1">
+                {plans.team.features.map((f) => (
+                  <div key={f} className="flex items-center gap-4 text-white">
+                    <Check size={16} className="text-purple-400" strokeWidth={3} />
+                    <span className="text-[13px] font-bold">{f}</span>
                   </div>
-                  <h3 className="text-lg font-bold text-white">Escritórios</h3>
-                  <p className="text-xs text-blue-400/80 mt-1 h-8 line-clamp-2">{plans.enterprise.description}</p>
-                </div>
-
-                <div className="mb-6">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-bold text-white uppercase">{plans.enterprise.price}</span>
-                  </div>
-                </div>
-
-                <ul className="space-y-3 mb-8 flex-1">
-                  {
-                    [
-                      "SSO & SCIM",
-                      "Logs de auditoria",
-                      "Políticas de merge por org",
-                      "SLAs e suporte prioritário",
-                      "Registos de compliance",
-                      "Limites personalizados",
-                    ].map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-xs text-gray-400">
-                        <Check size={14} className="text-blue-500 mt-0.5 flex-shrink-0" />
-                        <span>{item}</span>
-                      </li>
-                    ))
-                  }
-                </ul>
-
-                <button
-                  onClick={() => window.open("mailto:comercial@noxdireit.cv")}
-                  className="w-full py-3 rounded-xl border border-blue-800 text-blue-400 font-semibold hover:bg-blue-900/20 hover:text-blue-300 transition-colors text-xs"
-                >
-                  Pedir Proposta
-                </button>
+                ))}
               </div>
+
+              <button className="w-full py-4.5 rounded-xl bg-purple-600 text-white font-black text-[13px] hover:bg-purple-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-900/40 active:scale-95">
+                <Shield size={18} strokeWidth={2.5} /> {t("upgrade.cta.team")}
+              </button>
             </div>
+
+            {/* Enterprise Card */}
+            <div className="group bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800 flex flex-col hover:border-zinc-700 transition-all">
+              <div className="mb-6 text-center md:text-left">
+                <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-400 mb-6 border border-zinc-700 mx-auto md:mx-0 group-hover:-rotate-12 transition-transform">
+                  <Building2 size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">{plans.enterprise.name}</h3>
+                <p className="text-[13px] text-zinc-400 leading-snug h-10 line-clamp-2">
+                  {plans.enterprise.description}
+                </p>
+              </div>
+
+              <div className="mb-8 h-[40px] flex items-center justify-center md:justify-start">
+                <span className="text-2xl font-black text-white uppercase tracking-tight">{plans.enterprise.price}</span>
+              </div>
+
+              <div className="space-y-4 mb-10 flex-1">
+                {plans.enterprise.features.map((f) => (
+                  <div key={f} className="flex items-center gap-4 text-zinc-300">
+                    <Check size={16} className="text-zinc-500" strokeWidth={3} />
+                    <span className="text-[13px] font-medium">{f}</span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => window.open("mailto:comercial@noxdireit.cv")}
+                className="w-full py-4 rounded-xl border border-zinc-700 text-zinc-200 font-black text-[13px] hover:bg-zinc-800 transition-all active:scale-95"
+              >
+                {t("upgrade.cta.enterprise")}
+              </button>
+            </div>
+
           </div>
         </div>
       </div>
