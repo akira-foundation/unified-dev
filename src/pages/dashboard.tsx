@@ -8,7 +8,7 @@ import {
 } from "@/components/layout/page-header";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KanbanBoard } from "@/components/kanban-board";
 import { AgendaView } from "@/components/agenda-view";
@@ -98,64 +98,75 @@ export function DashboardPage() {
               {/* Main Content Sections */}
               <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
                 {/* Recent Activity */}
-                <div className="lg:col-span-2 space-y-5">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-900 dark:text-zinc-100">
-                      {t("dashboard.activity.title")}
-                    </h3>
-                    <Button variant="link" size="sm" className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-zinc-900 dark:hover:text-white">
-                      {t("common.viewAll") ?? "View All"}
-                    </Button>
-                  </div>
-                  <Card className="p-0 overflow-hidden">
-                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                <div className="lg:col-span-2">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
+                          {t("dashboard.activity.title")}
+                        </CardTitle>
+                        <CardDescription>
+                          {locale === "pt-PT" ? "Últimos eventos e sincronizações" : "Latest events and synchronizations"}
+                        </CardDescription>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-widest h-8 px-3">
+                        {t("common.viewAll")}
+                      </Button>
+                    </CardHeader>
+                    <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 p-0 border-t border-zinc-100 dark:border-zinc-800/50">
                       {[
                         { user: "Org akira", action: locale === "pt-PT" ? "realizou Sync" : "performed Sync", target: "infra", time: "10:30", initial: "A" },
                         { user: "Org labs", action: locale === "pt-PT" ? "realizou Sync" : "performed Sync", target: "web", time: "09:15", initial: "L" },
-                        { user: "Security", action: locale === "pt-PT" ? "realizou Audit" : "performed Audit", target: "tokens", time: "Ontem", initial: "S" },
-                        { user: "Ops", action: locale === "pt-PT" ? "realizou Report" : "performed Report", target: "errors", time: "Ontem", initial: "O" },
+                        { user: "Security", action: locale === "pt-PT" ? "realizou Audit" : "performed Audit", target: "tokens", time: locale === "pt-PT" ? "Ontem" : "Yesterday", initial: "S" },
+                        { user: "Ops", action: locale === "pt-PT" ? "realizou Report" : "performed Report", target: "errors", time: locale === "pt-PT" ? "Ontem" : "Yesterday", initial: "O" },
                       ].map((item, idx) => (
-                        <div key={idx} className="flex items-center gap-4 p-5 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30">
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
-                            <span className="text-sm font-bold text-zinc-600 dark:text-zinc-400">{item.initial}</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                              {item.user} <span className="text-zinc-500 dark:text-zinc-400 font-normal">{item.action}</span>
-                            </p>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">{item.target}</p>
+                        <div key={idx} className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/10">
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
+                              <span className="text-sm font-bold text-zinc-600 dark:text-zinc-400">{item.initial}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                                {item.user} <span className="text-zinc-500 dark:text-zinc-400 font-normal ml-1">{item.action}</span>
+                              </p>
+                              <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-0.5">{item.target}</p>
+                            </div>
                           </div>
                           <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-600 whitespace-nowrap">
                             {item.time}
                           </span>
                         </div>
                       ))}
-                    </div>
+                    </CardContent>
                   </Card>
                 </div>
 
                 {/* Quick Access */}
-                <div className="space-y-5">
-                  <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-zinc-900 dark:text-zinc-100">
-                    {t("dashboard.quick.title")}
-                  </h3>
-                  <div className="grid gap-4">
-                    {[
-                      { label: t("dashboard.quick.newOrg"), icon: Plus, color: "text-purple-500", bg: "bg-purple-500/10" },
-                      { label: t("dashboard.quick.import"), icon: Search, color: "text-blue-500", bg: "bg-blue-500/10" },
-                      { label: t("dashboard.quick.newRepo"), icon: FileText, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-                    ].map((action) => (
-                      <button
-                        key={action.label}
-                        className="group flex w-full items-center gap-4 rounded-xl border border-zinc-100 dark:border-zinc-800/40 bg-white dark:bg-zinc-900/40 p-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
-                      >
-                        <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110", action.bg, action.color)}>
-                          <action.icon size={20} />
-                        </div>
-                        <span className="text-sm font-bold text-zinc-900 dark:text-zinc-200">{action.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                <div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
+                        {t("dashboard.quick.title")}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid p-2">
+                      {[
+                        { label: t("dashboard.quick.newOrg"), icon: Plus, color: "text-purple-500", bg: "bg-purple-500/10" },
+                        { label: t("dashboard.quick.import"), icon: Search, color: "text-blue-500", bg: "bg-blue-500/10" },
+                        { label: t("dashboard.quick.newRepo"), icon: FileText, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                      ].map((action) => (
+                        <button
+                          key={action.label}
+                          className="group flex w-full items-center gap-2 rounded-xl  bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
+                        >
+                          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110", action.bg, action.color)}>
+                            <action.icon size={20} />
+                          </div>
+                          <span className="text-sm font-bold text-zinc-900 dark:text-zinc-200">{action.label}</span>
+                        </button>
+                      ))}
+                    </CardContent>
+                  </Card>
                 </div>
               </div>
             </TabsContent>
