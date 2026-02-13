@@ -20,18 +20,18 @@ export function PageHeader({ children, className }: PageHeaderProps) {
   );
 }
 
-export function PageHeaderTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-3xl font-semibold tracking-tight text-foreground">{children}</h2>;
+export function PageHeaderTitle({ children, className }: { children: ReactNode; className?: string }) {
+  return <h2 className={cn("text-3xl font-semibold tracking-tight text-foreground", className)}>{children}</h2>;
 }
 
-export function PageHeaderMeta({ children }: { children: ReactNode }) {
-  return <div className="mt-1 flex items-center text-sm text-muted-foreground">{children}</div>;
+export function PageHeaderMeta({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("mt-1 flex items-center text-sm text-muted-foreground", className)}>{children}</div>;
 }
 
-export function PageHeaderSubtitle({ children }: { children: ReactNode }) {
-  return <div className="mt-1 text-sm text-muted-foreground">{children}</div>;
+export function PageHeaderSubtitle({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("mt-1 text-sm text-muted-foreground", className)}>{children}</div>;
 }
 
-export function PageHeaderActions({ children }: { children: ReactNode }) {
-  return <div className="flex items-center gap-3">{children}</div>;
+export function PageHeaderActions({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn("flex items-center gap-3", className)}>{children}</div>;
 }

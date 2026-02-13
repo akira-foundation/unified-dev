@@ -35,30 +35,37 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const settingsItem = items.find((item) => item.id === "settings");
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border/40 bg-sidebar/50 backdrop-blur-xl">
-      <SidebarHeader className="h-14 border-b border-border/40 flex items-center px-4 group-data-[collapsible=icon]:px-0">
+    <Sidebar collapsible="icon" className="border-r border-border/40 bg-background/50 dark:bg-zinc-950/50 backdrop-blur-xl">
+      <SidebarHeader className="h-16 border-b border-border/10 flex items-center px-4 group-data-[collapsible=icon]:px-0">
         <div className="flex items-center gap-3 w-full group-data-[collapsible=icon]:justify-center">
           {state === "collapsed" ? (
             <button
               type="button"
               onClick={toggleSidebar}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all active:scale-95"
+              className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
+              title="Expand Sidebar"
             >
-              <PanelLeft className="h-5 w-5" />
+              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/toggle:opacity-100 transition-opacity" />
+              <PanelLeft className="h-5 w-5 text-muted-foreground group-hover/toggle:text-primary transition-colors" />
             </button>
           ) : (
             <>
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs shadow-lg shadow-primary/20">
-                AK
+              <div className="relative">
+                <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full" />
+                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-xs shadow-lg shadow-primary/20">
+                  AK
+                </div>
               </div>
               <div className="flex flex-col flex-1 overflow-hidden">
-                <span className="text-sm font-bold tracking-tight text-foreground truncate">{t("app.name")}</span>
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70 font-medium truncate">{t("app.workspace")}</span>
+                <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
+                <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold truncate">
+                  {t("app.workspace")}
+                </span>
               </div>
               <button
                 type="button"
                 onClick={toggleSidebar}
-                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground/50 hover:bg-accent hover:text-foreground transition-colors"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
                 title="Collapse Sidebar"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -68,13 +75,13 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="py-4">
+      <SidebarContent className="py-6">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2 group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel className="px-5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mb-4 group-data-[collapsible=icon]:hidden">
             {t("nav.section.primary")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
+            <SidebarMenu className="gap-1.5 px-3 group-data-[collapsible=icon]:px-0">
               {[dashboardItem, repositoryItem, organizationsItem].filter(Boolean).map((item) => (
                 <SidebarMenuItem key={item!.id} className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                   <SidebarMenuButton
@@ -82,11 +89,11 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     onClick={() => onSelect(item!.id)}
                     tooltip={t(`nav.${item!.id}`)}
                     className={cn(
-                      "transition-all duration-200 rounded-lg",
+                      "transition-all duration-200 rounded-xl h-11 px-4",
                       activeId === item!.id
-                        ? "bg-primary/10 text-primary font-medium hover:bg-primary/15"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                      "group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
+                        ? "bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-foreground dark:text-white font-bold shadow-sm"
+                        : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
+                      "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
                     )}
                   >
                     <div className={cn(
@@ -95,7 +102,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     )}>
                       {item!.icon}
                     </div>
-                    <span className="ml-1 group-data-[collapsible=icon]:hidden">{t(`nav.${item!.id}`)}</span>
+                    <span className="ml-3 group-data-[collapsible=icon]:hidden">{t(`nav.${item!.id}`)}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -103,12 +110,12 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup className="mt-4">
-          <SidebarGroupLabel className="px-4 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2 group-data-[collapsible=icon]:hidden">
+        <SidebarGroup className="mt-8">
+          <SidebarGroupLabel className="px-5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mb-4 group-data-[collapsible=icon]:hidden">
             {t("nav.section.settings")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
+            <SidebarMenu className="gap-1.5 px-3 group-data-[collapsible=icon]:px-0">
               {settingsItem && (
                 <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                   <SidebarMenuButton
@@ -116,11 +123,11 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     onClick={() => onSelect(settingsItem.id)}
                     tooltip={t("nav.settings")}
                     className={cn(
-                      "transition-all duration-200 rounded-lg",
+                      "transition-all duration-200 rounded-xl h-11 px-4",
                       activeId === settingsItem.id
-                        ? "bg-primary/10 text-primary font-medium hover:bg-primary/15"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                      "group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
+                        ? "bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-foreground dark:text-white font-bold shadow-sm"
+                        : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
+                      "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
                     )}
                   >
                     <div className={cn(
@@ -129,7 +136,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     )}>
                       {settingsItem.icon}
                     </div>
-                    <span className="ml-1 group-data-[collapsible=icon]:hidden">{t("nav.settings")}</span>
+                    <span className="ml-3 group-data-[collapsible=icon]:hidden">{t("nav.settings")}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
@@ -138,13 +145,13 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/40 p-4 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:h-14 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
-        <div className="flex items-center gap-3 px-1 group-data-[collapsible=icon]:px-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-[10px] font-bold uppercase">
+      <SidebarFooter className="border-t border-border/10 p-5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:h-16 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
+        <div className="flex items-center gap-4 px-1 group-data-[collapsible=icon]:px-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-[10px] font-bold uppercase text-muted-foreground dark:text-zinc-400">
             v0
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Version</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Unified Engine</span>
             <span className="text-[11px] font-medium text-muted-foreground">0.1.0-alpha</span>
           </div>
         </div>
