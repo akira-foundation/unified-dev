@@ -13,6 +13,7 @@ import { ProvidersPage } from "./pages/providers";
 import { ImportRepositoriesPage } from "./pages/import-repositories";
 import { RepositoryPage } from "./pages/repository";
 import { SettingsPage } from "./pages/settings";
+import { SkillsPage } from "./pages/skills";
 import { useNavigation } from "./hooks/useNavigation";
 import { useNavigationStore } from "./stores/navigation-store";
 import type { NavItem } from "./types/navigation";
@@ -47,6 +48,7 @@ export default function App() {
             {currentPage === "repository" && <RepositoryPage />}
             {currentPage === "settings" && <SettingsPage />}
             {currentPage === "agents" && <AgentWorkspaceLayout />}
+            {currentPage === "skills" && <SkillsPage />}
           </div>
         </main>
         <Toaster richColors />

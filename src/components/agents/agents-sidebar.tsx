@@ -97,7 +97,13 @@ export function AgentsSidebar() {
             <Zap className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
             <span>Automations</span>
           </button>
-          <button className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group">
+          <button
+            onClick={() => {
+              setIsAgentMode(false);
+              navigateTo('skills');
+            }}
+            className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group"
+          >
             <Lightbulb className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
             <span>Skills</span>
           </button>
