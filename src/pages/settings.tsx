@@ -116,29 +116,29 @@ export function SettingsPage() {
     </div>
   );
 
-  const mergePrompt = \`Merge the changes from this worktree into the base branch locally.
+  const mergePrompt = `Merge the changes from this worktree into the base branch locally.
 
 Steps:
-1. Check for uncommitted changes with \\\`git status --porcelain\\\`
-2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
+1. Check for uncommitted changes with \`git status --porcelain\`
+2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
 
-  const mergePushPrompt = \`Merge the changes from this worktree into the base branch and push to the remote.
-
-Steps:
-1. Check for uncommitted changes with \\\`git status --porcelain\\\`
-2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
-
-  const prPrompt = \`Create a pull request for the changes on this branch.
+  const mergePushPrompt = `Merge the changes from this worktree into the base branch and push to the remote.
 
 Steps:
-1. Check for uncommitted changes with \\\`git status --porcelain\\\`
-2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
+1. Check for uncommitted changes with \`git status --porcelain\`
+2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
 
-  const draftPrPrompt = \`Create a draft pull request for the changes on this branch.
+  const prPrompt = `Create a pull request for the changes on this branch.
 
 Steps:
-1. Check for uncommitted changes with \\\`git status --porcelain\\\`
-2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
+1. Check for uncommitted changes with \`git status --porcelain\`
+2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
+
+  const draftPrPrompt = `Create a draft pull request for the changes on this branch.
+
+Steps:
+1. Check for uncommitted changes with \`git status --porcelain\`
+2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
 
   return (
     <PageLayout scroll>
@@ -154,7 +154,7 @@ Steps:
       </PageHeader>
 
       <div className="mx-auto w-full max-w-6xl pb-12 flex gap-8">
-        
+
         {/* Sidebar */}
         <div className="w-64 shrink-0 flex flex-col gap-1">
           {TABS.map((tab) => (
@@ -306,25 +306,25 @@ Steps:
                 description="Customize the instructions that the coding agent uses when executing specialized Git and GitHub actions."
                 icon={FileText}
               >
-                <SettingsTextarea 
-                  label="Merge Prompt" 
-                  defaultValue={mergePrompt} 
-                  description="Showing the default local merge prompt. This merges locally only — it does not push to the remote. Edit to customize." 
+                <SettingsTextarea
+                  label="Merge Prompt"
+                  defaultValue={mergePrompt}
+                  description="Showing the default local merge prompt. This merges locally only — it does not push to the remote. Edit to customize."
                 />
-                <SettingsTextarea 
-                  label="Merge and Push Prompt" 
-                  defaultValue={mergePushPrompt} 
-                  description="Showing the default merge-and-push prompt. This merges locally and pushes to the remote. Edit to customize." 
+                <SettingsTextarea
+                  label="Merge and Push Prompt"
+                  defaultValue={mergePushPrompt}
+                  description="Showing the default merge-and-push prompt. This merges locally and pushes to the remote. Edit to customize."
                 />
-                <SettingsTextarea 
-                  label="Pull Request Prompt" 
-                  defaultValue={prPrompt} 
-                  description="Showing the default PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize." 
+                <SettingsTextarea
+                  label="Pull Request Prompt"
+                  defaultValue={prPrompt}
+                  description="Showing the default PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize."
                 />
-                <SettingsTextarea 
-                  label="Draft Pull Request Prompt" 
-                  defaultValue={draftPrPrompt} 
-                  description="Showing the default draft PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize." 
+                <SettingsTextarea
+                  label="Draft Pull Request Prompt"
+                  defaultValue={draftPrPrompt}
+                  description="Showing the default draft PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize."
                 />
               </SettingsSection>
             </div>
