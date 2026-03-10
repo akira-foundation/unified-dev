@@ -161,7 +161,7 @@ Steps:
 
   return (
     <PageLayout scroll>
-      <PageHeader>
+      <PageHeader className="mx-auto w-full max-w-6xl">
         <div>
           <PageHeaderTitle>{t("nav.settings")}</PageHeaderTitle>
           <PageHeaderMeta>
