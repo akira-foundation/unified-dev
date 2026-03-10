@@ -31,7 +31,66 @@ fn detect_from_env() -> Vec<AiProviderKind> {
     found
 }
 
-// Step 2 -- .env file scanning
+fn detect_from_shell_config() -> Vec<AiProviderKind> {
+    let mut found = Vec::new();
+
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => return found,
+    };
+
+    let shell_files = [
+        home.join(".zshrc"),
+        home.join(".zprofile"),
+        home.join(".zshenv"),
+        home.join(".bash_profile"),
+        home.join(".bashrc"),
+        home.join(".profile"),
+    ];
+
+    let mut has_anthropic = false;
+    let mut has_openai = false;
+
+    for path in &shell_files {
+        if let Ok(content) = fs::read_to_string(path) {
+            if !has_anthropic && shell_exports_key(&content, ANTHROPIC_KEY) {
+                eprintln!("[detector] Detected provider: Claude (shell config: {})", path.display());
+                found.push(AiProviderKind::Claude);
+                has_anthropic = true;
+            }
+            if !has_openai && shell_exports_key(&content, OPENAI_KEY) {
+                eprintln!("[detector] Detected provider: OpenAI (shell config: {})", path.display());
+                found.push(AiProviderKind::OpenAi);
+                has_openai = true;
+            }
+            if has_anthropic && has_openai {
+                break;
+            }
+        }
+    }
+
+    found
+}
+
+fn shell_exports_key(content: &str, key: &str) -> bool {
+    content.lines().any(|line| {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') {
+            return false;
+        }
+        // export OPENAI_API_KEY=...
+        // export OPENAI_API_KEY="..."
+        if trimmed.starts_with("export ") {
+            let after_export = trimmed["export ".len()..].trim_start();
+            return after_export.starts_with(key)
+                && after_export[key.len()..].starts_with('=');
+        }
+        // OPENAI_API_KEY=... (without export)
+        trimmed.starts_with(key) && trimmed[key.len()..].starts_with('=')
+    })
+}
+
+// Step 3 -- .env file scanning
 fn detect_from_dotenv() -> Vec<AiProviderKind> {
     let mut found = Vec::new();
     let candidates = [".env", ".env.local"];
@@ -62,7 +121,7 @@ fn contains_key(content: &str, key: &str) -> bool {
     })
 }
 
-// Step 3 -- Common config directories
+// Step 4 -- Common config directories
 fn detect_from_config_dirs() -> Vec<AiProviderKind> {
     let mut found = Vec::new();
 
@@ -73,6 +132,7 @@ fn detect_from_config_dirs() -> Vec<AiProviderKind> {
 
     let claude_paths = [
         home.join(".claude"),
+        home.join(".claude.json"),
         home.join(".config").join("anthropic"),
     ];
 
@@ -82,16 +142,16 @@ fn detect_from_config_dirs() -> Vec<AiProviderKind> {
     ];
 
     for path in &claude_paths {
-        if path.exists() && dir_has_key_files(path) {
-            eprintln!("[detector] Detected provider: Claude (config dir: {})", path.display());
+        if path.exists() {
+            eprintln!("[detector] Detected provider: Claude (config path: {})", path.display());
             found.push(AiProviderKind::Claude);
             break;
         }
     }
 
     for path in &openai_paths {
-        if path.exists() && dir_has_key_files(path) {
-            eprintln!("[detector] Detected provider: OpenAI (config dir: {})", path.display());
+        if path.exists() {
+            eprintln!("[detector] Detected provider: OpenAI (config path: {})", path.display());
             found.push(AiProviderKind::OpenAi);
             break;
         }
@@ -100,27 +160,7 @@ fn detect_from_config_dirs() -> Vec<AiProviderKind> {
     found
 }
 
-fn dir_has_key_files(dir: &Path) -> bool {
-    let key_indicators = ["credentials", "config", "auth.json", "key", "api_key"];
-
-    if let Ok(entries) = fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name();
-            let name_str = name.to_string_lossy().to_lowercase();
-
-            for indicator in &key_indicators {
-                if name_str.contains(indicator) {
-                    return true;
-                }
-            }
-        }
-    }
-
-    // The directory existing at all is a strong signal (e.g. ~/.claude)
-    dir.is_dir()
-}
-
-// Step 4 -- Ollama local server detection
+// Step 5 -- Ollama local server detection
 async fn detect_ollama_server() -> Option<AiProviderKind> {
     let host = env::var("OLLAMA_HOST")
         .or_else(|_| env::var("OLLAMA_URL"))
@@ -161,23 +201,32 @@ fn push_unique(
     }
 }
 
-// Step 5 + 6 -- Aggregation with deduplication and logging
+// Aggregation pipeline with deduplication
 pub async fn detect_providers() -> Vec<AiProviderKind> {
     let mut seen = HashSet::new();
     let mut result = Vec::new();
 
+    // 1. Process env vars (works when launched from terminal)
     for kind in detect_from_env() {
         push_unique(kind, &mut seen, &mut result);
     }
 
+    // 2. Shell config files (critical for macOS GUI apps that don't inherit env)
+    for kind in detect_from_shell_config() {
+        push_unique(kind, &mut seen, &mut result);
+    }
+
+    // 3. .env files in workspace
     for kind in detect_from_dotenv() {
         push_unique(kind, &mut seen, &mut result);
     }
 
+    // 4. Config directories (~/.claude, ~/.openai, etc.)
     for kind in detect_from_config_dirs() {
         push_unique(kind, &mut seen, &mut result);
     }
 
+    // 5. Ollama local server (async HTTP probe)
     if !seen.contains("ollama") {
         if let Some(ollama) = detect_ollama_server().await {
             push_unique(ollama, &mut seen, &mut result);
