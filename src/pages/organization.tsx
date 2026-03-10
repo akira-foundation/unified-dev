@@ -1,7 +1,6 @@
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Skeleton } from "../components/ui/skeleton";
+import { Card, CardContent, CardDescription, CardHeader } from "../components/ui/card";
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "../hooks/useOrganizations";

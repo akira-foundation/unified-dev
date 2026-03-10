@@ -1,11 +1,11 @@
-import { Plus } from "lucide-react";
+import { Plus, RefreshCcw } from "lucide-react";
 
 import { AddOrganizationDialog } from "../components/organizations/add-organization-dialog";
 import { OrganizationList } from "../components/organizations/organization-list";
 import { AddProviderDialog } from "../components/providers/add-provider-dialog";
 import { ProviderList } from "../components/providers/provider-list";
 import { UpdateProviderDialog } from "../components/providers/update-provider-dialog";
-import { PageHeader, PageHeaderActions, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
+import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
@@ -44,80 +44,93 @@ export function ProvidersPage() {
   const { setActiveOrganizationId, navigateTo } = useNavigation("dashboard");
 
   return (
-    <PageLayout>
-      <PageHeader>
-        <div>
-          <PageHeaderTitle>Providers</PageHeaderTitle>
-          <PageHeaderMeta>
-            <span>{t("app.name")}</span>
-            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span>{dateLabel}</span>
-          </PageHeaderMeta>
+    <PageLayout scroll>
+      <PageHeader className="mx-auto w-full max-w-6xl">
+        <div className="flex items-center justify-between w-full">
+          <div>
+            <PageHeaderTitle>Providers</PageHeaderTitle>
+            <PageHeaderMeta>
+              <span>{t("app.name")}</span>
+              <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+              <span>{dateLabel}</span>
+            </PageHeaderMeta>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
+              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+              Refresh
+            </Button>
+            <Button
+              onClick={() => setIsDialogOpen(true)}
+              className="gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add provider
+            </Button>
+          </div>
         </div>
-        <PageHeaderActions>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus size={18} />
-            New Provider
-          </Button>
-        </PageHeaderActions>
       </PageHeader>
-      <div className="flex flex-col gap-6">
-        {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        ) : (
-          <ProviderList
+
+      <div className="mx-auto w-full max-w-6xl pb-12 flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : (
+            <ProviderList
+              providers={providers}
+              onRemove={removeProvider}
+              onUpdateToken={(provider) => setProviderToUpdate(provider)}
+            />
+          )}
+          {organizationsLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : (
+            <OrganizationList
+              organizations={organizations}
+              onRemove={removeOrganization}
+              onCreate={() => setOrganizationDialogOpen(true)}
+              onSelect={(organizationId) => {
+                setActiveOrganizationId(organizationId);
+                navigateTo("organization");
+              }}
+              onImportRepositories={(organizationId) => {
+                setActiveOrganizationId(organizationId);
+                navigateTo("import-repositories");
+              }}
+              providerNameById={providerNameById}
+            />
+          )}
+          <AddProviderDialog
+            open={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
+            onSubmit={createProvider}
+          />
+          <UpdateProviderDialog
+            provider={providerToUpdate}
+            open={Boolean(providerToUpdate)}
+            onOpenChange={(open) => {
+              if (!open) {
+                setProviderToUpdate(null);
+              }
+            }}
+            onSubmit={updateProviderAuth}
+          />
+          <AddOrganizationDialog
+            open={organizationDialogOpen}
+            onOpenChange={setOrganizationDialogOpen}
             providers={providers}
-            onRemove={removeProvider}
-            onUpdateToken={(provider) => setProviderToUpdate(provider)}
+            onSubmit={createOrganization}
           />
-        )}
-        {organizationsLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        ) : (
-          <OrganizationList
-            organizations={organizations}
-            onRemove={removeOrganization}
-            onCreate={() => setOrganizationDialogOpen(true)}
-            onSelect={(organizationId) => {
-              setActiveOrganizationId(organizationId);
-              navigateTo("organization");
-            }}
-            onImportRepositories={(organizationId) => {
-              setActiveOrganizationId(organizationId);
-              navigateTo("import-repositories");
-            }}
-            providerNameById={providerNameById}
-          />
-        )}
-        <AddProviderDialog
-          open={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          onSubmit={createProvider}
-        />
-        <UpdateProviderDialog
-          provider={providerToUpdate}
-          open={Boolean(providerToUpdate)}
-          onOpenChange={(open) => {
-            if (!open) {
-              setProviderToUpdate(null);
-            }
-          }}
-          onSubmit={updateProviderAuth}
-        />
-        <AddOrganizationDialog
-          open={organizationDialogOpen}
-          onOpenChange={setOrganizationDialogOpen}
-          providers={providers}
-          onSubmit={createOrganization}
-        />
+        </div>
       </div>
     </PageLayout>
   );

@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { RefreshCcw, Search, Plus, Folder } from "lucide-react";
+import { RefreshCcw, Plus, Folder, Search } from "lucide-react";
 import { PageLayout } from "@/components/layout/page-layout";
+import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const installedSkills = [
@@ -177,97 +179,94 @@ export function SkillsPage() {
 
   return (
     <PageLayout scroll>
-      <div className="mx-auto w-full max-w-5xl py-8 px-8">
-
-        {/* Top Navigation Row */}
-        <div className="flex items-center justify-end gap-3 mb-10">
-          <Button variant="ghost" className="h-9 px-3 text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
-            <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-            Refresh
-          </Button>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500" />
-            <Input
-              placeholder="Search skills"
-              className="h-9 w-64 pl-9 bg-[#1a1a1a] border-white/5 text-sm text-zinc-300 placeholder:text-zinc-600 rounded-lg focus-visible:ring-1 focus-visible:ring-purple-500/50"
-            />
+      <div className="mx-auto w-full max-w-6xl pb-12">
+        <PageHeader className="px-8">
+          <div>
+            <PageHeaderTitle className="text-3xl">Skills</PageHeaderTitle>
+            <PageHeaderMeta>
+              <span>Give Unified Dev superpowers.</span>
+            </PageHeaderMeta>
           </div>
-          <Button className="h-9 px-4 bg-white text-black hover:bg-zinc-200 font-medium text-xs rounded-lg shadow-md transition-colors gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            New skill
-          </Button>
-        </div>
+          <PageHeaderActions className="gap-3">
+            <Button variant="ghost" className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
+              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+              Refresh
+            </Button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+              <Input
+                placeholder="Search skills"
+                className="w-64 pl-9 bg-zinc-900/50 border-white/5 text-sm text-zinc-300 placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-purple-500/50 transition-colors"
+              />
+            </div>
+            <Button className="gap-1.5">
+              <Plus className="h-4 w-4" strokeWidth={3} />
+              New skill
+            </Button>
+          </PageHeaderActions>
+        </PageHeader>
 
-        {/* Header Title */}
-        <div className="mb-12">
-          <h1 className="text-3xl font-bold text-white mb-2">Skills</h1>
-          <p className="text-[15px] text-zinc-400">
-            Give Unified Dev superpowers.
-          </p>
-        </div>
-
-        {/* Installed Section */}
-        <div className="mb-12">
-          <h2 className="text-[13px] font-bold text-white mb-6 tracking-wide">Installed</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {installedSkills.map((skill) => (
-              <div
-                key={skill.id}
-                className="group flex items-center justify-between p-4 rounded-2xl bg-[#131313] border border-white/[0.03] hover:bg-[#1a1a1a] hover:border-white/5 transition-all w-full"
-              >
-                <div className="flex items-center gap-4 min-w-0 pr-4">
-                  <SkillIcon className={skill.icon} />
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[14px] font-semibold text-zinc-100 truncate">{skill.title}</span>
-                      {skill.badge === "audit" && (
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-[10px] text-zinc-400 shrink-0">
-                          <Folder className="h-3 w-3" />
-                          <span>audit</span>
+        <div className="px-8 flex flex-col gap-12 mt-4">
+          {/* Installed Section */}
+          <div>
+            <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">Installed</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {installedSkills.map((skill) => (
+                <Card key={skill.id} className="group overflow-hidden">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4 min-w-0 pr-4">
+                      <SkillIcon className={skill.icon} />
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[14px] font-bold text-zinc-100 truncate">{skill.title}</span>
+                          {skill.badge === "audit" && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/5 text-[9px] font-black uppercase tracking-wider text-zinc-500 shrink-0">
+                              <Folder className="h-3 w-3" />
+                              <span>audit</span>
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <span className="text-[13px] text-zinc-500 truncate font-medium">{skill.description}</span>
+                      </div>
                     </div>
-                    <span className="text-[13px] text-zinc-500 truncate">{skill.description}</span>
-                  </div>
-                </div>
-                <div className="shrink-0 pl-2">
-                  <Switch
-                    checked={activeSkills[skill.id]}
-                    onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                </div>
-              </div>
-            ))}
+                    <div className="shrink-0 pl-2">
+                      <Switch
+                        checked={activeSkills[skill.id]}
+                        onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
+                        className="data-[state=checked]:bg-purple-500"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          {/* Recommended Section */}
+          <div className="pb-12">
+            <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">Recommended</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {recommendedSkills.map((skill) => (
+                <Card key={skill.id} className="group overflow-hidden">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4 min-w-0 pr-4">
+                      <SkillIcon className={skill.icon} textIcon={skill.textIcon} />
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-[14px] font-bold text-zinc-100 truncate">{skill.title}</span>
+                        <span className="text-[13px] text-zinc-500 truncate font-medium">{skill.description}</span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 pl-2">
+                      <button className="flex items-center justify-center w-8 h-8 rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors">
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
-
-        {/* Recommended Section */}
-        <div className="pb-12">
-          <h2 className="text-[13px] font-bold text-white mb-6 tracking-wide">Recommended</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {recommendedSkills.map((skill) => (
-              <div
-                key={skill.id}
-                className="group flex items-center justify-between p-4 rounded-2xl bg-[#131313] border border-white/[0.03] hover:bg-[#1a1a1a] hover:border-white/5 transition-all w-full"
-              >
-                <div className="flex items-center gap-4 min-w-0 pr-4">
-                  <SkillIcon className={skill.icon} textIcon={skill.textIcon} />
-                  <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-[14px] font-semibold text-zinc-100 truncate">{skill.title}</span>
-                    <span className="text-[13px] text-zinc-500 truncate">{skill.description}</span>
-                  </div>
-                </div>
-                <div className="shrink-0 pl-2">
-                  <button className="flex items-center justify-center w-8 h-8 rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors">
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
       </div>
     </PageLayout>
   );

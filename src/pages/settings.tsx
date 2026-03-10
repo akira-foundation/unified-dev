@@ -36,7 +36,6 @@ import {
 } from "@/components/layout/page-header";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
-import AppearanceTabs from "@/components/appearance-tabs";
 
 const TABS = [
   { id: "general", label: "General", icon: <Settings2 className="h-4 w-4" /> },

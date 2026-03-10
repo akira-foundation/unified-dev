@@ -24,6 +24,7 @@ const providerSchema = z.object({
 
 export function AddProviderDialog({ open, onOpenChange, onSubmit }: AddProviderDialogProps) {
   const form = useForm<z.infer<typeof providerSchema>>({
+    // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(providerSchema),
     mode: "onChange",
     defaultValues: {
