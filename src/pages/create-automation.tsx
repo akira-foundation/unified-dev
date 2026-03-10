@@ -9,13 +9,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 export function CreateAutomationPage() {
-  const setActiveTab = useAgentsStore((state) => state.setActiveTab);
+  const { setActiveTab, selectedAutomation } = useAgentsStore();
 
   const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-6">
         {Icon && (
-          <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="h-10 w-10 flex items-center justify-center rounded-md bg-purple-500/10 text-purple-500">
             <Icon className="h-5 w-5" />
           </div>
         )}
@@ -60,7 +60,9 @@ export function CreateAutomationPage() {
             <span className="text-sm font-medium">Back to Automations</span>
           </button>
           <div>
-            <PageHeaderTitle className="text-3xl">Create automation</PageHeaderTitle>
+            <PageHeaderTitle className="text-3xl">
+              {selectedAutomation ? "Configure automation" : "Create automation"}
+            </PageHeaderTitle>
             <PageHeaderMeta>
               <span>Automate recurring tasks in the background.</span>
             </PageHeaderMeta>
@@ -70,7 +72,7 @@ export function CreateAutomationPage() {
 
       <div className="mx-auto w-full max-w-3xl px-6 pb-12 flex flex-col gap-8">
         {/* Info Box */}
-        <div className="flex gap-4 p-5 rounded-xl bg-blue-500/5 border border-blue-500/10 text-sm">
+        <div className="flex gap-4 p-5 rounded-md bg-blue-500/5 border border-blue-500/10 text-sm">
           <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
           <p className="leading-relaxed text-zinc-300 text-[13px]">
             Automations run with your default sandbox settings. Tool calls will fail if they require modifying files outside the workspace, accessing network, or working with apps on your computer.
@@ -88,8 +90,9 @@ export function CreateAutomationPage() {
               description="Choose a descriptive name for this automation."
               action={
                 <Input
+                  defaultValue={selectedAutomation?.text ? `Auto: ${selectedAutomation.text.split(' ').slice(0, 3).join(' ')}...` : ""}
                   placeholder="Check for sentry issues"
-                  className="w-64 bg-black/20 border-white/5"
+                  className="w-64 bg-black/20 border-white/5 rounded-md"
                 />
               }
             />
@@ -99,7 +102,7 @@ export function CreateAutomationPage() {
               action={
                 <Input
                   placeholder="Choose a folder"
-                  className="w-64 bg-black/20 border-white/5"
+                  className="w-64 bg-black/20 border-white/5 rounded-md"
                 />
               }
             />
@@ -108,9 +111,9 @@ export function CreateAutomationPage() {
               description="Where the automation tasks will be executed by the agent."
               action={
                 <Tabs defaultValue="worktree">
-                  <TabsList className="bg-black/20 border border-white/5">
-                    <TabsTrigger value="worktree">Worktree</TabsTrigger>
-                    <TabsTrigger value="local">Local</TabsTrigger>
+                  <TabsList className="bg-black/20 border border-white/5 rounded-md">
+                    <TabsTrigger value="worktree" className="rounded-md">Worktree</TabsTrigger>
+                    <TabsTrigger value="local" className="rounded-md">Local</TabsTrigger>
                   </TabsList>
                 </Tabs>
               }
@@ -127,6 +130,7 @@ export function CreateAutomationPage() {
               description="The core instructions for the agent. Use $variable syntax for integrations."
             >
               <textarea
+                defaultValue={selectedAutomation?.text || ""}
                 placeholder="look for crashes in $Sentry"
                 rows={4}
                 className="w-full rounded-md bg-black/20 border border-white/5 p-4 text-[13px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all custom-scrollbar resize-none font-sans"

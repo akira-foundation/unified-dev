@@ -256,7 +256,7 @@ export function SkillsPage() {
                               <Settings className="h-4 w-4" />
                             </button>
                           </TooltipTrigger>
-                          <TooltipContent>
+                          <TooltipContent className="bg-purple-500 text-white border-none font-bold">
                             <span className="text-xs">Manage skill</span>
                           </TooltipContent>
                         </Tooltip>
@@ -295,15 +295,25 @@ export function SkillsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 pl-2">
-                      <button
-                        className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-all font-medium"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedSkill({ ...skill, recommended: true });
-                        }}
-                      >
-                        <Settings className="h-4 w-4" />
-                      </button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-all font-medium"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSkill({ ...skill, recommended: true });
+                              }}
+                            >
+                              <Settings className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-purple-500 text-white border-none font-bold">
+                            <span className="text-xs">Manage skill</span>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
                       <button
                         className="flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
                         onClick={(e) => {

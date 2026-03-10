@@ -9,10 +9,12 @@ interface AgentsState {
   selectedFilePath: string | null;
   activeTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill";
   selectedSkill: any | null;
+  selectedAutomation: any | null;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
   setSelectedSkill: (skill: any | null) => void;
+  setSelectedAutomation: (automation: any | null) => void;
 }
 
 const mockGroups: RepositoryGroup[] = [
@@ -124,8 +126,10 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   selectedFilePath: null,
   activeTab: "workspace",
   selectedSkill: null,
+  selectedAutomation: null,
   setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
   setSelectedFilePath: (path) => set({ selectedFilePath: path }),
   setActiveTab: (tab) => set({ activeTab: tab }),
   setSelectedSkill: (skill) => set({ selectedSkill: skill, activeTab: "manage-skill" }),
+  setSelectedAutomation: (automation) => set({ selectedAutomation: automation, activeTab: "create-automation" }),
 }));
