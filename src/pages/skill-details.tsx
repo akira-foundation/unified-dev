@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, Terminal, Sparkles, Trash2, ShieldOff, Info, TerminalSquare, Box } from "lucide-react";
+import { ArrowLeft, ExternalLink, Terminal, Sparkles, Trash2, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "@/components/layout/page-header";
@@ -15,18 +15,11 @@ export function SkillDetailsPage() {
     return null;
   }
 
-  const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
+  const SettingsSection = ({ title, description, children }: any) => (
     <Card className="mb-6">
-      <CardHeader className="flex flex-row items-center gap-3 space-y-0">
-        {Icon && (
-          <div className="h-10 w-10 flex items-center justify-center rounded-md bg-purple-500/10 text-purple-500 shrink-0">
-            <Icon className="h-5 w-5" />
-          </div>
-        )}
-        <div className="flex flex-col gap-1">
-          <CardTitle className="text-xl">{title}</CardTitle>
-          {description && <CardDescription>{description}</CardDescription>}
-        </div>
+      <CardHeader className="flex flex-col gap-1 space-y-0">
+        <CardTitle className="text-xl">{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 gap-0 p-0">
         {children}
@@ -81,7 +74,6 @@ export function SkillDetailsPage() {
         <SettingsSection
           title="General"
           description="Basic information and documentation for this skill."
-          icon={Info}
         >
           <SettingsItem
             label="Description"
@@ -101,7 +93,6 @@ export function SkillDetailsPage() {
         <SettingsSection
           title="Usage & Integration"
           description="How to interface with this skill in your workspace."
-          icon={TerminalSquare}
         >
           {[
             { label: "Routes", code: "list-routes", meta: "only_vendor: true" },
@@ -126,7 +117,6 @@ export function SkillDetailsPage() {
         <SettingsSection
           title="Capabilities"
           description="Functional features provided by this skill."
-          icon={Box}
         >
           <SettingsItem
             label="Available Features"

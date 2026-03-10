@@ -29,12 +29,6 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const { t } = useI18n();
   const { state, toggleSidebar } = useSidebar();
 
-  const dashboardItem = items.find((item) => item.id === "dashboard");
-  const repositoryItem = items.find((item) => item.id === "repository");
-  const providersItem = items.find((item) => item.id === "providers");
-  const agentsItem = items.find((item) => item.id === "agents");
-  const settingsItem = items.find((item) => item.id === "settings");
-
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40 bg-background/50 dark:bg-zinc-950/50 backdrop-blur-xl">
       <SidebarHeader className="h-16 border-b border-border/10 flex items-center px-4 group-data-[collapsible=icon]:px-0">
@@ -76,84 +70,80 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="py-6">
+      <SidebarContent className="py-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mb-4 group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel className="px-6 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-4 group-data-[collapsible=icon]:hidden">
             {t("nav.section.primary")}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5 px-3 group-data-[collapsible=icon]:px-0">
-              {[dashboardItem, repositoryItem, providersItem, agentsItem].filter(Boolean).map((item) => (
-                <SidebarMenuItem key={item!.id} className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+            <SidebarMenu className="gap-1 px-3 group-data-[collapsible=icon]:px-0">
+              {items.filter(item => item.id !== "settings").map((item) => (
+                <SidebarMenuItem key={item.id} className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                   <SidebarMenuButton
-                    isActive={activeId === item!.id}
-                    onClick={() => onSelect(item!.id)}
-                    tooltip={t(`nav.${item!.id}`)}
+                    isActive={activeId === item.id}
+                    onClick={() => onSelect(item.id)}
+                    tooltip={t(`nav.${item.id}`)}
                     className={cn(
-                      "transition-all duration-200 rounded-md h-11 px-4",
-                      activeId === item!.id
-                        ? "bg-zinc-100 dark:bg-zinc-900 text-foreground dark:text-white font-bold shadow-sm"
-                        : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
-                      "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
+                      "transition-all duration-200 rounded-md h-10 px-3",
+                      activeId === item.id
+                        ? "bg-zinc-100/10 dark:bg-zinc-900 text-foreground dark:text-white font-bold"
+                        : "text-zinc-500 hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
+                      "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0"
                     )}
                   >
                     <div className={cn(
                       "flex items-center justify-center shrink-0",
-                      activeId === item!.id ? "text-primary" : "text-muted-foreground/70"
+                      activeId === item.id ? "text-primary" : "text-zinc-500"
                     )}>
-                      {item!.icon}
+                      {item.icon}
                     </div>
-                    <span className="ml-3 group-data-[collapsible=icon]:hidden">{t(`nav.${item!.id}`)}</span>
+                    <span className="ml-3 text-[13px] font-medium group-data-[collapsible=icon]:hidden">
+                      {t(`nav.${item.id}`)}
+                    </span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        <SidebarGroup className="mt-8">
-          <SidebarGroupLabel className="px-5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mb-4 group-data-[collapsible=icon]:hidden">
-            {t("nav.section.settings")}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5 px-3 group-data-[collapsible=icon]:px-0">
-              {settingsItem && (
-                <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
-                  <SidebarMenuButton
-                    isActive={activeId === settingsItem.id}
-                    onClick={() => onSelect(settingsItem.id)}
-                    tooltip={t("nav.settings")}
-                    className={cn(
-                      "transition-all duration-200 rounded-md h-11 px-4",
-                      activeId === settingsItem.id
-                        ? "bg-zinc-100 dark:bg-zinc-900 text-foreground dark:text-white font-bold shadow-sm"
-                        : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
-                      "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center"
-                    )}
-                  >
-                    <div className={cn(
-                      "flex items-center justify-center shrink-0",
-                      activeId === settingsItem.id ? "text-primary" : "text-muted-foreground/70"
-                    )}>
-                      {settingsItem.icon}
-                    </div>
-                    <span className="ml-3 group-data-[collapsible=icon]:hidden">{t("nav.settings")}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/10 p-5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:h-16 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
-        <div className="flex items-center gap-4 px-1 group-data-[collapsible=icon]:px-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-900 text-[10px] font-bold uppercase text-muted-foreground dark:text-zinc-400">
+      <SidebarFooter className="p-3 border-t border-border/10">
+        <SidebarMenu>
+          {items.filter(item => item.id === "settings").map((item) => (
+            <SidebarMenuItem key={item.id}>
+              <SidebarMenuButton
+                isActive={activeId === item.id}
+                onClick={() => onSelect(item.id)}
+                tooltip={t(`nav.${item.id}`)}
+                className={cn(
+                  "transition-all duration-200 rounded-md h-10 px-3",
+                  activeId === item.id
+                    ? "bg-zinc-100/10 dark:bg-zinc-900 text-foreground dark:text-white font-bold"
+                    : "text-zinc-500 hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300"
+                )}
+              >
+                <div className={cn(
+                  "flex items-center justify-center shrink-0",
+                  activeId === item.id ? "text-primary" : "text-zinc-500"
+                )}>
+                  {item.icon}
+                </div>
+                <span className="ml-3 text-[13px] font-medium group-data-[collapsible=icon]:hidden">
+                  {t(`nav.${item.id}`)}
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+
+        <div className="flex items-center gap-3 px-3 py-4 mt-2 border-t border-border/5 group-data-[collapsible=icon]:hidden">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-zinc-100 dark:bg-zinc-900 text-[10px] font-black uppercase text-zinc-500">
             v{appVersion.split(".")[0]}
           </div>
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Unified Engine</span>
-            <span className="text-[11px] font-medium text-muted-foreground">v{appVersion}</span>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Unified Engine</span>
+            <span className="text-[10px] font-medium text-zinc-500">v{appVersion}</span>
           </div>
         </div>
       </SidebarFooter>

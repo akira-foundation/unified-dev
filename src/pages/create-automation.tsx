@@ -1,4 +1,4 @@
-import { ArrowLeft, Info, Bot, Clock as ClockIcon, Zap } from "lucide-react";
+import { ArrowLeft, Info, Clock as ClockIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -11,18 +11,11 @@ import { cn } from "@/lib/utils";
 export function CreateAutomationPage() {
   const { setActiveTab, selectedAutomation } = useAgentsStore();
 
-  const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
+  const SettingsSection = ({ title, description, children }: any) => (
     <Card className="mb-6">
-      <CardHeader className="flex flex-row items-center gap-3 space-y-0 pb-6">
-        {Icon && (
-          <div className="h-10 w-10 flex items-center justify-center rounded-md bg-purple-500/10 text-purple-500">
-            <Icon className="h-5 w-5" />
-          </div>
-        )}
-        <div className="flex flex-col gap-1">
-          <CardTitle className="text-xl">{title}</CardTitle>
-          {description && <CardDescription>{description}</CardDescription>}
-        </div>
+      <CardHeader className="flex flex-col gap-1 space-y-0 pb-6">
+        <CardTitle className="text-xl">{title}</CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 p-0">
         {children}
@@ -83,7 +76,6 @@ export function CreateAutomationPage() {
           <SettingsSection
             title="General Information"
             description="Basic configuration for your automation thread."
-            icon={Bot}
           >
             <SettingsItem
               label="Name"
@@ -123,7 +115,6 @@ export function CreateAutomationPage() {
           <SettingsSection
             title="Agent Configuration"
             description="Define the instructions and schedule for the automation."
-            icon={Zap}
           >
             <SettingsItem
               label="Prompt"
