@@ -9,10 +9,19 @@ import { AgentStatusBar } from "./agent-status-bar";
 import type { AgentIssue, AgentRepository, RepositoryGroup } from "@/types/agents";
 
 import { FileEditor } from "./file-editor";
+import { SkillsPage } from "@/pages/skills";
 
 export function AgentWorkspaceLayout() {
-  const { repositoryGroups, selectedIssueId, timelineSteps, fileChanges, selectedFilePath } = useAgentsStore();
+  const { repositoryGroups, selectedIssueId, timelineSteps, fileChanges, selectedFilePath, activeTab } = useAgentsStore();
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+
+  if (activeTab === "skills") {
+    return (
+      <div className="flex flex-col h-full bg-[#080808] w-full">
+        <SkillsPage />
+      </div>
+    );
+  }
 
   // Find the selected issue
   const allIssues = repositoryGroups.flatMap((g: RepositoryGroup) =>

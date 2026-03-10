@@ -7,8 +7,10 @@ interface AgentsState {
   timelineSteps: AgentTimelineStep[];
   fileChanges: FileChange[];
   selectedFilePath: string | null;
+  activeTab: "workspace" | "skills";
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
+  setActiveTab: (tab: "workspace" | "skills") => void;
 }
 
 const mockGroups: RepositoryGroup[] = [
@@ -118,6 +120,8 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   timelineSteps: mockTimeline,
   fileChanges: mockFiles,
   selectedFilePath: null,
-  setSelectedIssueId: (id) => set({ selectedIssueId: id }),
+  activeTab: "workspace",
+  setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
   setSelectedFilePath: (path) => set({ selectedFilePath: path }),
+  setActiveTab: (tab) => set({ activeTab: tab }),
 }));

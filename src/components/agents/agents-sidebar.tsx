@@ -45,7 +45,7 @@ export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
   const { setIsAgentMode, navigateTo } = useNavigationStore();
-  const { repositoryGroups, selectedIssueId, setSelectedIssueId } = useAgentsStore();
+  const { repositoryGroups, selectedIssueId, setSelectedIssueId, activeTab, setActiveTab } = useAgentsStore();
   const [expandedRepos, setExpandedRepos] = useState<Record<string, boolean>>({
     "repo-1": true,
     "repo-4": true,
@@ -98,13 +98,18 @@ export function AgentsSidebar() {
             <span>Automations</span>
           </button>
           <button
-            onClick={() => {
-              setIsAgentMode(false);
-              navigateTo('skills');
-            }}
-            className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group"
+            onClick={() => setActiveTab('skills')}
+            className={cn(
+              "flex items-center gap-3 px-2 py-1.5 rounded-lg text-xs font-medium transition-all group",
+              activeTab === 'skills'
+                ? "bg-white/10 text-foreground"
+                : "hover:bg-white/5 text-foreground/80"
+            )}
           >
-            <Lightbulb className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+            <Lightbulb className={cn(
+              "h-4 w-4 transition-colors",
+              activeTab === 'skills' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+            )} />
             <span>Skills</span>
           </button>
         </div>
@@ -205,10 +210,12 @@ export function AgentsSidebar() {
                           {repo.issues.map((issue) => (
                             <button
                               key={issue.id}
-                              onClick={() => setSelectedIssueId(issue.id)}
+                              onClick={() => {
+                                setSelectedIssueId(issue.id);
+                              }}
                               className={cn(
                                 "group relative flex flex-col gap-1 px-4 py-2.5 transition-all text-left ml-4 mr-2 rounded-xl",
-                                selectedIssueId === issue.id
+                                selectedIssueId === issue.id && activeTab === "workspace"
                                   ? "bg-white/[0.05] shadow-sm"
                                   : "hover:bg-white/[0.02]"
                               )}
@@ -223,7 +230,7 @@ export function AgentsSidebar() {
                                   )}
                                   <span className={cn(
                                     "text-[13px] font-semibold truncate transition-colors",
-                                    selectedIssueId === issue.id ? "text-white" : "text-white/80 group-hover:text-white"
+                                    selectedIssueId === issue.id && activeTab === "workspace" ? "text-white" : "text-white/80 group-hover:text-white"
                                   )}>
                                     {issue.title}
                                   </span>
