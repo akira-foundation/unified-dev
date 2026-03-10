@@ -81,7 +81,11 @@ export function AgentWorkspaceLayout() {
             )}
           </div>
 
-          {!selectedFilePath && <AgentChatInput />}
+          {!selectedFilePath && (
+            <div className="max-w-4xl mx-auto w-full">
+              <AgentChatInput />
+            </div>
+          )}
         </div>
 
         <div

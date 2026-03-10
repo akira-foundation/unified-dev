@@ -9,7 +9,7 @@ interface AgentTimelineProps {
 export function AgentTimeline({ steps }: AgentTimelineProps) {
   return (
     <div className="flex flex-col gap-6 p-8 relative">
-      <div className="absolute left-[51px] top-12 bottom-12 w-px bg-gradient-to-b from-zinc-200 via-zinc-200 to-transparent dark:from-zinc-800 dark:via-zinc-800 dark:to-transparent" />
+      <div className="absolute left-[56px] top-12 bottom-12 w-px bg-gradient-to-b from-zinc-200 via-zinc-200 to-transparent dark:from-zinc-800 dark:via-zinc-800 dark:to-transparent" />
 
       {steps.map((step) => (
         <div key={step.id} className="flex gap-6 group">

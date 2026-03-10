@@ -29,7 +29,7 @@ export function AgentChatInput() {
   const hasProviders = aiProviders.length > 0;
 
   return (
-    <div className="px-6 pb-6 pt-2">
+    <div className="px-8 pb-6 pt-2">
       {!hasProviders && (
         <div className="flex items-center gap-3 mb-3 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
           <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
