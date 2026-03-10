@@ -202,7 +202,7 @@ export function SkillsPage() {
         <div className="mb-12">
           <h1 className="text-3xl font-bold text-white mb-2">Skills</h1>
           <p className="text-[15px] text-zinc-400">
-            Give Codex superpowers. <button className="text-blue-400 hover:text-blue-300 hover:underline">Learn more</button>
+            Give Unified Dev superpowers. <button className="text-blue-400 hover:text-blue-300 hover:underline">Learn more</button>
           </p>
         </div>
 
