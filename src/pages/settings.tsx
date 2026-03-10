@@ -1,16 +1,14 @@
 import { useState } from "react";
 import {
-  AlertTriangle,
-  CheckCircle,
-  CreditCard,
-  Crown,
-  Mail,
-  Trash2,
   Settings2,
   Github,
   FolderGit2,
   FileText,
-  Link2
+  Link2,
+  AlertTriangle,
+  CheckCircle,
+  Mail,
+  Trash2,
 } from "lucide-react";
 
 import AppearanceTabs from "@/components/appearance-tabs";
@@ -29,11 +27,17 @@ import {
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 
+const TABS = [
+  { id: "general", label: "General", icon: <Settings2 className="h-4 w-4" /> },
+  { id: "github", label: "GitHub", icon: <Github className="h-4 w-4" /> },
+  { id: "workspaces", label: "Workspaces", icon: <FolderGit2 className="h-4 w-4" /> },
+  { id: "prompts", label: "Prompts", icon: <FileText className="h-4 w-4" /> },
+];
+
 export function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const dailyUsage = 0;
-  const dailyLimit = 20;
+  const [activeTab, setActiveTab] = useState("general");
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -63,14 +67,6 @@ export function SettingsPage() {
     localStorage.clear();
     showToast("Aplicação reiniciada. A atualizar...");
     setTimeout(() => window.location.reload(), 1500);
-  };
-
-  const onShowUpgrade = () => {
-    setShowUpgradeModal(true);
-  };
-
-  const onManageBilling = () => {
-    window.location.assign("/settings/billing");
   };
 
   const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
@@ -120,31 +116,29 @@ export function SettingsPage() {
     </div>
   );
 
-  const usagePercent = Math.min((dailyUsage / dailyLimit) * 100, 100);
-
-  const mergePrompt = `Merge the changes from this worktree into the base branch locally.
+  const mergePrompt = \`Merge the changes from this worktree into the base branch locally.
 
 Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
+1. Check for uncommitted changes with \\\`git status --porcelain\\\`
+2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
 
-  const mergePushPrompt = `Merge the changes from this worktree into the base branch and push to the remote.
-
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
-
-  const prPrompt = `Create a pull request for the changes on this branch.
+  const mergePushPrompt = \`Merge the changes from this worktree into the base branch and push to the remote.
 
 Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
+1. Check for uncommitted changes with \\\`git status --porcelain\\\`
+2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
 
-  const draftPrPrompt = `Create a draft pull request for the changes on this branch.
+  const prPrompt = \`Create a pull request for the changes on this branch.
 
 Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
+1. Check for uncommitted changes with \\\`git status --porcelain\\\`
+2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
+
+  const draftPrPrompt = \`Create a draft pull request for the changes on this branch.
+
+Steps:
+1. Check for uncommitted changes with \\\`git status --porcelain\\\`
+2. If there are uncommitted changes, stage them all with \\\`git add -A\\\` and commit with a meaningful, short message that describes the changes.\`;
 
   return (
     <PageLayout scroll>
@@ -159,149 +153,183 @@ Steps:
         </div>
       </PageHeader>
 
-      <div className="mx-auto w-full max-w-5xl pb-12">
-        {toastMessage && (
-          <div className="animate-fade-in-up fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-6 py-4 font-medium text-black shadow-2xl">
-            <CheckCircle size={20} className="text-emerald-500" />
-            {toastMessage}
-          </div>
-        )}
+      <div className="mx-auto w-full max-w-6xl pb-12 flex gap-8">
+        
+        {/* Sidebar */}
+        <div className="w-64 shrink-0 flex flex-col gap-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors",
+                activeTab === tab.id
+                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        {/* Existing General Section */}
-        <SettingsSection
-          title={t("settings.section.general")}
-          description={t("settings.general.appearanceDesc")}
-          icon={Settings2}
-        >
-          <SettingsItem
-            label={t("settings.general.language")}
-            description={t("settings.general.languageValue")}
-            action={
-              <Select value={locale} onValueChange={(value: string) => setLocale(value as any)}>
-                <SelectTrigger className="h-8 w-40 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">{t("settings.general.languageEnglish")}</SelectItem>
-                  <SelectItem value="pt-PT">{t("settings.general.languagePortuguese")}</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-          />
-          <SettingsItem
-            label={t("settings.general.appearance")}
-            description={t("settings.general.appearanceDesc")}
-            action={<AppearanceTabs />}
-          />
-        </SettingsSection>
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {toastMessage && (
+            <div className="animate-fade-in-up fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-6 py-4 font-medium text-black shadow-2xl">
+              <CheckCircle size={20} className="text-emerald-500" />
+              {toastMessage}
+            </div>
+          )}
 
-        {/* New GitHub Section */}
-        <SettingsSection
-          title="GitHub Account"
-          description="Connect your GitHub account to enable pull requests and remote actions directly from the Agent workspace."
-          icon={Github}
-        >
-          <SettingsItem
-            label="GitHub Authentication"
-            description="Authorize this app to access your GitHub repositories."
-            action={
-              <Button variant="outline" className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300">
-                <Link2 className="h-4 w-4" /> Connect
-              </Button>
-            }
-          />
-        </SettingsSection>
-
-        {/* New Workspaces Section */}
-        <SettingsSection
-          title="Workspaces"
-          description="Configure how local Agent workspaces and repositories are handled."
-          icon={FolderGit2}
-        >
-          <SettingsItem
-            label="Default Workspace Directory"
-            description="The default local path where new clone operations will be stored."
-            action={
-              <input
-                type="text"
-                defaultValue="~/Developer/Akira"
-                className="w-64 h-8 px-3 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-[13px] text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500 transition-colors"
-              />
-            }
-          />
-        </SettingsSection>
-
-        {/* New Prompts Section */}
-        <SettingsSection
-          title="Prompts"
-          description="Customize the instructions that the coding agent uses when executing specialized Git and GitHub actions."
-          icon={FileText}
-        >
-          <SettingsTextarea
-            label="Merge Prompt"
-            defaultValue={mergePrompt}
-            description="Showing the default local merge prompt. This merges locally only — it does not push to the remote. Edit to customize."
-          />
-          <SettingsTextarea
-            label="Merge and Push Prompt"
-            defaultValue={mergePushPrompt}
-            description="Showing the default merge-and-push prompt. This merges locally and pushes to the remote. Edit to customize."
-          />
-          <SettingsTextarea
-            label="Pull Request Prompt"
-            defaultValue={prPrompt}
-            description="Showing the default PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize."
-          />
-          <SettingsTextarea
-            label="Draft Pull Request Prompt"
-            defaultValue={draftPrPrompt}
-            description="Showing the default draft PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize."
-          />
-        </SettingsSection>
-
-        {/* Existing Privacy Section */}
-        <SettingsSection
-          title={t("settings.section.privacy")}
-          description={t("settings.privacy.clearHistoryDesc")}
-        >
-          <SettingsItem
-            label={t("settings.privacy.clearHistory")}
-            description={t("settings.privacy.clearHistoryDesc")}
-            action={
-              <button
-                onClick={handleClearHistory}
-                className="text-sm font-bold text-purple-500 hover:text-purple-400 transition-colors"
+          {activeTab === "general" && (
+            <div className="animate-in fade-in duration-300">
+              <SettingsSection
+                title={t("settings.section.general")}
+                description={t("settings.general.appearanceDesc")}
+                icon={Settings2}
               >
-                Limpar
-              </button>
-            }
-          />
-          <SettingsItem
-            label={t("settings.privacy.clearSaved")}
-            description={t("settings.privacy.clearSavedDesc")}
-            action={
-              <button
-                onClick={handleClearSaved}
-                className="text-sm font-bold text-rose-500 hover:text-rose-400 transition-colors"
+                <SettingsItem
+                  label={t("settings.general.language")}
+                  description={t("settings.general.languageValue")}
+                  action={
+                    <Select value={locale} onValueChange={(value: string) => setLocale(value as any)}>
+                      <SelectTrigger className="h-8 w-40 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="en">{t("settings.general.languageEnglish")}</SelectItem>
+                        <SelectItem value="pt-PT">{t("settings.general.languagePortuguese")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  }
+                />
+                <SettingsItem
+                  label={t("settings.general.appearance")}
+                  description={t("settings.general.appearanceDesc")}
+                  action={<AppearanceTabs />}
+                />
+              </SettingsSection>
+
+              <SettingsSection
+                title={t("settings.section.privacy")}
+                description={t("settings.privacy.clearHistoryDesc")}
               >
-                Apagar Tudo
-              </button>
-            }
-          />
-          <SettingsItem
-            label={t("settings.privacy.reset")}
-            description={t("settings.privacy.resetDesc")}
-            destructive
-            action={
-              <button
-                onClick={() => setShowResetConfirm(true)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 transition-colors hover:bg-red-500/20"
+                <SettingsItem
+                  label={t("settings.privacy.clearHistory")}
+                  description={t("settings.privacy.clearHistoryDesc")}
+                  action={
+                    <button
+                      onClick={handleClearHistory}
+                      className="text-sm font-bold text-purple-500 hover:text-purple-400 transition-colors"
+                    >
+                      Limpar
+                    </button>
+                  }
+                />
+                <SettingsItem
+                  label={t("settings.privacy.clearSaved")}
+                  description={t("settings.privacy.clearSavedDesc")}
+                  action={
+                    <button
+                      onClick={handleClearSaved}
+                      className="text-sm font-bold text-rose-500 hover:text-rose-400 transition-colors"
+                    >
+                      Apagar Tudo
+                    </button>
+                  }
+                />
+                <SettingsItem
+                  label={t("settings.privacy.reset")}
+                  description={t("settings.privacy.resetDesc")}
+                  destructive
+                  action={
+                    <button
+                      onClick={() => setShowResetConfirm(true)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 transition-colors hover:bg-red-500/20"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  }
+                />
+              </SettingsSection>
+            </div>
+          )}
+
+          {activeTab === "github" && (
+            <div className="animate-in fade-in duration-300">
+              <SettingsSection
+                title="GitHub Account"
+                description="Connect your GitHub account to enable pull requests and remote actions directly from the Agent workspace."
+                icon={Github}
               >
-                <Trash2 size={16} />
-              </button>
-            }
-          />
-        </SettingsSection>
+                <SettingsItem
+                  label="GitHub Authentication"
+                  description="Authorize this app to access your GitHub repositories."
+                  action={
+                    <Button variant="outline" className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300">
+                      <Link2 className="h-4 w-4" /> Connect
+                    </Button>
+                  }
+                />
+              </SettingsSection>
+            </div>
+          )}
+
+          {activeTab === "workspaces" && (
+            <div className="animate-in fade-in duration-300">
+              <SettingsSection
+                title="Workspaces"
+                description="Configure how local Agent workspaces and repositories are handled."
+                icon={FolderGit2}
+              >
+                <SettingsItem
+                  label="Default Workspace Directory"
+                  description="The default local path where new clone operations will be stored."
+                  action={
+                    <input
+                      type="text"
+                      defaultValue="~/Developer/Akira"
+                      className="w-64 h-8 px-3 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-[13px] text-zinc-900 dark:text-white focus:outline-none focus:border-purple-500 transition-colors"
+                    />
+                  }
+                />
+              </SettingsSection>
+            </div>
+          )}
+
+          {activeTab === "prompts" && (
+            <div className="animate-in fade-in duration-300">
+              <SettingsSection
+                title="Prompts"
+                description="Customize the instructions that the coding agent uses when executing specialized Git and GitHub actions."
+                icon={FileText}
+              >
+                <SettingsTextarea 
+                  label="Merge Prompt" 
+                  defaultValue={mergePrompt} 
+                  description="Showing the default local merge prompt. This merges locally only — it does not push to the remote. Edit to customize." 
+                />
+                <SettingsTextarea 
+                  label="Merge and Push Prompt" 
+                  defaultValue={mergePushPrompt} 
+                  description="Showing the default merge-and-push prompt. This merges locally and pushes to the remote. Edit to customize." 
+                />
+                <SettingsTextarea 
+                  label="Pull Request Prompt" 
+                  defaultValue={prPrompt} 
+                  description="Showing the default PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize." 
+                />
+                <SettingsTextarea 
+                  label="Draft Pull Request Prompt" 
+                  defaultValue={draftPrPrompt} 
+                  description="Showing the default draft PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize." 
+                />
+              </SettingsSection>
+            </div>
+          )}
+        </div>
 
         {showResetConfirm && (
           <div className="animate-fade-in fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
