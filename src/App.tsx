@@ -19,9 +19,9 @@ import type { NavItem } from "./types/navigation";
 
 const navigationItems: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+  { id: "agents", label: "Agents", icon: <Bot className="h-4 w-4" /> },
   { id: "repository", label: "Repositories", icon: <FolderGit2 className="h-4 w-4" /> },
   { id: "providers", label: "Providers", icon: <Server className="h-4 w-4" /> },
-  { id: "agents", label: "Agents", icon: <Bot className="h-4 w-4" /> },
   { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
 ];
 

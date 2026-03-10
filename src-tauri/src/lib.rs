@@ -1,3 +1,4 @@
+mod agents;
 mod commands;
 mod core;
 mod db;
@@ -9,6 +10,7 @@ mod state;
 
 use std::sync::Arc;
 
+use commands::agent_commands::get_available_models;
 use commands::organization_commands::{
     create_organization, delete_organization, list_organizations, list_organizations_by_provider,
     list_selected_repositories, save_selected_repositories,
@@ -69,6 +71,7 @@ pub fn run() {
             setup_result.map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
         })
         .invoke_handler(tauri::generate_handler![
+            get_available_models,
             create_provider,
             list_providers,
             update_provider_auth,

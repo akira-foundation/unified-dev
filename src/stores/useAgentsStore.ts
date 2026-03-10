@@ -1,5 +1,7 @@
 import { create } from "zustand";
+import { invoke } from "@tauri-apps/api/core";
 import type { AgentTimelineStep, FileChange, RepositoryGroup } from "../types/agents";
+import type { AiProviderGroup, AiProviderResponse } from "../types/ai-providers";
 
 interface AgentsState {
   repositoryGroups: RepositoryGroup[];
@@ -10,11 +12,15 @@ interface AgentsState {
   activeTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill";
   selectedSkill: any | null;
   selectedAutomation: any | null;
+  aiProviders: AiProviderGroup[];
+  selectedModelId: string | null;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
   setSelectedSkill: (skill: any | null) => void;
   setSelectedAutomation: (automation: any | null) => void;
+  setSelectedModelId: (id: string) => void;
+  loadAiProviders: () => Promise<void>;
 }
 
 const mockGroups: RepositoryGroup[] = [
@@ -118,6 +124,18 @@ const mockFiles: FileChange[] = [
   },
 ];
 
+function selectDefaultModel(providers: AiProviderGroup[]): string | null {
+  if (providers.length === 0) return null;
+
+  const claude = providers.find((p) => p.name === "Claude");
+  if (claude && claude.models.length > 0) {
+    const sonnet = claude.models.find((m) => m.id === "claude-sonnet");
+    return sonnet ? sonnet.id : claude.models[0].id;
+  }
+
+  return providers[0].models[0]?.id ?? null;
+}
+
 export const useAgentsStore = create<AgentsState>((set) => ({
   repositoryGroups: mockGroups,
   selectedIssueId: "i4",
@@ -127,9 +145,22 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   activeTab: "workspace",
   selectedSkill: null,
   selectedAutomation: null,
+  aiProviders: [],
+  selectedModelId: null,
   setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
   setSelectedFilePath: (path) => set({ selectedFilePath: path }),
   setActiveTab: (tab) => set({ activeTab: tab }),
   setSelectedSkill: (skill) => set({ selectedSkill: skill, activeTab: "manage-skill" }),
   setSelectedAutomation: (automation) => set({ selectedAutomation: automation, activeTab: "create-automation" }),
+  setSelectedModelId: (id) => set({ selectedModelId: id }),
+  loadAiProviders: async () => {
+    try {
+      const response = await invoke<AiProviderResponse>("get_available_models");
+      const providers = response.providers;
+      const defaultModel = selectDefaultModel(providers);
+      set({ aiProviders: providers, selectedModelId: defaultModel });
+    } catch {
+      set({ aiProviders: [], selectedModelId: null });
+    }
+  },
 }));
