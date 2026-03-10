@@ -98,7 +98,7 @@ export function AgentWorkspaceLayout() {
 
       {isTerminalOpen && (
         <div className="h-[260px] shrink-0 border-t border-white/[0.06]">
-          <TerminalPanel />
+          <TerminalPanel onClose={() => setIsTerminalOpen(false)} />
         </div>
       )}
 
