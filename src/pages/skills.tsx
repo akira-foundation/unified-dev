@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { RefreshCcw, Search, Plus, Folder } from "lucide-react";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
@@ -166,6 +167,14 @@ function SkillIcon({ className, textIcon }: { className?: string, textIcon?: str
 }
 
 export function SkillsPage() {
+  const [activeSkills, setActiveSkills] = useState<Record<string, boolean>>(
+    Object.fromEntries(installedSkills.map(skill => [skill.id, skill.active]))
+  );
+
+  const toggleSkill = (id: string, checked: boolean) => {
+    setActiveSkills(prev => ({ ...prev, [id]: checked }));
+  };
+
   return (
     <PageLayout scroll>
       <div className="mx-auto w-full max-w-5xl py-8 px-8">
@@ -222,7 +231,11 @@ export function SkillsPage() {
                   </div>
                 </div>
                 <div className="shrink-0 pl-2">
-                  <Switch checked={skill.active} className="data-[state=checked]:bg-blue-500" />
+                  <Switch
+                    checked={activeSkills[skill.id]}
+                    onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
+                    className="data-[state=checked]:bg-primary"
+                  />
                 </div>
               </div>
             ))}
