@@ -37,19 +37,34 @@ import {
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 
-const TABS = [
-  { id: "general", label: "General", icon: <Settings2 className="h-4 w-4" /> },
-  { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
-  { id: "behaviour", label: "Behaviour", icon: <SlidersHorizontal className="h-4 w-4" /> },
-  { id: "notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
-  { id: "integrations", label: "Integrations", icon: <Blocks className="h-4 w-4" /> },
-  { id: "agents", label: "Coding Agents", icon: <Bot className="h-4 w-4" /> },
-  { id: "shortcuts", label: "Shortcuts", icon: <Keyboard className="h-4 w-4" /> },
-  { id: "dictation", label: "Dictation", icon: <Mic className="h-4 w-4" /> },
-  { id: "advanced", label: "Advanced", icon: <Wrench className="h-4 w-4" /> },
-  { id: "github", label: "GitHub", icon: <Github className="h-4 w-4" /> },
-  { id: "workspaces", label: "Workspaces", icon: <FolderGit2 className="h-4 w-4" /> },
-  { id: "prompts", label: "Prompts", icon: <FileText className="h-4 w-4" /> },
+const SETTINGS_GROUPS = [
+  {
+    group: "Application",
+    items: [
+      { id: "general", label: "General", icon: <Settings2 className="h-4 w-4" /> },
+      { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
+      { id: "behaviour", label: "Behaviour", icon: <SlidersHorizontal className="h-4 w-4" /> },
+      { id: "notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
+    ]
+  },
+  {
+    group: "Features",
+    items: [
+      { id: "integrations", label: "Integrations", icon: <Blocks className="h-4 w-4" /> },
+      { id: "agents", label: "Coding Agents", icon: <Bot className="h-4 w-4" /> },
+      { id: "shortcuts", label: "Shortcuts", icon: <Keyboard className="h-4 w-4" /> },
+      { id: "dictation", label: "Dictation", icon: <Mic className="h-4 w-4" /> },
+    ]
+  },
+  {
+    group: "Development",
+    items: [
+      { id: "advanced", label: "Advanced", icon: <Wrench className="h-4 w-4" /> },
+      { id: "github", label: "GitHub", icon: <Github className="h-4 w-4" /> },
+      { id: "workspaces", label: "Workspaces", icon: <FolderGit2 className="h-4 w-4" /> },
+      { id: "prompts", label: "Prompts", icon: <FileText className="h-4 w-4" /> },
+    ]
+  }
 ];
 
 export function SettingsPage() {
@@ -174,21 +189,35 @@ Steps:
       <div className="mx-auto w-full max-w-6xl pb-12 flex gap-8">
 
         {/* Sidebar */}
-        <div className="w-64 shrink-0 flex flex-col gap-1">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] transition-colors",
-                activeTab === tab.id
-                  ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium shadow-sm"
-                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
+        <div className="w-64 shrink-0 flex flex-col gap-6">
+          {SETTINGS_GROUPS.map((group) => (
+            <div key={group.group} className="flex flex-col gap-1">
+              <h3 className="px-3 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400/60 mb-2">
+                {group.group}
+              </h3>
+              <div className="flex flex-col gap-0.5">
+                {group.items.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-all duration-200",
+                      activeTab === tab.id
+                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm"
+                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/30"
+                    )}
+                  >
+                    <div className={cn(
+                      "transition-colors duration-200",
+                      activeTab === tab.id ? "text-purple-500" : "text-zinc-400 dark:text-zinc-500"
+                    )}>
+                      {tab.icon}
+                    </div>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
