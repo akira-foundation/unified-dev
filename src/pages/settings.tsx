@@ -20,9 +20,11 @@ import {
   AlertTriangle,
   CheckCircle,
   Trash2,
+  User,
+  Shield,
 } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -103,19 +105,19 @@ export function SettingsPage() {
   };
 
   const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
-    <Card className="mb-6">
-      <CardHeader className="flex flex-row items-center gap-3 space-y-0">
+    <Card className="mb-6 overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+      <div className="flex flex-row items-center gap-4 px-6 py-6 pb-6">
         {Icon && (
-          <div className="h-10 w-10 flex items-center justify-center rounded-md bg-purple-500/10 text-purple-500">
-            <Icon className="h-5 w-5" />
+          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+            <Icon size={22} strokeWidth={2} />
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <CardTitle className="text-xl">{title}</CardTitle>
-          {description && <CardDescription>{description}</CardDescription>}
+          <CardTitle className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">{title}</CardTitle>
+          {description && <CardDescription className="text-[13px] font-medium text-zinc-500/80 leading-none">{description}</CardDescription>}
         </div>
-      </CardHeader>
-      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 gap-0">
+      </div>
+      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
         {children}
       </CardContent>
     </Card>
@@ -235,6 +237,7 @@ Steps:
               <SettingsSection
                 title="Account"
                 description="Manage your account profile and access limits."
+                icon={User}
               >
                 <div className="px-4 py-6 border-b border-zinc-100 dark:border-zinc-800/50">
                   <div className="flex items-center justify-between mb-6">
@@ -302,6 +305,7 @@ Steps:
               <SettingsSection
                 title="Appearance"
                 description={t("settings.general.appearanceDesc")}
+                icon={Palette}
               >
                 <SettingsItem
                   label="Sync with system"
@@ -351,7 +355,7 @@ Steps:
 
           {activeTab === "behaviour" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Behaviour" description="Configure application behavior and workflow settings.">
+              <SettingsSection title="Behaviour" description="Configure application behavior and workflow settings." icon={SlidersHorizontal}>
                 <SettingsItem
                   label="Hide inactive repositories"
                   description="Only show repositories that have active workspaces in the sidebar."
@@ -414,7 +418,7 @@ Steps:
 
           {activeTab === "notifications" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Notifications" description="Choose how and when alerts are presented.">
+              <SettingsSection title="Notifications" description="Choose how and when alerts are presented." icon={Bell}>
                 <SettingsItem
                   label="Notify when agent finishes"
                   description="Show a native notification when an agent completes its work and the app is not focused."
@@ -463,7 +467,7 @@ Steps:
 
           {activeTab === "integrations" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Integrations" description="Manage connections to internal and external tools.">
+              <SettingsSection title="Integrations" description="Manage connections to internal and external tools." icon={Blocks}>
                 <SettingsItem
                   label="Nightwatch"
                   description="Laravel error tracking"
@@ -528,7 +532,7 @@ Steps:
 
           {activeTab === "agents" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Coding Agents" description="Configure parameters for AI execution.">
+              <SettingsSection title="Coding Agents" description="Configure parameters for AI execution." icon={Bot}>
                 <SettingsTextarea
                   label="Environment Variables"
                   description="Configure environment variables that will be passed to Claude Code. One per line, format: VAR_NAME=value or export VAR_NAME=value"
@@ -543,7 +547,7 @@ AWS_PROFILE=default`}
 
           {activeTab === "shortcuts" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Shortcuts" description="Keyboard shortcuts to boost your productivity.">
+              <SettingsSection title="Shortcuts" description="Keyboard shortcuts to boost your productivity." icon={Keyboard}>
                 {[
                   { label: "Toggle Terminal", keys: "⌘`" },
                   { label: "Toggle Sidebar", keys: "⌘B" },
@@ -575,7 +579,7 @@ AWS_PROFILE=default`}
 
           {activeTab === "dictation" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Dictation" description="Choose the speech recognition method for prompt dictation.">
+              <SettingsSection title="Dictation" description="Choose the speech recognition method for prompt dictation." icon={Mic}>
                 <SettingsItem
                   label="Speech Recognition Method"
                   description="Uses the built-in speech recognition capabilities of your operating system. Lower accuracy and limited language support. No data will be sent to any servers."
@@ -597,7 +601,7 @@ AWS_PROFILE=default`}
 
           {activeTab === "advanced" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Advanced" description="Developer options.">
+              <SettingsSection title="Advanced" description="Developer options." icon={Wrench}>
                 <SettingsItem
                   label="Show all agent events (debug)"
                   description="Shows raw agent and ask-user events in the activity feed."
@@ -607,6 +611,7 @@ AWS_PROFILE=default`}
               <SettingsSection
                 title={t("settings.section.privacy")}
                 description="Manage your privacy and data settings here."
+                icon={Shield}
               >
                 <SettingsItem
                   label={t("settings.privacy.clearHistory")}
