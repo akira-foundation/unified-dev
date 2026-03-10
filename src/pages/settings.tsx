@@ -7,7 +7,6 @@ import {
   Link2,
   AlertTriangle,
   CheckCircle,
-  Mail,
   Trash2,
 } from "lucide-react";
 
@@ -18,7 +17,6 @@ import { cn } from "@/lib/utils";
 import UpgradeModal from "@/components/upgrade-modal";
 import { useI18n } from "@/i18n/i18n";
 import { useDateLabel } from "@/hooks/use-date-label";
-import { appVersion } from "@/lib/app-meta";
 import {
   PageHeader,
   PageHeaderMeta,
@@ -162,7 +160,7 @@ Steps:
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[13px] transition-colors",
                 activeTab === tab.id
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium shadow-sm"
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
