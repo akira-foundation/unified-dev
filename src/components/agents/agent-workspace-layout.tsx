@@ -10,6 +10,7 @@ import type { AgentIssue, AgentRepository, RepositoryGroup } from "@/types/agent
 
 import { FileEditor } from "./file-editor";
 import { SkillsPage } from "@/pages/skills";
+import { AutomationsPage } from "@/pages/automations";
 
 export function AgentWorkspaceLayout() {
   const { repositoryGroups, selectedIssueId, timelineSteps, fileChanges, selectedFilePath, activeTab } = useAgentsStore();
@@ -19,6 +20,14 @@ export function AgentWorkspaceLayout() {
     return (
       <div className="flex flex-col h-full bg-[#080808] w-full">
         <SkillsPage />
+      </div>
+    );
+  }
+
+  if (activeTab === "automations") {
+    return (
+      <div className="flex flex-col h-full bg-[#080808] w-full">
+        <AutomationsPage />
       </div>
     );
   }

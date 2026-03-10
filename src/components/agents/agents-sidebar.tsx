@@ -93,8 +93,19 @@ export function AgentsSidebar() {
             <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
             <span>New thread</span>
           </button>
-          <button className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group">
-            <Zap className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+          <button
+            onClick={() => setActiveTab('automations')}
+            className={cn(
+              "flex items-center gap-3 px-2 py-1.5 rounded-lg text-xs font-medium transition-all group",
+              activeTab === 'automations'
+                ? "bg-white/10 text-foreground"
+                : "hover:bg-white/5 text-foreground/80"
+            )}
+          >
+            <Zap className={cn(
+              "h-4 w-4 transition-colors",
+              activeTab === 'automations' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+            )} />
             <span>Automations</span>
           </button>
           <button

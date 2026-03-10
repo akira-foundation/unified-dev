@@ -7,10 +7,10 @@ interface AgentsState {
   timelineSteps: AgentTimelineStep[];
   fileChanges: FileChange[];
   selectedFilePath: string | null;
-  activeTab: "workspace" | "skills";
+  activeTab: "workspace" | "skills" | "automations";
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
-  setActiveTab: (tab: "workspace" | "skills") => void;
+  setActiveTab: (tab: "workspace" | "skills" | "automations") => void;
 }
 
 const mockGroups: RepositoryGroup[] = [
