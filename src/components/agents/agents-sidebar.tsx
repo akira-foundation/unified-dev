@@ -67,16 +67,10 @@ export function AgentsSidebar() {
         <div className="flex items-center gap-3 w-full">
           <button
             onClick={handleBack}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all group"
             title="Back to Dashboard"
-            className="group relative"
           >
-            <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full group-hover:bg-primary/50 transition-colors" />
-            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-xs shadow-lg shadow-primary/20 transition-transform group-hover:scale-95">
-              AK
-            </div>
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
-              <CornerUpLeft className="h-4 w-4 text-white" />
-            </div>
+            <CornerUpLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           </button>
           <div className="flex flex-col flex-1 overflow-hidden">
             <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
@@ -87,7 +81,7 @@ export function AgentsSidebar() {
           <button
             type="button"
             onClick={toggleSidebar}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
             title="Collapse Sidebar"
           >
             <PanelLeft className="h-4 w-4" />
