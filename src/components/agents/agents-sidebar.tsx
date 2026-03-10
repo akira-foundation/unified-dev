@@ -15,12 +15,14 @@ import {
   Play,
   Settings,
   Trash2,
-  Rocket
+  Rocket,
+  PanelLeft
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { useI18n } from "@/i18n/i18n";
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +30,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,6 +42,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function AgentsSidebar() {
+  const { t } = useI18n();
+  const { toggleSidebar } = useSidebar();
   const { setIsAgentMode, navigateTo } = useNavigationStore();
   const { repositoryGroups, selectedIssueId, setSelectedIssueId } = useAgentsStore();
   const [expandedRepos, setExpandedRepos] = useState<Record<string, boolean>>({
@@ -59,13 +64,33 @@ export function AgentsSidebar() {
   return (
     <Sidebar className="border-r border-border/40 bg-[#121212] dark:bg-[#0c0c0c] backdrop-blur-xl">
       <SidebarHeader className="h-auto border-b border-white/[0.03] flex flex-col p-4 gap-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3 w-full">
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 hover:text-foreground transition-colors group"
+            title="Back to Dashboard"
+            className="group relative"
           >
-            <CornerUpLeft className="h-3 w-3 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Unified Dev</span>
+            <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full group-hover:bg-primary/50 transition-colors" />
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-xs shadow-lg shadow-primary/20 transition-transform group-hover:scale-95">
+              AK
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+              <CornerUpLeft className="h-4 w-4 text-white" />
+            </div>
+          </button>
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
+            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold truncate">
+              {t("app.workspace")}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
+            title="Collapse Sidebar"
+          >
+            <PanelLeft className="h-4 w-4" />
           </button>
         </div>
 
