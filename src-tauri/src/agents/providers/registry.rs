@@ -59,6 +59,7 @@ pub async fn build_model_registry() -> ModelRegistry {
                     .unwrap_or_else(|_| fallback_models(kind))
             }
             AiProviderKind::Claude => fallback_models(kind),
+            AiProviderKind::Copilot => fallback_models(kind),
         };
 
         if !models.is_empty() {

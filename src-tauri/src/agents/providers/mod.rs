@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub enum AiProviderKind {
     Claude,
     OpenAi,
+    Copilot,
     Ollama,
 }
 
@@ -16,6 +17,7 @@ impl AiProviderKind {
         match self {
             AiProviderKind::Claude => "Claude",
             AiProviderKind::OpenAi => "Codex",
+            AiProviderKind::Copilot => "Copilot",
             AiProviderKind::Ollama => "Ollama",
         }
     }

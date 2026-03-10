@@ -1,18 +1,20 @@
-import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle } from "lucide-react";
+import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 export function AgentChatInput() {
   const [message, setMessage] = useState("");
+  const [open, setOpen] = useState(false);
   const { aiProviders, selectedModelId, setSelectedModelId, loadAiProviders } = useAgentsStore();
 
   useEffect(() => {
@@ -41,7 +43,6 @@ export function AgentChatInput() {
 
       <div className="flex flex-col p-3 rounded-2xl bg-[#1c1c1c] border border-white/[0.04] shadow-2xl transition-all duration-300">
 
-        {/* Top Header Row */}
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-4 text-zinc-400">
             <button className="hover:text-white transition-colors p-1">
@@ -49,47 +50,65 @@ export function AgentChatInput() {
             </button>
 
             {hasProviders ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
                   <button className="flex items-center gap-2 hover:text-white transition-colors group outline-none">
                     <span className="text-[13px] font-medium">
                       {selectedModel?.label ?? "Select model"}
                     </span>
                     <ChevronDown className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                   </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
+                </PopoverTrigger>
+                <PopoverContent
                   align="start"
-                  className="w-64 bg-[#0F0F0F] border-white/[0.05] p-2 shadow-2xl rounded-xl backdrop-blur-3xl"
+                  className="w-64 bg-[#0F0F0F] border-white/[0.05] p-0 shadow-2xl rounded-md"
                 >
-                  {aiProviders.map((provider, index) => (
-                    <div key={provider.name}>
-                      {index > 0 && <DropdownMenuSeparator className="bg-white/[0.03] my-1.5" />}
-                      <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500 px-3 py-2">
-                        {provider.name}
-                      </DropdownMenuLabel>
-                      {provider.models.map((model) => (
-                        <DropdownMenuItem
-                          key={model.id}
-                          onClick={() => setSelectedModelId(model.id)}
-                          className={cn(
-                            "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all text-[13px] font-medium",
-                            selectedModelId === model.id
-                              ? "bg-purple-500/10 text-purple-400"
-                              : "text-zinc-300 focus:bg-white/[0.03] hover:text-white"
-                          )}
+                  <Command className="bg-transparent">
+                    <CommandInput
+                      placeholder="Search models..."
+                      className="text-[13px] text-white/90 placeholder:text-zinc-600 border-white/[0.04]"
+                    />
+                    <CommandList className="max-h-[280px]">
+                      <CommandEmpty className="py-6 text-center text-[12px] text-zinc-500">
+                        No models found
+                      </CommandEmpty>
+                      {aiProviders.map((provider) => (
+                        <CommandGroup
+                          key={provider.name}
+                          heading={provider.name}
+                          className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-black [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.15em] [&_[cmdk-group-heading]]:text-zinc-500"
                         >
-                          <div className={cn(
-                            "h-1.5 w-1.5 rounded-full shrink-0",
-                            selectedModelId === model.id ? "bg-purple-400" : "bg-zinc-600"
-                          )} />
-                          {model.label}
-                        </DropdownMenuItem>
+                          {provider.models.map((model) => (
+                            <CommandItem
+                              key={model.id}
+                              value={model.label}
+                              onSelect={() => {
+                                setSelectedModelId(model.id);
+                                setOpen(false);
+                              }}
+                              className={cn(
+                                "flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer text-[13px] font-medium",
+                                selectedModelId === model.id
+                                  ? "bg-purple-500/10 text-purple-400"
+                                  : "text-zinc-300"
+                              )}
+                            >
+                              <div className={cn(
+                                "h-1.5 w-1.5 rounded-full shrink-0",
+                                selectedModelId === model.id ? "bg-purple-400" : "bg-zinc-600"
+                              )} />
+                              {model.label}
+                              {selectedModelId === model.id && (
+                                <Check className="ml-auto h-3.5 w-3.5 text-purple-400" />
+                              )}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
                       ))}
-                    </div>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             ) : (
               <span className="text-[13px] font-medium text-zinc-600">No models available</span>
             )}
@@ -115,7 +134,6 @@ export function AgentChatInput() {
           </button>
         </div>
 
-        {/* Input Area */}
         <div className="mt-2.5 px-1 pb-1">
           <textarea
             value={message}

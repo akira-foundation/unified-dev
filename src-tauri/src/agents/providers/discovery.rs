@@ -161,6 +161,23 @@ pub fn fallback_models(kind: &AiProviderKind) -> Vec<AiModel> {
                 capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
             },
         ],
+        AiProviderKind::Copilot => vec![
+            AiModel {
+                id: "copilot-gpt-4o".to_string(),
+                label: "Copilot GPT-4o".to_string(),
+                capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            },
+            AiModel {
+                id: "copilot-claude-sonnet".to_string(),
+                label: "Copilot Claude Sonnet".to_string(),
+                capabilities: vec!["tool_use".to_string(), "streaming".to_string(), "reasoning".to_string()],
+            },
+            AiModel {
+                id: "copilot-gemini-pro".to_string(),
+                label: "Copilot Gemini Pro".to_string(),
+                capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            },
+        ],
         AiProviderKind::Ollama => vec![
             AiModel {
                 id: "llama3".to_string(),
