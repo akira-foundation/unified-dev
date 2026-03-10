@@ -75,7 +75,7 @@ export function AgentsSidebar() {
           <div className="flex flex-col flex-1 overflow-hidden">
             <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
             <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold truncate">
-              {t("app.workspace")}
+              Agents
             </span>
           </div>
           <button
