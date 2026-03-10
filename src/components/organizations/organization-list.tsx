@@ -9,10 +9,22 @@ interface OrganizationListProps {
   onRemove: (id: string) => void;
   activeId?: string | null;
   onSelect?: (id: string) => void;
+  onImportRepositories?: (id: string) => void;
+  onConfigureSync?: (id: string) => void;
   onCreate?: () => void;
+  providerNameById?: Record<string, string>;
 }
 
-export function OrganizationList({ organizations, onRemove, activeId, onSelect, onCreate }: OrganizationListProps) {
+export function OrganizationList({
+  organizations,
+  onRemove,
+  activeId,
+  onSelect,
+  onImportRepositories,
+  onConfigureSync,
+  onCreate,
+  providerNameById,
+}: OrganizationListProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -40,6 +52,9 @@ export function OrganizationList({ organizations, onRemove, activeId, onSelect, 
               onRemove={onRemove}
               isActive={activeId === organization.id}
               onSelect={onSelect}
+              onImportRepositories={onImportRepositories}
+              onConfigureSync={onConfigureSync}
+              providerName={providerNameById?.[organization.provider_id]}
             />
           ))
         )}

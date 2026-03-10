@@ -53,6 +53,20 @@ pub struct ProviderRepo {
     pub is_private: bool,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProviderOrgKind {
+    Personal,
+    Organization,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ProviderOrg {
+    pub id: String,
+    pub login: String,
+    pub kind: ProviderOrgKind,
+}
+
 #[derive(Debug, Clone)]
 pub struct VcsPullRequest {
     pub id: String,

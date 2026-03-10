@@ -27,6 +27,18 @@ pub struct CreateProviderInput {
     pub auth: ProviderAuth,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateProviderAuthInput {
+    pub provider_id: String,
+    pub auth: ProviderAuth,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestProviderInput {
+    pub kind: String,
+    pub auth: ProviderAuth,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct OrganizationRecord {
     pub id: String,
@@ -43,10 +55,31 @@ pub struct OrganizationSummary {
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct OrganizationRepoSummary {
+    pub id: i64,
+    pub organization_id: String,
+    pub owner: String,
+    pub repo_name: String,
+    pub visibility: String,
+    pub is_selected: bool,
+    pub auto_sync: bool,
+    pub created_at: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrganizationInput {
     pub name: String,
     pub provider_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SelectedRepositoryInput {
+    pub owner: String,
+    pub repo_name: String,
+    pub visibility: String,
+    pub is_selected: bool,
+    pub auto_sync: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

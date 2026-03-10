@@ -11,12 +11,18 @@ use std::sync::Arc;
 
 use commands::organization_commands::{
     create_organization, delete_organization, list_organizations, list_organizations_by_provider,
+    list_selected_repositories, save_selected_repositories,
 };
-use commands::provider_commands::{create_provider, delete_provider, list_providers};
+use commands::provider_commands::{
+    create_provider, delete_provider, list_provider_organizations, list_provider_repositories, list_providers,
+    test_provider_connection, update_provider_auth,
+};
+use db::organization_repo_repository::SqliteOrganizationRepoRepository;
 use db::organization_repository::SqliteOrganizationRepository;
 use db::provider_repository::SqliteProviderRepository;
 use providers::default_registry;
 use security::{KeyStore, TokenCipher};
+use services::organization_repo_service::OrganizationRepoService;
 use services::organization_service::OrganizationService;
 use services::provider_service::ProviderService;
 use state::AppState;
@@ -29,11 +35,12 @@ pub fn run() {
         .setup(|app| {
             let setup_result: error::AppResult<()> = tauri::async_runtime::block_on(async {
                 let pool = db::init_pool(app.handle()).await?;
-                let key = KeyStore::load_or_create_key()?;
+                let key = KeyStore::load_or_create_key(app.handle())?;
                 let cipher = TokenCipher::new(key);
 
                 let providers = Arc::new(SqliteProviderRepository::new(pool.clone()));
                 let organizations = Arc::new(SqliteOrganizationRepository::new(pool.clone()));
+                let organization_repos = Arc::new(SqliteOrganizationRepoRepository::new(pool.clone()));
 
                 let provider_service = Arc::new(ProviderService::new(
                     providers.clone(),
@@ -44,12 +51,16 @@ pub fn run() {
                     organizations.clone(),
                     providers.clone(),
                 ));
+                let organization_repo_service = Arc::new(OrganizationRepoService::new(
+                    organization_repos.clone(),
+                ));
 
                 let provider_factory = Arc::new(default_registry()?);
 
                 app.manage(AppState::new(
                     provider_service,
                     organization_service,
+                    organization_repo_service,
                     provider_factory,
                 ));
                 Ok(())
@@ -60,11 +71,17 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             create_provider,
             list_providers,
+            update_provider_auth,
             delete_provider,
+            test_provider_connection,
+            list_provider_organizations,
+            list_provider_repositories,
             create_organization,
             list_organizations,
             list_organizations_by_provider,
-            delete_organization
+            delete_organization,
+            save_selected_repositories,
+            list_selected_repositories
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

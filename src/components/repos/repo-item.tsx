@@ -6,7 +6,7 @@ interface RepoItemProps {
 
 export function RepoItem({ repo }: RepoItemProps) {
   return (
-    <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+    <div className="flex items-center justify-between rounded-xl border  px-4 py-3 ">
       <div>
         <div className="text-sm font-semibold text-gray-900 dark:text-white">
           {repo.owner}/{repo.repo_name}

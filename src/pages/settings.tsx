@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import UpgradeModal from "@/components/upgrade-modal";
 import { useI18n } from "@/i18n/i18n";
 import { useDateLabel } from "@/hooks/use-date-label";
+import { appVersion } from "@/lib/app-meta";
 import {
   PageHeader,
   PageHeaderMeta,
@@ -82,7 +83,7 @@ export function SettingsPage() {
   const SettingsItem = ({ label, description, action, destructive = false, className }: any) => (
     <div
       className={cn(
-        "flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/40",
+        "flex items-center justify-between px-4 py-6 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/40",
         className,
       )}
     >
@@ -128,7 +129,7 @@ export function SettingsPage() {
             action={
               <button
                 onClick={() => window.location.assign("/settings/profile")}
-                className="flex h-8 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="flex h-8 items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
                 Gerir Conta
               </button>
@@ -145,7 +146,7 @@ export function SettingsPage() {
             description={t("settings.general.languageValue")}
             action={
               <Select value={locale} onValueChange={(value: string) => setLocale(value as any)}>
-                <SelectTrigger className="h-8 rounded-full border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <SelectTrigger className="h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -211,7 +212,7 @@ export function SettingsPage() {
         >
           <SettingsItem
             label={t("settings.about.version")}
-            action={<span className="font-mono text-xs text-zinc-500 dark:text-zinc-500">v1.3.0 (Beta)</span>}
+            action={<span className="font-mono text-xs text-zinc-500 dark:text-zinc-500">v{appVersion}</span>}
           />
           <SettingsItem
             label={t("settings.about.support")}

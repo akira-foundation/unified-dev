@@ -3,7 +3,9 @@ use serde::de::DeserializeOwned;
 use serde::Deserialize;
 
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderRepo, PullRequestState, VcsPullRequest};
+use crate::core::provider::types::{
+    ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PullRequestState, VcsPullRequest,
+};
 use crate::error::{AppError, AppResult};
 
 const GITHUB_API: &str = "https://api.github.com";
@@ -44,7 +46,7 @@ impl GitHubDriver {
 
     async fn fetch_paginated<T: DeserializeOwned>(
         &self,
-        mut url: String,
+        url: String,
     ) -> AppResult<Vec<T>> {
         let mut page = 1;
         let mut results = Vec::new();
@@ -97,8 +99,50 @@ impl VcsProvider for GitHubDriver {
         "GitHub"
     }
 
+    async fn validate_auth(&self) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/user");
+        let _: serde_json::Value = self.get_json(url).await?;
+        Ok(())
+    }
+
+    async fn list_organizations(&self) -> AppResult<Vec<ProviderOrg>> {
+        let user: GitHubUser = self.get_json(format!("{GITHUB_API}/user")).await?;
+        let orgs: Vec<GitHubOrg> = self.fetch_paginated(format!("{GITHUB_API}/user/orgs")).await?;
+
+        let mut results = Vec::with_capacity(orgs.len() + 1);
+        results.push(ProviderOrg {
+            id: user.id.to_string(),
+            login: user.login,
+            kind: ProviderOrgKind::Personal,
+        });
+
+        results.extend(orgs.into_iter().map(|org| ProviderOrg {
+            id: org.id.to_string(),
+            login: org.login,
+            kind: ProviderOrgKind::Organization,
+        }));
+
+        Ok(results)
+    }
+
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>> {
         let url = format!("{GITHUB_API}/user/repos?type=all");
+        let repositories: Vec<GitHubRepo> = self.fetch_paginated(url).await?;
+
+        Ok(repositories
+            .into_iter()
+            .map(|repo| ProviderRepo {
+                id: repo.id.to_string(),
+                owner: repo.owner.login,
+                name: repo.name,
+                visibility: if repo.private { "private".to_string() } else { "public".to_string() },
+                is_private: repo.private,
+            })
+            .collect())
+    }
+
+    async fn list_organization_repositories(&self, organization: &str) -> AppResult<Vec<ProviderRepo>> {
+        let url = format!("{GITHUB_API}/orgs/{organization}/repos?type=all");
         let repositories: Vec<GitHubRepo> = self.fetch_paginated(url).await?;
 
         Ok(repositories
@@ -152,6 +196,18 @@ fn auth_token(auth: &ProviderAuth) -> AppResult<&str> {
 
 #[derive(Debug, Deserialize)]
 struct GitHubRepoOwner {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubUser {
+    id: u64,
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubOrg {
+    id: u64,
     login: String,
 }
 

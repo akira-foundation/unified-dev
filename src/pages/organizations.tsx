@@ -9,11 +9,13 @@ import {
   PageHeaderTitle,
 } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
-import { NotificationButton } from "../components/layout/notification-button";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
 import { Button } from "@/components/ui/button.tsx";
 import { useProviders } from "../hooks/useProviders";
+import { useNavigation } from "../hooks/useNavigation";
+import { Skeleton } from "../components/ui/skeleton";
+import { useMemo } from "react";
 
 export function OrganizationsPage() {
   const { t, locale } = useI18n();
@@ -21,6 +23,11 @@ export function OrganizationsPage() {
   const { organizations, isLoading, isDialogOpen, setIsDialogOpen, createOrganization, removeOrganization } =
     useOrganizations();
   const { providers } = useProviders();
+  const providerNameById = useMemo(
+    () => Object.fromEntries(providers.map((provider) => [provider.id, provider.name])),
+    [providers],
+  );
+  const { setActiveOrganizationId, navigateTo } = useNavigation("dashboard");
 
   return (
     <PageLayout>
@@ -43,14 +50,22 @@ export function OrganizationsPage() {
         </PageHeaderActions>
       </PageHeader>
       <div className="flex flex-col gap-6">
-        <OrganizationList
-          organizations={organizations}
-          onRemove={removeOrganization}
-        />
-        {isLoading && (
-          <div className="rounded-xl  bg-white px-4 py-3 text-sm text-gray-500 shadow-sm dark:bg-gray-900 dark:text-gray-400">
-            Loading organizations...
+        {isLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
           </div>
+        ) : (
+          <OrganizationList
+            organizations={organizations}
+            onRemove={removeOrganization}
+            onImportRepositories={(organizationId) => {
+              setActiveOrganizationId(organizationId);
+              navigateTo("import-repositories");
+            }}
+            providerNameById={providerNameById}
+          />
         )}
         <AddOrganizationDialog
           open={isDialogOpen}

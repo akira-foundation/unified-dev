@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, MoreHorizontal, Plus } from "lucide-react";
+import { Calendar, MoreVertical, Plus } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
@@ -259,7 +259,7 @@ function CardContentInner({ card }: { card: KanbanCardType }) {
           </span>
 
           <div className="text-zinc-500">
-            <MoreHorizontal size={14} />
+            <MoreVertical size={14} />
           </div>
         </div>
       )}

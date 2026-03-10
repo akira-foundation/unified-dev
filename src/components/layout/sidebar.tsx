@@ -1,6 +1,5 @@
 import {
   PanelLeft,
-  ChevronLeft,
 } from "lucide-react";
 import {
   Sidebar,
@@ -18,9 +17,7 @@ import {
 import type { NavItem } from "@/types/navigation";
 import { useI18n } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
-import { useProviderHierarchy } from "@/hooks/useProviderHierarchy";
-import { useNavigation } from "@/hooks/useNavigation";
-import { SidebarProviderSection } from "@/components/layout/sidebar-provider-section";
+import { appVersion } from "@/lib/app-meta";
 
 interface AppSidebarProps {
   items: NavItem[];
@@ -31,12 +28,11 @@ interface AppSidebarProps {
 export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const { t } = useI18n();
   const { state, toggleSidebar } = useSidebar();
-  const { providersWithOrganizations } = useProviderHierarchy();
-  const { activeOrganizationId, setActiveOrganizationId, setCurrentPage } = useNavigation("dashboard");
 
   const dashboardItem = items.find((item) => item.id === "dashboard");
   const repositoryItem = items.find((item) => item.id === "repository");
   const providersItem = items.find((item) => item.id === "providers");
+  const agentsItem = items.find((item) => item.id === "agents");
   const settingsItem = items.find((item) => item.id === "settings");
 
   return (
@@ -73,7 +69,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
                 title="Collapse Sidebar"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <PanelLeft className="h-4 w-4" />
               </button>
             </>
           )}
@@ -87,7 +83,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1.5 px-3 group-data-[collapsible=icon]:px-0">
-              {[dashboardItem, repositoryItem, providersItem].filter(Boolean).map((item) => (
+              {[dashboardItem, repositoryItem, providersItem, agentsItem].filter(Boolean).map((item) => (
                 <SidebarMenuItem key={item!.id} className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
                   <SidebarMenuButton
                     isActive={activeId === item!.id}
@@ -112,28 +108,6 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup className="mt-8">
-          <SidebarGroupLabel className="px-5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mb-4 group-data-[collapsible=icon]:hidden">
-            Providers
-          </SidebarGroupLabel>
-          <SidebarGroupContent className="px-3 group-data-[collapsible=icon]:hidden">
-            <div className="flex flex-col gap-3">
-              {providersWithOrganizations.map((provider) => (
-                <SidebarProviderSection
-                  key={provider.id}
-                  provider={provider}
-                  organizations={provider.organizations}
-                  activeOrganizationId={activeOrganizationId}
-                  onSelectOrganization={(organizationId) => {
-                    setActiveOrganizationId(organizationId);
-                    setCurrentPage("organization");
-                  }}
-                />
-              ))}
-            </div>
           </SidebarGroupContent>
         </SidebarGroup>
 
@@ -175,11 +149,11 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
       <SidebarFooter className="border-t border-border/10 p-5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:h-16 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
         <div className="flex items-center gap-4 px-1 group-data-[collapsible=icon]:px-0">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 text-[10px] font-bold uppercase text-muted-foreground dark:text-zinc-400">
-            v0
+            v{appVersion.split(".")[0]}
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Unified Engine</span>
-            <span className="text-[11px] font-medium text-muted-foreground">0.1.0-alpha</span>
+            <span className="text-[11px] font-medium text-muted-foreground">v{appVersion}</span>
           </div>
         </div>
       </SidebarFooter>

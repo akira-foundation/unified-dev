@@ -8,6 +8,7 @@ use crate::error::AppResult;
 
 pub mod models;
 pub mod organization_repository;
+pub mod organization_repo_repository;
 pub mod provider_repository;
 
 fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {

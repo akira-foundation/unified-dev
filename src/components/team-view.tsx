@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, MoreHorizontal, Plus, Settings, Trash2, Search } from "lucide-react";
+import { Mail, MoreVertical, Plus, Settings, Trash2, Search } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -216,7 +216,7 @@ export function TeamView() {
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                            <MoreHorizontal size={16} />
+                            <MoreVertical size={16} />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-[160px]">

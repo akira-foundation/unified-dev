@@ -5,7 +5,9 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::core::provider::types::{ProviderAuth, ProviderKind};
-use crate::db::models::{CreateProviderInput, ProviderAuthPayload, ProviderRecord, ProviderSummary};
+use crate::db::models::{
+    CreateProviderInput, ProviderAuthPayload, ProviderRecord, ProviderSummary, UpdateProviderAuthInput,
+};
 use crate::db::organization_repository::OrganizationRepository;
 use crate::db::provider_repository::ProviderRepository;
 use crate::error::{AppError, AppResult};
@@ -65,6 +67,13 @@ impl ProviderService {
         }
 
         self.providers.delete(provider_id).await
+    }
+
+    pub async fn update_provider_auth(&self, input: UpdateProviderAuthInput) -> AppResult<()> {
+        let (auth_type, auth_payload) = self.serialize_auth(&input.auth)?;
+        self.providers
+            .update_auth(&input.provider_id, &auth_type, &auth_payload)
+            .await
     }
 
     pub async fn credentials(&self, provider_id: &str) -> AppResult<ProviderCredentials> {

@@ -11,6 +11,7 @@ pub trait ProviderRepository: Send + Sync {
     async fn list(&self) -> AppResult<Vec<ProviderSummary>>;
     async fn find_by_id(&self, provider_id: &str) -> AppResult<ProviderRecord>;
     async fn exists(&self, provider_id: &str) -> AppResult<bool>;
+    async fn update_auth(&self, provider_id: &str, auth_type: &str, auth_payload: &str) -> AppResult<()>;
 }
 
 pub struct SqliteProviderRepository {
@@ -82,5 +83,15 @@ impl ProviderRepository for SqliteProviderRepository {
             .await?;
 
         Ok(exists > 0)
+    }
+
+    async fn update_auth(&self, provider_id: &str, auth_type: &str, auth_payload: &str) -> AppResult<()> {
+        sqlx::query("UPDATE providers SET auth_type = ?, auth_payload = ? WHERE id = ?")
+            .bind(auth_type)
+            .bind(auth_payload)
+            .bind(provider_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 }

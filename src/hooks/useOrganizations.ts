@@ -8,7 +8,7 @@ export function useOrganizations() {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { setCurrentPage, setActiveOrganizationId } = useNavigationStore();
+  const { navigateTo, setActiveOrganizationId } = useNavigationStore();
 
   const loadOrganizations = useCallback(async () => {
     setIsLoading(true);
@@ -29,9 +29,9 @@ export function useOrganizations() {
       const created = await organizationService.createOrganization(input);
       setOrganizations((prev) => [created, ...prev]);
       setActiveOrganizationId(created.id);
-      setCurrentPage("organization");
+      navigateTo("organization");
     },
-    [setActiveOrganizationId, setCurrentPage],
+    [setActiveOrganizationId, navigateTo],
   );
 
   const removeOrganization = useCallback(async (organizationId: string) => {

@@ -1,7 +1,11 @@
 use base64::Engine;
 use rand::RngCore;
 
+use std::fs;
+use std::path::PathBuf;
+
 use crate::error::{AppError, AppResult};
+use tauri::Manager;
 
 const KEYRING_SERVICE: &str = "unified-dev";
 const KEYRING_ACCOUNT: &str = "token-encryption-key";
@@ -9,24 +13,60 @@ const KEYRING_ACCOUNT: &str = "token-encryption-key";
 pub struct KeyStore;
 
 impl KeyStore {
-    pub fn load_or_create_key() -> AppResult<[u8; 32]> {
+    pub fn load_or_create_key(app: &tauri::AppHandle) -> AppResult<[u8; 32]> {
         let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_ACCOUNT)?;
         match entry.get_password() {
-            Ok(encoded) => {
-                let bytes = base64::engine::general_purpose::STANDARD.decode(encoded)?;
-                let key: [u8; 32] = bytes
-                    .try_into()
-                    .map_err(|_| AppError::Crypto)?;
-                Ok(key)
-            }
+            Ok(encoded) => decode_key(&encoded),
             Err(keyring::Error::NoEntry) => {
-                let mut key = [0u8; 32];
-                rand::rngs::OsRng.fill_bytes(&mut key);
+                let key = generate_key();
                 let encoded = base64::engine::general_purpose::STANDARD.encode(key);
-                entry.set_password(&encoded)?;
+                let _ = entry.set_password(&encoded);
+
+                if cfg!(debug_assertions) {
+                    let _ = write_key_file(app, &encoded);
+                }
+
                 Ok(key)
             }
-            Err(error) => Err(AppError::Keyring(error)),
+            Err(error) => {
+                if cfg!(debug_assertions) {
+                    if let Ok(encoded) = read_key_file(app) {
+                        return decode_key(&encoded);
+                    }
+                }
+
+                Err(AppError::Keyring(error))
+            }
         }
     }
+}
+
+fn decode_key(encoded: &str) -> AppResult<[u8; 32]> {
+    let bytes = base64::engine::general_purpose::STANDARD.decode(encoded)?;
+    let key: [u8; 32] = bytes.try_into().map_err(|_| AppError::Crypto)?;
+    Ok(key)
+}
+
+fn generate_key() -> [u8; 32] {
+    let mut key = [0u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut key);
+    key
+}
+
+fn key_file_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
+    let app_dir = app.path().app_data_dir()?;
+    fs::create_dir_all(&app_dir)?;
+    Ok(app_dir.join("dev-key.txt"))
+}
+
+fn read_key_file(app: &tauri::AppHandle) -> AppResult<String> {
+    let path = key_file_path(app)?;
+    let encoded = fs::read_to_string(path)?;
+    Ok(encoded.trim().to_string())
+}
+
+fn write_key_file(app: &tauri::AppHandle, encoded: &str) -> AppResult<()> {
+    let path = key_file_path(app)?;
+    fs::write(path, encoded)?;
+    Ok(())
 }

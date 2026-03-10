@@ -7,6 +7,9 @@ export function useNavigation(initialPage: AppPage) {
   const {
     currentPage,
     setCurrentPage,
+    navigateTo,
+    goBack,
+    canGoBack,
     activeProviderId,
     setActiveProviderId,
     activeOrganizationId,
@@ -22,6 +25,9 @@ export function useNavigation(initialPage: AppPage) {
   return {
     currentPage,
     setCurrentPage,
+    navigateTo,
+    goBack,
+    canGoBack,
     activeProviderId,
     setActiveProviderId,
     activeOrganizationId,

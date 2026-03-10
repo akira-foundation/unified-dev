@@ -1,4 +1,4 @@
-import { Activity, FileText, Plus, Search, TrendingUp, MessageSquare } from "lucide-react";
+import { Activity, FileText, Plus, Search, TrendingUp, MessageSquare, Sparkles } from "lucide-react";
 
 import {
   PageHeader,
@@ -45,7 +45,7 @@ export function DashboardPage() {
       <div className="flex min-h-0 flex-1 flex-col px-4 md:px-6 ">
         <Tabs defaultValue="overview" className="flex h-full w-full flex-col">
           <div className="flex shrink-0 mb-8">
-            <TabsList className="h-auto gap-1 bg-zinc-100/50 dark:bg-zinc-900/50  rounded-full border border-zinc-200 dark:border-zinc-800/50">
+            <TabsList className="h-auto gap-1 bg-zinc-100/50 dark:bg-zinc-900/50  border border-zinc-200 dark:border-zinc-800/50">
               {[
                 { key: "overview", label: t("dashboard.tabs.overview") ?? "Overview" },
                 { key: "prs", label: t("dashboard.tabs.prs") ?? "PRs" },
@@ -55,7 +55,7 @@ export function DashboardPage() {
                 <TabsTrigger
                   key={tab.key}
                   value={tab.key}
-                  className="rounded-full px-6 py-2 text-xs font-bold uppercase tracking-wider text-zinc-500 transition-all data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800 data-[state=active]:text-zinc-900 dark:data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border-zinc-200 dark:data-[state=active]:border-transparent border border-transparent"
+                  className=""
                 >
                   {tab.label}
                 </TabsTrigger>
@@ -101,13 +101,18 @@ export function DashboardPage() {
                 <div className="lg:col-span-2">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                      <div>
-                        <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
-                          {t("dashboard.activity.title")}
-                        </CardTitle>
-                        <CardDescription>
-                          {locale === "pt-PT" ? "Últimos eventos e sincronizações" : "Latest events and synchronizations"}
-                        </CardDescription>
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-100 dark:border-zinc-800 shadow-sm bg-blue-500/10 text-blue-500">
+                          <Activity size={16} />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
+                            {t("dashboard.activity.title")}
+                          </CardTitle>
+                          <CardDescription>
+                            {locale === "pt-PT" ? "Últimos eventos e sincronizações" : "Latest events and synchronizations"}
+                          </CardDescription>
+                        </div>
                       </div>
                       <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-widest h-8 px-3">
                         {t("common.viewAll")}
@@ -145,9 +150,14 @@ export function DashboardPage() {
                 <div>
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
-                        {t("dashboard.quick.title")}
-                      </CardTitle>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-500">
+                          <Sparkles size={16} />
+                        </div>
+                        <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
+                          {t("dashboard.quick.title")}
+                        </CardTitle>
+                      </div>
                     </CardHeader>
                     <CardContent className="grid p-2">
                       {[

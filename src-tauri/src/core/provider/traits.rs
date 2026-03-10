@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderRepo, VcsPullRequest};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPullRequest};
 use crate::error::AppResult;
 
 pub trait ProviderDriverFactory: Send + Sync {
@@ -16,7 +16,13 @@ pub trait VcsProvider: Send + Sync {
     fn kind(&self) -> ProviderKind;
     fn name(&self) -> &str;
 
+    async fn validate_auth(&self) -> AppResult<()>;
+
+    async fn list_organizations(&self) -> AppResult<Vec<ProviderOrg>>;
+
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>>;
+
+    async fn list_organization_repositories(&self, organization: &str) -> AppResult<Vec<ProviderRepo>>;
 
     async fn list_pull_requests(
         &self,

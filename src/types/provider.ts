@@ -1,5 +1,13 @@
 export type ProviderKind = "github" | "gitlab" | "bitbucket";
 
+export type ProviderOrgKind = "personal" | "organization";
+
+export interface ProviderOrg {
+  id: string;
+  login: string;
+  kind: ProviderOrgKind;
+}
+
 export interface ProviderSummary {
   id: string;
   name: string;

@@ -1,13 +1,26 @@
+import { useState } from "react";
+
 import type { ProviderSummary } from "../../types/provider";
 import { Badge } from "../ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Button } from "../ui/button";
-import { MoreHorizontal, Plus } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { KeyRound, MoreVertical, Plus, Trash2 } from "lucide-react";
 
 interface ProviderListProps {
   providers: ProviderSummary[];
   onRemove: (id: string) => void;
+  onUpdateToken?: (provider: ProviderSummary) => void;
   onCreate?: () => void;
 }
 
@@ -24,7 +37,9 @@ const kindLabel = (kind: string) => {
   }
 };
 
-export function ProviderList({ providers, onRemove, onCreate }: ProviderListProps) {
+export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: ProviderListProps) {
+  const [providerToRemove, setProviderToRemove] = useState<ProviderSummary | null>(null);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -48,7 +63,7 @@ export function ProviderList({ providers, onRemove, onCreate }: ProviderListProp
           providers.map((provider) => (
             <div
               key={provider.id}
-              className="flex items-center justify-between rounded-xl bg-white px-4 py-3 shadow-sm dark:bg-gray-900"
+              className="flex items-center justify-between rounded-xl  px-4 py-3 shadow-sm"
             >
               <div className="flex flex-col gap-1">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">{provider.name}</div>
@@ -60,11 +75,18 @@ export function ProviderList({ providers, onRemove, onCreate }: ProviderListProp
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
+                    <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onRemove(provider.id)} className="text-red-500">
+                  {onUpdateToken && (
+                    <DropdownMenuItem onClick={() => onUpdateToken(provider)}>
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Update token
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => setProviderToRemove(provider)} className="text-red-500">
+                    <Trash2 className="mr-2 h-4 w-4" />
                     Remove provider
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -73,6 +95,30 @@ export function ProviderList({ providers, onRemove, onCreate }: ProviderListProp
           ))
         )}
       </CardContent>
+      <AlertDialog open={Boolean(providerToRemove)} onOpenChange={(open) => (!open ? setProviderToRemove(null) : null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove provider</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the provider configuration and disconnect any linked organizations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (providerToRemove) {
+                  onRemove(providerToRemove.id);
+                }
+                setProviderToRemove(null);
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

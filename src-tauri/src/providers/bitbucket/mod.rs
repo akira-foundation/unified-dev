@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderRepo, VcsPullRequest};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPullRequest};
 use crate::error::{AppError, AppResult};
 
 pub struct BitbucketDriver;
@@ -44,7 +44,19 @@ impl VcsProvider for BitbucketDriver {
         "Bitbucket"
     }
 
+    async fn validate_auth(&self) -> AppResult<()> {
+        Err(AppError::Provider("Bitbucket driver not implemented".to_string()))
+    }
+
+    async fn list_organizations(&self) -> AppResult<Vec<ProviderOrg>> {
+        Err(AppError::Provider("Bitbucket driver not implemented".to_string()))
+    }
+
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>> {
+        Err(AppError::Provider("Bitbucket driver not implemented".to_string()))
+    }
+
+    async fn list_organization_repositories(&self, _organization: &str) -> AppResult<Vec<ProviderRepo>> {
         Err(AppError::Provider("Bitbucket driver not implemented".to_string()))
     }
 

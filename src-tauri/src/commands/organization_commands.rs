@@ -1,6 +1,8 @@
 use tauri::State;
 
-use crate::db::models::{CreateOrganizationInput, OrganizationSummary};
+use crate::db::models::{
+    CreateOrganizationInput, OrganizationRepoSummary, OrganizationSummary, SelectedRepositoryInput,
+};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -41,6 +43,31 @@ pub async fn delete_organization(state: State<'_, AppState>, organization_id: St
     state
         .organization_service
         .delete_organization(&organization_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn save_selected_repositories(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_list: Vec<SelectedRepositoryInput>,
+) -> Result<(), String> {
+    state
+        .organization_repo_service
+        .save_selected_repositories(&organization_id, repo_list)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn list_selected_repositories(
+    state: State<'_, AppState>,
+    organization_id: String,
+) -> Result<Vec<OrganizationRepoSummary>, String> {
+    state
+        .organization_repo_service
+        .list_selected_repositories(&organization_id)
         .await
         .map_err(|error| error.to_string())
 }
