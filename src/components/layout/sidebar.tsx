@@ -43,7 +43,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
             <button
               type="button"
               onClick={toggleSidebar}
-              className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
+              className="relative flex h-10 w-10 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-900 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
               title="Expand Sidebar"
             >
               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/toggle:opacity-100 transition-opacity" />
@@ -53,7 +53,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
             <>
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full" />
-                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-xs shadow-lg shadow-primary/20">
+                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-xs shadow-lg shadow-primary/20">
                   AK
                 </div>
               </div>
@@ -66,7 +66,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
               <button
                 type="button"
                 onClick={toggleSidebar}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
                 title="Collapse Sidebar"
               >
                 <PanelLeft className="h-4 w-4" />
@@ -90,7 +90,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     onClick={() => onSelect(item!.id)}
                     tooltip={t(`nav.${item!.id}`)}
                     className={cn(
-                      "transition-all duration-200 rounded-xl h-11 px-4",
+                      "transition-all duration-200 rounded-md h-11 px-4",
                       activeId === item!.id
                         ? "bg-zinc-100 dark:bg-zinc-900 text-foreground dark:text-white font-bold shadow-sm"
                         : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
@@ -124,7 +124,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                     onClick={() => onSelect(settingsItem.id)}
                     tooltip={t("nav.settings")}
                     className={cn(
-                      "transition-all duration-200 rounded-xl h-11 px-4",
+                      "transition-all duration-200 rounded-md h-11 px-4",
                       activeId === settingsItem.id
                         ? "bg-zinc-100 dark:bg-zinc-900 text-foreground dark:text-white font-bold shadow-sm"
                         : "text-muted-foreground hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300",
@@ -148,7 +148,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
       <SidebarFooter className="border-t border-border/10 p-5 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:h-16 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:justify-center">
         <div className="flex items-center gap-4 px-1 group-data-[collapsible=icon]:px-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-900 text-[10px] font-bold uppercase text-muted-foreground dark:text-zinc-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-900 text-[10px] font-bold uppercase text-muted-foreground dark:text-zinc-400">
             v{appVersion.split(".")[0]}
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">

@@ -1,7 +1,9 @@
 import { RefreshCcw, Plus, Search } from "lucide-react";
 import { PageLayout } from "@/components/layout/page-layout";
+import { PageHeader, PageHeaderTitle, PageHeaderMeta, PageHeaderActions } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 
 const templates = [
@@ -76,62 +78,73 @@ export function AutomationsPage() {
 
   return (
     <PageLayout scroll>
-      <div className="mx-auto w-full max-w-5xl py-8 px-8">
-
-        {/* Top Navigation Row */}
-        <div className="flex items-center justify-end gap-3 mb-10">
-          <Button variant="ghost" className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
-            <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-            Refresh
-          </Button>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-            <Input
-              placeholder="Search automations"
-              className="w-64 pl-9 bg-[#161616] border-white/5 text-sm text-zinc-300 placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-purple-500/50 transition-colors"
-            />
+      <div className="mx-auto w-full max-w-6xl pb-12">
+        <PageHeader className="px-8">
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <PageHeaderTitle className="text-3xl">Automations</PageHeaderTitle>
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[9px] text-zinc-400 shrink-0 font-black uppercase tracking-wider h-fit">
+                Beta
+              </span>
+            </div>
+            <PageHeaderMeta>
+              <span>Automate work by setting up scheduled threads.</span>
+            </PageHeaderMeta>
           </div>
-          <Button
-            onClick={() => setActiveTab("create-automation")}
-            className="gap-1.5"
-          >
-            <Plus className="h-4 w-4" strokeWidth={3} />
-            New automation
-          </Button>
-        </div>
+          <PageHeaderActions className="gap-3">
+            <Button variant="ghost" className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
+              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+              Refresh
+            </Button>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+              <Input
+                placeholder="Search automations"
+                className="w-64 pl-9 bg-zinc-900/50 border-white/5 text-sm text-zinc-300 placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-purple-500/50 transition-colors"
+              />
+            </div>
+            <Button
+              onClick={() => setActiveTab("create-automation")}
+              className="gap-1.5"
+            >
+              <Plus className="h-4 w-4" strokeWidth={3} />
+              New automation
+            </Button>
+          </PageHeaderActions>
+        </PageHeader>
 
-        {/* Header Title */}
-        <div className="mb-12">
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold text-white tracking-tight">Automations</h1>
-            <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/5 border border-white/5 text-[9px] text-zinc-400 shrink-0 font-black uppercase tracking-wider">
-              Beta
-            </span>
-          </div>
-          <p className="text-[15px] text-zinc-400 font-medium">
-            Automate work by setting up scheduled threads.
-          </p>
-        </div>
-
-        {/* Templates Section */}
-        <div className="pb-12">
-          <h2 className="text-xs font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">Start with a template</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="px-8 mt-4">
+          <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">Start with a template</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {templates.map((template, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveTab("create-automation")}
-                className="group flex flex-col text-left gap-4 p-6 rounded-2xl bg-[#0f0f0f] border border-white/[0.03] hover:bg-[#161616] hover:border-white/10 transition-all w-full min-h-[140px] shadow-sm hover:shadow-xl hover:shadow-black/50"
+                className="w-full text-left group transition-all active:scale-[0.98]"
               >
-                <div className="text-2xl leading-none opacity-90 group-hover:scale-110 transition-transform origin-left">{template.icon}</div>
-                <span className="text-[13px] font-bold text-zinc-200 leading-snug group-hover:text-white transition-colors">
-                  {template.text}
-                </span>
+                <Card className="group overflow-hidden">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4 min-w-0 pr-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/5 border border-white/5 font-bold shadow-sm transition-transform group-hover:scale-110">
+                        <span className="text-xl leading-none">{template.icon}</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-[13px] text-zinc-400 font-medium leading-snug group-hover:text-zinc-200 transition-colors line-clamp-2">
+                          {template.text}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 pl-2">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 group-hover:text-white group-hover:bg-white/10 transition-colors">
+                        <Plus className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </button>
             ))}
           </div>
         </div>
-
       </div>
     </PageLayout>
   );

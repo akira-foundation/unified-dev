@@ -7,10 +7,12 @@ interface AgentsState {
   timelineSteps: AgentTimelineStep[];
   fileChanges: FileChange[];
   selectedFilePath: string | null;
-  activeTab: "workspace" | "skills" | "automations" | "create-automation";
+  activeTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill";
+  selectedSkill: any | null;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
-  setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation") => void;
+  setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
+  setSelectedSkill: (skill: any | null) => void;
 }
 
 const mockGroups: RepositoryGroup[] = [
@@ -121,7 +123,9 @@ export const useAgentsStore = create<AgentsState>((set) => ({
   fileChanges: mockFiles,
   selectedFilePath: null,
   activeTab: "workspace",
+  selectedSkill: null,
   setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
   setSelectedFilePath: (path) => set({ selectedFilePath: path }),
   setActiveTab: (tab) => set({ activeTab: tab }),
+  setSelectedSkill: (skill) => set({ selectedSkill: skill, activeTab: "manage-skill" }),
 }));

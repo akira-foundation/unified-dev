@@ -10,6 +10,7 @@ import type { AgentIssue, AgentRepository, RepositoryGroup } from "@/types/agent
 
 import { FileEditor } from "./file-editor";
 import { SkillsPage } from "@/pages/skills";
+import { SkillDetailsPage } from "@/pages/skill-details";
 import { AutomationsPage } from "@/pages/automations";
 import { CreateAutomationPage } from "@/pages/create-automation";
 
@@ -21,6 +22,14 @@ export function AgentWorkspaceLayout() {
     return (
       <div className="flex flex-col h-full bg-[#080808] w-full">
         <SkillsPage />
+      </div>
+    );
+  }
+
+  if (activeTab === "manage-skill") {
+    return (
+      <div className="flex flex-col h-full bg-[#080808] w-full">
+        <SkillDetailsPage />
       </div>
     );
   }

@@ -91,7 +91,7 @@ export function SettingsPage() {
     <Card className="mb-6">
       <CardHeader className="flex flex-row items-center gap-3 space-y-0">
         {Icon && (
-          <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500">
+          <div className="h-10 w-10 flex items-center justify-center rounded-md bg-purple-500/10 text-purple-500">
             <Icon className="h-5 w-5" />
           </div>
         )}
@@ -127,7 +127,7 @@ export function SettingsPage() {
         <p className="text-sm font-medium text-zinc-900 dark:text-white">{label}</p>
       </div>
       <textarea
-        className="w-full h-48 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/5 rounded-xl text-zinc-600 dark:text-zinc-400 font-mono text-[13px] p-4 focus:outline-none focus:border-purple-500 transition-colors custom-scrollbar"
+        className="w-full h-48 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/5 rounded-md text-zinc-600 dark:text-zinc-400 font-mono text-[13px] p-4 focus:outline-none focus:border-purple-500 transition-colors custom-scrollbar"
         defaultValue={defaultValue}
       />
       {description && <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{description}</p>}
@@ -180,7 +180,7 @@ Steps:
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-2xl text-[13px] transition-colors",
+                "flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] transition-colors",
                 activeTab === tab.id
                   ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-medium shadow-sm"
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
@@ -195,7 +195,7 @@ Steps:
         {/* Content */}
         <div className="flex-1 min-w-0">
           {toastMessage && (
-            <div className="animate-fade-in-up fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-xl border border-zinc-100 bg-white px-6 py-4 font-medium text-black shadow-2xl">
+            <div className="animate-fade-in-up fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-md border border-zinc-100 bg-white px-6 py-4 font-medium text-black shadow-2xl">
               <CheckCircle size={20} className="text-emerald-500" />
               {toastMessage}
             </div>
@@ -227,7 +227,7 @@ Steps:
                     </button>
                   </div>
 
-                  <div className="p-5 rounded-xl border border-zinc-100 bg-zinc-50 dark:border-white/5 dark:bg-white/[0.02]">
+                  <div className="p-5 rounded-md border border-zinc-100 bg-zinc-50 dark:border-white/5 dark:bg-white/[0.02]">
                     <h3 className="text-[14px] text-zinc-900 dark:text-zinc-400 mb-3 font-medium dark:font-normal">Upgrade for mobile and web access.</h3>
                     <ul className="space-y-2 mb-4">
                       <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
@@ -237,7 +237,7 @@ Steps:
                         <span className="text-blue-500">✓</span> Start and monitor workspaces on the go
                       </li>
                     </ul>
-                    <Button className="w-full bg-blue-500 hover:bg-blue-600 text-white border-0 shadow-lg shadow-blue-500/20">
+                    <Button className="w-full" variant="default">
                       Upgrade
                     </Button>
                   </div>
@@ -696,7 +696,7 @@ AWS_PROFILE=default`}
 
         {showResetConfirm && (
           <div className="animate-fade-in fixed inset-0 z-[150] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-            <div className="animate-scale-in w-full max-w-sm rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-[#18181b]">
+            <div className="animate-scale-in w-full max-w-sm rounded-md border border-zinc-200 bg-white p-6 shadow-2xl dark:border-zinc-800 dark:bg-[#18181b]">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-500">
                 <AlertTriangle size={24} />
               </div>
@@ -707,13 +707,13 @@ AWS_PROFILE=default`}
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowResetConfirm(false)}
-                  className="flex-1 rounded-xl bg-zinc-100 py-3 font-bold text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  className="flex-1 rounded-md bg-zinc-100 py-3 font-bold text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleFactoryReset}
-                  className="flex-1 rounded-xl bg-red-600 py-3 font-bold text-white shadow-lg shadow-red-600/20 hover:bg-red-700"
+                  className="flex-1 rounded-md bg-red-600 py-3 font-bold text-white shadow-lg shadow-red-600/20 hover:bg-red-700"
                 >
                   Sim, Apagar
                 </button>

@@ -78,7 +78,7 @@ export function DashboardPage() {
                       <CardDescription className="text-[10px] font-bold uppercase tracking-widest ">
                         {stat.label}
                       </CardDescription>
-                      <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm", stat.bg, stat.color)}>
+                      <div className={cn("h-8 w-8 rounded-md flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm", stat.bg, stat.color)}>
                         <stat.icon size={16} />
                       </div>
                     </CardHeader>
@@ -102,7 +102,7 @@ export function DashboardPage() {
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-100 dark:border-zinc-800 shadow-sm bg-blue-500/10 text-blue-500">
+                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 shadow-sm bg-blue-500/10 text-blue-500">
                           <Activity size={16} />
                         </div>
                         <div>
@@ -127,7 +127,7 @@ export function DashboardPage() {
                       ].map((item, idx) => (
                         <div key={idx} className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/10">
                           <div className="flex items-center gap-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
                               <span className="text-sm font-bold text-zinc-600 dark:text-zinc-400">{item.initial}</span>
                             </div>
                             <div className="flex-1 min-w-0">
@@ -151,7 +151,7 @@ export function DashboardPage() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-500">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-500">
                           <Sparkles size={16} />
                         </div>
                         <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
@@ -167,9 +167,9 @@ export function DashboardPage() {
                       ].map((action) => (
                         <button
                           key={action.label}
-                          className="group flex w-full items-center gap-2 rounded-xl  bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
+                          className="group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
                         >
-                          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110", action.bg, action.color)}>
+                          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-transform group-hover:scale-110", action.bg, action.color)}>
                             <action.icon size={20} />
                           </div>
                           <span className="text-sm font-bold text-zinc-900 dark:text-zinc-200">{action.label}</span>

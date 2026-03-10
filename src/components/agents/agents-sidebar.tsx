@@ -67,7 +67,7 @@ export function AgentsSidebar() {
         <div className="flex items-center gap-3 w-full">
           <button
             onClick={handleBack}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all group"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all group"
             title="Back to Dashboard"
           >
             <CornerUpLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
@@ -81,7 +81,7 @@ export function AgentsSidebar() {
           <button
             type="button"
             onClick={toggleSidebar}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
             title="Collapse Sidebar"
           >
             <PanelLeft className="h-4 w-4" />
@@ -89,14 +89,14 @@ export function AgentsSidebar() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <button className="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group">
+          <button className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group">
             <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
             <span>New thread</span>
           </button>
           <button
             onClick={() => setActiveTab('automations')}
             className={cn(
-              "flex items-center gap-3 px-2 py-1.5 rounded-lg text-xs font-medium transition-all group",
+              "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
               activeTab === 'automations'
                 ? "bg-white/10 text-foreground"
                 : "hover:bg-white/5 text-foreground/80"
@@ -111,7 +111,7 @@ export function AgentsSidebar() {
           <button
             onClick={() => setActiveTab('skills')}
             className={cn(
-              "flex items-center gap-3 px-2 py-1.5 rounded-lg text-xs font-medium transition-all group",
+              "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
               activeTab === 'skills'
                 ? "bg-white/10 text-foreground"
                 : "hover:bg-white/5 text-foreground/80"
@@ -144,7 +144,7 @@ export function AgentsSidebar() {
                 <div className="flex flex-col gap-0.5">
                   {group.repositories.map((repo) => (
                     <div key={repo.id} className="flex flex-col">
-                      <div className="group/repo flex items-center gap-1 hover:bg-white/[0.03] transition-all pr-4">
+                      <div className="group/repo flex items-center gap-1 hover:bg-white/[0.03] transition-all pr-4 rounded-md mx-2">
                         <button
                           onClick={(e) => toggleRepo(repo.id, e)}
                           className="flex-1 flex items-center gap-3 px-4 py-2 select-none"
@@ -176,38 +176,38 @@ export function AgentsSidebar() {
                                 <MoreVertical className="h-3.5 w-3.5" />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56 bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-xl">
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-lg cursor-pointer">
+                            <DropdownMenuContent align="end" className="w-56 bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <CircleDot className="h-4 w-4 text-white/40" />
                                 <span>From issue</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-lg cursor-pointer">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <GitPullRequest className="h-4 w-4 text-white/40" />
                                 <span>From pull request</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-lg cursor-pointer">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <GitBranch className="h-4 w-4 text-white/40" />
                                 <span>From branch</span>
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator className="bg-white/[0.03]" />
 
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-lg cursor-pointer">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <Play className="h-4 w-4 text-white/40" />
                                 <span>Run task</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-lg cursor-pointer">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <Rocket className="h-4 w-4 text-white/40" />
                                 <span>Autopilot</span>
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator className="bg-white/[0.03]" />
 
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-lg cursor-pointer">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <Settings className="h-4 w-4 text-white/40" />
                                 <span>Settings</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-lg cursor-pointer">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer">
                                 <Trash2 className="h-4 w-4" />
                                 <span>Remove</span>
                               </DropdownMenuItem>
@@ -225,7 +225,7 @@ export function AgentsSidebar() {
                                 setSelectedIssueId(issue.id);
                               }}
                               className={cn(
-                                "group relative flex flex-col gap-1 px-4 py-2.5 transition-all text-left ml-4 mr-2 rounded-xl",
+                                "group relative flex flex-col gap-1 px-4 py-2.5 transition-all text-left ml-4 mr-2 rounded-md",
                                 selectedIssueId === issue.id && activeTab === "workspace"
                                   ? "bg-white/[0.05] shadow-sm"
                                   : "hover:bg-white/[0.02]"

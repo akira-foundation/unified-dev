@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCcw, Plus, Folder, Search } from "lucide-react";
+import { RefreshCcw, Plus, Folder, Search, Settings } from "lucide-react";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAgentsStore } from "@/stores/useAgentsStore";
 
 const installedSkills = [
   {
@@ -158,7 +160,7 @@ const recommendedSkills = [
 
 function SkillIcon({ className, textIcon }: { className?: string, textIcon?: string }) {
   return (
-    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-bold shadow-sm", className)}>
+    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/5 border border-white/5 font-bold shadow-sm transition-transform group-hover:scale-110", className)}>
       {textIcon ? (
         <span className="text-[10px] leading-none tracking-tight">{textIcon}</span>
       ) : (
@@ -177,12 +179,19 @@ export function SkillsPage() {
     setActiveSkills(prev => ({ ...prev, [id]: checked }));
   };
 
+  const { setSelectedSkill } = useAgentsStore();
+
   return (
     <PageLayout scroll>
       <div className="mx-auto w-full max-w-6xl pb-12">
         <PageHeader className="px-8">
           <div>
-            <PageHeaderTitle className="text-3xl">Skills</PageHeaderTitle>
+            <div className="flex items-center gap-3">
+              <PageHeaderTitle className="text-3xl">Skills</PageHeaderTitle>
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[9px] text-zinc-400 shrink-0 font-black uppercase tracking-wider h-fit">
+                Beta
+              </span>
+            </div>
             <PageHeaderMeta>
               <span>Give Unified Dev superpowers.</span>
             </PageHeaderMeta>
@@ -212,7 +221,11 @@ export function SkillsPage() {
             <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">Installed</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {installedSkills.map((skill) => (
-                <Card key={skill.id} className="group overflow-hidden">
+                <Card
+                  key={skill.id}
+                  className="group overflow-hidden cursor-pointer hover:border-white/10 transition-colors"
+                  onClick={() => setSelectedSkill(skill)}
+                >
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4 min-w-0 pr-4">
                       <SkillIcon className={skill.icon} />
@@ -229,12 +242,33 @@ export function SkillsPage() {
                         <span className="text-[13px] text-zinc-500 truncate font-medium">{skill.description}</span>
                       </div>
                     </div>
-                    <div className="shrink-0 pl-2">
-                      <Switch
-                        checked={activeSkills[skill.id]}
-                        onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
-                        className="data-[state=checked]:bg-purple-500"
-                      />
+                    <div className="flex items-center gap-2 shrink-0 pl-2">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-all"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSkill(skill);
+                              }}
+                            >
+                              <Settings className="h-4 w-4" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <span className="text-xs">Manage skill</span>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Switch
+                          checked={activeSkills[skill.id]}
+                          onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
+                          className="data-[state=checked]:bg-purple-500"
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -247,7 +281,11 @@ export function SkillsPage() {
             <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">Recommended</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {recommendedSkills.map((skill) => (
-                <Card key={skill.id} className="group overflow-hidden">
+                <Card
+                  key={skill.id}
+                  className="group overflow-hidden cursor-pointer hover:border-white/10 transition-colors"
+                  onClick={() => setSelectedSkill({ ...skill, recommended: true })}
+                >
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4 min-w-0 pr-4">
                       <SkillIcon className={skill.icon} textIcon={skill.textIcon} />
@@ -256,8 +294,23 @@ export function SkillsPage() {
                         <span className="text-[13px] text-zinc-500 truncate font-medium">{skill.description}</span>
                       </div>
                     </div>
-                    <div className="shrink-0 pl-2">
-                      <button className="flex items-center justify-center w-8 h-8 rounded-full text-zinc-500 hover:text-white hover:bg-white/10 transition-colors">
+                    <div className="flex items-center gap-2 shrink-0 pl-2">
+                      <button
+                        className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-all font-medium"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSkill({ ...skill, recommended: true });
+                        }}
+                      >
+                        <Settings className="h-4 w-4" />
+                      </button>
+                      <button
+                        className="flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle install logic
+                        }}
+                      >
                         <Plus className="h-4 w-4" />
                       </button>
                     </div>

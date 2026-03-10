@@ -56,14 +56,14 @@ export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: P
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {providers.length === 0 ? (
-          <div className="rounded-xl  px-4 py-6 text-sm text-gray-500  dark:text-gray-400">
+          <div className="rounded-md  px-4 py-6 text-sm text-gray-500  dark:text-gray-400">
             No providers configured yet.
           </div>
         ) : (
           providers.map((provider) => (
             <div
               key={provider.id}
-              className="flex items-center justify-between rounded-xl  px-4 py-3 shadow-sm"
+              className="flex items-center justify-between rounded-md  px-4 py-3 shadow-sm"
             >
               <div className="flex flex-col gap-1">
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">{provider.name}</div>
