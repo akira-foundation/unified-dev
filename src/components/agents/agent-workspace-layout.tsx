@@ -6,6 +6,7 @@ import { AgentTimeline } from "./agent-timeline";
 import { DiffViewer } from "./diff-viewer";
 import { AgentChatInput } from "./agent-chat-input";
 import { AgentStatusBar } from "./agent-status-bar";
+import { TerminalPanel } from "./terminal-panel";
 import type { AgentIssue, AgentRepository, RepositoryGroup } from "@/types/agents";
 
 import { FileEditor } from "./file-editor";
@@ -17,6 +18,7 @@ import { CreateAutomationPage } from "@/pages/create-automation";
 export function AgentWorkspaceLayout() {
   const { repositoryGroups, selectedIssueId, timelineSteps, fileChanges, selectedFilePath, activeTab } = useAgentsStore();
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
   if (activeTab === "skills") {
     return (
@@ -50,7 +52,6 @@ export function AgentWorkspaceLayout() {
     );
   }
 
-  // Find the selected issue
   const allIssues = repositoryGroups.flatMap((g: RepositoryGroup) =>
     g.repositories.flatMap((r: AgentRepository) => r.issues)
   );
@@ -67,7 +68,6 @@ export function AgentWorkspaceLayout() {
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950/20">
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Center Panel: Header, Timeline & Chat (or Editor) */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#080808]">
           {!selectedFilePath && <AgentHeader issue={selectedIssue} />}
 
@@ -84,7 +84,6 @@ export function AgentWorkspaceLayout() {
           {!selectedFilePath && <AgentChatInput />}
         </div>
 
-        {/* Right Panel: Diff / Files (Collapsible & 100% Height) */}
         <div
           className={cn(
             "h-full flex shrink-0 border-l border-border/10 transition-all duration-300 ease-in-out overflow-hidden",
@@ -97,10 +96,18 @@ export function AgentWorkspaceLayout() {
         </div>
       </div>
 
+      {isTerminalOpen && (
+        <div className="h-[260px] shrink-0 border-t border-white/[0.06]">
+          <TerminalPanel />
+        </div>
+      )}
+
       <AgentStatusBar
         branchName={selectedIssue.branchName}
         isRightOpen={isRightSidebarOpen}
         onToggleRight={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
+        isTerminalOpen={isTerminalOpen}
+        onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
       />
     </div>
   );

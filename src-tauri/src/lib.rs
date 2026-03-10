@@ -7,6 +7,7 @@ mod providers;
 mod security;
 mod services;
 mod state;
+mod terminal;
 
 use std::sync::Arc;
 
@@ -19,6 +20,9 @@ use commands::provider_commands::{
     create_provider, delete_provider, list_provider_organizations, list_provider_repositories, list_providers,
     test_provider_connection, update_provider_auth,
 };
+use commands::terminal_commands::{
+    terminal_spawn, terminal_write, terminal_resize, terminal_kill,
+};
 use db::organization_repo_repository::SqliteOrganizationRepoRepository;
 use db::organization_repository::SqliteOrganizationRepository;
 use db::provider_repository::SqliteProviderRepository;
@@ -28,6 +32,7 @@ use services::organization_repo_service::OrganizationRepoService;
 use services::organization_service::OrganizationService;
 use services::provider_service::ProviderService;
 use state::AppState;
+use terminal::manager::TerminalManager;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -65,6 +70,10 @@ pub fn run() {
                     organization_repo_service,
                     provider_factory,
                 ));
+
+                let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalManager::new()));
+                app.manage(terminal_manager);
+
                 Ok(())
             });
 
@@ -84,7 +93,11 @@ pub fn run() {
             list_organizations_by_provider,
             delete_organization,
             save_selected_repositories,
-            list_selected_repositories
+            list_selected_repositories,
+            terminal_spawn,
+            terminal_write,
+            terminal_resize,
+            terminal_kill
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

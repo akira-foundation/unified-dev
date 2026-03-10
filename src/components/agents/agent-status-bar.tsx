@@ -6,9 +6,17 @@ interface AgentStatusBarProps {
   branchName: string;
   isRightOpen: boolean;
   onToggleRight: () => void;
+  isTerminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
-export function AgentStatusBar({ branchName, isRightOpen, onToggleRight }: AgentStatusBarProps) {
+export function AgentStatusBar({
+  branchName,
+  isRightOpen,
+  onToggleRight,
+  isTerminalOpen = false,
+  onToggleTerminal,
+}: AgentStatusBarProps) {
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -43,7 +51,15 @@ export function AgentStatusBar({ branchName, isRightOpen, onToggleRight }: Agent
             <MonitorCog className="h-3.5 w-3.5" />
             <span>Mobile Remote</span>
           </button>
-          <button className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground/40 hover:text-foreground transition-colors group">
+          <button
+            onClick={onToggleTerminal}
+            className={cn(
+              "flex items-center gap-2 text-[11px] font-medium transition-colors group",
+              isTerminalOpen
+                ? "text-purple-400"
+                : "text-muted-foreground/40 hover:text-foreground"
+            )}
+          >
             <Terminal className="h-3.5 w-3.5" />
             <span>Terminal</span>
           </button>
