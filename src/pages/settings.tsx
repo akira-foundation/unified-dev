@@ -463,8 +463,14 @@ Steps:
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="phpstorm">PhpStorm</SelectItem>
                         <SelectItem value="vscode">VS Code</SelectItem>
+                        <SelectItem value="cursor">Cursor</SelectItem>
+                        <SelectItem value="phpstorm">PhpStorm</SelectItem>
+                        <SelectItem value="webstorm">WebStorm</SelectItem>
+                        <SelectItem value="intellij">IntelliJ IDEA</SelectItem>
+                        <SelectItem value="zed">Zed</SelectItem>
+                        <SelectItem value="sublime">Sublime Text</SelectItem>
+                        <SelectItem value="rustrover">RustRover</SelectItem>
                       </SelectContent>
                     </Select>
                   }
@@ -478,9 +484,12 @@ Steps:
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ghostty">Ghostty</SelectItem>
-                        <SelectItem value="iterm">iTerm</SelectItem>
                         <SelectItem value="terminal">Terminal</SelectItem>
+                        <SelectItem value="iterm2">iTerm2</SelectItem>
+                        <SelectItem value="warp">Warp</SelectItem>
+                        <SelectItem value="ghostty">Ghostty</SelectItem>
+                        <SelectItem value="kitty">Kitty</SelectItem>
+                        <SelectItem value="alacritty">Alacritty</SelectItem>
                       </SelectContent>
                     </Select>
                   }
