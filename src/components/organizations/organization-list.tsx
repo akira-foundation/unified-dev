@@ -1,6 +1,6 @@
-import { Plus } from "lucide-react";
+import { Plus, Building2 } from "lucide-react";
 import type { OrganizationSummary } from "../../types/organization";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { OrganizationItem } from "./organization-item";
 
@@ -26,20 +26,25 @@ export function OrganizationList({
   providerNameById,
 }: OrganizationListProps) {
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Organizations</CardTitle>
-          <CardDescription>Connect GitHub organizations and manage sync settings.</CardDescription>
+    <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+      <div className="flex flex-row items-center justify-between px-6 py-6 pb-6">
+        <div className="flex flex-row items-center gap-4">
+          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+            <Building2 size={22} strokeWidth={2} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">Organizations</CardTitle>
+            <CardDescription className="text-[13px] font-medium text-zinc-500/80 leading-none">Connect GitHub organizations and manage sync settings.</CardDescription>
+          </div>
         </div>
         {onCreate && (
-          <Button variant="outline" size="sm" onClick={onCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={onCreate} className="gap-2 font-bold">
+            <Plus className="h-4 w-4" strokeWidth={3} />
             New Organization
           </Button>
         )}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      </div>
+      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
         {organizations.length === 0 ? (
           <div className="rounded-xl  px-4 py-6 text-sm text-gray-500  dark:text-gray-400">
             No organizations configured yet.

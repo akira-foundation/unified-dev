@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { ProviderSummary } from "../../types/provider";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "../ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
 } from "../ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { KeyRound, MoreVertical, Plus, Trash2 } from "lucide-react";
+import { KeyRound, MoreVertical, Plus, Trash2, Server } from "lucide-react";
 
 interface ProviderListProps {
   providers: ProviderSummary[];
@@ -41,20 +41,25 @@ export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: P
   const [providerToRemove, setProviderToRemove] = useState<ProviderSummary | null>(null);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Providers</CardTitle>
-          <CardDescription>Reusable VCS connections used by organizations.</CardDescription>
+    <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+      <div className="flex flex-row items-center justify-between px-6 py-6 pb-6">
+        <div className="flex flex-row items-center gap-4">
+          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+            <Server size={22} strokeWidth={2} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <CardTitle className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">Providers</CardTitle>
+            <CardDescription className="text-[13px] font-medium text-zinc-500/80 leading-none">Reusable VCS connections used by organizations.</CardDescription>
+          </div>
         </div>
         {onCreate && (
-          <Button variant="outline" size="sm" onClick={onCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={onCreate} className="gap-2 font-bold">
+            <Plus className="h-4 w-4" strokeWidth={3} />
             New Provider
           </Button>
         )}
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
+      </div>
+      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
         {providers.length === 0 ? (
           <div className="rounded-md  px-4 py-6 text-sm text-gray-500  dark:text-gray-400">
             No providers configured yet.

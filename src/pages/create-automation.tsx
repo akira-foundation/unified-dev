@@ -1,9 +1,9 @@
-import { ArrowLeft, Info, Clock as ClockIcon } from "lucide-react";
+import { ArrowLeft, Info, Clock as ClockIcon, Settings, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "@/components/layout/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -11,13 +11,20 @@ import { cn } from "@/lib/utils";
 export function CreateAutomationPage() {
   const { setActiveTab, selectedAutomation } = useAgentsStore();
 
-  const SettingsSection = ({ title, description, children }: any) => (
-    <Card className="mb-6">
-      <CardHeader className="flex flex-col gap-1 space-y-0 pb-6">
-        <CardTitle className="text-xl">{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 p-0">
+  const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
+    <Card className="mb-6 overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+      <div className="flex flex-row items-center gap-4 px-6 py-6 pb-6">
+        {Icon && (
+          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+            <Icon size={22} strokeWidth={2} />
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <CardTitle className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">{title}</CardTitle>
+          {description && <CardDescription className="text-[13px] font-medium text-zinc-500/80 leading-none">{description}</CardDescription>}
+        </div>
+      </div>
+      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
         {children}
       </CardContent>
     </Card>
@@ -76,6 +83,7 @@ export function CreateAutomationPage() {
           <SettingsSection
             title="General Information"
             description="Basic configuration for your automation thread."
+            icon={Settings}
           >
             <SettingsItem
               label="Name"
@@ -115,6 +123,7 @@ export function CreateAutomationPage() {
           <SettingsSection
             title="Agent Configuration"
             description="Define the instructions and schedule for the automation."
+            icon={Bot}
           >
             <SettingsItem
               label="Prompt"

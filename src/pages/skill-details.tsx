@@ -1,9 +1,9 @@
-import { ArrowLeft, ExternalLink, Terminal, Sparkles, Trash2, ShieldOff } from "lucide-react";
+import { ArrowLeft, ExternalLink, Terminal, Sparkles, Trash2, ShieldOff, Info, Zap, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { cn } from "@/lib/utils";
 
@@ -15,13 +15,20 @@ export function SkillDetailsPage() {
     return null;
   }
 
-  const SettingsSection = ({ title, description, children }: any) => (
-    <Card className="mb-6">
-      <CardHeader className="flex flex-col gap-1 space-y-0">
-        <CardTitle className="text-xl">{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
-      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 gap-0 p-0">
+  const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
+    <Card className="mb-6 overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+      <div className="flex flex-row items-center gap-4 px-6 py-6 pb-6">
+        {Icon && (
+          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+            <Icon size={22} strokeWidth={2} />
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <CardTitle className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">{title}</CardTitle>
+          {description && <CardDescription className="text-[13px] font-medium text-zinc-500/80 leading-none">{description}</CardDescription>}
+        </div>
+      </div>
+      <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
         {children}
       </CardContent>
     </Card>
@@ -74,6 +81,7 @@ export function SkillDetailsPage() {
         <SettingsSection
           title="General"
           description="Basic information and documentation for this skill."
+          icon={Info}
         >
           <SettingsItem
             label="Description"
@@ -93,6 +101,7 @@ export function SkillDetailsPage() {
         <SettingsSection
           title="Usage & Integration"
           description="How to interface with this skill in your workspace."
+          icon={Zap}
         >
           {[
             { label: "Routes", code: "list-routes", meta: "only_vendor: true" },
@@ -117,6 +126,7 @@ export function SkillDetailsPage() {
         <SettingsSection
           title="Capabilities"
           description="Functional features provided by this skill."
+          icon={Shield}
         >
           <SettingsItem
             label="Available Features"
