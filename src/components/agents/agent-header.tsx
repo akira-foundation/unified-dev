@@ -18,6 +18,10 @@ import {
   Trash2,
   Octagon
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { useAgentsStore } from "@/stores/useAgentsStore";
+import { RemoveThreadDialog } from "./remove-thread-dialog";
 
 interface AgentHeaderProps {
   issue: AgentIssue;
@@ -56,7 +60,26 @@ const ACTION_CONFIGS: Record<HeaderAction, ActionConfig> = {
 
 export function AgentHeader({ issue }: AgentHeaderProps) {
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const { removeThread, setSelectedIssueId } = useAgentsStore();
+
   const currentAction = ACTION_CONFIGS[selectedAction];
+
+  const handleRemoveThread = async () => {
+    try {
+      setIsRemoving(true);
+      await invoke("delete_thread", { threadId: issue.id });
+      removeThread(issue.repoId, issue.id);
+      setSelectedIssueId(null);
+      toast.success("Thread removed");
+      setShowRemoveDialog(false);
+    } catch (error) {
+      toast.error(`Failed to remove thread: ${error}`);
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
   return (
     <header className="h-14 border-b border-white/[0.03] flex items-center px-6 bg-[#0A0A0A] backdrop-blur-md justify-between shrink-0">
@@ -87,14 +110,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
       {/* Actions (Right Aligned Menu) */}
       <div className="flex items-center gap-3">
-        {issue.status === "Running" ? (
-          <Button
-            variant="ghost"
-            className="h-8 rounded-xl px-4 text-[11px] font-bold uppercase tracking-widest bg-red-500/5 text-red-500/70 hover:bg-red-500/10 border border-red-500/10"
-          >
-            Stop Agent
-          </Button>
-        ) : (
+        {issue.status !== "Running" && (
           <div className="flex items-center">
             {/* Split Action Button - Match Dropdown Aesthetic */}
             <div className="flex items-center bg-[#0F0F0F] rounded-xl border border-white/5 shadow-2xl overflow-hidden transition-all duration-300">
@@ -164,19 +180,30 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-48 bg-[#0F0F0F] border-white/[0.05] p-1 shadow-2xl rounded-xl backdrop-blur-3xl"
+            className="w-56 bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md backdrop-blur-3xl"
           >
-            <DropdownMenuItem className="flex items-center gap-3 p-2.5 focus:bg-white/[0.03] rounded-lg cursor-pointer group transition-colors">
-              <Octagon className="h-4 w-4 text-zinc-500 group-hover:text-red-400 transition-colors" />
-              <span className="text-[12px] font-medium text-white/70 group-hover:text-white">Parar agent</span>
+            <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer transition-all">
+              <Octagon className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
+              <span>Stop agent</span>
             </DropdownMenuItem>
-            <DropdownMenuItem className="flex items-center gap-3 p-2.5 focus:bg-red-500/10 rounded-lg cursor-pointer group transition-colors text-red-400/80 hover:text-red-400">
-              <Trash2 className="h-4 w-4 group-hover:scale-110 transition-transform" />
-              <span className="text-[12px] font-medium">Eliminar</span>
+            <DropdownMenuItem
+              onClick={() => setShowRemoveDialog(true)}
+              className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer transition-all"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Remove</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <RemoveThreadDialog
+        open={showRemoveDialog}
+        onOpenChange={setShowRemoveDialog}
+        onRemove={handleRemoveThread}
+        threadTitle={issue.title}
+        isRemoving={isRemoving}
+      />
     </header>
   );
 }

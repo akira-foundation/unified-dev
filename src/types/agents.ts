@@ -3,6 +3,7 @@ export type AgentStatus = "Pending" | "Running" | "Completed" | "Error";
 export interface AgentIssue {
   id: string;
   title: string;
+  repoId: string;
   repoName: string;
   branchName: string;
   agentName: string;

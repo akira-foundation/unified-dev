@@ -103,6 +103,7 @@ export const useAgentsStore = create<AgentsState>()(
             issues: row.threads.map((t) => ({
               id: t.id,
               title: t.title,
+              repoId: row.id,
               repoName: row.name,
               branchName: t.branch,
               agentName: "Unified Dev",
@@ -128,6 +129,7 @@ export const useAgentsStore = create<AgentsState>()(
             issues: [{
               id: thread.id,
               title: thread.title,
+              repoId: repo.id,
               repoName: repo.name,
               branchName: "main",
               agentName: "Polyscope",
@@ -148,6 +150,7 @@ export const useAgentsStore = create<AgentsState>()(
               issues: [...repo.issues, {
                 id: thread.id,
                 title: thread.title,
+                repoId: repo.id,
                 repoName: repo.name,
                 branchName: "main",
                 agentName: "Unified Dev",
