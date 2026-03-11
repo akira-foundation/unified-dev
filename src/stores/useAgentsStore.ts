@@ -21,6 +21,7 @@ interface AgentsState {
   setSelectedAutomation: (automation: any | null) => void;
   setSelectedModelId: (id: string) => void;
   loadAiProviders: () => Promise<void>;
+  addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string }) => void;
 }
 
 const mockGroups: RepositoryGroup[] = [
@@ -163,4 +164,24 @@ export const useAgentsStore = create<AgentsState>((set) => ({
       set({ aiProviders: [], selectedModelId: null });
     }
   },
+  addRepository: (repo, thread) => set((state) => {
+    const newGroups = [...state.repositoryGroups];
+    const threadsGroup = newGroups.find(g => g.name === "THREADS");
+    if (threadsGroup) {
+      threadsGroup.repositories.unshift({
+        id: repo.id,
+        name: repo.name,
+        issues: [{
+          id: thread.id,
+          title: thread.title,
+          repoName: repo.name,
+          branchName: "main",
+          agentName: "Polyscope",
+          status: "Running",
+          updatedAt: "just now"
+        }]
+      });
+    }
+    return { repositoryGroups: newGroups, selectedIssueId: thread.id };
+  }),
 }));

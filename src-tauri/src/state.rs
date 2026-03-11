@@ -10,6 +10,7 @@ pub struct AppState {
     pub organization_service: Arc<OrganizationService>,
     pub organization_repo_service: Arc<OrganizationRepoService>,
     pub provider_factory: Arc<ProviderFactory>,
+    pub db_pool: sqlx::SqlitePool,
 }
 
 impl AppState {
@@ -18,12 +19,14 @@ impl AppState {
         organization_service: Arc<OrganizationService>,
         organization_repo_service: Arc<OrganizationRepoService>,
         provider_factory: Arc<ProviderFactory>,
+        db_pool: sqlx::SqlitePool,
     ) -> Self {
         Self {
             provider_service,
             organization_service,
             organization_repo_service,
             provider_factory,
+            db_pool,
         }
     }
 }

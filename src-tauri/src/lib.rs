@@ -8,6 +8,8 @@ mod security;
 mod services;
 mod state;
 mod terminal;
+mod repositories;
+mod threads;
 
 use std::sync::Arc;
 
@@ -23,6 +25,7 @@ use commands::provider_commands::{
 use commands::terminal_commands::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
 };
+use commands::repository_commands::add_local_repository;
 use db::organization_repo_repository::SqliteOrganizationRepoRepository;
 use db::organization_repository::SqliteOrganizationRepository;
 use db::provider_repository::SqliteProviderRepository;
@@ -70,6 +73,7 @@ pub fn run() {
                     organization_service,
                     organization_repo_service,
                     provider_factory,
+                    pool.clone(),
                 ));
 
                 let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalManager::new()));
@@ -98,7 +102,8 @@ pub fn run() {
             terminal_spawn,
             terminal_write,
             terminal_resize,
-            terminal_kill
+            terminal_kill,
+            add_local_repository
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

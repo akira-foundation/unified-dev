@@ -17,12 +17,14 @@ interface AddRepositoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdd: (path: string) => void;
+  isLoading?: boolean;
 }
 
 export function AddRepositoryDialog({
   open,
   onOpenChange,
   onAdd,
+  isLoading,
 }: AddRepositoryDialogProps) {
   const [localPath, setLocalPath] = useState("");
   const [cloneUrl, setCloneUrl] = useState("");
@@ -114,8 +116,9 @@ export function AddRepositoryDialog({
           <Button
             onClick={handleAdd}
             className="px-8"
+            disabled={isLoading || !localPath}
           >
-            Add
+            {isLoading ? "Adding..." : "Add"}
           </Button>
         </DialogFooter>
       </DialogContent>

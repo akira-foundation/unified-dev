@@ -41,18 +41,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 import { AddRepositoryDialog } from "@/components/repos/add-repository-dialog";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
   const { setIsAgentMode, navigateTo } = useNavigationStore();
-  const { repositoryGroups, selectedIssueId, setSelectedIssueId, activeTab, setActiveTab } = useAgentsStore();
+  const { repositoryGroups, selectedIssueId, setSelectedIssueId, activeTab, setActiveTab, addRepository } = useAgentsStore();
   const [expandedRepos, setExpandedRepos] = useState<Record<string, boolean>>({
     "repo-1": true,
     "repo-4": true,
   });
   const [showAddRepoDialog, setShowAddRepoDialog] = useState(false);
+  const [isAddingRepo, setIsAddingRepo] = useState(false);
 
   const handleBack = () => {
     setIsAgentMode(false);
@@ -64,8 +67,26 @@ export function AgentsSidebar() {
     setExpandedRepos((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleAddRepo = (path: string) => {
-    console.log("Adding repo:", path);
+  const handleAddRepo = async (path: string) => {
+    let loadingToast;
+    try {
+      setIsAddingRepo(true);
+      loadingToast = toast.loading("Adding repository...");
+
+      const response = await invoke<any>("add_local_repository", { localPath: path });
+
+      if (response && response.repository && response.thread) {
+        toast.success(`Repository ${response.repository.name} added`, { id: loadingToast });
+        addRepository(response.repository, response.thread);
+        setShowAddRepoDialog(false);
+      } else {
+        toast.error("Invalid response from server", { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(`Error: ${error}`, { id: loadingToast });
+    } finally {
+      setIsAddingRepo(false);
+    }
   };
 
   return (
@@ -296,6 +317,7 @@ export function AgentsSidebar() {
         open={showAddRepoDialog}
         onOpenChange={setShowAddRepoDialog}
         onAdd={handleAddRepo}
+        isLoading={isAddingRepo}
       />
     </Sidebar>
   );
