@@ -26,7 +26,7 @@ function CodeBlock({ language, children }: { language: string; children: string 
   }
 
   return (
-    <div className="relative my-3 rounded-xl overflow-hidden border border-white/[0.06]">
+    <div className="relative my-3 rounded-xl overflow-hidden border border-white/[0.06] w-full">
       <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-800/80 border-b border-white/[0.06]">
         <span className="text-[11px] font-mono text-zinc-400">{language || "text"}</span>
         <button
@@ -147,7 +147,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming }
   const hasContent = messages.length > 0 || isStreaming;
 
   return (
-    <div className="flex flex-col gap-6 p-8 relative">
+    <div className="flex flex-col gap-6">
       {/* Legacy timeline steps — shown when there are no real messages yet */}
       {!hasContent && (
         <>
@@ -189,7 +189,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming }
         <div
           key={msg.id}
           className={cn(
-            "flex gap-4",
+            "flex gap-4 min-w-0",
             msg.role === "user" ? "flex-row-reverse" : "flex-row"
           )}
         >
@@ -208,11 +208,11 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming }
 
           {/* Bubble */}
           <div className={cn(
-            "flex flex-col gap-1 max-w-[80%]",
-            msg.role === "user" ? "items-end" : "items-start"
+            "flex flex-col gap-1 min-w-0",
+            msg.role === "user" ? "items-end max-w-[80%]" : "items-start w-full"
           )}>
             <div className={cn(
-              "rounded-2xl px-4 py-3 text-[14px]",
+              "rounded-2xl px-4 py-3 text-[14px] min-w-0 w-full overflow-hidden",
               msg.role === "user"
                 ? "bg-purple-500/10 text-white/90 rounded-tr-sm whitespace-pre-wrap leading-relaxed"
                 : "bg-white/[0.04] text-white/80 rounded-tl-sm"
@@ -238,9 +238,9 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming }
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/10 shadow-sm bg-white dark:bg-zinc-900 text-zinc-400">
             <Bot className="h-4 w-4" />
           </div>
-          <div className="flex flex-col gap-2 max-w-[80%] items-start">
+          <div className="flex flex-col gap-2 items-start w-full min-w-0">
             {streamingContent && (
-              <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-[14px] bg-white/[0.04] text-white/80">
+              <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-[14px] bg-white/[0.04] text-white/80 w-full overflow-hidden">
                 <MessageMarkdown content={streamingContent} />
               </div>
             )}

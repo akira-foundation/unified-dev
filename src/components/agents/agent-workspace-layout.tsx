@@ -134,11 +134,13 @@ export function AgentWorkspaceLayout() {
         <div className="flex-1 flex flex-col min-w-0 bg-background">
           {!selectedFilePath && <AgentHeader issue={selectedIssue} />}
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {selectedFilePath ? (
+          {selectedFilePath ? (
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
               <FileEditor />
-            ) : (
-              <div className="max-w-4xl mx-auto py-12">
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col overflow-hidden max-w-3xl mx-auto w-full px-6">
+              <div className="flex-1 overflow-y-auto custom-scrollbar py-8">
                 <AgentTimeline
                   steps={timelineSteps}
                   messages={messages}
@@ -146,12 +148,9 @@ export function AgentWorkspaceLayout() {
                   isStreaming={isStreaming}
                 />
               </div>
-            )}
-          </div>
-
-          {!selectedFilePath && (
-            <div className="max-w-4xl mx-auto w-full">
-              <AgentChatInput />
+              <div className="shrink-0 pb-6 pt-2">
+                <AgentChatInput />
+              </div>
             </div>
           )}
         </div>
