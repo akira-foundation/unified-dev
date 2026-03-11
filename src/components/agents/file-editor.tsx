@@ -96,9 +96,9 @@ export function FileEditor() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#0A0A0A] border-r border-white/[0.03]">
+    <div className="flex flex-col h-full bg-background border-r border-white/[0.03]">
       {/* Editor Header */}
-      <div className="h-10 border-b border-white/[0.03] flex items-center justify-between px-4 bg-[#0D0D0D]">
+      <div className="h-10 border-b border-white/[0.03] flex items-center justify-between px-4 bg-background">
         <div className="flex items-center gap-2 overflow-hidden">
           <span className="text-[10px] text-zinc-500 font-mono truncate">{selectedFilePath}</span>
           <button className="p-1 hover:bg-white/5 rounded text-zinc-500">
@@ -116,7 +116,7 @@ export function FileEditor() {
       {/* Editor Content */}
       <div className="flex-1 overflow-hidden relative group">
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0A0A0A]/80 backdrop-blur-sm z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
             <div className="flex items-center gap-2 text-zinc-500 text-[11px]">
               <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
               <span>Reading file content...</span>

@@ -63,7 +63,7 @@ export function AgentChatInput() {
                   </PopoverTrigger>
                   <PopoverContent
                     align="start"
-                    className="w-64 bg-[#0F0F0F] border-white/[0.05] p-0 shadow-2xl rounded-md"
+                    className="w-64 bg-background border-white/[0.05] p-0 shadow-2xl rounded-md"
                   >
                     <Command className="bg-transparent">
                       <CommandInput

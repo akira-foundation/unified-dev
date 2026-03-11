@@ -30,7 +30,7 @@ export function AgentWorkspaceLayout() {
 
   if (activeTab === "skills") {
     return (
-      <div className="flex flex-col h-full bg-[#080808] w-full">
+      <div className="flex flex-col h-full bg-background w-full">
         <SkillsPage />
       </div>
     );
@@ -38,7 +38,7 @@ export function AgentWorkspaceLayout() {
 
   if (activeTab === "manage-skill") {
     return (
-      <div className="flex flex-col h-full bg-[#080808] w-full">
+      <div className="flex flex-col h-full bg-background w-full">
         <SkillDetailsPage />
       </div>
     );
@@ -46,7 +46,7 @@ export function AgentWorkspaceLayout() {
 
   if (activeTab === "automations") {
     return (
-      <div className="flex flex-col h-full bg-[#080808] w-full">
+      <div className="flex flex-col h-full bg-background w-full">
         <AutomationsPage />
       </div>
     );
@@ -54,7 +54,7 @@ export function AgentWorkspaceLayout() {
 
   if (activeTab === "create-automation") {
     return (
-      <div className="flex flex-col h-full bg-[#080808] w-full text-zinc-300">
+      <div className="flex flex-col h-full bg-background w-full text-zinc-300">
         <CreateAutomationPage />
       </div>
     );
@@ -124,9 +124,9 @@ export function AgentWorkspaceLayout() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950/20">
+    <div className="flex flex-col h-full bg-background mt-4">
       <div className="flex-1 flex overflow-hidden relative">
-        <div className="flex-1 flex flex-col min-w-0 bg-[#080808]">
+        <div className="flex-1 flex flex-col min-w-0 bg-background">
           {!selectedFilePath && <AgentHeader issue={selectedIssue} />}
 
           <div className="flex-1 overflow-y-auto custom-scrollbar">

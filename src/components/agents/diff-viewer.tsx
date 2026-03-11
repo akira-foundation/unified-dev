@@ -35,9 +35,9 @@ export function DiffViewer({ files }: DiffViewerProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-50 dark:bg-[#050505] border-l border-zinc-200 dark:border-white/[0.05]">
+    <div className="flex flex-col h-full bg-zinc-50 dark:bg-background border-l border-zinc-200 dark:border-white/[0.05]">
       {/* Professional Header */}
-      <div className="flex items-center justify-between px-4 h-10 bg-white dark:bg-[#0A0A0A] border-b border-zinc-200 dark:border-white/[0.03] shrink-0">
+      <div className="flex items-center justify-between px-4 h-10 bg-white dark:bg-background border-b border-zinc-200 dark:border-white/[0.03] shrink-0">
         <div className="flex items-center gap-6 h-full">
           <button
             onClick={() => setDiffViewTab("changes")}
@@ -80,7 +80,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
       </div>
 
       {diffViewTab === "changes" ? (
-        <div className="flex-1 overflow-y-auto m-0 p-4 custom-scrollbar bg-zinc-50 dark:bg-[#050505]">
+        <div className="flex-1 overflow-y-auto m-0 p-4 custom-scrollbar bg-zinc-50 dark:bg-background">
           <div className="flex flex-col gap-2 max-w-5xl mx-auto">
             {files.map((file) => (
               <Card key={file.filename} className="gap-0 border-zinc-200 dark:border-white/[0.05] shadow-none">
@@ -138,7 +138,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden bg-[#0A0A0A]">
+        <div className="flex-1 overflow-hidden bg-background">
           <FileExplorer />
         </div>
       )}

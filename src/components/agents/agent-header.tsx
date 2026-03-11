@@ -82,7 +82,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   };
 
   return (
-    <header className="h-14 border-b border-white/[0.03] flex items-center px-6 bg-[#0A0A0A] backdrop-blur-md justify-between shrink-0">
+    <header className="h-14 border-b border-white/[0.03] flex items-center px-6 bg-background backdrop-blur-md justify-between shrink-0">
       {/* Title & Metadata (Left Aligned) */}
       <div className="flex flex-col gap-0.5 min-w-0">
         <div className="flex items-center gap-3">
@@ -180,7 +180,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-56 bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md backdrop-blur-3xl"
+            className="w-56 bg-background border-white/[0.05] p-1 shadow-2xl rounded-md backdrop-blur-3xl"
           >
             <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer transition-all">
               <Octagon className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />

@@ -22,7 +22,7 @@ interface TerminalTab {
 }
 
 const XTERM_THEME = {
-  background: "#0A0A0A",
+  background: "#0c0c0c",
   foreground: "#d4d4d8",
   cursor: "#a78bfa",
   selectionBackground: "#a78bfa33",
@@ -217,8 +217,8 @@ export function TerminalPanel({ onClose }: TerminalPanelProps) {
   }, [activeTabId]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-[#0A0A0A]">
-      <div className="flex items-center h-8 shrink-0 bg-[#111] border-b border-white/[0.04] px-1 gap-0.5">
+    <div className="h-full w-full flex flex-col bg-background">
+      <div className="flex items-center h-8 shrink-0 bg-background border-b border-white/[0.04] px-1 gap-0.5">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}
