@@ -1,65 +1,46 @@
-import { useState } from "react";
-import { Folder, FileCode2, ChevronRight, ChevronDown, Search } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Folder, FileCode2, ChevronRight, ChevronDown, Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { invoke } from "@tauri-apps/api/core";
 
-interface FileNode {
+interface FileNodeData {
   name: string;
-  type: "file" | "folder";
-  children?: FileNode[];
   path: string;
+  is_dir: boolean;
+  children?: FileNodeData[];
 }
 
-const mockProjectTree: FileNode[] = [
-  { name: ".agent", type: "folder", path: ".agent", children: [] },
-  { name: ".agents", type: "folder", path: ".agents", children: [] },
-  { name: ".ai", type: "folder", path: ".ai", children: [] },
-  {
-    name: "app",
-    type: "folder",
-    path: "app",
-    children: [
-      {
-        name: "Actions",
-        type: "folder",
-        path: "app/Actions",
-        children: [
-          {
-            name: "OnlineSale",
-            type: "folder",
-            path: "app/Actions/OnlineSale",
-            children: [
-              { name: "RequestTicketAccessAction.php", type: "file", path: "app/Actions/OnlineSale/RequestTicketAccessAction.php" },
-              { name: "VerifyTicketAccessCodeAction.php", type: "file", path: "app/Actions/OnlineSale/VerifyTicketAccessCodeAction.php" },
-            ],
-          },
-          { name: "Sisp", type: "folder", path: "app/Actions/Sisp", children: [] },
-          { name: "Ticket", type: "folder", path: "app/Actions/Ticket", children: [] },
-        ],
-      },
-      { name: "Models", type: "folder", path: "app/Models", children: [] },
-      { name: "Http", type: "folder", path: "app/Http", children: [] },
-    ],
-  },
-  { name: "config", type: "folder", path: "config", children: [] },
-  { name: "database", type: "folder", path: "database", children: [] },
-  { name: "routes", type: "folder", path: "routes", children: [] },
-];
-
-function FileNode({ node, level = 0 }: { node: FileNode; level?: number }) {
+function FileNode({ node, level = 0, workspacePath }: { node: FileNodeData; level?: number; workspacePath: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [children, setChildren] = useState<FileNodeData[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { selectedFilePath, setSelectedFilePath } = useAgentsStore();
 
   const isSelected = selectedFilePath === node.path;
 
-  const handleToggle = () => {
-    if (node.type === "folder") {
+  const handleToggle = async () => {
+    if (node.is_dir) {
+      if (!isExpanded && !children) {
+        try {
+          setIsLoading(true);
+          const absoluteDirPath = `${workspacePath}/${node.path}`;
+          const result = await invoke<FileNodeData[]>("list_files", {
+            workspacePath,
+            directoryPath: absoluteDirPath
+          });
+          setChildren(result);
+        } catch (error) {
+          console.error("Failed to load directory:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
       setIsExpanded(!isExpanded);
     } else {
       setSelectedFilePath(node.path);
     }
   };
-
   return (
     <div className="flex flex-col">
       <div
@@ -72,9 +53,13 @@ function FileNode({ node, level = 0 }: { node: FileNode; level?: number }) {
         )}
         style={{ paddingLeft: `${level * 16 + 8}px` }}
       >
-        {node.type === "folder" ? (
+        {node.is_dir ? (
           <>
-            {isExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+            {isLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0 text-purple-400" />
+            ) : (
+              isExpanded ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+            )}
             <Folder className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
           </>
         ) : (
@@ -86,10 +71,10 @@ function FileNode({ node, level = 0 }: { node: FileNode; level?: number }) {
         <span className="text-[12px] font-medium truncate">{node.name}</span>
       </div>
 
-      {node.type === "folder" && isExpanded && node.children && (
+      {node.is_dir && isExpanded && children && (
         <div className="flex flex-col">
-          {node.children.map((child) => (
-            <FileNode key={child.path} node={child} level={level + 1} />
+          {children.map((child) => (
+            <FileNode key={child.path} node={child} level={level + 1} workspacePath={workspacePath} />
           ))}
         </div>
       )}
@@ -99,10 +84,40 @@ function FileNode({ node, level = 0 }: { node: FileNode; level?: number }) {
 
 export function FileExplorer() {
   const [search, setSearch] = useState("");
+  const [tree, setTree] = useState<FileNodeData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { repositoryGroups, selectedIssueId } = useAgentsStore();
 
-  const filteredTree = mockProjectTree.filter(node =>
-    node.name.toLowerCase().includes(search.toLowerCase()) ||
-    (node.children && node.children.some(c => c.name.toLowerCase().includes(search.toLowerCase())))
+  const allIssues = repositoryGroups.flatMap((g) => g.repositories.flatMap((r) => r.issues));
+  const selectedIssue = allIssues.find((i) => i.id === selectedIssueId);
+
+  useEffect(() => {
+    async function loadFiles() {
+      if (!selectedIssue?.workspacePath) {
+        setTree([]);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const result = await invoke<FileNodeData[]>("list_files", {
+          workspacePath: selectedIssue.workspacePath,
+          directoryPath: selectedIssue.workspacePath
+        });
+        setTree(result);
+      } catch (error) {
+        console.error("Failed to load workspace files:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadFiles();
+  }, [selectedIssue?.workspacePath]);
+
+  const filteredTree = tree.filter(node =>
+    node.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -121,9 +136,20 @@ export function FileExplorer() {
       </div>
 
       <div className="flex-1 overflow-y-auto pt-2 custom-scrollbar">
-        {filteredTree.map((node) => (
-          <FileNode key={node.path} node={node} />
-        ))}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full gap-2 text-zinc-500 text-[11px]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Loading files...</span>
+          </div>
+        ) : filteredTree.length > 0 ? (
+          filteredTree.map((node) => (
+            <FileNode key={node.path} node={node} workspacePath={selectedIssue?.workspacePath || ""} />
+          ))
+        ) : (
+          <div className="flex items-center justify-center h-full text-zinc-600 text-[11px]">
+            No files found
+          </div>
+        )}
       </div>
     </div>
   );

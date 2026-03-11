@@ -13,7 +13,7 @@ mod threads;
 
 use std::sync::Arc;
 
-use commands::agent_commands::get_available_models;
+use commands::agent_commands::{get_available_models, list_files, read_file};
 use commands::organization_commands::{
     create_organization, delete_organization, list_organizations, list_organizations_by_provider,
     list_selected_repositories, save_selected_repositories,
@@ -107,7 +107,9 @@ pub fn run() {
             delete_local_repository,
             list_repositories,
             create_thread,
-            delete_thread
+            delete_thread,
+            list_files,
+            read_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

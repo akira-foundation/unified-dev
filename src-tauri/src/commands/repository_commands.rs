@@ -13,6 +13,7 @@ pub struct ThreadRow {
     pub id: String,
     pub title: String,
     pub branch: String,
+    pub workspace_path: String,
     pub status: String,
     pub created_at: String,
 }
@@ -68,17 +69,18 @@ pub async fn list_repositories(
     let mut result = Vec::new();
 
     for (repo_id, repo_name) in repos {
-        let threads = sqlx::query_as::<_, (String, String, String, String, String)>(
-            "SELECT id, title, branch, status, created_at FROM threads WHERE repo_id = ? ORDER BY created_at ASC",
+        let threads = sqlx::query_as::<_, (String, String, String, String, String, String)>(
+            "SELECT id, title, branch, workspace_path, status, created_at FROM threads WHERE repo_id = ? ORDER BY created_at ASC",
         )
         .bind(&repo_id)
         .fetch_all(&state.db_pool)
         .await?;
 
-        let thread_rows = threads.into_iter().map(|(id, title, branch, status, created_at)| ThreadRow {
+        let thread_rows = threads.into_iter().map(|(id, title, branch, workspace_path, status, created_at)| ThreadRow {
             id,
             title,
             branch,
+            workspace_path,
             status,
             created_at,
         }).collect();

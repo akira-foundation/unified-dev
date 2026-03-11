@@ -4,6 +4,7 @@ export interface AgentIssue {
   id: string;
   title: string;
   repoId: string;
+  workspacePath: string;
   repoName: string;
   branchName: string;
   agentName: string;

@@ -24,8 +24,8 @@ interface AgentsState {
   setSelectedModelId: (id: string) => void;
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
-  addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string }) => void;
-  addThread: (repoId: string, thread: { title: string, id: string }) => void;
+  addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string, workspace_path: string }) => void;
+  addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
   removeThread: (repoId: string, threadId: string) => void;
   removeRepository: (id: string) => void;
 }
@@ -96,7 +96,7 @@ export const useAgentsStore = create<AgentsState>()(
       },
       loadRepositories: async () => {
         try {
-          const rows = await invoke<Array<{ id: string; name: string; threads: Array<{ id: string; title: string; branch: string; status: string; created_at: string }> }>>("list_repositories");
+          const rows = await invoke<Array<{ id: string; name: string; threads: Array<{ id: string; title: string; branch: string; workspace_path: string; status: string; created_at: string }> }>>("list_repositories");
           const repositories = rows.map((row) => ({
             id: row.id,
             name: row.name,
@@ -104,6 +104,7 @@ export const useAgentsStore = create<AgentsState>()(
               id: t.id,
               title: t.title,
               repoId: row.id,
+              workspacePath: t.workspace_path,
               repoName: row.name,
               branchName: t.branch,
               agentName: "Unified Dev",
@@ -130,6 +131,7 @@ export const useAgentsStore = create<AgentsState>()(
               id: thread.id,
               title: thread.title,
               repoId: repo.id,
+              workspacePath: thread.workspace_path,
               repoName: repo.name,
               branchName: "main",
               agentName: "Polyscope",
@@ -151,6 +153,7 @@ export const useAgentsStore = create<AgentsState>()(
                 id: thread.id,
                 title: thread.title,
                 repoId: repo.id,
+                workspacePath: thread.workspace_path,
                 repoName: repo.name,
                 branchName: "main",
                 agentName: "Unified Dev",
