@@ -58,7 +58,12 @@ pub async fn build_model_registry() -> ModelRegistry {
                     .await
                     .unwrap_or_else(|_| fallback_models(kind))
             }
+            // Anthropic does not expose a public /models endpoint, so the list
+            // is maintained statically in fallback_models(). Update that list
+            // when Anthropic releases new model versions.
             AiProviderKind::Claude => fallback_models(kind),
+            // Copilot model availability depends on the subscription tier and is
+            // not queryable without an active session; keep it static for now.
             AiProviderKind::Copilot => fallback_models(kind),
         };
 

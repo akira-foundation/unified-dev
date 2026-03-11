@@ -1,5 +1,5 @@
 import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -16,7 +16,16 @@ import {
 export function AgentChatInput() {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
-  const { aiProviders, selectedModelId, setSelectedModelId, loadAiProviders } = useAgentsStore();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const {
+    aiProviders,
+    selectedModelId,
+    setSelectedModelId,
+    loadAiProviders,
+    sendMessage,
+    isStreaming,
+    selectedIssueId,
+  } = useAgentsStore();
 
   useEffect(() => {
     loadAiProviders();
@@ -27,6 +36,24 @@ export function AgentChatInput() {
     .find((m) => m.id === selectedModelId);
 
   const hasProviders = aiProviders.length > 0;
+  const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId && !isStreaming;
+
+  const handleSend = async () => {
+    if (!canSend) return;
+    const content = message.trim();
+    setMessage("");
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "24px";
+    }
+    await sendMessage(selectedIssueId!, content, selectedModelId!);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
 
   return (
     <div className="px-8 pb-6 pt-2">
@@ -124,11 +151,12 @@ export function AgentChatInput() {
             </div>
 
             <button
-              disabled={!message.trim() || !hasProviders}
+              onClick={handleSend}
+              disabled={!canSend}
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-300 shrink-0",
-                message.trim() && hasProviders
-                  ? "bg-white/10 text-white hover:bg-white/20"
+                canSend
+                  ? "bg-white/10 text-white hover:bg-white/20 cursor-pointer"
                   : "bg-white/[0.03] text-zinc-500 cursor-not-allowed"
               )}
             >
@@ -138,15 +166,23 @@ export function AgentChatInput() {
 
           <div className="mt-2.5 px-1 pb-1">
             <textarea
+              ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={hasProviders ? "Ask to make changes..." : "Configure an AI provider to start..."}
-              disabled={!hasProviders}
+              onKeyDown={handleKeyDown}
+              placeholder={
+                isStreaming
+                  ? "Agent is responding..."
+                  : hasProviders
+                  ? "Ask to make changes..."
+                  : "Configure an AI provider to start..."
+              }
+              disabled={!hasProviders || isStreaming}
               className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-white/90 placeholder:text-zinc-500 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
               rows={1}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
-                target.style.height = '24px';
+                target.style.height = "24px";
                 target.style.height = `${target.scrollHeight}px`;
               }}
             />

@@ -1,8 +1,20 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import { toast } from "sonner";
 import type { AgentTimelineStep, FileChange, RepositoryGroup, AgentStatus } from "../types/agents";
 import type { AiProviderGroup, AiProviderResponse } from "../types/ai-providers";
+
+export interface ChatMessage {
+  id: string;
+  thread_id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  model: string | null;
+  content: string;
+  metadata: string | null;
+  created_at: string;
+}
 
 interface AgentsState {
   repositoryGroups: RepositoryGroup[];
@@ -16,6 +28,10 @@ interface AgentsState {
   aiProviders: AiProviderGroup[];
   selectedModelId: string | null;
   repositoriesLoaded: boolean;
+  // Chat
+  messages: ChatMessage[];
+  streamingContent: string;
+  isStreaming: boolean;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
@@ -24,6 +40,8 @@ interface AgentsState {
   setSelectedModelId: (id: string) => void;
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
+  loadMessages: (threadId: string) => Promise<void>;
+  sendMessage: (threadId: string, content: string, model: string) => Promise<void>;
   addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string, workspace_path: string }) => void;
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
   removeThread: (repoId: string, threadId: string) => void;
@@ -42,47 +60,23 @@ interface AgentsState {
   setIsTerminalOpen: (open: boolean) => void;
 }
 
-const mockTimeline: AgentTimelineStep[] = [
-  { id: "1", message: "Analyzing repository structure...", timestamp: "14:20", status: "completed" },
-  { id: "2", message: "Scanning for CSV injection patterns in report_exports.php", timestamp: "14:21", status: "completed" },
-  { id: "3", message: "Found vulnerability: Unsanitized input in export function", timestamp: "14:22", status: "warning", details: "The 'filename' parameter is used directly in the CSV output without proper escaping." },
-  { id: "4", message: "Applying security fix in security_helper.php", timestamp: "14:23", status: "completed" },
-  { id: "5", message: "Running regression tests", timestamp: "14:25", status: "running" },
-  { id: "6", message: "CI running", timestamp: "14:26", status: "info" },
-];
-
-const mockFiles: FileChange[] = [
-  {
-    filename: "report_exports.php",
-    status: "modified",
-    diff: `@@ -45,7 +45,7 @@ class ReportExporter\n     public function export(array $data, string $filename)\n     {\n-        $handle = fopen('php://output', 'w');\n+        $handle = fopen('php://output', 'w');\n+        // Secure escaping for CSV injection\n         $filename = SecurityHelper::sanitizeCsv($filename);\n         fputcsv($handle, $data);\n     }`,
-  },
-  {
-    filename: "security_helper.php",
-    status: "modified",
-    diff: `@@ -12,4 +12,9 @@ class SecurityHelper\n {\n+    public static function sanitizeCsv(string $input): string\n+    {\n+        return preg_replace('/^[=+-@]/', "'$0", $input);\n+    }\n }`,
-  },
-];
-
 function selectDefaultModel(providers: AiProviderGroup[]): string | null {
   if (providers.length === 0) return null;
-
   const claude = providers.find((p) => p.name === "Claude");
   if (claude && claude.models.length > 0) {
-    const sonnet = claude.models.find((m) => m.id === "claude-sonnet");
+    const sonnet = claude.models.find((m) => m.id.includes("sonnet"));
     return sonnet ? sonnet.id : claude.models[0].id;
   }
-
   return providers[0].models[0]?.id ?? null;
 }
 
 export const useAgentsStore = create<AgentsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       repositoryGroups: [{ name: "THREADS", repositories: [] }],
       selectedIssueId: null,
-      timelineSteps: mockTimeline,
-      fileChanges: mockFiles,
+      timelineSteps: [],
+      fileChanges: [],
       selectedFilePath: null,
       activeTab: "workspace",
       selectedSkill: null,
@@ -94,6 +88,10 @@ export const useAgentsStore = create<AgentsState>()(
       showAddRepositoryDialog: false,
       isRightSidebarOpen: true,
       diffViewTab: "changes",
+      // Chat initial state
+      messages: [],
+      streamingContent: "",
+      isStreaming: false,
       setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
       setShowAddRepositoryDialog: (show) => set({ showAddRepositoryDialog: show }),
       setIsRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
@@ -144,6 +142,78 @@ export const useAgentsStore = create<AgentsState>()(
           });
         } catch {
           set({ repositoriesLoaded: true });
+        }
+      },
+      loadMessages: async (threadId: string) => {
+        try {
+          const messages = await invoke<ChatMessage[]>("agents_get_messages", { threadId });
+          set({ messages, streamingContent: "" });
+        } catch {
+          set({ messages: [] });
+        }
+      },
+      sendMessage: async (threadId: string, content: string, model: string) => {
+        // Optimistically add the user message to the UI immediately.
+        const optimisticUserMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          thread_id: threadId,
+          role: "user",
+          model: null,
+          content,
+          metadata: null,
+          created_at: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          messages: [...state.messages, optimisticUserMessage],
+          streamingContent: "",
+          isStreaming: true,
+        }));
+
+        // Set up streaming listeners before invoking the command.
+        const unlistenToken = await listen<{ thread_id: string; token: string }>(
+          "agent-stream-token",
+          (event) => {
+            if (event.payload.thread_id !== threadId) return;
+            set((state) => ({
+              streamingContent: state.streamingContent + event.payload.token,
+            }));
+          }
+        );
+
+        const unlistenDone = await listen<{ thread_id: string }>(
+          "agent-stream-done",
+          async (event) => {
+            if (event.payload.thread_id !== threadId) return;
+            unlistenToken();
+            unlistenDone();
+            unlistenError();
+            // Reload persisted messages from the backend so IDs and model are correct.
+            await get().loadMessages(threadId);
+            set({ isStreaming: false, streamingContent: "" });
+          }
+        );
+
+        const unlistenError = await listen<{ thread_id: string; error: string }>(
+          "agent-stream-error",
+          (event) => {
+            if (event.payload.thread_id !== threadId) return;
+            unlistenToken();
+            unlistenDone();
+            unlistenError();
+            set({ isStreaming: false, streamingContent: "" });
+            toast.error(`Agent error: ${event.payload.error}`);
+          }
+        );
+
+        try {
+          await invoke("agents_send_message", { threadId, message: content, model });
+        } catch (err) {
+          unlistenToken();
+          unlistenDone();
+          unlistenError();
+          set({ isStreaming: false, streamingContent: "" });
+          toast.error(`Failed to send message: ${err}`);
         }
       },
       addRepository: (repo, thread) => set((state) => {

@@ -124,7 +124,7 @@ export function AgentsSidebar() {
   const handleAddThread = async (repoId: string) => {
     try {
       setAddingThreadForRepo(repoId);
-      const thread = await invoke<{ id: string; title: string }>("create_thread", { repoId });
+      const thread = await invoke<{ id: string; title: string; workspace_path: string }>("create_thread", { repoId });
       addThread(repoId, thread);
       setExpandedRepos((prev) => ({ ...prev, [repoId]: true }));
     } catch (error) {

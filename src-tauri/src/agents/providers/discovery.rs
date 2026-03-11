@@ -124,57 +124,32 @@ pub fn fallback_models(kind: &AiProviderKind) -> Vec<AiModel> {
     match kind {
         AiProviderKind::Claude => vec![
             AiModel {
-                id: "claude-sonnet".to_string(),
+                id: "claude-sonnet-latest".to_string(),
                 label: "Claude Sonnet".to_string(),
                 capabilities: vec!["tool_use".to_string(), "streaming".to_string(), "reasoning".to_string()],
             },
             AiModel {
-                id: "claude-opus".to_string(),
+                id: "claude-opus-latest".to_string(),
                 label: "Claude Opus".to_string(),
                 capabilities: vec!["tool_use".to_string(), "streaming".to_string(), "reasoning".to_string()],
             },
             AiModel {
-                id: "claude-haiku".to_string(),
+                id: "claude-haiku-latest".to_string(),
                 label: "Claude Haiku".to_string(),
                 capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
             },
         ],
         AiProviderKind::OpenAi => vec![
             AiModel {
-                id: "gpt-5.3-codex".to_string(),
-                label: "GPT 5.3 Codex".to_string(),
-                capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
-            },
-            AiModel {
-                id: "gpt-5.4".to_string(),
-                label: "GPT 5.4".to_string(),
-                capabilities: vec!["tool_use".to_string(), "streaming".to_string(), "reasoning".to_string()],
-            },
-            AiModel {
-                id: "gpt-5.2".to_string(),
-                label: "GPT 5.2".to_string(),
-                capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
-            },
-            AiModel {
-                id: "gpt-5.1-codex-mini".to_string(),
-                label: "GPT 5.1 Codex Mini".to_string(),
+                id: "codex-mini-latest".to_string(),
+                label: "Codex Mini".to_string(),
                 capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
             },
         ],
         AiProviderKind::Copilot => vec![
             AiModel {
-                id: "copilot-gpt-4o".to_string(),
-                label: "Copilot GPT-4o".to_string(),
-                capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
-            },
-            AiModel {
-                id: "copilot-claude-sonnet".to_string(),
-                label: "Copilot Claude Sonnet".to_string(),
-                capabilities: vec!["tool_use".to_string(), "streaming".to_string(), "reasoning".to_string()],
-            },
-            AiModel {
-                id: "copilot-gemini-pro".to_string(),
-                label: "Copilot Gemini Pro".to_string(),
+                id: "gpt-4o".to_string(),
+                label: "GPT-4o".to_string(),
                 capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
             },
         ],

@@ -1,7 +1,13 @@
 use crate::agents::providers::registry;
+use crate::chat::messages::{get_messages, Message};
+use crate::chat::send_message::send_message as send_message_logic;
+use crate::chat::stream::emit_error;
+use crate::error::AppResult;
+use crate::state::AppState;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use serde::Serialize;
+use tauri::{AppHandle, State};
 
 #[derive(Debug, Serialize)]
 pub struct FileNode {
@@ -130,6 +136,44 @@ fn search_recursive(current_path: &Path, root: &Path, query: &str, results: &mut
             break;
         }
     }
+
+    Ok(())
+}
+
+/// Returns all persisted messages for a thread, oldest-first (capped at 40).
+#[tauri::command]
+pub async fn agents_get_messages(
+    thread_id: String,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<Message>> {
+    get_messages(&thread_id, &state.db_pool).await
+}
+
+/// Saves the user message, streams the model response via Tauri events,
+/// then saves the completed assistant response. Returns immediately — the
+/// stream runs in a background task.
+///
+/// Frontend events emitted during the stream:
+///   "agent-stream-token" → { thread_id, token }
+///   "agent-stream-done"  → { thread_id }
+///   "agent-stream-error" → { thread_id, error }
+#[tauri::command]
+pub async fn agents_send_message(
+    thread_id: String,
+    message: String,
+    model: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> AppResult<()> {
+    let pool = state.db_pool.clone();
+    let app = app.clone();
+    let thread_id_err = thread_id.clone();
+
+    tokio::spawn(async move {
+        if let Err(e) = send_message_logic(thread_id, message, model, pool, app.clone()).await {
+            emit_error(&app, &thread_id_err, &e.to_string());
+        }
+    });
 
     Ok(())
 }

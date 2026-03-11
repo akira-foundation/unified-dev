@@ -13,6 +13,7 @@ import { SkillsPage } from "@/pages/skills";
 import { SkillDetailsPage } from "@/pages/skill-details";
 import { AutomationsPage } from "@/pages/automations";
 import { CreateAutomationPage } from "@/pages/create-automation";
+import { useEffect } from "react";
 
 export function AgentWorkspaceLayout() {
   const {
@@ -25,7 +26,11 @@ export function AgentWorkspaceLayout() {
     isRightSidebarOpen,
     setIsRightSidebarOpen,
     isTerminalOpen,
-    setIsTerminalOpen
+    setIsTerminalOpen,
+    messages,
+    streamingContent,
+    isStreaming,
+    loadMessages,
   } = useAgentsStore();
 
   if (activeTab === "skills") {
@@ -65,58 +70,58 @@ export function AgentWorkspaceLayout() {
   );
   const selectedIssue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
 
+  // Load persisted messages whenever the active thread changes.
+  useEffect(() => {
+    if (selectedIssueId) {
+      loadMessages(selectedIssueId);
+    }
+  }, [selectedIssueId, loadMessages]);
+
   if (!selectedIssue) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#0c0c0c] h-full gap-10">
-        <div className="flex flex-col items-center gap-5">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full" />
-              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white font-black text-sm shadow-lg shadow-primary/20">
-                UD
+      <div className="flex-1 flex flex-col items-center justify-center bg-background h-full relative overflow-hidden">
+        {/* Decorative Background Element */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+
+        <div className="relative flex flex-col items-center gap-12 z-10">
+          {/* Logo Section */}
+          <div className="flex flex-col items-center gap-6">
+            <div className="relative group">
+              <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-2xl group-hover:bg-primary/30 transition-all duration-500" />
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-50 rounded-2xl" />
+                <span className="relative text-xl font-black text-white tracking-widest bg-clip-text">UD</span>
               </div>
             </div>
-            <span className="text-[28px] font-bold text-white tracking-[0.12em] uppercase">Unified Dev</span>
-          </div>
-          <p className="text-[13px] text-zinc-500">Add a repository and start your first agent thread.</p>
-        </div>
 
-        <div className="flex flex-col gap-3.5">
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-1.5 min-w-[100px] justify-end">
-              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘</kbd>
-              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">N</kbd>
+            <div className="flex flex-col items-center gap-2">
+              <h2 className="text-[22px] font-bold text-white tracking-tight">Unified Dev</h2>
+              <p className="text-[13px] text-zinc-500 font-medium max-w-[280px] text-center leading-relaxed">
+                Select a repository from the sidebar to launch your agent workspace.
+              </p>
             </div>
-            <span className="text-[13px] text-zinc-500">New workspace</span>
           </div>
 
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-1.5 min-w-[100px] justify-end">
-              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘</kbd>
-              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">1–9</kbd>
-            </div>
-            <span className="text-[13px] text-zinc-500">Switch workspace</span>
-          </div>
-
-          <div className="flex items-center gap-5">
-            <div className="min-w-[100px] flex justify-end">
-              <kbd className="h-6 px-2.5 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘B</kbd>
-            </div>
-            <span className="text-[13px] text-zinc-500">Toggle sidebar</span>
-          </div>
-
-          <div className="flex items-center gap-5">
-            <div className="min-w-[100px] flex justify-end">
-              <kbd className="h-6 px-2.5 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘D</kbd>
-            </div>
-            <span className="text-[13px] text-zinc-500">Toggle diff panel</span>
-          </div>
-
-          <div className="flex items-center gap-5">
-            <div className="min-w-[100px] flex justify-end">
-              <kbd className="h-6 px-2.5 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘`</kbd>
-            </div>
-            <span className="text-[13px] text-zinc-500">Toggle terminal</span>
+          {/* Shortcuts Grid */}
+          <div className="grid grid-cols-1 gap-y-2 w-full max-w-[320px] p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
+            {[
+              { keys: ["⌘", "N"], label: "New thread" },
+              { keys: ["⌘", "1–9"], label: "Switch workspace" },
+              { keys: ["⌘", "B"], label: "Toggle sidebar" },
+              { keys: ["⌘", "D"], label: "Toggle diff panel" },
+              { keys: ["⌘", "`"], label: "Toggle terminal" },
+            ].map((shortcut, i) => (
+              <div key={i} className="flex items-center justify-between px-2 py-1.5 group/item">
+                <span className="text-[11px] font-medium text-zinc-500 group-hover/item:text-zinc-400 transition-colors">{shortcut.label}</span>
+                <div className="flex items-center gap-1">
+                  {shortcut.keys.map((key, ki) => (
+                    <kbd key={ki} className="min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded bg-white/[0.05] border border-white/[0.1] text-[9px] font-bold text-zinc-400 font-sans uppercase">
+                      {key}
+                    </kbd>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -134,7 +139,12 @@ export function AgentWorkspaceLayout() {
               <FileEditor />
             ) : (
               <div className="max-w-4xl mx-auto py-12">
-                <AgentTimeline steps={timelineSteps} />
+                <AgentTimeline
+                  steps={timelineSteps}
+                  messages={messages}
+                  streamingContent={streamingContent}
+                  isStreaming={isStreaming}
+                />
               </div>
             )}
           </div>
