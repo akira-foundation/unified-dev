@@ -23,7 +23,7 @@ pub async fn create_initial_thread(
 ) -> AppResult<ThreadConfig> {
     let thread_id = Uuid::new_v4().to_string().to_uppercase();
     let thread_branch = format!("thread/{}", thread_id);
-    let title = "Initial thread".to_string();
+    let title = "New thread".to_string();
     let workspace_path = workspace_root.join(&thread_id);
 
     git_utils::clone_repository(base_repo_path, &workspace_path)?;
