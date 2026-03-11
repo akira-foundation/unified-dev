@@ -36,8 +36,8 @@ export function DiffViewer({ files }: DiffViewerProps) {
           <button
             onClick={() => setActiveTab("changes")}
             className={cn(
-              "relative h-full flex items-center text-[9px] font-black uppercase tracking-[0.15em] transition-all",
-              activeTab === "changes" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-muted-foreground/30 hover:text-zinc-600 dark:hover:text-muted-foreground/60"
+              "relative h-full flex items-center text-[9px] font-black uppercase tracking-[0.15em] transition-all cursor-pointer",
+              activeTab === "changes" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
             Changes
@@ -46,8 +46,8 @@ export function DiffViewer({ files }: DiffViewerProps) {
           <button
             onClick={() => setActiveTab("files")}
             className={cn(
-              "relative h-full flex items-center text-[9px] font-black uppercase tracking-[0.15em] transition-all",
-              activeTab === "files" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-muted-foreground/30 hover:text-zinc-600 dark:hover:text-muted-foreground/60"
+              "relative h-full flex items-center text-[9px] font-black uppercase tracking-[0.15em] transition-all cursor-pointer",
+              activeTab === "files" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
             Files
@@ -58,17 +58,17 @@ export function DiffViewer({ files }: DiffViewerProps) {
         <div className="flex items-center gap-6">
           <button
             onClick={toggleAll}
-            className="flex items-center gap-1.5 text-[8px] font-black text-zinc-400 dark:text-muted-foreground/20 hover:text-zinc-600 dark:hover:text-muted-foreground/50 transition-colors uppercase tracking-widest"
+            className="flex items-center gap-1.5 text-[8px] font-black text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors uppercase tracking-widest cursor-pointer"
           >
             <ChevronsUpDown className="h-2.5 w-2.5" />
             <span>Toggle All</span>
           </button>
 
           <div className="flex items-center gap-3">
-            <span className="text-[9px] font-black text-zinc-300 dark:text-muted-foreground/15 uppercase tracking-widest tabular-nums">
+            <span className="text-[9px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-widest tabular-nums">
               {files.length} Files
             </span>
-            <Monitor className="h-3 w-3 text-zinc-300 dark:text-muted-foreground/15" />
+            <Monitor className="h-3 w-3 text-zinc-300 dark:text-zinc-600" />
           </div>
         </div>
       </div>

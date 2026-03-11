@@ -11,6 +11,8 @@ interface SettingsState {
   setAppearance: (appearance: Appearance) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
+  editorTheme: string;
+  setEditorTheme: (theme: string) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -22,6 +24,8 @@ export const useSettingsStore = create<SettingsState>()(
       setAppearance: (appearance) => set({ appearance }),
       sidebarOpen: true,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      editorTheme: "oneDark",
+      setEditorTheme: (theme) => set({ editorTheme: theme }),
     }),
     {
       name: "unified_dev_settings",
@@ -30,6 +34,7 @@ export const useSettingsStore = create<SettingsState>()(
         locale: state.locale,
         appearance: state.appearance,
         sidebarOpen: state.sidebarOpen,
+        editorTheme: state.editorTheme,
       }),
     },
   ),
