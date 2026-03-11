@@ -41,6 +41,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AddRepositoryDialog } from "@/components/repos/add-repository-dialog";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
@@ -51,6 +52,7 @@ export function AgentsSidebar() {
     "repo-1": true,
     "repo-4": true,
   });
+  const [showAddRepoDialog, setShowAddRepoDialog] = useState(false);
 
   const handleBack = () => {
     setIsAgentMode(false);
@@ -60,6 +62,10 @@ export function AgentsSidebar() {
   const toggleRepo = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setExpandedRepos((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const handleAddRepo = (path: string) => {
+    console.log("Adding repo:", path);
   };
 
   return (
@@ -90,7 +96,10 @@ export function AgentsSidebar() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <button className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group">
+          <button
+            onClick={() => setShowAddRepoDialog(true)}
+            className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group"
+          >
             <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
             <span>Add new repository</span>
           </button>
@@ -282,6 +291,12 @@ export function AgentsSidebar() {
 
 
       </SidebarContent>
+
+      <AddRepositoryDialog
+        open={showAddRepoDialog}
+        onOpenChange={setShowAddRepoDialog}
+        onAdd={handleAddRepo}
+      />
     </Sidebar>
   );
 }
