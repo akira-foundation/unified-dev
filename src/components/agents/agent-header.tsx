@@ -13,7 +13,10 @@ import {
   ChevronDown,
   GitPullRequest,
   Monitor,
-  CloudUpload
+  CloudUpload,
+  MoreVertical,
+  Trash2,
+  Octagon
 } from "lucide-react";
 
 interface AgentHeaderProps {
@@ -148,6 +151,31 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
             </div>
           </div>
         )}
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg hover:bg-white/5 text-muted-foreground/40 hover:text-white transition-colors border-none"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-48 bg-[#0F0F0F] border-white/[0.05] p-1 shadow-2xl rounded-xl backdrop-blur-3xl"
+          >
+            <DropdownMenuItem className="flex items-center gap-3 p-2.5 focus:bg-white/[0.03] rounded-lg cursor-pointer group transition-colors">
+              <Octagon className="h-4 w-4 text-zinc-500 group-hover:text-red-400 transition-colors" />
+              <span className="text-[12px] font-medium text-white/70 group-hover:text-white">Parar agent</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="flex items-center gap-3 p-2.5 focus:bg-red-500/10 rounded-lg cursor-pointer group transition-colors text-red-400/80 hover:text-red-400">
+              <Trash2 className="h-4 w-4 group-hover:scale-110 transition-transform" />
+              <span className="text-[12px] font-medium">Eliminar</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

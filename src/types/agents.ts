@@ -8,6 +8,7 @@ export interface AgentIssue {
   agentName: string;
   status: AgentStatus;
   updatedAt: string;
+  prUrl?: string;
 }
 
 export interface AgentTimelineStep {

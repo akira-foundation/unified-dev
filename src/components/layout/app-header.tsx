@@ -35,7 +35,7 @@ export function AppHeader() {
             <Bell className="h-4 w-4" />
           </button>
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-            <span className="text-xs font-medium text-primary">AK</span>
+            <span className="text-xs font-medium text-primary">UD</span>
           </div>
         </div>
       </div>

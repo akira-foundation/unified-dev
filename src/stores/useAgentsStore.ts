@@ -1,6 +1,7 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
-import type { AgentTimelineStep, FileChange, RepositoryGroup } from "../types/agents";
+import type { AgentTimelineStep, FileChange, RepositoryGroup, AgentStatus } from "../types/agents";
 import type { AiProviderGroup, AiProviderResponse } from "../types/ai-providers";
 
 interface AgentsState {
@@ -14,6 +15,7 @@ interface AgentsState {
   selectedAutomation: any | null;
   aiProviders: AiProviderGroup[];
   selectedModelId: string | null;
+  repositoriesLoaded: boolean;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
@@ -21,87 +23,12 @@ interface AgentsState {
   setSelectedAutomation: (automation: any | null) => void;
   setSelectedModelId: (id: string) => void;
   loadAiProviders: () => Promise<void>;
+  loadRepositories: () => Promise<void>;
   addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string }) => void;
+  addThread: (repoId: string, thread: { title: string, id: string }) => void;
+  removeThread: (repoId: string, threadId: string) => void;
+  removeRepository: (id: string) => void;
 }
-
-const mockGroups: RepositoryGroup[] = [
-  {
-    name: "THREADS",
-    repositories: [
-      {
-        id: "repo-1",
-        name: "laravel-sisp",
-        issues: [
-          {
-            id: "i1",
-            title: "Address callback DoS and IDOR",
-            repoName: "laravel-sisp",
-            branchName: "security/fix-dos",
-            agentName: "BugFixAgent",
-            status: "Completed",
-            updatedAt: "3d",
-          },
-          {
-            id: "i2",
-            title: "ensure 100% coverage test Com...",
-            repoName: "laravel-sisp",
-            branchName: "chore/coverage",
-            agentName: "TestAgent",
-            status: "Completed",
-            updatedAt: "1mo",
-          },
-          {
-            id: "i3",
-            title: "ensure ValueObjects/PaymentRe...",
-            repoName: "laravel-sisp",
-            branchName: "refactor/vo",
-            agentName: "CodeButler",
-            status: "Completed",
-            updatedAt: "1mo",
-          },
-        ],
-      },
-      { id: "repo-2", name: "rh", issues: [] },
-      { id: "repo-3", name: "audit", issues: [] },
-      {
-        id: "repo-4",
-        name: "nosferry-core",
-        issues: [
-          {
-            id: "i4",
-            title: "ISSUE CREATOR",
-            repoName: "nosferry-core",
-            branchName: "feat/issue-creator",
-            agentName: "ProductBot",
-            status: "Running",
-            updatedAt: "1w",
-          },
-          {
-            id: "i5",
-            title: "ensure 100% test coverage Actio...",
-            repoName: "nosferry-core",
-            branchName: "test/actions",
-            agentName: "TestAgent",
-            status: "Completed",
-            updatedAt: "3w",
-          },
-          {
-            id: "i6",
-            title: "Refine recent Laravel code",
-            repoName: "nosferry-core",
-            branchName: "refactor/laravel",
-            agentName: "CodeButler",
-            status: "Completed",
-            updatedAt: "3w",
-          },
-        ],
-      },
-      { id: "repo-5", name: "Support refunds", issues: [] },
-      { id: "repo-6", name: "nosferry.com", issues: [] },
-      { id: "repo-7", name: "laravel-pdf-invoices", issues: [] },
-    ],
-  },
-];
 
 const mockTimeline: AgentTimelineStep[] = [
   { id: "1", message: "Analyzing repository structure...", timestamp: "14:20", status: "completed" },
@@ -137,51 +64,133 @@ function selectDefaultModel(providers: AiProviderGroup[]): string | null {
   return providers[0].models[0]?.id ?? null;
 }
 
-export const useAgentsStore = create<AgentsState>((set) => ({
-  repositoryGroups: mockGroups,
-  selectedIssueId: "i4",
-  timelineSteps: mockTimeline,
-  fileChanges: mockFiles,
-  selectedFilePath: null,
-  activeTab: "workspace",
-  selectedSkill: null,
-  selectedAutomation: null,
-  aiProviders: [],
-  selectedModelId: null,
-  setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
-  setSelectedFilePath: (path) => set({ selectedFilePath: path }),
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  setSelectedSkill: (skill) => set({ selectedSkill: skill, activeTab: "manage-skill" }),
-  setSelectedAutomation: (automation) => set({ selectedAutomation: automation, activeTab: "create-automation" }),
-  setSelectedModelId: (id) => set({ selectedModelId: id }),
-  loadAiProviders: async () => {
-    try {
-      const response = await invoke<AiProviderResponse>("get_available_models");
-      const providers = response.providers;
-      const defaultModel = selectDefaultModel(providers);
-      set({ aiProviders: providers, selectedModelId: defaultModel });
-    } catch {
-      set({ aiProviders: [], selectedModelId: null });
+export const useAgentsStore = create<AgentsState>()(
+  persist(
+    (set) => ({
+      repositoryGroups: [{ name: "THREADS", repositories: [] }],
+      selectedIssueId: null,
+      timelineSteps: mockTimeline,
+      fileChanges: mockFiles,
+      selectedFilePath: null,
+      activeTab: "workspace",
+      selectedSkill: null,
+      selectedAutomation: null,
+      aiProviders: [],
+      selectedModelId: null,
+      repositoriesLoaded: false,
+      setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
+      setSelectedFilePath: (path) => set({ selectedFilePath: path }),
+      setActiveTab: (tab) => set({ activeTab: tab }),
+      setSelectedSkill: (skill) => set({ selectedSkill: skill, activeTab: "manage-skill" }),
+      setSelectedAutomation: (automation) => set({ selectedAutomation: automation, activeTab: "create-automation" }),
+      setSelectedModelId: (id) => set({ selectedModelId: id }),
+      loadAiProviders: async () => {
+        try {
+          const response = await invoke<AiProviderResponse>("get_available_models");
+          const providers = response.providers;
+          const defaultModel = selectDefaultModel(providers);
+          set({ aiProviders: providers, selectedModelId: defaultModel });
+        } catch {
+          set({ aiProviders: [], selectedModelId: null });
+        }
+      },
+      loadRepositories: async () => {
+        try {
+          const rows = await invoke<Array<{ id: string; name: string; threads: Array<{ id: string; title: string; branch: string; status: string; created_at: string }> }>>("list_repositories");
+          const repositories = rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            issues: row.threads.map((t) => ({
+              id: t.id,
+              title: t.title,
+              repoName: row.name,
+              branchName: t.branch,
+              agentName: "Unified Dev",
+              status: "Running" as AgentStatus,
+              updatedAt: t.created_at,
+            })),
+          }));
+          set({
+            repositoryGroups: [{ name: "THREADS", repositories }],
+            repositoriesLoaded: true,
+          });
+        } catch {
+          set({ repositoriesLoaded: true });
+        }
+      },
+      addRepository: (repo, thread) => set((state) => {
+        const newGroups = [...state.repositoryGroups];
+        const threadsGroup = newGroups.find(g => g.name === "THREADS");
+        if (threadsGroup) {
+          threadsGroup.repositories.unshift({
+            id: repo.id,
+            name: repo.name,
+            issues: [{
+              id: thread.id,
+              title: thread.title,
+              repoName: repo.name,
+              branchName: "main",
+              agentName: "Polyscope",
+              status: "Running",
+              updatedAt: "just now"
+            }]
+          });
+        }
+        return { repositoryGroups: newGroups, selectedIssueId: thread.id };
+      }),
+      addThread: (repoId, thread) => set((state) => {
+        const newGroups = state.repositoryGroups.map(group => ({
+          ...group,
+          repositories: group.repositories.map(repo => {
+            if (repo.id !== repoId) return repo;
+            return {
+              ...repo,
+              issues: [...repo.issues, {
+                id: thread.id,
+                title: thread.title,
+                repoName: repo.name,
+                branchName: "main",
+                agentName: "Unified Dev",
+                status: "Running" as AgentStatus,
+                updatedAt: "just now"
+              }]
+            };
+          })
+        }));
+        return { repositoryGroups: newGroups, selectedIssueId: thread.id };
+      }),
+      removeThread: (repoId, threadId) => set((state) => {
+        const newGroups = state.repositoryGroups.map(group => ({
+          ...group,
+          repositories: group.repositories.map(repo => {
+            if (repo.id !== repoId) return repo;
+            return {
+              ...repo,
+              issues: repo.issues.filter(i => i.id !== threadId)
+            };
+          })
+        }));
+
+        const nextSelectedId = state.selectedIssueId === threadId ? null : state.selectedIssueId;
+
+        return { repositoryGroups: newGroups, selectedIssueId: nextSelectedId };
+      }),
+      removeRepository: (id) => set((state) => {
+        const newGroups = state.repositoryGroups.map(group => ({
+          ...group,
+          repositories: group.repositories.filter(r => r.id !== id)
+        }));
+        return { repositoryGroups: newGroups };
+      }),
+    }),
+    {
+      name: "unified_dev_agents",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        selectedIssueId: state.selectedIssueId,
+        activeTab: state.activeTab,
+        selectedModelId: state.selectedModelId,
+      }),
     }
-  },
-  addRepository: (repo, thread) => set((state) => {
-    const newGroups = [...state.repositoryGroups];
-    const threadsGroup = newGroups.find(g => g.name === "THREADS");
-    if (threadsGroup) {
-      threadsGroup.repositories.unshift({
-        id: repo.id,
-        name: repo.name,
-        issues: [{
-          id: thread.id,
-          title: thread.title,
-          repoName: repo.name,
-          branchName: "main",
-          agentName: "Polyscope",
-          status: "Running",
-          updatedAt: "just now"
-        }]
-      });
-    }
-    return { repositoryGroups: newGroups, selectedIssueId: thread.id };
-  }),
-}));
+  )
+);

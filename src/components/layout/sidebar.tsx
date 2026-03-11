@@ -48,7 +48,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
               <div className="relative">
                 <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full" />
                 <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-xs shadow-lg shadow-primary/20">
-                  AK
+                  UD
                 </div>
               </div>
               <div className="flex flex-col flex-1 overflow-hidden">

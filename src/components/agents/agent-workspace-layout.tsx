@@ -59,8 +59,58 @@ export function AgentWorkspaceLayout() {
 
   if (!selectedIssue) {
     return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground opacity-20">
-        <span className="text-xl font-bold uppercase tracking-[0.3em]">Select an AI Task</span>
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#0c0c0c] h-full gap-10">
+        <div className="flex flex-col items-center gap-5">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-primary/30 blur-xl rounded-full" />
+              <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-purple-600 text-white font-black text-sm shadow-lg shadow-primary/20">
+                UD
+              </div>
+            </div>
+            <span className="text-[28px] font-bold text-white tracking-[0.12em] uppercase">Unified Dev</span>
+          </div>
+          <p className="text-[13px] text-zinc-500">Add a repository and start your first agent thread.</p>
+        </div>
+
+        <div className="flex flex-col gap-3.5">
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-1.5 min-w-[100px] justify-end">
+              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘</kbd>
+              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">N</kbd>
+            </div>
+            <span className="text-[13px] text-zinc-500">New workspace</span>
+          </div>
+
+          <div className="flex items-center gap-5">
+            <div className="flex items-center gap-1.5 min-w-[100px] justify-end">
+              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘</kbd>
+              <kbd className="h-6 px-2 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">1–9</kbd>
+            </div>
+            <span className="text-[13px] text-zinc-500">Switch workspace</span>
+          </div>
+
+          <div className="flex items-center gap-5">
+            <div className="min-w-[100px] flex justify-end">
+              <kbd className="h-6 px-2.5 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘B</kbd>
+            </div>
+            <span className="text-[13px] text-zinc-500">Toggle sidebar</span>
+          </div>
+
+          <div className="flex items-center gap-5">
+            <div className="min-w-[100px] flex justify-end">
+              <kbd className="h-6 px-2.5 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘D</kbd>
+            </div>
+            <span className="text-[13px] text-zinc-500">Toggle diff panel</span>
+          </div>
+
+          <div className="flex items-center gap-5">
+            <div className="min-w-[100px] flex justify-end">
+              <kbd className="h-6 px-2.5 flex items-center justify-center rounded bg-white/5 border border-white/10 text-[11px] font-medium text-white/40">⌘`</kbd>
+            </div>
+            <span className="text-[13px] text-zinc-500">Toggle terminal</span>
+          </div>
+        </div>
       </div>
     );
   }

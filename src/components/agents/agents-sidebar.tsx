@@ -32,7 +32,7 @@ import {
   SidebarGroupContent,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,18 +44,25 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { AddRepositoryDialog } from "@/components/repos/add-repository-dialog";
+import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
+import { RemoveThreadDialog } from "@/components/agents/remove-thread-dialog";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
   const { setIsAgentMode, navigateTo } = useNavigationStore();
-  const { repositoryGroups, selectedIssueId, setSelectedIssueId, activeTab, setActiveTab, addRepository } = useAgentsStore();
+  const { repositoryGroups, selectedIssueId, setSelectedIssueId, activeTab, setActiveTab, addRepository, addThread, removeThread, removeRepository } = useAgentsStore();
   const [expandedRepos, setExpandedRepos] = useState<Record<string, boolean>>({
     "repo-1": true,
     "repo-4": true,
   });
   const [showAddRepoDialog, setShowAddRepoDialog] = useState(false);
   const [isAddingRepo, setIsAddingRepo] = useState(false);
+  const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
+  const [isRemovingRepo, setIsRemovingRepo] = useState(false);
+  const [addingThreadForRepo, setAddingThreadForRepo] = useState<string | null>(null);
+  const [removingThreadId, setRemovingThreadId] = useState<string | null>(null);
+  const [threadToRemove, setThreadToRemove] = useState<{ id: string; title: string; repoId: string } | null>(null);
 
   const handleBack = () => {
     setIsAgentMode(false);
@@ -86,6 +93,51 @@ export function AgentsSidebar() {
       toast.error(`Error: ${error}`, { id: loadingToast });
     } finally {
       setIsAddingRepo(false);
+    }
+  };
+
+  const handleRemoveRepo = async () => {
+    if (!repoToRemove) return;
+
+    try {
+      setIsRemovingRepo(true);
+      await invoke("delete_local_repository", { repoId: repoToRemove.id });
+      removeRepository(repoToRemove.id);
+      toast.success(`Repository ${repoToRemove.name} removed`);
+      setRepoToRemove(null);
+    } catch (error) {
+      toast.error(`Failed to remove repository: ${error}`);
+    } finally {
+      setIsRemovingRepo(false);
+    }
+  };
+
+  const handleAddThread = async (repoId: string) => {
+    try {
+      setAddingThreadForRepo(repoId);
+      const thread = await invoke<{ id: string; title: string }>("create_thread", { repoId });
+      addThread(repoId, thread);
+      setExpandedRepos((prev) => ({ ...prev, [repoId]: true }));
+    } catch (error) {
+      toast.error(`Failed to create thread: ${error}`);
+    } finally {
+      setAddingThreadForRepo(null);
+    }
+  };
+
+  const handleRemoveThread = async () => {
+    if (!threadToRemove) return;
+
+    try {
+      setRemovingThreadId(threadToRemove.id);
+      await invoke("delete_thread", { threadId: threadToRemove.id });
+      removeThread(threadToRemove.repoId, threadToRemove.id);
+      toast.success("Thread removed");
+      setThreadToRemove(null);
+    } catch (error) {
+      toast.error(`Failed to remove thread: ${error}`);
+    } finally {
+      setRemovingThreadId(null);
     }
   };
 
@@ -174,34 +226,41 @@ export function AgentsSidebar() {
               <SidebarGroupContent>
                 <div className="flex flex-col gap-0.5">
                   {group.repositories.map((repo) => (
-                    <div key={repo.id} className="flex flex-col">
-                      <div className="group/repo flex items-center gap-1 hover:bg-white/[0.03] transition-all pr-4 rounded-md mx-2">
+                    <div key={repo.id} className="group/workspace flex flex-col mx-2 rounded-md">
+                      <div className="group/repo flex items-center gap-1 pr-2 rounded-md">
                         <button
                           onClick={(e) => toggleRepo(repo.id, e)}
-                          className="flex-1 flex items-center gap-3 px-4 py-2 select-none"
+                          className="flex-1 flex items-center gap-2 px-2 py-2 select-none cursor-pointer"
                         >
+                          <span className="w-4 flex items-center justify-center shrink-0">
+                            {repo.issues.length > 0 && (
+                              expandedRepos[repo.id] ? (
+                                <ChevronDown className="h-3 w-3 text-muted-foreground/30" />
+                              ) : (
+                                <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
+                              )
+                            )}
+                          </span>
                           <Folder className="h-4 w-4 text-muted-foreground/60 group-hover/repo:text-foreground/80 shrink-0" />
                           <span className="flex-1 text-left text-[13px] font-medium text-foreground/70 group-hover/repo:text-foreground truncate">
                             {repo.name}
-                            {repo.name === "Support refunds" && (
-                              <span className="ml-2 text-muted-foreground/30 font-normal">refunds</span>
-                            )}
                           </span>
-                          {repo.issues.length > 0 && (
-                            expandedRepos[repo.id] ? (
-                              <ChevronDown className="h-3 w-3 text-muted-foreground/20" />
-                            ) : (
-                              <ChevronRight className="h-3 w-3 text-muted-foreground/20" />
-                            )
-                          )}
                         </button>
 
-                        <div className="flex items-center gap-1 opacity-0 group-hover/repo:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-0 group-hover/workspace:opacity-100 transition-opacity">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <button className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors">
-                                  <Plus className="h-3.5 w-3.5" />
+                                <button
+                                  onClick={() => handleAddThread(repo.id)}
+                                  disabled={addingThreadForRepo === repo.id}
+                                  className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer"
+                                >
+                                  {addingThreadForRepo === repo.id ? (
+                                    <div className="h-3.5 w-3.5 border border-white/30 border-t-white/80 rounded-full animate-spin" />
+                                  ) : (
+                                    <Plus className="h-3.5 w-3.5" />
+                                  )}
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-purple-500 text-white border-none font-bold">
@@ -212,7 +271,7 @@ export function AgentsSidebar() {
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <button className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors">
+                              <button className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors cursor-pointer">
                                 <MoreVertical className="h-3.5 w-3.5" />
                               </button>
                             </DropdownMenuTrigger>
@@ -247,7 +306,10 @@ export function AgentsSidebar() {
                                 <Settings className="h-4 w-4 text-white/40" />
                                 <span>Settings</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer">
+                              <DropdownMenuItem
+                                onClick={() => setRepoToRemove({ id: repo.id, name: repo.name })}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer"
+                              >
                                 <Trash2 className="h-4 w-4" />
                                 <span>Remove</span>
                               </DropdownMenuItem>
@@ -257,7 +319,7 @@ export function AgentsSidebar() {
                       </div>
 
                       {expandedRepos[repo.id] && repo.issues.length > 0 && (
-                        <div className="flex flex-col mt-0.5">
+                        <div className="flex flex-col pb-1">
                           {repo.issues.map((issue) => (
                             <button
                               key={issue.id}
@@ -265,39 +327,52 @@ export function AgentsSidebar() {
                                 setSelectedIssueId(issue.id);
                               }}
                               className={cn(
-                                "group relative flex flex-col gap-1 px-4 py-2.5 transition-all text-left ml-4 mr-2 rounded-md",
+                                "group/thread relative flex flex-col gap-1 pl-10 pr-3 py-1.5 text-left rounded-md transition-opacity cursor-pointer",
                                 selectedIssueId === issue.id && activeTab === "workspace"
-                                  ? "bg-white/[0.05] shadow-sm"
-                                  : "hover:bg-white/[0.02]"
+                                  ? "opacity-100"
+                                  : "opacity-40 hover:opacity-70"
                               )}
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 min-w-0">
+                              <div className="flex items-center justify-between gap-2 min-w-0 w-full">
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
                                   {issue.status === "Running" && (
-                                    <div className="relative h-4 w-4 flex items-center justify-center">
+                                    <div className="relative h-4 w-4 flex items-center justify-center shrink-0">
                                       <div className="absolute inset-0 border-2 border-white/10 rounded-full" />
                                       <div className="absolute inset-0 border-2 border-transparent border-t-white/40 rounded-full animate-spin" />
                                     </div>
                                   )}
                                   <span className={cn(
-                                    "text-[13px] font-semibold truncate transition-colors",
-                                    selectedIssueId === issue.id && activeTab === "workspace" ? "text-white" : "text-white/80 group-hover:text-white"
+                                    "text-[13px] truncate transition-colors flex-1",
+                                    selectedIssueId === issue.id && activeTab === "workspace"
+                                      ? "text-white font-semibold"
+                                      : "text-white/90 font-medium"
                                   )}>
                                     {issue.title}
                                   </span>
+                                  {issue.prUrl && (
+                                    <GitBranch className="h-3 w-3 text-blue-500 shrink-0" />
+                                  )}
                                 </div>
-                                <span className="text-[10px] font-medium text-muted-foreground/40 tabular-nums">
-                                  {issue.updatedAt}
-                                </span>
+                                <div className="hidden group-hover/thread:flex items-center gap-2 shrink-0 ml-auto">
+                                  <span className="text-[10px] font-medium text-muted-foreground/40 tabular-nums whitespace-nowrap">
+                                    {issue.status === "Running" ? "just now" : issue.updatedAt}
+                                  </span>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setThreadToRemove({ id: issue.id, title: issue.title, repoId: repo.id });
+                                    }}
+                                    disabled={removingThreadId === issue.id}
+                                    className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors disabled:opacity-50"
+                                  >
+                                    {removingThreadId === issue.id ? (
+                                      <div className="h-3 w-3 border border-red-500/30 border-t-red-500 rounded-full animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3 w-3" />
+                                    )}
+                                  </button>
+                                </div>
                               </div>
-
-                              {selectedIssueId === issue.id && issue.status === "Running" && (
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <Badge className="bg-[#1C3A27] hover:bg-[#1C3A27] text-[#4ADE80] text-[10px] font-bold px-2 py-0 border-none rounded-md h-5">
-                                    Awaiting response
-                                  </Badge>
-                                </div>
-                              )}
                             </button>
                           ))}
                         </div>
@@ -318,6 +393,22 @@ export function AgentsSidebar() {
         onOpenChange={setShowAddRepoDialog}
         onAdd={handleAddRepo}
         isLoading={isAddingRepo}
+      />
+
+      <RemoveRepositoryDialog
+        open={!!repoToRemove}
+        onOpenChange={(open) => !open && setRepoToRemove(null)}
+        onRemove={handleRemoveRepo}
+        repoName={repoToRemove?.name || ""}
+        isRemoving={isRemovingRepo}
+      />
+
+      <RemoveThreadDialog
+        open={!!threadToRemove}
+        onOpenChange={(open) => !open && setThreadToRemove(null)}
+        onRemove={handleRemoveThread}
+        threadTitle={threadToRemove?.title || ""}
+        isRemoving={!!removingThreadId}
       />
     </Sidebar>
   );

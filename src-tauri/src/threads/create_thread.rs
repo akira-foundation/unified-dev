@@ -15,15 +15,34 @@ pub struct ThreadConfig {
     pub created_at: String,
 }
 
+fn generate_thread_name(seed: u64) -> String {
+    const ADJECTIVES: &[&str] = &[
+        "gentle", "silver", "amber", "crimson", "silent", "hollow", "golden",
+        "swift", "ancient", "bright", "calm", "dark", "eager", "faint",
+        "grand", "heavy", "idle", "jade", "keen", "lean", "misty", "noble",
+        "pale", "quiet", "rough", "sharp", "tall", "vast", "warm", "young",
+    ];
+    const NOUNS: &[&str] = &[
+        "river", "hawk", "pine", "stone", "cloud", "flame", "ridge",
+        "creek", "dawn", "dusk", "field", "forge", "gate", "grove",
+        "hill", "isle", "lake", "marsh", "peak", "plain", "reef",
+        "crest", "shade", "shore", "slope", "storm", "vale", "wave", "wind", "wood",
+    ];
+    let adj = ADJECTIVES[(seed as usize) % ADJECTIVES.len()];
+    let noun = NOUNS[((seed >> 8) as usize) % NOUNS.len()];
+    format!("{}-{}", adj, noun)
+}
+
 pub async fn create_initial_thread(
     repo_id: String,
     base_repo_path: &Path,
     workspace_root: &Path,
     pool: &sqlx::SqlitePool,
 ) -> AppResult<ThreadConfig> {
-    let thread_id = Uuid::new_v4().to_string().to_uppercase();
+    let thread_uuid = Uuid::new_v4();
+    let thread_id = thread_uuid.to_string().to_uppercase();
     let thread_branch = format!("thread/{}", thread_id);
-    let title = "New thread".to_string();
+    let title = generate_thread_name(thread_uuid.as_u64_pair().0);
     let workspace_path = workspace_root.join(&thread_id);
 
     git_utils::clone_repository(base_repo_path, &workspace_path)?;

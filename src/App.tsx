@@ -1,4 +1,4 @@
-import { Bot, FolderGit2, LayoutDashboard, Server, Settings } from "lucide-react";
+import { useEffect } from "react";
 
 import { AppContent } from "./components/layout/app-content";
 import { AppShell } from "./components/layout/app-shell";
@@ -13,8 +13,10 @@ import { ProvidersPage } from "./pages/providers";
 import { ImportRepositoriesPage } from "./pages/import-repositories";
 import { RepositoryPage } from "./pages/repository";
 import { SettingsPage } from "./pages/settings";
+import { Bot, FolderGit2, LayoutDashboard, Server, Settings } from "lucide-react";
 import { useNavigation } from "./hooks/useNavigation";
 import { useNavigationStore } from "./stores/navigation-store";
+import { useAgentsStore } from "./stores/useAgentsStore";
 import type { NavItem } from "./types/navigation";
 
 const navigationItems: NavItem[] = [
@@ -28,6 +30,13 @@ const navigationItems: NavItem[] = [
 export default function App() {
   const { currentPage, navigateTo } = useNavigation("dashboard");
   const isAgentMode = useNavigationStore((state) => state.isAgentMode);
+  const loadRepositories = useAgentsStore((state) => state.loadRepositories);
+  const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
+
+  useEffect(() => {
+    loadRepositories();
+    loadAiProviders();
+  }, []);
 
   return (
     <AppShell variant="sidebar">

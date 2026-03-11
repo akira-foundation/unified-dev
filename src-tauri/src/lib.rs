@@ -25,7 +25,7 @@ use commands::provider_commands::{
 use commands::terminal_commands::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
 };
-use commands::repository_commands::add_local_repository;
+use commands::repository_commands::{add_local_repository, delete_local_repository, create_thread, delete_thread, list_repositories};
 use db::organization_repo_repository::SqliteOrganizationRepoRepository;
 use db::organization_repository::SqliteOrganizationRepository;
 use db::provider_repository::SqliteProviderRepository;
@@ -103,7 +103,11 @@ pub fn run() {
             terminal_write,
             terminal_resize,
             terminal_kill,
-            add_local_repository
+            add_local_repository,
+            delete_local_repository,
+            list_repositories,
+            create_thread,
+            delete_thread
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

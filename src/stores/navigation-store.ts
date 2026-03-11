@@ -73,10 +73,12 @@ export const useNavigationStore = create<NavigationState>()(
         activeProviderId: state.activeProviderId,
         activeOrganizationId: state.activeOrganizationId,
         history: state.history,
+        isAgentMode: state.isAgentMode,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.canGoBack = state.history.length > 0;
+          state.isAgentMode = state.isAgentMode || state.currentPage === "agents";
         }
       },
     },

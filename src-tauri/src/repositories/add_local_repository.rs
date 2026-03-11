@@ -57,6 +57,19 @@ pub async fn add_local_repository(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
+    let existing: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM local_repositories WHERE source_path = ? LIMIT 1",
+    )
+    .bind(&local_path)
+    .fetch_optional(pool)
+    .await?;
+
+    if existing.is_some() {
+        return Err(AppError::Internal(
+            format!("The repository '{}' has already been added.", repo_name),
+        ));
+    }
+
     sqlx::query(
         r#"
         INSERT INTO local_repositories (id, name, default_branch, source_path, workspace_root, created_at)
