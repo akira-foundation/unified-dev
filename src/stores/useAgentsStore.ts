@@ -16,6 +16,13 @@ export interface ChatMessage {
   created_at: string;
 }
 
+export interface ToolCallEvent {
+  id: string;
+  label: string;
+  status: "running" | "done" | "error";
+  output?: string;
+}
+
 interface AgentsState {
   repositoryGroups: RepositoryGroup[];
   selectedIssueId: string | null;
@@ -34,6 +41,8 @@ interface AgentsState {
   isStreaming: boolean;
   // Which thread is currently streaming (may differ from selectedIssueId when navigating)
   streamingThreadId: string | null;
+  // Live tool call events during agentic loop
+  toolCalls: ToolCallEvent[];
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
@@ -95,6 +104,7 @@ export const useAgentsStore = create<AgentsState>()(
       streamingContent: "",
       isStreaming: false,
       streamingThreadId: null,
+      toolCalls: [],
       setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
       setShowAddRepositoryDialog: (show) => set({ showAddRepositoryDialog: show }),
       setIsRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
@@ -161,6 +171,75 @@ export const useAgentsStore = create<AgentsState>()(
         }
       },
       sendMessage: async (threadId: string, content: string, model: string) => {
+        const { repositoryGroups } = get();
+
+        // Resolve workspace path for the current thread
+        const allIssues = repositoryGroups.flatMap((g) => g.repositories.flatMap((r) => r.issues));
+        const thread = allIssues.find((i) => i.id === threadId);
+        const workspacePath = thread?.workspacePath ?? "";
+
+        // ── Slash command interception ─────────────────────────────────────
+        const trimmed = content.trim();
+
+        if (trimmed === "/clear") {
+          set({ messages: [], streamingContent: "" });
+          return;
+        }
+
+        // Map slash command → shell command
+        const slashCommandMap: Record<string, string> = {
+          "/diff":   "git diff",
+          "/status": "git status",
+          "/branch": "git rev-parse --abbrev-ref HEAD",
+          "/tree":   "find . -not -path './.git/*' -not -path './node_modules/*' -not -path './target/*' -not -path './.next/*' -not -path './dist/*' -maxdepth 4",
+        };
+
+        const shellCmd = slashCommandMap[trimmed.split(" ")[0]];
+        if (shellCmd && workspacePath) {
+          // Add user message locally (not persisted — it's a command, not a chat turn)
+          const userMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            thread_id: threadId,
+            role: "user",
+            model: null,
+            content: trimmed,
+            metadata: null,
+            created_at: new Date().toISOString(),
+          };
+          set((state) => ({ messages: [...state.messages, userMsg] }));
+
+          try {
+            const output = await invoke<string>("run_workspace_command", {
+              workspacePath,
+              command: shellCmd,
+            });
+
+            // Show output as a tool message in the UI
+            const toolMsg: ChatMessage = {
+              id: crypto.randomUUID(),
+              thread_id: threadId,
+              role: "tool",
+              model: null,
+              content: output || "(no output)",
+              metadata: null,
+              created_at: new Date().toISOString(),
+            };
+            set((state) => ({ messages: [...state.messages, toolMsg] }));
+          } catch (err) {
+            const errMsg: ChatMessage = {
+              id: crypto.randomUUID(),
+              thread_id: threadId,
+              role: "tool",
+              model: null,
+              content: `Error: ${err}`,
+              metadata: null,
+              created_at: new Date().toISOString(),
+            };
+            set((state) => ({ messages: [...state.messages, errMsg] }));
+          }
+          return;
+        }
+        // ──────────────────────────────────────────────────────────────────
         // Optimistically add the user message to the UI immediately.
         const optimisticUserMessage: ChatMessage = {
           id: crypto.randomUUID(),
@@ -177,6 +256,7 @@ export const useAgentsStore = create<AgentsState>()(
           streamingContent: "",
           isStreaming: true,
           streamingThreadId: threadId,
+          toolCalls: [],
         }));
 
         // Set up streaming listeners before invoking the command.
@@ -190,14 +270,46 @@ export const useAgentsStore = create<AgentsState>()(
           }
         );
 
+        const unlistenToolCall = await listen<{ thread_id: string; label: string; status: string; output?: string }>(
+          "agent-stream-tool-call",
+          (event) => {
+            if (event.payload.thread_id !== threadId) return;
+            set((state) => {
+              const { label, status, output } = event.payload;
+              // Find last running entry with matching label
+              let existingIdx = -1;
+              for (let i = state.toolCalls.length - 1; i >= 0; i--) {
+                if (state.toolCalls[i].label === label && state.toolCalls[i].status === "running") {
+                  existingIdx = i;
+                  break;
+                }
+              }
+              if (existingIdx !== -1) {
+                // Update existing running entry to done/error
+                const updated = [...state.toolCalls];
+                updated[existingIdx] = { ...updated[existingIdx], status: status as "running" | "done" | "error", output };
+                return { toolCalls: updated };
+              }
+              // Add new entry
+              return {
+                toolCalls: [
+                  ...state.toolCalls,
+                  { id: crypto.randomUUID(), label, status: status as "running" | "done" | "error", output },
+                ],
+              };
+            });
+          }
+        );
+
         const unlistenDone = await listen<{ thread_id: string }>(
           "agent-stream-done",
           async (event) => {
             if (event.payload.thread_id !== threadId) return;
             unlistenToken();
+            unlistenToolCall();
             unlistenDone();
             unlistenError();
-            set({ isStreaming: false, streamingContent: "", streamingThreadId: null });
+            set({ isStreaming: false, streamingContent: "", streamingThreadId: null, toolCalls: [] });
             // Only reload messages into visible state if still on this thread.
             if (get().selectedIssueId === threadId) {
               await get().loadMessages(threadId);
@@ -210,9 +322,10 @@ export const useAgentsStore = create<AgentsState>()(
           (event) => {
             if (event.payload.thread_id !== threadId) return;
             unlistenToken();
+            unlistenToolCall();
             unlistenDone();
             unlistenError();
-            set({ isStreaming: false, streamingContent: "", streamingThreadId: null });
+            set({ isStreaming: false, streamingContent: "", streamingThreadId: null, toolCalls: [] });
             toast.error(`Agent error: ${event.payload.error}`);
           }
         );

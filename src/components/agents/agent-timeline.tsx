@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, AlertCircle, Info, User, Bot, Copy, Check as CheckIcon } from "lucide-react";
+import { CheckCircle2, Loader2, AlertCircle, Info, User, Bot, Copy, Check as CheckIcon, ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -6,13 +6,14 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { cn } from "@/lib/utils";
 import type { AgentTimelineStep } from "@/types/agents";
-import type { ChatMessage } from "@/stores/useAgentsStore";
+import type { ChatMessage, ToolCallEvent } from "@/stores/useAgentsStore";
 
 interface AgentTimelineProps {
   steps: AgentTimelineStep[];
   messages: ChatMessage[];
   streamingContent: string;
   isStreaming: boolean;
+  toolCalls: ToolCallEvent[];
 }
 
 function CodeBlock({ language, children }: { language: string; children: string }) {
@@ -54,6 +55,45 @@ function CodeBlock({ language, children }: { language: string; children: string 
       >
         {children}
       </SyntaxHighlighter>
+    </div>
+  );
+}
+
+function ToolCallBlock({ toolCall }: { toolCall: ToolCallEvent }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasOutput = !!toolCall.output;
+
+  return (
+    <div className="flex items-start gap-2 text-[12px]">
+      <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center">
+        {toolCall.status === "running" && (
+          <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
+        )}
+        {toolCall.status === "done" && (
+          <CheckIcon className="h-3 w-3 text-emerald-400" />
+        )}
+        {toolCall.status === "error" && (
+          <AlertCircle className="h-3 w-3 text-red-400" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <button
+          className="flex items-center gap-1 font-mono text-zinc-400 hover:text-zinc-300 transition-colors"
+          onClick={() => hasOutput && setExpanded((v) => !v)}
+        >
+          <span className="truncate">{toolCall.label}</span>
+          {hasOutput && (
+            expanded
+              ? <ChevronDown className="h-3 w-3 shrink-0" />
+              : <ChevronRight className="h-3 w-3 shrink-0" />
+          )}
+        </button>
+        {expanded && toolCall.output && (
+          <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-zinc-900 px-3 py-2 text-[11px] text-zinc-300 leading-relaxed whitespace-pre-wrap break-words border border-white/[0.05]">
+            {toolCall.output}
+          </pre>
+        )}
+      </div>
     </div>
   );
 }
@@ -125,7 +165,7 @@ function MessageMarkdown({ content }: { content: string }) {
   );
 }
 
-export function AgentTimeline({ steps, messages, streamingContent, isStreaming }: AgentTimelineProps) {
+export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls }: AgentTimelineProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -185,7 +225,27 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming }
       )}
 
       {/* Chat messages */}
-      {messages.map((msg) => (
+      {messages.map((msg) => {
+        // Tool / command output — shown as a terminal block
+        if (msg.role === "tool") {
+          return (
+            <div key={msg.id} className="flex flex-col gap-1">
+              <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/80 border-b border-white/[0.06]">
+                  <span className="text-[11px] font-mono text-zinc-400">output</span>
+                </div>
+                <pre className="p-3 text-[12px] font-mono text-zinc-300 leading-relaxed overflow-x-auto whitespace-pre-wrap break-words bg-[#18181b]">
+                  {msg.content}
+                </pre>
+              </div>
+              <span className="text-[10px] text-muted-foreground/30 px-1">
+                {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+          );
+        }
+
+        return (
         <div
           key={msg.id}
           className={cn(
@@ -230,7 +290,8 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming }
             </span>
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Live streaming bubble */}
       {isStreaming && (
@@ -239,6 +300,14 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming }
             <Bot className="h-4 w-4" />
           </div>
           <div className="flex flex-col gap-2 items-start w-full min-w-0">
+            {/* Tool call steps */}
+            {toolCalls.length > 0 && (
+              <div className="w-full rounded-xl border border-white/[0.05] bg-zinc-900/60 px-3 py-2.5 flex flex-col gap-1.5">
+                {toolCalls.map((tc) => (
+                  <ToolCallBlock key={tc.id} toolCall={tc} />
+                ))}
+              </div>
+            )}
             {streamingContent && (
               <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-[14px] bg-white/[0.04] text-white/80 w-full overflow-hidden">
                 <MessageMarkdown content={streamingContent} />

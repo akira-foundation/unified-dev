@@ -5,7 +5,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
 use super::detector::detect_providers;
-use super::discovery::{discover_ollama_models, discover_openai_models, fallback_models};
+use super::discovery::{discover_codex_models, fallback_models};
 use super::{AiProviderGroup, AiProviderKind};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,27 +44,18 @@ fn save_registry_cache(registry: &ModelRegistry) {
 
 pub async fn build_model_registry() -> ModelRegistry {
     let detected = detect_providers().await;
+
     let mut provider_groups: Vec<AiProviderGroup> = Vec::new();
 
-    for kind in &detected {
+    // Only show Codex (OpenAi) and Claude — Copilot and Ollama are suppressed from the picker.
+    for kind in detected.iter().filter(|k| matches!(k, AiProviderKind::OpenAi | AiProviderKind::Claude)) {
         let models = match kind {
             AiProviderKind::OpenAi => {
-                discover_openai_models()
-                    .await
+                discover_codex_models()
                     .unwrap_or_else(|_| fallback_models(kind))
             }
-            AiProviderKind::Ollama => {
-                discover_ollama_models()
-                    .await
-                    .unwrap_or_else(|_| fallback_models(kind))
-            }
-            // Anthropic does not expose a public /models endpoint, so the list
-            // is maintained statically in fallback_models(). Update that list
-            // when Anthropic releases new model versions.
             AiProviderKind::Claude => fallback_models(kind),
-            // Copilot model availability depends on the subscription tier and is
-            // not queryable without an active session; keep it static for now.
-            AiProviderKind::Copilot => fallback_models(kind),
+            _ => continue,
         };
 
         if !models.is_empty() {

@@ -31,6 +31,7 @@ export function AgentWorkspaceLayout() {
     streamingContent,
     isStreaming,
     streamingThreadId,
+    toolCalls,
     loadMessages,
   } = useAgentsStore();
 
@@ -150,6 +151,7 @@ export function AgentWorkspaceLayout() {
                   messages={messages}
                   streamingContent={streamingContent}
                   isStreaming={isCurrentThreadStreaming}
+                  toolCalls={toolCalls}
                 />
               </div>
               <div className="shrink-0 pb-6 pt-2">

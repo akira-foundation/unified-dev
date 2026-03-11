@@ -1,7 +1,7 @@
 use futures_util::StreamExt;
 use reqwest::Client;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use sqlx::SqlitePool;
 use tauri::AppHandle;
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -9,25 +9,53 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use crate::error::{AppError, AppResult};
 
 use super::messages::{get_messages, save_message, Message};
-use super::stream::{emit_done, emit_error, emit_token};
+use super::stream::{emit_done, emit_error, emit_token, emit_tool_call, StreamToolCallPayload};
 
 // ---------------------------------------------------------------------------
 // SSE / response types
 // ---------------------------------------------------------------------------
 
-/// Anthropic streaming event.
+/// Anthropic streaming event (kept for reference but parsing is done via raw Value).
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct AnthropicSseEvent {
     #[serde(rename = "type")]
     event_type: String,
     delta: Option<AnthropicSseDelta>,
+    index: Option<usize>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct AnthropicSseDelta {
     #[serde(rename = "type")]
     delta_type: Option<String>,
     text: Option<String>,
+    // For tool_use blocks
+    partial_json: Option<String>,
+}
+
+/// Anthropic non-streaming message response (kept for reference).
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct AnthropicMessage {
+    #[serde(rename = "type")]
+    msg_type: String,
+    content: Vec<AnthropicContentBlock>,
+    stop_reason: Option<String>,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Clone)]
+struct AnthropicContentBlock {
+    #[serde(rename = "type")]
+    block_type: String,
+    // text block
+    text: Option<String>,
+    // tool_use block
+    id: Option<String>,
+    name: Option<String>,
+    input: Option<Value>,
 }
 
 /// OpenAI-compatible streaming delta (used for both Copilot and Codex).
@@ -41,13 +69,29 @@ struct OpenAiChunk {
 #[derive(Debug, Deserialize)]
 struct OpenAiChoice {
     delta: Option<OpenAiDelta>,
+    finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct OpenAiDelta {
     content: Option<String>,
+    tool_calls: Option<Vec<OpenAiToolCallDelta>>,
 }
 
+#[derive(Debug, Deserialize, Clone, Default)]
+struct OpenAiToolCallDelta {
+    index: Option<usize>,
+    id: Option<String>,
+    function: Option<OpenAiFunctionDelta>,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+struct OpenAiFunctionDelta {
+    name: Option<String>,
+    arguments: Option<String>,
+}
+
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct CodexOutput {
     #[serde(rename = "type")]
@@ -62,6 +106,14 @@ struct CodexContent {
     #[serde(rename = "type")]
     content_type: Option<String>,
     text: Option<String>,
+}
+
+// Accumulated tool call from streaming deltas
+#[derive(Default, Clone)]
+struct PendingToolCall {
+    id: String,
+    name: String,
+    arguments: String,
 }
 
 // ---------------------------------------------------------------------------
@@ -163,15 +215,12 @@ fn resolve_env_key(key: &str) -> Option<String> {
 }
 
 /// Reads the GitHub Copilot OAuth token from `~/.config/github-copilot/apps.json`.
-/// Returns the first oauth_token found (there may be multiple app registrations).
 fn read_copilot_oauth_token() -> Option<String> {
     let home = dirs::home_dir()?;
     let path = home.join(".config/github-copilot/apps.json");
     let content = std::fs::read_to_string(path).ok()?;
     let map: serde_json::Value = serde_json::from_str(&content).ok()?;
     let obj = map.as_object()?;
-    // Pick the entry whose oauth_token starts with "ghu_" (user token) preferring it
-    // over "gho_" (OAuth app token) since user tokens have Copilot API access.
     let mut fallback: Option<String> = None;
     for (_, entry) in obj {
         if let Some(token) = entry.get("oauth_token").and_then(|t| t.as_str()) {
@@ -234,8 +283,6 @@ fn read_codex_access_token() -> Option<String> {
 // ---------------------------------------------------------------------------
 
 fn resolve_anthropic_model_id(model: &str) -> &str {
-    // IDs ending in -latest are passed directly to the API.
-    // Keep legacy short aliases for backwards compatibility.
     match model {
         "claude-sonnet" => "claude-sonnet-latest",
         "claude-opus"   => "claude-opus-latest",
@@ -244,15 +291,382 @@ fn resolve_anthropic_model_id(model: &str) -> &str {
     }
 }
 
-/// Maps a model ID to the short alias accepted by the Claude CLI
-/// (`--model sonnet`, `--model opus`, `--model haiku`).
 fn resolve_claude_cli_model(model: &str) -> &str {
     match model {
         "claude-sonnet-latest" | "claude-sonnet" => "sonnet",
         "claude-opus-latest"   | "claude-opus"   => "opus",
         "claude-haiku-latest"  | "claude-haiku"  => "haiku",
-        // For any explicit full model ID (e.g. "claude-sonnet-4-6"), pass it through.
         other => other,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tool definitions (shared across providers)
+// ---------------------------------------------------------------------------
+
+fn tool_definitions_anthropic() -> Value {
+    json!([
+        {
+            "name": "read_file",
+            "description": "Read the contents of a file in the workspace. Use this to examine source code, config files, or any text file.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to the file, relative to the workspace root (e.g. 'src/helpers.php')."
+                    }
+                },
+                "required": ["path"]
+            }
+        },
+        {
+            "name": "write_file",
+            "description": "Write or overwrite a file in the workspace with new content. Use this to apply code changes.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Path to the file, relative to the workspace root."
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Full content to write to the file."
+                    }
+                },
+                "required": ["path", "content"]
+            }
+        },
+        {
+            "name": "list_files",
+            "description": "List files and directories at a given path in the workspace.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Directory path relative to workspace root. Use '.' for root."
+                    }
+                },
+                "required": ["path"]
+            }
+        },
+        {
+            "name": "run_command",
+            "description": "Run a read-only shell command in the workspace directory. Allowed commands: git status, git diff, git log, git branch, git show. Do NOT use this to write files — use write_file instead.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The shell command to run (e.g. 'git diff HEAD~1')."
+                    }
+                },
+                "required": ["command"]
+            }
+        },
+        {
+            "name": "search_in_file",
+            "description": "Search for a pattern (plain text or regex) in a file and return matching lines with line numbers.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "File path relative to workspace root."
+                    },
+                    "pattern": {
+                        "type": "string",
+                        "description": "Text or regex pattern to search for."
+                    }
+                },
+                "required": ["path", "pattern"]
+            }
+        }
+    ])
+}
+
+fn tool_definitions_openai() -> Value {
+    json!([
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read the contents of a file in the workspace.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string", "description": "File path relative to workspace root." }
+                    },
+                    "required": ["path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "write_file",
+                "description": "Write or overwrite a file in the workspace with new content.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string", "description": "File path relative to workspace root." },
+                        "content": { "type": "string", "description": "Full content to write to the file." }
+                    },
+                    "required": ["path", "content"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "list_files",
+                "description": "List files and directories at a given path in the workspace.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string", "description": "Directory path relative to workspace root. Use '.' for root." }
+                    },
+                    "required": ["path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "run_command",
+                "description": "Run a read-only shell command in the workspace. Allowed: git status, git diff, git log, git branch, git show.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": { "type": "string", "description": "The shell command to run." }
+                    },
+                    "required": ["command"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_in_file",
+                "description": "Search for a pattern in a file and return matching lines with line numbers.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string", "description": "File path relative to workspace root." },
+                        "pattern": { "type": "string", "description": "Text or regex pattern to search for." }
+                    },
+                    "required": ["path", "pattern"]
+                }
+            }
+        }
+    ])
+}
+
+// ---------------------------------------------------------------------------
+// Tool executor
+// ---------------------------------------------------------------------------
+
+/// Execute a tool call and return the result string.
+fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
+    let root = std::path::Path::new(workspace_path);
+
+    match name {
+        "read_file" => {
+            let Some(rel) = args.get("path").and_then(|v| v.as_str()) else {
+                return "Error: missing 'path' argument".to_string();
+            };
+            // Strip leading slash so absolute paths don't escape the workspace root.
+            let rel = rel.trim_start_matches('/');
+            // Reject path traversal attempts.
+            if rel.contains("..") {
+                return "Error: path traversal ('..') is not allowed".to_string();
+            }
+            let path = root.join(rel);
+            eprintln!("[tool] read_file resolved path: {:?}", path);
+            match std::fs::read_to_string(&path) {
+                Ok(content) => {
+                    // Number lines for easier reference
+                    content
+                        .lines()
+                        .enumerate()
+                        .map(|(i, line)| format!("{:>4}: {}", i + 1, line))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                }
+                Err(e) => {
+                    eprintln!("[tool] read_file error on {:?}: {}", path, e);
+                    format!("Error reading '{}': {}", path.display(), e)
+                }
+            }
+        }
+
+        "write_file" => {
+            let (Some(rel), Some(content)) = (
+                args.get("path").and_then(|v| v.as_str()),
+                args.get("content").and_then(|v| v.as_str()),
+            ) else {
+                return "Error: missing 'path' or 'content' argument".to_string();
+            };
+            let rel = rel.trim_start_matches('/');
+            if rel.contains("..") {
+                return "Error: path traversal ('..') is not allowed".to_string();
+            }
+            let path = root.join(rel);
+            // Create parent directories if needed
+            if let Some(parent) = path.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    return format!("Error creating directories for {rel}: {e}");
+                }
+            }
+            match std::fs::write(&path, content) {
+                Ok(_) => format!("Successfully wrote {} bytes to {rel}", content.len()),
+                Err(e) => format!("Error writing {rel}: {e}"),
+            }
+        }
+
+        "list_files" => {
+            let rel = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+            let rel = rel.trim_start_matches('/');
+            let path = root.join(rel);
+            eprintln!("[tool] list_files resolved path: {:?}", path);
+            match std::fs::read_dir(&path) {
+                Ok(entries) => {
+                    let mut items: Vec<String> = entries
+                        .filter_map(|e| {
+                            let e = e.ok()?;
+                            let name = e.file_name().to_string_lossy().to_string();
+                            let is_dir = e.file_type().ok()?.is_dir();
+                            Some(if is_dir { format!("{name}/") } else { name })
+                        })
+                        .collect();
+                    items.sort();
+                    if items.is_empty() {
+                        format!("{}: (empty directory)", path.display())
+                    } else {
+                        items.join("\n")
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[tool] list_files error on {:?}: {}", path, e);
+                    format!("Error listing '{}': {}", path.display(), e)
+                }
+            }
+        }
+
+        "run_command" => {
+            let Some(cmd_str) = args.get("command").and_then(|v| v.as_str()) else {
+                return "Error: missing 'command' argument".to_string();
+            };
+
+            // Safety: only allow git and a small set of read-only commands
+            let allowed_prefixes = ["git status", "git diff", "git log", "git branch", "git show", "git rev-parse"];
+            if !allowed_prefixes.iter().any(|p| cmd_str.trim_start().starts_with(p)) {
+                return format!(
+                    "Error: command not allowed. Only git read-only commands are permitted (git status, git diff, git log, git branch, git show, git rev-parse)."
+                );
+            }
+
+            let parts: Vec<&str> = cmd_str.split_whitespace().collect();
+            let (prog, rest) = match parts.split_first() {
+                Some(s) => s,
+                None => return "Error: empty command".to_string(),
+            };
+
+            match std::process::Command::new(prog)
+                .args(rest)
+                .current_dir(root)
+                .output()
+            {
+                Ok(out) => {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    let stderr = String::from_utf8_lossy(&out.stderr);
+                    if !out.status.success() && stdout.is_empty() {
+                        format!("Exit {}: {}", out.status, stderr)
+                    } else if stdout.is_empty() {
+                        "(no output)".to_string()
+                    } else {
+                        stdout.to_string()
+                    }
+                }
+                Err(e) => format!("Error running command: {e}"),
+            }
+        }
+
+        "search_in_file" => {
+            let (Some(rel), Some(pattern)) = (
+                args.get("path").and_then(|v| v.as_str()),
+                args.get("pattern").and_then(|v| v.as_str()),
+            ) else {
+                return "Error: missing 'path' or 'pattern' argument".to_string();
+            };
+            let path = root.join(rel);
+            let content = match std::fs::read_to_string(&path) {
+                Ok(c) => c,
+                Err(e) => return format!("Error reading {rel}: {e}"),
+            };
+
+            let re = match regex::Regex::new(pattern) {
+                Ok(r) => r,
+                Err(_) => {
+                    // Fall back to plain-text search
+                    let matches: Vec<String> = content
+                        .lines()
+                        .enumerate()
+                        .filter(|(_, line)| line.contains(pattern))
+                        .map(|(i, line)| format!("{:>4}: {}", i + 1, line))
+                        .collect();
+                    if matches.is_empty() {
+                        return format!("No matches for '{pattern}' in {rel}");
+                    }
+                    return matches.join("\n");
+                }
+            };
+
+            let matches: Vec<String> = content
+                .lines()
+                .enumerate()
+                .filter(|(_, line)| re.is_match(line))
+                .map(|(i, line)| format!("{:>4}: {}", i + 1, line))
+                .collect();
+
+            if matches.is_empty() {
+                format!("No matches for '{pattern}' in {rel}")
+            } else {
+                matches.join("\n")
+            }
+        }
+
+        other => format!("Error: unknown tool '{other}'"),
+    }
+}
+
+/// Build a human-readable label for a tool call event.
+fn tool_label(name: &str, args: &Value) -> String {
+    match name {
+        "read_file" => format!(
+            "read_file: {}",
+            args.get("path").and_then(|v| v.as_str()).unwrap_or("?")
+        ),
+        "write_file" => format!(
+            "write_file: {}",
+            args.get("path").and_then(|v| v.as_str()).unwrap_or("?")
+        ),
+        "list_files" => format!(
+            "list_files: {}",
+            args.get("path").and_then(|v| v.as_str()).unwrap_or(".")
+        ),
+        "run_command" => format!(
+            "run: {}",
+            args.get("command").and_then(|v| v.as_str()).unwrap_or("?")
+        ),
+        "search_in_file" => format!(
+            "search '{}' in {}",
+            args.get("pattern").and_then(|v| v.as_str()).unwrap_or("?"),
+            args.get("path").and_then(|v| v.as_str()).unwrap_or("?")
+        ),
+        other => other.to_string(),
     }
 }
 
@@ -323,11 +737,13 @@ fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) -> S
     };
 
     format!(
-        "You are an AI coding agent working on the repository '{repo_name}'.\n\
-         Workspace path: {workspace_path}\n\
-         Branch: {branch}\n\
-         You have full access to the files in the workspace path above. \
-         When the user asks about code, files, or classes, read them from disk using the paths shown in the file tree below.{tree_section}"
+        "You are an AI coding agent working on the repository '{repo_name}' (branch: {branch}).\n\
+         Workspace path: {workspace_path}\n\n\
+         You have tools to read and write files and run git commands. \
+         ALWAYS use your tools to actually perform the requested task — never just describe what you would do. \
+         When asked to modify a file, read it first, then write the changes back with write_file. \
+         When asked about code, read the relevant files before answering.\
+         {tree_section}"
     )
 }
 
@@ -335,16 +751,19 @@ fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) -> S
 // Shared SSE streaming helper (OpenAI-compatible format)
 // ---------------------------------------------------------------------------
 
-/// Drives an OpenAI-compatible SSE stream (used by both Copilot and Codex).
-/// Emits tokens and returns the full response text.
-async fn stream_openai_sse(
+/// Drives an OpenAI-compatible SSE stream. Returns the full response text
+/// and any tool calls encountered. Streams text tokens to the frontend.
+async fn stream_openai_sse_with_tools(
     response: reqwest::Response,
     app: &AppHandle,
     thread_id: &str,
-) -> AppResult<String> {
+) -> AppResult<(String, Vec<PendingToolCall>)> {
     let mut full_response = String::new();
     let mut byte_stream = response.bytes_stream();
     let mut line_buf = String::new();
+    // Accumulate tool call deltas by index
+    let mut tool_calls: Vec<PendingToolCall> = Vec::new();
+    let mut _finish_reason: Option<String> = None;
 
     'stream: while let Some(chunk) = byte_stream.next().await {
         let chunk = chunk.map_err(|e| AppError::Http(e))?;
@@ -361,13 +780,38 @@ async fn stream_openai_sse(
                     }
 
                     if let Ok(chunk) = serde_json::from_str::<OpenAiChunk>(data) {
-                        // Chat completions format (Copilot).
+                        // Chat completions format (Copilot / standard OpenAI).
                         if let Some(choices) = chunk.choices {
                             for choice in choices {
+                                if let Some(fr) = &choice.finish_reason {
+                                    _finish_reason = Some(fr.clone());
+                                }
                                 if let Some(delta) = choice.delta {
+                                    // Text content
                                     if let Some(content) = delta.content {
                                         emit_token(app, thread_id, &content);
                                         full_response.push_str(&content);
+                                    }
+                                    // Tool call deltas
+                                    if let Some(tc_deltas) = delta.tool_calls {
+                                        for tc_delta in tc_deltas {
+                                            let idx = tc_delta.index.unwrap_or(0);
+                                            // Grow vec to fit index
+                                            while tool_calls.len() <= idx {
+                                                tool_calls.push(PendingToolCall::default());
+                                            }
+                                            if let Some(id) = tc_delta.id {
+                                                tool_calls[idx].id = id;
+                                            }
+                                            if let Some(func) = tc_delta.function {
+                                                if let Some(name) = func.name {
+                                                    tool_calls[idx].name = name;
+                                                }
+                                                if let Some(args) = func.arguments {
+                                                    tool_calls[idx].arguments.push_str(&args);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -376,21 +820,19 @@ async fn stream_openai_sse(
                         // Codex Responses API format.
                         if let Some(outputs) = chunk.output {
                             for output in outputs {
-                                // output_text delta events carry text directly.
-                                if let Some(text) = output.text {
-                                    emit_token(app, thread_id, &text);
-                                    full_response.push_str(&text);
-                                }
-                                // message output with content array.
-                                if let Some(contents) = output.content {
-                                    for item in contents {
+                                if let Some(content_arr) = output.content {
+                                    for item in content_arr {
                                         if item.content_type.as_deref() == Some("output_text") {
-                                            if let Some(text) = item.text {
-                                                emit_token(app, thread_id, &text);
-                                                full_response.push_str(&text);
+                                            if let Some(t) = item.text {
+                                                emit_token(app, thread_id, &t);
+                                                full_response.push_str(&t);
                                             }
                                         }
                                     }
+                                }
+                                if let Some(t) = output.text {
+                                    emit_token(app, thread_id, &t);
+                                    full_response.push_str(&t);
                                 }
                             }
                         }
@@ -402,20 +844,22 @@ async fn stream_openai_sse(
         }
     }
 
-    Ok(full_response)
+    Ok((full_response, tool_calls))
 }
 
 // ---------------------------------------------------------------------------
-// Provider implementations
+// Anthropic agentic loop
 // ---------------------------------------------------------------------------
 
-/// Streams a response from the Anthropic Messages API using an API key.
+/// Streams a response from the Anthropic Messages API with full tool-use support.
+/// Runs multiple turns until the model calls `end_turn` (no more tool calls).
 async fn anthropic_stream(
     model: &str,
     system_prompt: &str,
     history: &[Message],
     app: &AppHandle,
     thread_id: &str,
+    workspace_path: &str,
 ) -> AppResult<String> {
     let api_key = resolve_env_key("ANTHROPIC_API_KEY").ok_or_else(|| {
         AppError::Internal(
@@ -424,41 +868,131 @@ async fn anthropic_stream(
     })?;
 
     let api_model = resolve_anthropic_model_id(model);
+    let client = Client::new();
 
-    let messages: Vec<serde_json::Value> = history
+    // Build the initial message history
+    let mut messages: Vec<Value> = history
         .iter()
         .filter(|m| m.role == "user" || m.role == "assistant")
         .map(|m| json!({ "role": m.role, "content": m.content }))
         .collect();
 
-    let body = json!({
-        "model": api_model,
-        "max_tokens": 8096,
-        "system": system_prompt,
-        "messages": messages,
-        "stream": true
-    });
+    let tools = tool_definitions_anthropic();
+    let mut full_text_response = String::new();
 
-    let client = Client::new();
-    let response = client
-        .post("https://api.anthropic.com/v1/messages")
-        .header("x-api-key", &api_key)
-        .header("anthropic-version", "2023-06-01")
-        .header("content-type", "application/json")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e))?;
+    // Agentic loop: keep calling until stop_reason == "end_turn"
+    loop {
+        let body = json!({
+            "model": api_model,
+            "max_tokens": 8096,
+            "system": system_prompt,
+            "messages": messages,
+            "tools": tools,
+            "stream": true
+        });
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        return Err(AppError::Internal(format!(
-            "Anthropic API error {status}: {text}"
-        )));
+        let response = client
+            .post("https://api.anthropic.com/v1/messages")
+            .header("x-api-key", &api_key)
+            .header("anthropic-version", "2023-06-01")
+            .header("content-type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Http(e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!(
+                "Anthropic API error {status}: {text}"
+            )));
+        }
+
+        // Stream the response, collecting text tokens and tool_use blocks
+        let (text_in_turn, tool_use_blocks, stop_reason) =
+            stream_anthropic_turn(response, app, thread_id).await?;
+
+        full_text_response.push_str(&text_in_turn);
+
+        // Add the assistant turn to conversation history
+        let mut assistant_content: Vec<Value> = Vec::new();
+        if !text_in_turn.is_empty() {
+            assistant_content.push(json!({ "type": "text", "text": text_in_turn }));
+        }
+        for block in &tool_use_blocks {
+            assistant_content.push(json!({
+                "type": "tool_use",
+                "id": block.id,
+                "name": block.name,
+                "input": block.input
+            }));
+        }
+        messages.push(json!({ "role": "assistant", "content": assistant_content }));
+
+        // If no tool calls or stop_reason is end_turn, we're done
+        if tool_use_blocks.is_empty() || stop_reason.as_deref() == Some("end_turn") {
+            break;
+        }
+
+        // Execute each tool call and collect results
+        let mut tool_results: Vec<Value> = Vec::new();
+        for block in &tool_use_blocks {
+            let args = block.input.clone().unwrap_or(Value::Object(Default::default()));
+            let label = tool_label(&block.name, &args);
+
+            // Emit "running" event to frontend
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "running".to_string(),
+                output: None,
+            });
+
+            let result = execute_tool(&block.name, &args, workspace_path);
+
+            // Emit "done" event with output
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "done".to_string(),
+                output: Some(result.clone()),
+            });
+
+            tool_results.push(json!({
+                "type": "tool_result",
+                "tool_use_id": block.id,
+                "content": result
+            }));
+        }
+
+        // Add tool results as a user turn and continue the loop
+        messages.push(json!({ "role": "user", "content": tool_results }));
     }
 
-    let mut full_response = String::new();
+    Ok(full_text_response)
+}
+
+/// Streams a single Anthropic turn, collecting text tokens and tool_use blocks.
+async fn stream_anthropic_turn(
+    response: reqwest::Response,
+    app: &AppHandle,
+    thread_id: &str,
+) -> AppResult<(String, Vec<AnthropicToolUseBlock>, Option<String>)> {
+    #[derive(Default)]
+    struct ToolUseAccumulator {
+        id: String,
+        name: String,
+        json_buf: String,
+        input: Option<Value>,
+    }
+
+    let mut full_text = String::new();
+    let mut tool_blocks: Vec<AnthropicToolUseBlock> = Vec::new();
+    // Map from block index to accumulator
+    let mut accumulators: std::collections::HashMap<usize, ToolUseAccumulator> = Default::default();
+    let mut stop_reason: Option<String> = None;
+
     let mut byte_stream = response.bytes_stream();
     let mut line_buf = String::new();
 
@@ -476,16 +1010,66 @@ async fn anthropic_stream(
                         break 'stream;
                     }
 
-                    if let Ok(event) = serde_json::from_str::<AnthropicSseEvent>(data) {
-                        if event.event_type == "content_block_delta" {
-                            if let Some(delta) = event.delta {
-                                if delta.delta_type.as_deref() == Some("text_delta") {
-                                    if let Some(text_chunk) = delta.text {
-                                        emit_token(app, thread_id, &text_chunk);
-                                        full_response.push_str(&text_chunk);
+                    if let Ok(event) = serde_json::from_str::<Value>(data) {
+                        match event.get("type").and_then(|t| t.as_str()) {
+                            Some("content_block_start") => {
+                                let idx = event.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
+                                if let Some(block) = event.get("content_block") {
+                                    if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                                        let acc = ToolUseAccumulator {
+                                            id: block.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                            name: block.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+                                            json_buf: String::new(),
+                                            input: None,
+                                        };
+                                        accumulators.insert(idx, acc);
                                     }
                                 }
                             }
+                            Some("content_block_delta") => {
+                                let idx = event.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
+                                if let Some(delta) = event.get("delta") {
+                                    match delta.get("type").and_then(|t| t.as_str()) {
+                                        Some("text_delta") => {
+                                            if let Some(t) = delta.get("text").and_then(|t| t.as_str()) {
+                                                emit_token(app, thread_id, t);
+                                                full_text.push_str(t);
+                                            }
+                                        }
+                                        Some("input_json_delta") => {
+                                            if let Some(partial) = delta.get("partial_json").and_then(|p| p.as_str()) {
+                                                if let Some(acc) = accumulators.get_mut(&idx) {
+                                                    acc.json_buf.push_str(partial);
+                                                }
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                            }
+                            Some("content_block_stop") => {
+                                let idx = event.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
+                                if let Some(mut acc) = accumulators.remove(&idx) {
+                                    // Parse the accumulated JSON
+                                    acc.input = serde_json::from_str(&acc.json_buf).ok();
+                                    tool_blocks.push(AnthropicToolUseBlock {
+                                        id: acc.id,
+                                        name: acc.name,
+                                        input: acc.input,
+                                    });
+                                }
+                            }
+                            Some("message_delta") => {
+                                if let Some(delta) = event.get("delta") {
+                                    if let Some(sr) = delta.get("stop_reason").and_then(|s| s.as_str()) {
+                                        stop_reason = Some(sr.to_string());
+                                    }
+                                }
+                            }
+                            Some("message_stop") => {
+                                break 'stream;
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -495,16 +1079,27 @@ async fn anthropic_stream(
         }
     }
 
-    Ok(full_response)
+    Ok((full_text, tool_blocks, stop_reason))
 }
 
-/// Streams a response via GitHub Copilot using the token stored in
-/// `~/.config/github-copilot/apps.json`.
+#[derive(Debug)]
+struct AnthropicToolUseBlock {
+    id: String,
+    name: String,
+    input: Option<Value>,
+}
+
+// ---------------------------------------------------------------------------
+// Copilot / OpenAI agentic loop
+// ---------------------------------------------------------------------------
+
 async fn copilot_stream(
+    model: &str,
     system_prompt: &str,
     history: &[Message],
     app: &AppHandle,
     thread_id: &str,
+    workspace_path: &str,
 ) -> AppResult<String> {
     let oauth_token = read_copilot_oauth_token().ok_or_else(|| {
         AppError::Internal(
@@ -513,51 +1108,416 @@ async fn copilot_stream(
     })?;
 
     let api_token = exchange_copilot_token(&oauth_token).await?;
+    let client = Client::new();
+    let tools = tool_definitions_openai();
 
-    let mut messages = vec![json!({ "role": "system", "content": system_prompt })];
+    let mut messages: Vec<Value> = vec![json!({ "role": "system", "content": system_prompt })];
     for msg in history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
         messages.push(json!({ "role": msg.role, "content": msg.content }));
     }
 
-    let body = json!({
-        "model": "gpt-4o",
-        "messages": messages,
-        "stream": true,
-        "max_tokens": 4096
-    });
+    let mut full_text = String::new();
 
-    let client = Client::new();
-    let response = client
-        .post("https://api.githubcopilot.com/chat/completions")
-        .header("Authorization", format!("Bearer {api_token}"))
-        .header("Copilot-Integration-Id", "vscode-chat")
-        .header("Editor-Version", "vscode/1.85.0")
-        .header("Editor-Plugin-Version", "copilot-chat/0.12.0")
-        .header("User-Agent", "unified-dev/1.0")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e))?;
+    loop {
+        let body = json!({
+            "model": model,
+            "messages": messages,
+            "stream": true,
+            "max_tokens": 4096,
+            "tools": tools,
+            "tool_choice": "auto"
+        });
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        return Err(AppError::Internal(format!(
-            "Copilot API error {status}: {text}"
-        )));
+        let response = client
+            .post("https://api.githubcopilot.com/chat/completions")
+            .header("Authorization", format!("Bearer {api_token}"))
+            .header("Copilot-Integration-Id", "vscode-chat")
+            .header("Editor-Version", "vscode/1.85.0")
+            .header("Editor-Plugin-Version", "copilot-chat/0.12.0")
+            .header("User-Agent", "unified-dev/1.0")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Http(e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!("Copilot API error {status}: {text}")));
+        }
+
+        let (text_in_turn, pending_calls) =
+            stream_openai_sse_with_tools(response, app, thread_id).await?;
+
+        full_text.push_str(&text_in_turn);
+
+        if pending_calls.is_empty() {
+            break;
+        }
+
+        // Add assistant message with tool calls
+        let tool_calls_json: Vec<Value> = pending_calls.iter().map(|tc| json!({
+            "id": tc.id,
+            "type": "function",
+            "function": { "name": tc.name, "arguments": tc.arguments }
+        })).collect();
+        messages.push(json!({
+            "role": "assistant",
+            "content": if text_in_turn.is_empty() { Value::Null } else { Value::String(text_in_turn.clone()) },
+            "tool_calls": tool_calls_json
+        }));
+
+        // Execute each tool and append results
+        for tc in &pending_calls {
+            let args: Value = serde_json::from_str(&tc.arguments).unwrap_or(Value::Object(Default::default()));
+            let label = tool_label(&tc.name, &args);
+
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "running".to_string(),
+                output: None,
+            });
+
+            let result = execute_tool(&tc.name, &args, workspace_path);
+
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "done".to_string(),
+                output: Some(result.clone()),
+            });
+
+            messages.push(json!({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": result
+            }));
+        }
     }
 
-    stream_openai_sse(response, app, thread_id).await
+    Ok(full_text)
 }
 
-/// Streams a response via the OpenAI Codex CLI session token stored in
-/// `~/.codex/auth.json`. Uses the `codex-mini-latest` model via the
-/// Responses API.
+// ---------------------------------------------------------------------------
+// Copilot Responses API agentic loop (for gpt-5.x models)
+// ---------------------------------------------------------------------------
+
+/// Streams a response via the GitHub Copilot `/v1/responses` endpoint.
+/// This is a separate endpoint from `/chat/completions` and is required for
+/// `gpt-5.x` Codex subscription models which reject the completions endpoint.
+///
+/// The Responses API SSE format uses named events:
+///   response.output_text.delta        → text token (data.delta)
+///   response.output_item.added        → tool call start (data.item with type=function_call)
+///   response.function_call_arguments.delta → tool arg chunk (data.delta)
+///   response.function_call_arguments.done  → tool call complete (data.arguments)
+///   response.completed                → stream done
+///
+/// Tool results are submitted in the next request via `input` array items of
+/// type `function_call_output` with the matching `call_id`.
+async fn copilot_responses_stream(
+    model: &str,
+    system_prompt: &str,
+    history: &[Message],
+    app: &AppHandle,
+    thread_id: &str,
+    workspace_path: &str,
+) -> AppResult<String> {
+    let oauth_token = read_copilot_oauth_token().ok_or_else(|| {
+        AppError::Internal(
+            "GitHub Copilot credentials not found. Make sure the Copilot extension is installed and authenticated.".to_string(),
+        )
+    })?;
+
+    let api_token = exchange_copilot_token(&oauth_token).await?;
+    let client = Client::new();
+
+    // Build the initial input array in Responses API format.
+    // System message becomes an item of type "message" with role "system".
+    let mut input: Vec<Value> = vec![
+        json!({ "type": "message", "role": "system", "content": system_prompt })
+    ];
+    for msg in history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
+        input.push(json!({ "type": "message", "role": msg.role, "content": msg.content }));
+    }
+
+    // Tool definitions in Responses API format (no wrapping "function" key).
+    let tools = json!([
+        {
+            "type": "function",
+            "name": "read_file",
+            "description": "Read the contents of a file in the workspace.",
+            "parameters": {
+                "type": "object",
+                "properties": { "path": { "type": "string", "description": "File path relative to workspace root." } },
+                "required": ["path"]
+            }
+        },
+        {
+            "type": "function",
+            "name": "write_file",
+            "description": "Write or overwrite a file in the workspace with new content.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string" },
+                    "content": { "type": "string" }
+                },
+                "required": ["path", "content"]
+            }
+        },
+        {
+            "type": "function",
+            "name": "list_files",
+            "description": "List files and directories at a given path in the workspace.",
+            "parameters": {
+                "type": "object",
+                "properties": { "path": { "type": "string", "description": "Directory path relative to workspace root. Use '.' for root." } },
+                "required": ["path"]
+            }
+        },
+        {
+            "type": "function",
+            "name": "run_command",
+            "description": "Run a read-only shell command in the workspace. Allowed: git status, git diff, git log, git branch, git show.",
+            "parameters": {
+                "type": "object",
+                "properties": { "command": { "type": "string" } },
+                "required": ["command"]
+            }
+        },
+        {
+            "type": "function",
+            "name": "search_in_file",
+            "description": "Search for a pattern in a file and return matching lines with line numbers.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": { "type": "string" },
+                    "pattern": { "type": "string" }
+                },
+                "required": ["path", "pattern"]
+            }
+        }
+    ]);
+
+    let mut full_text = String::new();
+    // previous_response_id enables multi-turn continuation in the Responses API.
+    let mut previous_response_id: Option<String> = None;
+
+    loop {
+        let mut body = json!({
+            "model": model,
+            "input": input,
+            "stream": true,
+            "max_output_tokens": 8192,
+            "tools": tools,
+            "tool_choice": "auto"
+        });
+        if let Some(ref prev_id) = previous_response_id {
+            body["previous_response_id"] = json!(prev_id);
+        }
+
+        let response = client
+            .post("https://api.githubcopilot.com/v1/responses")
+            .header("Authorization", format!("Bearer {api_token}"))
+            .header("Copilot-Integration-Id", "vscode-chat")
+            .header("Editor-Version", "vscode/1.85.0")
+            .header("User-Agent", "unified-dev/1.0")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Http(e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!("Copilot Responses API error {status}: {text}")));
+        }
+
+        // Parse the SSE stream.
+        let (text_in_turn, tool_calls, resp_id) =
+            stream_responses_sse(response, app, thread_id).await?;
+
+        full_text.push_str(&text_in_turn);
+        if let Some(id) = resp_id {
+            previous_response_id = Some(id);
+        }
+
+        if tool_calls.is_empty() {
+            break;
+        }
+
+        // Execute each tool call and collect function_call_output items.
+        let mut next_input: Vec<Value> = Vec::new();
+        for tc in &tool_calls {
+            let args: Value = serde_json::from_str(&tc.arguments)
+                .unwrap_or(Value::Object(Default::default()));
+            let label = tool_label(&tc.name, &args);
+
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "running".to_string(),
+                output: None,
+            });
+
+            let result = execute_tool(&tc.name, &args, workspace_path);
+
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "done".to_string(),
+                output: Some(result.clone()),
+            });
+
+            next_input.push(json!({
+                "type": "function_call_output",
+                "call_id": tc.call_id,
+                "output": result
+            }));
+        }
+
+        // Replace input with just the tool outputs; previous_response_id links context.
+        input = next_input;
+    }
+
+    Ok(full_text)
+}
+
+/// Tracks a pending function call from the Responses API SSE stream.
+#[derive(Default)]
+struct ResponsesToolCall {
+    call_id: String,
+    name: String,
+    arguments: String,
+}
+
+/// Drives a Responses API SSE stream. Returns (text, tool_calls, response_id).
+async fn stream_responses_sse(
+    response: reqwest::Response,
+    app: &AppHandle,
+    thread_id: &str,
+) -> AppResult<(String, Vec<ResponsesToolCall>, Option<String>)> {
+    let mut full_text = String::new();
+    let mut tool_calls: Vec<ResponsesToolCall> = Vec::new();
+    // Index into tool_calls for the currently-streaming function call.
+    let mut current_tc_index: Option<usize> = None;
+    let mut response_id: Option<String> = None;
+
+    let mut byte_stream = response.bytes_stream();
+    let mut line_buf = String::new();
+    let mut current_event: Option<String> = None;
+
+    'stream: while let Some(chunk) = byte_stream.next().await {
+        let chunk = chunk.map_err(|e| AppError::Http(e))?;
+        let text = String::from_utf8_lossy(&chunk);
+
+        for ch in text.chars() {
+            if ch == '\n' {
+                let line = line_buf.trim().to_string();
+                line_buf.clear();
+
+                if line.is_empty() {
+                    // Blank line = end of SSE event; reset event name.
+                    current_event = None;
+                    continue;
+                }
+
+                if let Some(event_name) = line.strip_prefix("event: ") {
+                    current_event = Some(event_name.to_string());
+                    continue;
+                }
+
+                if let Some(data) = line.strip_prefix("data: ") {
+                    let event = current_event.as_deref().unwrap_or("");
+                    let Ok(val) = serde_json::from_str::<Value>(data) else {
+                        continue;
+                    };
+
+                    match event {
+                        "response.output_text.delta" => {
+                            if let Some(delta) = val.get("delta").and_then(|d| d.as_str()) {
+                                emit_token(app, thread_id, delta);
+                                full_text.push_str(delta);
+                            }
+                        }
+                        "response.output_item.added" => {
+                            // A new output item started — check if it's a function call.
+                            if let Some(item) = val.get("item") {
+                                let item_type = item.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                if item_type == "function_call" {
+                                    let call_id = item.get("call_id")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let name = item.get("name")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    current_tc_index = Some(tool_calls.len());
+                                    tool_calls.push(ResponsesToolCall {
+                                        call_id,
+                                        name,
+                                        arguments: String::new(),
+                                    });
+                                }
+                            }
+                        }
+                        "response.function_call_arguments.delta" => {
+                            if let Some(idx) = current_tc_index {
+                                if let Some(delta) = val.get("delta").and_then(|d| d.as_str()) {
+                                    tool_calls[idx].arguments.push_str(delta);
+                                }
+                            }
+                        }
+                        "response.function_call_arguments.done" => {
+                            // Overwrite with the complete arguments string.
+                            if let Some(idx) = current_tc_index {
+                                if let Some(args) = val.get("arguments").and_then(|a| a.as_str()) {
+                                    tool_calls[idx].arguments = args.to_string();
+                                }
+                            }
+                            current_tc_index = None;
+                        }
+                        "response.completed" => {
+                            // Extract the response ID for multi-turn continuation.
+                            if let Some(resp) = val.get("response") {
+                                response_id = resp.get("id")
+                                    .and_then(|id| id.as_str())
+                                    .map(|s| s.to_string());
+                            }
+                            break 'stream;
+                        }
+                        _ => {}
+                    }
+                }
+            } else {
+                line_buf.push(ch);
+            }
+        }
+    }
+
+    // Convert to PendingToolCall-compatible struct (reuse id field for call_id).
+    let calls: Vec<ResponsesToolCall> = tool_calls
+        .into_iter()
+        .filter(|tc| !tc.call_id.is_empty() && !tc.name.is_empty())
+        .collect();
+
+    Ok((full_text, calls, response_id))
+}
+
+// ---------------------------------------------------------------------------
+// Codex agentic loop
+// ---------------------------------------------------------------------------
+
 async fn codex_stream(
     system_prompt: &str,
     history: &[Message],
     app: &AppHandle,
     thread_id: &str,
+    workspace_path: &str,
 ) -> AppResult<String> {
     let access_token = read_codex_access_token().ok_or_else(|| {
         AppError::Internal(
@@ -565,44 +1525,98 @@ async fn codex_stream(
         )
     })?;
 
-    // Build input array for the Responses API.
-    let mut input: Vec<serde_json::Value> = vec![
-        json!({ "role": "system", "content": system_prompt })
-    ];
+    let client = Client::new();
+    let tools = tool_definitions_openai();
+
+    let mut input: Vec<Value> = vec![json!({ "role": "system", "content": system_prompt })];
     for msg in history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
         input.push(json!({ "role": msg.role, "content": msg.content }));
     }
 
-    let body = json!({
-        "model": "codex-mini-latest",
-        "input": input,
-        "stream": true
-    });
+    let mut full_text = String::new();
 
-    let client = Client::new();
-    let response = client
-        .post("https://api.openai.com/v1/responses")
-        .header("Authorization", format!("Bearer {access_token}"))
-        .header("User-Agent", "unified-dev/1.0")
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| AppError::Http(e))?;
+    loop {
+        let body = json!({
+            "model": "codex-mini-latest",
+            "input": input,
+            "stream": true,
+            "tools": tools,
+            "tool_choice": "auto"
+        });
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        return Err(AppError::Internal(format!(
-            "Codex API error {status}: {text}"
-        )));
+        let response = client
+            .post("https://api.openai.com/v1/responses")
+            .header("Authorization", format!("Bearer {access_token}"))
+            .header("User-Agent", "unified-dev/1.0")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Http(e))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!("Codex API error {status}: {text}")));
+        }
+
+        let (text_in_turn, pending_calls) =
+            stream_openai_sse_with_tools(response, app, thread_id).await?;
+
+        full_text.push_str(&text_in_turn);
+
+        if pending_calls.is_empty() {
+            break;
+        }
+
+        // Add assistant message with tool calls
+        let tool_calls_json: Vec<Value> = pending_calls.iter().map(|tc| json!({
+            "id": tc.id,
+            "type": "function",
+            "function": { "name": tc.name, "arguments": tc.arguments }
+        })).collect();
+        input.push(json!({
+            "role": "assistant",
+            "content": if text_in_turn.is_empty() { Value::Null } else { Value::String(text_in_turn.clone()) },
+            "tool_calls": tool_calls_json
+        }));
+
+        for tc in &pending_calls {
+            let args: Value = serde_json::from_str(&tc.arguments).unwrap_or(Value::Object(Default::default()));
+            let label = tool_label(&tc.name, &args);
+
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "running".to_string(),
+                output: None,
+            });
+
+            let result = execute_tool(&tc.name, &args, workspace_path);
+
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: thread_id.to_string(),
+                label: label.clone(),
+                status: "done".to_string(),
+                output: Some(result.clone()),
+            });
+
+            input.push(json!({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "content": result
+            }));
+        }
     }
 
-    stream_openai_sse(response, app, thread_id).await
+    Ok(full_text)
 }
+
+// ---------------------------------------------------------------------------
+// Claude CLI subprocess (no native tool-use — uses text-based tool protocol)
+// ---------------------------------------------------------------------------
 
 /// Finds the claude CLI binary, checking common install locations.
 fn find_claude_cli() -> Option<std::path::PathBuf> {
-    // Check common locations used by the official installer.
     let home = dirs::home_dir();
     let mut candidates: Vec<std::path::PathBuf> = vec![
         std::path::PathBuf::from("/usr/local/bin/claude"),
@@ -611,7 +1625,6 @@ fn find_claude_cli() -> Option<std::path::PathBuf> {
     if let Some(ref h) = home {
         candidates.insert(0, h.join(".local/bin/claude"));
     }
-    // Also check PATH entries.
     if let Ok(path_var) = std::env::var("PATH") {
         for dir in path_var.split(':') {
             candidates.push(std::path::PathBuf::from(dir).join("claude"));
@@ -620,8 +1633,10 @@ fn find_claude_cli() -> Option<std::path::PathBuf> {
     candidates.into_iter().find(|p| p.exists())
 }
 
-/// Streams a response via the Claude CLI subprocess (`claude -p --output-format stream-json`).
-/// The CLI uses whatever authentication it has configured (claude.ai subscription, API key, etc.).
+/// Streams a response via the Claude CLI subprocess.
+/// The CLI doesn't support tool_use natively via our stdin/stdout approach,
+/// so we give it an enriched system prompt with direct file access instructions
+/// and rely on the CLI's own built-in tool-use capabilities.
 async fn claude_cli_stream(
     model: &str,
     system_prompt: &str,
@@ -635,17 +1650,12 @@ async fn claude_cli_stream(
         )
     })?;
 
-    // Build the full conversation as a single prompt string passed via stdin.
-    // The system prompt is injected via --system-prompt flag.
-    // History is formatted as a simple conversation so the model has context.
     let mut prompt_parts: Vec<String> = Vec::new();
     for msg in history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
         let role_label = if msg.role == "user" { "Human" } else { "Assistant" };
         prompt_parts.push(format!("{}: {}", role_label, msg.content));
     }
-    // The last item in history is already the user message we just added.
     let stdin_prompt = if prompt_parts.is_empty() {
-        // Fallback: should not happen as history always contains at least the current user msg.
         "Hello".to_string()
     } else {
         prompt_parts.join("\n\n")
@@ -658,7 +1668,6 @@ async fn claude_cli_stream(
         .arg("--system-prompt").arg(system_prompt)
         .arg("--no-session-persistence");
 
-    // The Claude CLI accepts short aliases: sonnet, opus, haiku.
     let cli_model = resolve_claude_cli_model(model);
     cmd.arg("--model").arg(cli_model);
 
@@ -670,13 +1679,11 @@ async fn claude_cli_stream(
         AppError::Internal(format!("Failed to spawn claude CLI: {e}"))
     })?;
 
-    // Write the prompt to stdin then close it so the CLI knows input is done.
     if let Some(mut stdin) = child.stdin.take() {
         use tokio::io::AsyncWriteExt;
         stdin.write_all(stdin_prompt.as_bytes()).await.map_err(|e| {
             AppError::Internal(format!("Failed to write to claude CLI stdin: {e}"))
         })?;
-        // stdin dropped here → EOF signalled
     }
 
     let stdout = child.stdout.take().ok_or_else(|| {
@@ -700,9 +1707,6 @@ async fn claude_cli_stream(
 
         match val.get("type").and_then(|t| t.as_str()) {
             Some("assistant") => {
-                // Extract text from message.content[].text.
-                // The CLI emits the full accumulated text in each event, so we
-                // only emit the *new* suffix since the last event to avoid duplicates.
                 if let Some(content_arr) = val
                     .get("message")
                     .and_then(|m| m.get("content"))
@@ -711,7 +1715,6 @@ async fn claude_cli_stream(
                     for item in content_arr {
                         if item.get("type").and_then(|t| t.as_str()) == Some("text") {
                             if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
-                                // Only the delta (new characters) since last event.
                                 let new_text = if text.len() > full_response.len() {
                                     &text[full_response.len()..]
                                 } else {
@@ -720,18 +1723,15 @@ async fn claude_cli_stream(
                                 if new_text.is_empty() {
                                     continue;
                                 }
-                                // Emit word-by-word for a smooth typewriter effect.
                                 let mut buf = String::new();
                                 for ch in new_text.chars() {
                                     buf.push(ch);
-                                    // Emit on word boundaries (space, newline) or punctuation.
                                     if ch == ' ' || ch == '\n' || ch == ',' || ch == '.' || ch == ':' {
                                         emit_token(app, thread_id, &buf);
                                         buf.clear();
                                         tokio::time::sleep(std::time::Duration::from_millis(8)).await;
                                     }
                                 }
-                                // Emit any remaining chars.
                                 if !buf.is_empty() {
                                     emit_token(app, thread_id, &buf);
                                 }
@@ -742,8 +1742,6 @@ async fn claude_cli_stream(
                 }
             }
             Some("result") => {
-                // The result event contains the authoritative final text.
-                // Use it only if we haven't accumulated anything (e.g. non-streaming run).
                 if full_response.is_empty() {
                     if let Some(result_text) = val.get("result").and_then(|r| r.as_str()) {
                         emit_token(app, thread_id, result_text);
@@ -762,7 +1760,6 @@ async fn claude_cli_stream(
         }
     }
 
-    // Wait for the child process to exit.
     let _ = child.wait().await;
 
     if full_response.is_empty() {
@@ -774,7 +1771,10 @@ async fn claude_cli_stream(
     Ok(full_response)
 }
 
-/// Stub for Ollama streaming — not yet implemented.
+// ---------------------------------------------------------------------------
+// Ollama stub
+// ---------------------------------------------------------------------------
+
 async fn ollama_stub(
     model: &str,
     app: &AppHandle,
@@ -789,21 +1789,17 @@ async fn ollama_stub(
 // Provider router with automatic fallback
 // ---------------------------------------------------------------------------
 
-/// Routes a Claude model request, falling back through available providers:
-/// 1. Anthropic API key (env / shell config)
-/// 2. Claude CLI subprocess (claude.ai subscription)
-/// 3. GitHub Copilot (gpt-4o via copilot API)
-/// 4. OpenAI Codex CLI (codex-mini-latest)
 async fn route_claude_with_fallback(
     model: &str,
     system_prompt: &str,
     history: &[Message],
     app: &AppHandle,
     thread_id: &str,
+    workspace_path: &str,
 ) -> AppResult<String> {
     // 1. Try Anthropic API key first.
     if resolve_env_key("ANTHROPIC_API_KEY").is_some() {
-        return anthropic_stream(model, system_prompt, history, app, thread_id).await;
+        return anthropic_stream(model, system_prompt, history, app, thread_id, workspace_path).await;
     }
 
     // 2. Fall back to Claude CLI if installed.
@@ -815,13 +1811,13 @@ async fn route_claude_with_fallback(
     // 3. Fall back to Copilot if credentials exist.
     if read_copilot_oauth_token().is_some() {
         eprintln!("[router] Claude CLI not found, falling back to GitHub Copilot");
-        return copilot_stream(system_prompt, history, app, thread_id).await;
+        return copilot_stream(model, system_prompt, history, app, thread_id, workspace_path).await;
     }
 
     // 4. Fall back to Codex CLI if credentials exist.
     if read_codex_access_token().is_some() {
         eprintln!("[router] Copilot not available, falling back to OpenAI Codex CLI");
-        return codex_stream(system_prompt, history, app, thread_id).await;
+        return codex_stream(system_prompt, history, app, thread_id, workspace_path).await;
     }
 
     Err(AppError::Internal(
@@ -830,22 +1826,37 @@ async fn route_claude_with_fallback(
 }
 
 fn route_model(model: &str) -> &str {
+    // Anthropic — always goes through the Claude fallback chain.
     if model.starts_with("claude-") {
-        "anthropic"
-    } else if model.starts_with("gpt-") || model.starts_with("copilot-") {
-        "copilot"
-    } else if model.starts_with("codex-") {
-        "codex"
-    } else {
-        "ollama"
+        return "anthropic";
     }
+    // Pure codex-* CLI models (e.g. codex-mini-latest) — routed to the Codex CLI path.
+    if model.starts_with("codex-") {
+        return "codex";
+    }
+    // gpt-5.x Codex subscription models — require the /v1/responses endpoint.
+    if model.starts_with("gpt-5") {
+        return "copilot_responses";
+    }
+    // Everything else (gpt-4*, gemini-*, grok-*, o1/o3/o4, etc.) → Copilot.
+    if model.starts_with("gpt-")
+        || model.starts_with("o1")
+        || model.starts_with("o3")
+        || model.starts_with("o4")
+        || model.starts_with("gemini-")
+        || model.starts_with("grok-")
+        || model.starts_with("copilot-")
+    {
+        return "copilot";
+    }
+    "ollama"
 }
 
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
-/// Saves the user message, streams the model response, then saves the
+/// Saves the user message, runs the agentic loop (with tool-use), then saves the
 /// assistant message. Takes ownership of `pool` and `app` so they can be
 /// moved into a `tokio::spawn` closure by the calling command.
 pub async fn send_message(
@@ -872,23 +1883,31 @@ pub async fn send_message(
         &thread_ctx.branch,
     );
 
-    // 5. Route to the correct provider and stream the response.
+    // 5. Route to the correct provider and run the agentic loop.
+    let workspace_path = thread_ctx.workspace_path.clone();
     let full_response = match route_model(&model) {
         "anthropic" => {
-            route_claude_with_fallback(&model, &system_prompt, &history, &app, &thread_id).await
+            route_claude_with_fallback(&model, &system_prompt, &history, &app, &thread_id, &workspace_path).await
         }
-        "copilot" => {
+        "copilot_responses" => {
             if read_copilot_oauth_token().is_some() {
-                copilot_stream(&system_prompt, &history, &app, &thread_id).await
-            } else if read_codex_access_token().is_some() {
-                codex_stream(&system_prompt, &history, &app, &thread_id).await
+                copilot_responses_stream(&model, &system_prompt, &history, &app, &thread_id, &workspace_path).await
             } else {
                 Err(AppError::Internal(
-                    "No AI provider available for this model.".to_string(),
+                    "GitHub Copilot credentials not found. Make sure the Copilot extension is installed and authenticated.".to_string(),
                 ))
             }
         }
-        "codex" => codex_stream(&system_prompt, &history, &app, &thread_id).await,
+        "copilot" => {
+            if read_copilot_oauth_token().is_some() {
+                copilot_stream(&model, &system_prompt, &history, &app, &thread_id, &workspace_path).await
+            } else {
+                Err(AppError::Internal(
+                    "GitHub Copilot credentials not found. Make sure the Copilot extension is installed and authenticated.".to_string(),
+                ))
+            }
+        }
+        "codex" => codex_stream(&system_prompt, &history, &app, &thread_id, &workspace_path).await,
         _ => ollama_stub(&model, &app, &thread_id).await,
     };
 
