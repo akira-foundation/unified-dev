@@ -82,7 +82,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   };
 
   return (
-    <header className="h-14 border-b border-white/[0.03] flex items-center px-6 bg-background backdrop-blur-md justify-between shrink-0">
+    <header className="h-14 border-b border-white/[0.03] flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
       {/* Title & Metadata (Left Aligned) */}
       <div className="flex flex-col gap-0.5 min-w-0">
         <div className="flex items-center gap-3">

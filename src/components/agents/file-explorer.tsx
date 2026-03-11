@@ -166,7 +166,7 @@ export function FileExplorer() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <div className="px-4 py-3 border-b border-white/[0.03] bg-black/20">
+      <div className="px-4 py-3 border-b border-white/[0.03]">
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600 group-focus-within:text-purple-500/50 transition-colors" />
           <input

@@ -37,7 +37,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-background border-l border-zinc-200 dark:border-white/[0.05]">
       {/* Professional Header */}
-      <div className="flex items-center justify-between px-4 h-10 bg-white dark:bg-background border-b border-zinc-200 dark:border-white/[0.03] shrink-0">
+      <div className="flex items-center justify-between px-4 h-14 bg-white dark:bg-background border-b border-zinc-200 dark:border-white/[0.03] shrink-0">
         <div className="flex items-center gap-6 h-full">
           <button
             onClick={() => setDiffViewTab("changes")}

@@ -98,7 +98,7 @@ export function FileEditor() {
   return (
     <div className="flex flex-col h-full bg-background border-r border-white/[0.03]">
       {/* Editor Header */}
-      <div className="h-10 border-b border-white/[0.03] flex items-center justify-between px-4 bg-background">
+      <div className="h-14 border-b border-white/[0.03] flex items-center justify-between px-4 bg-background">
         <div className="flex items-center gap-2 overflow-hidden">
           <span className="text-[10px] text-zinc-500 font-mono truncate">{selectedFilePath}</span>
           <button className="p-1 hover:bg-white/5 rounded text-zinc-500">

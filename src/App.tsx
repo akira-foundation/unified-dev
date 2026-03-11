@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { cn } from "@/lib/utils";
 
 import { AppContent } from "./components/layout/app-content";
 import { AppShell } from "./components/layout/app-shell";
@@ -48,8 +49,13 @@ export default function App() {
       )}
       <AppContent className="flex h-svh flex-col overflow-hidden">
         {!isAgentMode && <AppHeader />}
-        <main className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className={isAgentMode ? "h-full w-full" : "mx-auto min-h-full w-full max-w-7xl"}>
+        <main className={cn(
+          "flex-1 custom-scrollbar",
+          isAgentMode ? "h-full overflow-hidden" : "overflow-y-auto"
+        )}>
+          <div className={cn(
+            isAgentMode ? "h-full w-full" : "mx-auto min-h-full w-full max-w-7xl"
+          )}>
             {currentPage === "dashboard" && <DashboardPage />}
             {currentPage === "providers" && <ProvidersPage />}
             {currentPage === "organization" && <OrganizationPage />}
