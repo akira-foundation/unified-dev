@@ -40,6 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
@@ -91,7 +92,7 @@ export function AgentsSidebar() {
         <div className="flex flex-col gap-1">
           <button className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group">
             <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-            <span>New thread</span>
+            <span>Add new repository</span>
           </button>
           <button
             onClick={() => setActiveTab('automations')}
@@ -166,9 +167,18 @@ export function AgentsSidebar() {
                         </button>
 
                         <div className="flex items-center gap-1 opacity-0 group-hover/repo:opacity-100 transition-opacity">
-                          <button className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors">
-                            <Plus className="h-3.5 w-3.5" />
-                          </button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors">
+                                  <Plus className="h-3.5 w-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-purple-500 text-white border-none font-bold">
+                                <span className="text-xs">Add new thread</span>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
