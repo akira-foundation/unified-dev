@@ -1,5 +1,5 @@
-import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal } from "lucide-react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,10 +12,128 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { installedSkills, slashCommands } from "@/lib/skills-data";
+
+// ─── Slash menu ──────────────────────────────────────────────────────────────
+
+interface SlashItem {
+  type: "command" | "skill";
+  id: string;
+  label: string;
+  description: string;
+  icon?: string;
+  textIcon?: string;
+  insertValue: string;
+}
+
+interface SlashMenuProps {
+  query: string;
+  focusedIndex: number;
+  onSelect: (value: string) => void;
+  items: SlashItem[];
+}
+
+function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    itemRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest" });
+  }, [focusedIndex]);
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-xl border border-white/[0.06] bg-zinc-900 shadow-2xl p-3 text-[12px] text-zinc-500">
+        No commands or skills match <span className="text-white/60">/{query}</span>
+      </div>
+    );
+  }
+
+  const commands = items.filter((i) => i.type === "command");
+  const skills = items.filter((i) => i.type === "skill");
+
+  let globalIndex = 0;
+
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-zinc-900 shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+      {commands.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+            <Terminal className="h-3 w-3 text-zinc-500" />
+            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">Commands</span>
+          </div>
+          {commands.map((cmd) => {
+            const idx = globalIndex++;
+            const focused = idx === focusedIndex;
+            return (
+              <button
+                key={cmd.id}
+                ref={(el) => { itemRefs.current[idx] = el; }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(cmd.insertValue);
+                }}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2 transition-colors text-left",
+                  focused ? "bg-white/[0.07]" : "hover:bg-white/[0.04]",
+                )}
+              >
+                <span className="text-[13px] font-mono font-medium text-purple-400 w-24 shrink-0">{cmd.label}</span>
+                <span className="text-[12px] text-zinc-400 truncate">{cmd.description}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {skills.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+            <Zap className="h-3 w-3 text-zinc-500" />
+            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">Skills</span>
+          </div>
+          {skills.map((skill) => {
+            const idx = globalIndex++;
+            const focused = idx === focusedIndex;
+            return (
+              <button
+                key={skill.id}
+                ref={(el) => { itemRefs.current[idx] = el; }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(skill.insertValue);
+                }}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2 transition-colors text-left",
+                  focused ? "bg-white/[0.07]" : "hover:bg-white/[0.04]",
+                )}
+              >
+                <div className={cn("h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[9px] font-bold border border-white/5", skill.icon)}>
+                  {skill.textIcon
+                    ? skill.textIcon
+                    : <div className="h-2.5 w-2.5 rounded-full bg-current opacity-80" />}
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[13px] font-medium text-white/80 truncate">{skill.label}</span>
+                  <span className="text-[11px] text-zinc-500 truncate">{skill.description}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main input ───────────────────────────────────────────────────────────────
 
 export function AgentChatInput() {
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
+  const [slashOpen, setSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [focusedIndex, setFocusedIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
     aiProviders,
@@ -38,10 +156,75 @@ export function AgentChatInput() {
   const hasProviders = aiProviders.length > 0;
   const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId && !isStreaming;
 
+  // Build flat list of slash items from the current query
+  const slashItems = useMemo<SlashItem[]>(() => {
+    const lowerQuery = slashQuery.toLowerCase();
+
+    const commands: SlashItem[] = slashCommands
+      .filter((c) => c.id.includes(lowerQuery) || c.description.toLowerCase().includes(lowerQuery))
+      .map((c) => ({
+        type: "command",
+        id: c.id,
+        label: c.label,
+        description: c.description,
+        insertValue: c.label + " ",
+      }));
+
+    const skills: SlashItem[] = installedSkills
+      .filter(
+        (s) =>
+          s.active &&
+          (s.id.includes(lowerQuery) ||
+            s.title.toLowerCase().includes(lowerQuery) ||
+            s.description.toLowerCase().includes(lowerQuery)),
+      )
+      .map((s) => ({
+        type: "skill",
+        id: s.id,
+        label: s.title,
+        description: s.description,
+        icon: s.icon,
+        textIcon: s.textIcon,
+        insertValue: `/${s.id} `,
+      }));
+
+    return [...commands, ...skills];
+  }, [slashQuery]);
+
+  // Reset focus when item list changes
+  useEffect(() => {
+    setFocusedIndex(0);
+  }, [slashItems.length]);
+
+  // Detect slash at the start of the message
+  function handleChange(value: string) {
+    setMessage(value);
+
+    if (value.startsWith("/")) {
+      const query = value.slice(1);
+      if (!query.includes(" ")) {
+        setSlashQuery(query);
+        setSlashOpen(true);
+        return;
+      }
+    }
+    setSlashOpen(false);
+    setSlashQuery("");
+  }
+
+  const handleSlashSelect = useCallback((value: string) => {
+    setMessage(value);
+    setSlashOpen(false);
+    setSlashQuery("");
+    setFocusedIndex(0);
+    textareaRef.current?.focus();
+  }, []);
+
   const handleSend = async () => {
     if (!canSend) return;
     const content = message.trim();
     setMessage("");
+    setSlashOpen(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "24px";
     }
@@ -49,6 +232,34 @@ export function AgentChatInput() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashOpen && slashItems.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIndex((i) => (i + 1) % slashItems.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIndex((i) => (i - 1 + slashItems.length) % slashItems.length);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSlashSelect(slashItems[focusedIndex].insertValue);
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        handleSlashSelect(slashItems[focusedIndex].insertValue);
+        return;
+      }
+    }
+
+    if (e.key === "Escape" && slashOpen) {
+      e.preventDefault();
+      setSlashOpen(false);
+      return;
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -56,7 +267,19 @@ export function AgentChatInput() {
   };
 
   return (
-    <div>
+    <div className="relative">
+      {/* Slash command menu — rendered above the card */}
+      {slashOpen && (
+        <div className="absolute bottom-full mb-2 left-0 right-0 z-50">
+          <SlashMenu
+            query={slashQuery}
+            focusedIndex={focusedIndex}
+            onSelect={handleSlashSelect}
+            items={slashItems}
+          />
+        </div>
+      )}
+
       {!hasProviders && (
         <div className="flex items-center gap-3 mb-3 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
           <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
@@ -168,13 +391,13 @@ export function AgentChatInput() {
             <textarea
               ref={textareaRef}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => handleChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
                 isStreaming
                   ? "Agent is responding..."
                   : hasProviders
-                  ? "Ask to make changes..."
+                  ? "Ask to make changes... (/ for commands)"
                   : "Configure an AI provider to start..."
               }
               disabled={!hasProviders || isStreaming}

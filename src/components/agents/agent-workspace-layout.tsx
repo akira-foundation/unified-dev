@@ -30,8 +30,12 @@ export function AgentWorkspaceLayout() {
     messages,
     streamingContent,
     isStreaming,
+    streamingThreadId,
     loadMessages,
   } = useAgentsStore();
+
+  // Only show streaming state when the user is viewing the thread that's actively streaming.
+  const isCurrentThreadStreaming = isStreaming && streamingThreadId === selectedIssueId;
 
   if (activeTab === "skills") {
     return (
@@ -145,7 +149,7 @@ export function AgentWorkspaceLayout() {
                   steps={timelineSteps}
                   messages={messages}
                   streamingContent={streamingContent}
-                  isStreaming={isStreaming}
+                  isStreaming={isCurrentThreadStreaming}
                 />
               </div>
               <div className="shrink-0 pb-6 pt-2">

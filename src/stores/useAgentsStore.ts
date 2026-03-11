@@ -32,6 +32,8 @@ interface AgentsState {
   messages: ChatMessage[];
   streamingContent: string;
   isStreaming: boolean;
+  // Which thread is currently streaming (may differ from selectedIssueId when navigating)
+  streamingThreadId: string | null;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
@@ -92,6 +94,7 @@ export const useAgentsStore = create<AgentsState>()(
       messages: [],
       streamingContent: "",
       isStreaming: false,
+      streamingThreadId: null,
       setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
       setShowAddRepositoryDialog: (show) => set({ showAddRepositoryDialog: show }),
       setIsRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
@@ -147,7 +150,12 @@ export const useAgentsStore = create<AgentsState>()(
       loadMessages: async (threadId: string) => {
         try {
           const messages = await invoke<ChatMessage[]>("agents_get_messages", { threadId });
-          set({ messages, streamingContent: "" });
+          // Only reset streamingContent if we're loading a thread that isn't actively streaming.
+          const { streamingThreadId } = get();
+          set({
+            messages,
+            streamingContent: streamingThreadId === threadId ? get().streamingContent : "",
+          });
         } catch {
           set({ messages: [] });
         }
@@ -168,6 +176,7 @@ export const useAgentsStore = create<AgentsState>()(
           messages: [...state.messages, optimisticUserMessage],
           streamingContent: "",
           isStreaming: true,
+          streamingThreadId: threadId,
         }));
 
         // Set up streaming listeners before invoking the command.
@@ -188,9 +197,11 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenToken();
             unlistenDone();
             unlistenError();
-            // Reload persisted messages from the backend so IDs and model are correct.
-            await get().loadMessages(threadId);
-            set({ isStreaming: false, streamingContent: "" });
+            set({ isStreaming: false, streamingContent: "", streamingThreadId: null });
+            // Only reload messages into visible state if still on this thread.
+            if (get().selectedIssueId === threadId) {
+              await get().loadMessages(threadId);
+            }
           }
         );
 
@@ -201,7 +212,7 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenToken();
             unlistenDone();
             unlistenError();
-            set({ isStreaming: false, streamingContent: "" });
+            set({ isStreaming: false, streamingContent: "", streamingThreadId: null });
             toast.error(`Agent error: ${event.payload.error}`);
           }
         );
@@ -212,7 +223,7 @@ export const useAgentsStore = create<AgentsState>()(
           unlistenToken();
           unlistenDone();
           unlistenError();
-          set({ isStreaming: false, streamingContent: "" });
+          set({ isStreaming: false, streamingContent: "", streamingThreadId: null });
           toast.error(`Failed to send message: ${err}`);
         }
       },
