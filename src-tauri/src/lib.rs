@@ -13,7 +13,7 @@ mod threads;
 
 use std::sync::Arc;
 
-use commands::agent_commands::{get_available_models, list_files, read_file};
+use commands::agent_commands::{get_available_models, list_files, read_file, search_files};
 use commands::organization_commands::{
     create_organization, delete_organization, list_organizations, list_organizations_by_provider,
     list_selected_repositories, save_selected_repositories,
@@ -109,6 +109,7 @@ pub fn run() {
             create_thread,
             delete_thread,
             list_files,
+            search_files,
             read_file
         ])
         .run(tauri::generate_context!())

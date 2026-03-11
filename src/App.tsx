@@ -7,6 +7,7 @@ import { AppSidebar } from "./components/layout/sidebar";
 import { AgentsSidebar } from "./components/agents/agents-sidebar";
 import { AgentWorkspaceLayout } from "./components/agents/agent-workspace-layout";
 import { Toaster } from "./components/ui/sonner";
+import { CommandPalette } from "./components/layout/command-palette";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationPage } from "./pages/organization";
 import { ProvidersPage } from "./pages/providers";
@@ -59,6 +60,7 @@ export default function App() {
           </div>
         </main>
         <Toaster richColors />
+        <CommandPalette />
       </AppContent>
     </AppShell>
   );

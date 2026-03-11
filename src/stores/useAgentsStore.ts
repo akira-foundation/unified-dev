@@ -28,6 +28,18 @@ interface AgentsState {
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
   removeThread: (repoId: string, threadId: string) => void;
   removeRepository: (id: string) => void;
+  isFilesAllExpanded: boolean;
+  setIsFilesAllExpanded: (expanded: boolean) => void;
+  showAddRepositoryDialog: boolean;
+  setShowAddRepositoryDialog: (show: boolean) => void;
+  isRightSidebarOpen: boolean;
+  setIsRightSidebarOpen: (open: boolean) => void;
+  diffViewTab: "changes" | "files";
+  setDiffViewTab: (tab: "changes" | "files") => void;
+  expandedRepos: Record<string, boolean>;
+  setExpandedRepos: (update: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => void;
+  isTerminalOpen: boolean;
+  setIsTerminalOpen: (open: boolean) => void;
 }
 
 const mockTimeline: AgentTimelineStep[] = [
@@ -78,6 +90,20 @@ export const useAgentsStore = create<AgentsState>()(
       aiProviders: [],
       selectedModelId: null,
       repositoriesLoaded: false,
+      isFilesAllExpanded: false,
+      showAddRepositoryDialog: false,
+      isRightSidebarOpen: true,
+      diffViewTab: "changes",
+      setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
+      setShowAddRepositoryDialog: (show) => set({ showAddRepositoryDialog: show }),
+      setIsRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
+      setDiffViewTab: (tab) => set({ diffViewTab: tab }),
+      expandedRepos: { "repo-1": true, "repo-4": true },
+      setExpandedRepos: (update) => set((state) => ({
+        expandedRepos: typeof update === "function" ? update(state.expandedRepos) : update
+      })),
+      isTerminalOpen: false,
+      setIsTerminalOpen: (open) => set({ isTerminalOpen: open }),
       setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
       setSelectedFilePath: (path) => set({ selectedFilePath: path }),
       setActiveTab: (tab) => set({ activeTab: tab }),

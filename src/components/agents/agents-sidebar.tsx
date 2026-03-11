@@ -51,12 +51,21 @@ export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
   const { setIsAgentMode, navigateTo } = useNavigationStore();
-  const { repositoryGroups, selectedIssueId, setSelectedIssueId, activeTab, setActiveTab, addRepository, addThread, removeThread, removeRepository } = useAgentsStore();
-  const [expandedRepos, setExpandedRepos] = useState<Record<string, boolean>>({
-    "repo-1": true,
-    "repo-4": true,
-  });
-  const [showAddRepoDialog, setShowAddRepoDialog] = useState(false);
+  const {
+    repositoryGroups,
+    selectedIssueId,
+    setSelectedIssueId,
+    activeTab,
+    setActiveTab,
+    addRepository,
+    addThread,
+    removeThread,
+    removeRepository,
+    showAddRepositoryDialog,
+    setShowAddRepositoryDialog,
+    expandedRepos,
+    setExpandedRepos
+  } = useAgentsStore();
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
   const [isRemovingRepo, setIsRemovingRepo] = useState(false);
@@ -85,7 +94,7 @@ export function AgentsSidebar() {
       if (response && response.repository && response.thread) {
         toast.success(`Repository ${response.repository.name} added`, { id: loadingToast });
         addRepository(response.repository, response.thread);
-        setShowAddRepoDialog(false);
+        setShowAddRepositoryDialog(false);
       } else {
         toast.error("Invalid response from server", { id: loadingToast });
       }
@@ -170,11 +179,11 @@ export function AgentsSidebar() {
 
         <div className="flex flex-col gap-1">
           <button
-            onClick={() => setShowAddRepoDialog(true)}
+            onClick={() => setShowAddRepositoryDialog(true)}
             className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group"
           >
             <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-            <span>Add new repository</span>
+            <span>Add Repository</span>
           </button>
           <button
             onClick={() => setActiveTab('automations')}
@@ -389,8 +398,8 @@ export function AgentsSidebar() {
       </SidebarContent>
 
       <AddRepositoryDialog
-        open={showAddRepoDialog}
-        onOpenChange={setShowAddRepoDialog}
+        open={showAddRepositoryDialog}
+        onOpenChange={setShowAddRepositoryDialog}
         onAdd={handleAddRepo}
         isLoading={isAddingRepo}
       />

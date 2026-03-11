@@ -4,13 +4,14 @@ import { cn } from "@/lib/utils";
 import type { FileChange } from "@/types/agents";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileExplorer } from "./file-explorer";
+import { useAgentsStore } from "@/stores/useAgentsStore";
 
 interface DiffViewerProps {
   files: FileChange[];
 }
 
 export function DiffViewer({ files }: DiffViewerProps) {
-  const [activeTab, setActiveTab] = useState<"changes" | "files">("changes");
+  const { isFilesAllExpanded, setIsFilesAllExpanded, diffViewTab, setDiffViewTab } = useAgentsStore();
   const [collapsedFiles, setCollapsedFiles] = useState<Record<string, boolean>>({});
 
   const toggleCollapse = (filename: string) => {
@@ -18,6 +19,11 @@ export function DiffViewer({ files }: DiffViewerProps) {
   };
 
   const toggleAll = () => {
+    if (diffViewTab === "files") {
+      setIsFilesAllExpanded(!isFilesAllExpanded);
+      return;
+    }
+
     const allCollapsed = Object.keys(collapsedFiles).length === files.length && Object.values(collapsedFiles).every(v => v);
     if (allCollapsed) {
       setCollapsedFiles({});
@@ -34,24 +40,24 @@ export function DiffViewer({ files }: DiffViewerProps) {
       <div className="flex items-center justify-between px-4 h-10 bg-white dark:bg-[#0A0A0A] border-b border-zinc-200 dark:border-white/[0.03] shrink-0">
         <div className="flex items-center gap-6 h-full">
           <button
-            onClick={() => setActiveTab("changes")}
+            onClick={() => setDiffViewTab("changes")}
             className={cn(
               "relative h-full flex items-center text-[9px] font-black uppercase tracking-[0.15em] transition-all cursor-pointer",
-              activeTab === "changes" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+              diffViewTab === "changes" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
             Changes
-            {activeTab === "changes" && <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />}
+            {diffViewTab === "changes" && <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />}
           </button>
           <button
-            onClick={() => setActiveTab("files")}
+            onClick={() => setDiffViewTab("files")}
             className={cn(
               "relative h-full flex items-center text-[9px] font-black uppercase tracking-[0.15em] transition-all cursor-pointer",
-              activeTab === "files" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
+              diffViewTab === "files" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
             Files
-            {activeTab === "files" && <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />}
+            {diffViewTab === "files" && <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />}
           </button>
         </div>
 
@@ -73,7 +79,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
         </div>
       </div>
 
-      {activeTab === "changes" ? (
+      {diffViewTab === "changes" ? (
         <div className="flex-1 overflow-y-auto m-0 p-4 custom-scrollbar bg-zinc-50 dark:bg-[#050505]">
           <div className="flex flex-col gap-2 max-w-5xl mx-auto">
             {files.map((file) => (

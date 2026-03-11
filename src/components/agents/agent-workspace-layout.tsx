@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { AgentHeader } from "./agent-header";
@@ -16,9 +15,18 @@ import { AutomationsPage } from "@/pages/automations";
 import { CreateAutomationPage } from "@/pages/create-automation";
 
 export function AgentWorkspaceLayout() {
-  const { repositoryGroups, selectedIssueId, timelineSteps, fileChanges, selectedFilePath, activeTab } = useAgentsStore();
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
-  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
+  const {
+    repositoryGroups,
+    selectedIssueId,
+    timelineSteps,
+    fileChanges,
+    selectedFilePath,
+    activeTab,
+    isRightSidebarOpen,
+    setIsRightSidebarOpen,
+    isTerminalOpen,
+    setIsTerminalOpen
+  } = useAgentsStore();
 
   if (activeTab === "skills") {
     return (
