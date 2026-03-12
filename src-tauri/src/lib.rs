@@ -29,7 +29,7 @@ use commands::terminal_commands::{
 };
 use commands::repository_commands::{add_local_repository, delete_local_repository, create_thread, delete_thread, list_repositories, set_thread_pr_url};
 use commands::prompt_commands::{get_prompts, save_prompt, reset_prompt};
-use commands::skill_commands::list_installed_skills;
+use commands::skill_commands::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
 use db::organization_repo_repository::SqliteOrganizationRepoRepository;
 use db::organization_repository::SqliteOrganizationRepository;
 use db::provider_repository::SqliteProviderRepository;
@@ -127,6 +127,12 @@ pub fn run() {
             save_prompt,
             reset_prompt,
             list_installed_skills,
+            sync_skills,
+            get_skills,
+            set_skill_enabled,
+            set_skill_icon,
+            install_skill,
+            uninstall_skill,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

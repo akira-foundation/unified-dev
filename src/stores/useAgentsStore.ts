@@ -6,6 +6,16 @@ import { toast } from "sonner";
 import type { AgentTimelineStep, FileChange, RepositoryGroup, AgentStatus } from "../types/agents";
 import type { AiProviderGroup, AiProviderResponse } from "../types/ai-providers";
 
+export interface InstalledSkill {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  icon_path: string | null;
+  installed_at: string;
+  source_path: string;
+}
+
 export interface ChatMessage {
   id: string;
   thread_id: string;
@@ -82,6 +92,9 @@ interface AgentsState {
   // Collapsed state of each file card in the diff viewer, keyed by threadId → filename
   collapsedFilesByThread: Record<string, Record<string, boolean>>;
   setFileCollapsed: (threadId: string, filename: string, collapsed: boolean) => void;
+  // Skills from DB (synced on skills page load)
+  installedSkills: InstalledSkill[];
+  setInstalledSkills: (skills: InstalledSkill[]) => void;
 }
 
 function selectDefaultModel(providers: AiProviderGroup[]): string | null {
@@ -140,6 +153,8 @@ export const useAgentsStore = create<AgentsState>()(
           },
         },
       })),
+      installedSkills: [],
+      setInstalledSkills: (skills) => set({ installedSkills: skills }),
       setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
       setSelectedFilePath: (path) => set({ selectedFilePath: path }),
       setActiveTab: (tab) => set({ activeTab: tab }),
