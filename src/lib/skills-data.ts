@@ -10,14 +10,6 @@ export interface SkillDefinition {
 
 export const installedSkills: SkillDefinition[] = [
   {
-    id: "fortify",
-    title: "Developing with Fortify",
-    description: "Laravel Fortify headless authentication backend",
-    badge: "audit",
-    active: true,
-    icon: "bg-indigo-500/10 text-indigo-500",
-  },
-  {
     id: "figma",
     title: "Figma",
     description: "Use Figma MCP for design-to-code work",
@@ -81,34 +73,6 @@ export const installedSkills: SkillDefinition[] = [
     badge: "audit",
     active: true,
     icon: "bg-rose-500/10 text-rose-500",
-  },
-  {
-    id: "skill-creator",
-    title: "Skill Creator",
-    description: "Create or update a skill",
-    active: true,
-    icon: "bg-yellow-500/10 text-yellow-500",
-  },
-  {
-    id: "skill-installer",
-    title: "Skill Installer",
-    description: "Install curated skills from a GitHub repo",
-    active: true,
-    icon: "bg-orange-500/10 text-orange-500",
-  },
-  {
-    id: "slides",
-    title: "Slides",
-    description: "Create and edit slide decks with artifacts",
-    active: true,
-    icon: "bg-blue-500/10 text-blue-500",
-  },
-  {
-    id: "spreadsheets",
-    title: "Spreadsheets",
-    description: "Create and edit spreadsheets with artifacts",
-    active: true,
-    icon: "bg-green-500/10 text-green-500",
   },
   {
     id: "tailwindcss",

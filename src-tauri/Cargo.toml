@@ -39,3 +39,4 @@ uuid = { version = "1", features = ["v4"] }
 portable-pty = "0.8"
 tauri-plugin-dialog = "2"
 regex = "1"
+zip = "2"
