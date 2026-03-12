@@ -195,7 +195,19 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
   return (
     <div className="flex flex-col gap-6">
       {/* Legacy timeline steps — shown when there are no real messages yet */}
-      {!hasContent && (
+      {!hasContent && steps.length === 0 && (
+        <div className="flex flex-col items-center justify-center gap-4 py-32 text-center select-none">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white/[0.04] border border-white/[0.06]">
+            <Bot className="h-10 w-10 text-zinc-500" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[17px] font-semibold text-zinc-300">Thread ready</p>
+            <p className="text-[14px] text-zinc-500">Describe what you want to build or fix.</p>
+          </div>
+        </div>
+      )}
+
+      {!hasContent && steps.length > 0 && (
         <>
           <div className="absolute left-[56px] top-12 bottom-12 w-px bg-gradient-to-b from-zinc-200 via-zinc-200 to-transparent dark:from-zinc-800 dark:via-zinc-800 dark:to-transparent" />
           {steps.map((step) => (

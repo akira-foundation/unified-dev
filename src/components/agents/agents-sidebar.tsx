@@ -152,7 +152,7 @@ export function AgentsSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-border/40 bg-[#121212] dark:bg-[#0c0c0c] backdrop-blur-xl">
+    <Sidebar className="border-r-0 bg-[#121212] dark:bg-[#0c0c0c] backdrop-blur-xl">
       <SidebarHeader className="h-auto border-b border-white/[0.03] flex flex-col p-4 gap-4">
         <div className="flex items-center gap-3 w-full">
           <button

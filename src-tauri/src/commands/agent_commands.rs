@@ -162,15 +162,17 @@ pub async fn agents_send_message(
     thread_id: String,
     message: String,
     model: String,
+    silent: Option<bool>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> AppResult<()> {
     let pool = state.db_pool.clone();
     let app = app.clone();
     let thread_id_err = thread_id.clone();
+    let silent = silent.unwrap_or(false);
 
     tokio::spawn(async move {
-        if let Err(e) = send_message_logic(thread_id, message, model, pool, app.clone()).await {
+        if let Err(e) = send_message_logic(thread_id, message, model, silent, pool, app.clone()).await {
             emit_error(&app, &thread_id_err, &e.to_string());
         }
     });

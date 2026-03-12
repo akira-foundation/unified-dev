@@ -6,51 +6,54 @@ import type { Locale } from "@/i18n/translations";
 import type { Appearance } from "@/hooks/use-appearance";
 
 const COMMIT_CONVENTION_BLOCK = `
-Before committing, detect the project's commit convention:
-- Check for \`.commitlintrc\`, \`.commitlintrc.js\`, \`.commitlintrc.json\`, \`.commitlintrc.yml\`, \`commitlint.config.js\`, \`commitlint.config.ts\` in the workspace root
-- Check for a \`.gitmessage\` template via \`git config commit.template\`
-- Check \`CONTRIBUTING.md\` or \`CONTRIBUTING.rst\` for commit message guidelines
-- If Conventional Commits is detected: use \`type(scope): description\` format (e.g. \`fix(ci): adjust config\`, \`feat(auth): add OAuth support\`)
-- If no convention is found: use a short, descriptive imperative message`;
+Detect the project's commit convention by checking (in order):
+- \`.commitlintrc\`, \`.commitlintrc.js\`, \`.commitlintrc.json\`, \`.commitlintrc.yml\`, \`commitlint.config.js\`, \`commitlint.config.ts\`
+- \`git config commit.template\` for a \`.gitmessage\` template
+- \`CONTRIBUTING.md\` or \`CONTRIBUTING.rst\` for commit message guidelines
+Use the detected format. If Conventional Commits: \`type(scope): description\`. If nothing found: short imperative sentence.`;
 
 export const DEFAULT_PROMPTS: Record<string, string> = {
-  merge_local: `Merge the changes from this worktree into the base branch locally.
+  merge_local: `You are operating inside a git worktree. Execute the following steps NOW using your shell tools. Do NOT explain or describe — just run the commands.
 
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful message.
+1. Run \`git status --porcelain\`
+2. If there are uncommitted changes: run \`git add -A\`, then commit.
 ${COMMIT_CONVENTION_BLOCK}
-3. Switch to the base branch and merge the worktree branch
-4. Do NOT push to the remote`,
+3. Switch to the base branch and merge this branch into it.
+4. Do NOT push to any remote.
 
-  merge_push: `Merge the changes from this worktree into the base branch and push to the remote.
+Execute immediately. Do not ask for confirmation.`,
 
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful message.
+  merge_push: `You are operating inside a git worktree. Execute the following steps NOW using your shell tools. Do NOT explain or describe — just run the commands.
+
+1. Run \`git status --porcelain\`
+2. If there are uncommitted changes: run \`git add -A\`, then commit.
 ${COMMIT_CONVENTION_BLOCK}
-3. Switch to the base branch and merge the worktree branch
-4. Push the base branch to the remote with \`git push\``,
+3. Switch to the base branch and merge this branch into it.
+4. Run \`git push\` to push to the remote.
 
-  draft_pr: `Create a draft pull request for the changes on this branch.
+Execute immediately. Do not ask for confirmation.`,
 
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful message.
+  draft_pr: `You are operating inside a git worktree. Execute the following steps NOW using your shell tools. Do NOT explain or describe — just run the commands.
+
+1. Run \`git status --porcelain\`
+2. If there are uncommitted changes: run \`git add -A\`, then commit.
 ${COMMIT_CONVENTION_BLOCK}
-3. Push the branch to the remote with \`git push -u origin <branch>\`
-4. Create a draft PR with \`gh pr create --draft --title "<title>" --body "<body>"\`
-5. Return the PR URL`,
+3. Run \`git push -u origin HEAD\`
+4. Run \`gh pr create --draft --title "<title>" --body "<body>"\` with an appropriate title and body based on the diff.
+5. Output only the PR URL.
 
-  create_pr: `Create a pull request for the changes on this branch.
+Execute immediately. Do not ask for confirmation. Do not say you cannot run write commands — you can.`,
 
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful message.
+  create_pr: `You are operating inside a git worktree. Execute the following steps NOW using your shell tools. Do NOT explain or describe — just run the commands.
+
+1. Run \`git status --porcelain\`
+2. If there are uncommitted changes: run \`git add -A\`, then commit.
 ${COMMIT_CONVENTION_BLOCK}
-3. Push the branch to the remote with \`git push -u origin <branch>\`
-4. Create a PR with \`gh pr create --title "<title>" --body "<body>"\`
-5. Return the PR URL`,
+3. Run \`git push -u origin HEAD\`
+4. Run \`gh pr create --title "<title>" --body "<body>"\` with an appropriate title and body based on the diff.
+5. Output only the PR URL.
+
+Execute immediately. Do not ask for confirmation. Do not say you cannot run write commands — you can.`,
 };
 
 interface SettingsState {

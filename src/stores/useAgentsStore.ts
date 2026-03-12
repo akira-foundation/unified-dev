@@ -387,7 +387,7 @@ export const useAgentsStore = create<AgentsState>()(
         );
 
         try {
-          await invoke("agents_send_message", { threadId, message: content, model });
+          await invoke("agents_send_message", { threadId, message: content, model, silent });
         } catch (err) {
           unlistenToken();
           unlistenDone();

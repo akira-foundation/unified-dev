@@ -2061,11 +2061,14 @@ pub async fn send_message(
     thread_id: String,
     content: String,
     model: String,
+    silent: bool,
     pool: SqlitePool,
     app: AppHandle,
 ) -> AppResult<()> {
-    // 1. Persist the user message.
-    save_message(&thread_id, "user", &content, None, None, &pool).await?;
+    // 1. Persist the user message (skipped for silent/action prompts).
+    if !silent {
+        save_message(&thread_id, "user", &content, None, None, &pool).await?;
+    }
 
     // 2. Load thread and repository context.
     let thread_ctx = load_thread_context(&thread_id, &pool).await?;
