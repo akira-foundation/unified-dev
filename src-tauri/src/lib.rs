@@ -1,4 +1,5 @@
 mod agents;
+mod ai;
 mod chat;
 mod commands;
 mod core;

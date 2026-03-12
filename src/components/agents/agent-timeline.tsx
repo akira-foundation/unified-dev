@@ -314,7 +314,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
       {/* Live streaming bubble */}
       {isStreaming && (
         <div className="flex gap-4 flex-row">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/10 shadow-sm bg-white dark:bg-zinc-900 text-zinc-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/10 shadow-sm bg-white dark:bg-zinc-900 text-zinc-400 animate-pulse">
             <Bot className="h-4 w-4" />
           </div>
           <div className="flex flex-col gap-2 items-start w-full min-w-0">

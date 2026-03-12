@@ -38,7 +38,9 @@ interface AgentsState {
   // Chat
   messages: ChatMessage[];
   streamingContent: string;
-  isStreaming: boolean;
+  // Per-thread streaming state — keyed by threadId. Use this instead of a
+  // global boolean so that streaming in one thread does not block others.
+  streamingThreadIds: Record<string, boolean>;
   // Which thread is currently streaming (may differ from selectedIssueId when navigating)
   streamingThreadId: string | null;
   // Live tool call events during agentic loop
@@ -106,7 +108,7 @@ export const useAgentsStore = create<AgentsState>()(
       // Chat initial state
       messages: [],
       streamingContent: "",
-      isStreaming: false,
+      streamingThreadIds: {},
       streamingThreadId: null,
       toolCalls: [],
       setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
@@ -277,12 +279,17 @@ export const useAgentsStore = create<AgentsState>()(
           set((state) => ({
             messages: [...state.messages, optimisticUserMessage],
             streamingContent: "",
-            isStreaming: true,
+            streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
             streamingThreadId: threadId,
             toolCalls: [],
           }));
         } else {
-          set({ streamingContent: "", isStreaming: true, streamingThreadId: threadId, toolCalls: [] });
+          set((state) => ({
+            streamingContent: "",
+            streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
+            streamingThreadId: threadId,
+            toolCalls: [],
+          }));
         }
 
         // Buffer for incoming tokens — flushed to Zustand at most every 50ms
@@ -360,7 +367,12 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenDone();
             unlistenError();
             flushTokenBuffer();
-            set({ isStreaming: false, streamingContent: "", streamingThreadId: null, toolCalls: [] });
+            set((state) => ({
+              streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+              streamingContent: "",
+              streamingThreadId: null,
+              toolCalls: [],
+            }));
             // Only reload messages into visible state if still on this thread.
             if (get().selectedIssueId === threadId) {
               await get().loadMessages(threadId);
@@ -381,7 +393,12 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenDone();
             unlistenError();
             flushTokenBuffer();
-            set({ isStreaming: false, streamingContent: "", streamingThreadId: null, toolCalls: [] });
+            set((state) => ({
+              streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+              streamingContent: "",
+              streamingThreadId: null,
+              toolCalls: [],
+            }));
             toast.error(`Agent error: ${event.payload.error}`);
           }
         );
@@ -393,7 +410,11 @@ export const useAgentsStore = create<AgentsState>()(
           unlistenDone();
           unlistenError();
           flushTokenBuffer();
-          set({ isStreaming: false, streamingContent: "", streamingThreadId: null });
+          set((state) => ({
+            streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+            streamingContent: "",
+            streamingThreadId: null,
+          }));
           toast.error(`Failed to send message: ${err}`);
         }
       },

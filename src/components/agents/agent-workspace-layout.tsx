@@ -34,8 +34,7 @@ export function AgentWorkspaceLayout() {
     setIsTerminalOpen,
     messages,
     streamingContent,
-    isStreaming,
-    streamingThreadId,
+    streamingThreadIds,
     toolCalls,
     loadMessages,
     loadFileChanges,
@@ -76,7 +75,7 @@ export function AgentWorkspaceLayout() {
   }, []);
 
   // Only show streaming state when the user is viewing the thread that's actively streaming.
-  const isCurrentThreadStreaming = isStreaming && streamingThreadId === selectedIssueId;
+  const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
 
   const allIssues = repositoryGroups.flatMap((g: RepositoryGroup) =>
     g.repositories.flatMap((r: AgentRepository) => r.issues)

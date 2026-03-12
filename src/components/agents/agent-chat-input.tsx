@@ -141,7 +141,7 @@ export function AgentChatInput() {
     setSelectedModelId,
     loadAiProviders,
     sendMessage,
-    isStreaming,
+    streamingThreadIds,
     selectedIssueId,
   } = useAgentsStore();
 
@@ -154,7 +154,8 @@ export function AgentChatInput() {
     .find((m) => m.id === selectedModelId);
 
   const hasProviders = aiProviders.length > 0;
-  const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId && !isStreaming;
+  const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
+  const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId && !isCurrentThreadStreaming;
 
   // Build flat list of slash items from the current query
   const slashItems = useMemo<SlashItem[]>(() => {
@@ -394,13 +395,13 @@ export function AgentChatInput() {
               onChange={(e) => handleChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={
-                isStreaming
+                isCurrentThreadStreaming
                   ? "Agent is responding..."
                   : hasProviders
                   ? "Ask to make changes... (/ for commands)"
                   : "Configure an AI provider to start..."
               }
-              disabled={!hasProviders || isStreaming}
+              disabled={!hasProviders || isCurrentThreadStreaming}
               className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-white/90 placeholder:text-zinc-500 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
               rows={1}
               onInput={(e) => {

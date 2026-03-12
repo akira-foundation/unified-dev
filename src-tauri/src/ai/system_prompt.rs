@@ -1,0 +1,106 @@
+/// Walks `root` up to `max_depth` levels, collecting relative paths of all
+/// files (skipping common noise dirs). Returns a sorted, newline-separated
+/// tree string suitable for embedding in a system prompt.
+pub fn collect_file_tree(root: &std::path::Path, max_depth: usize) -> String {
+    let ignore = [
+        ".git",
+        "node_modules",
+        "target",
+        ".next",
+        "dist",
+        "build",
+        ".cache",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".idea",
+        ".vscode",
+    ];
+
+    let mut entries: Vec<String> = Vec::new();
+
+    fn walk(
+        dir: &std::path::Path,
+        root: &std::path::Path,
+        depth: usize,
+        max_depth: usize,
+        ignore: &[&str],
+        entries: &mut Vec<String>,
+    ) {
+        if depth > max_depth {
+            return;
+        }
+        let Ok(iter) = std::fs::read_dir(dir) else {
+            return;
+        };
+        let mut children: Vec<std::path::PathBuf> =
+            iter.filter_map(|e| e.ok().map(|e| e.path())).collect();
+        children.sort();
+
+        for path in children {
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            if name.starts_with('.') && name != ".env" {
+                continue;
+            }
+            if ignore.contains(&name) {
+                continue;
+            }
+            if let Ok(rel) = path.strip_prefix(root) {
+                let rel_str = rel.to_string_lossy().to_string();
+                if path.is_dir() {
+                    entries.push(format!("{rel_str}/"));
+                    walk(&path, root, depth + 1, max_depth, ignore, entries);
+                } else {
+                    entries.push(rel_str);
+                }
+            }
+        }
+    }
+
+    walk(root, root, 0, max_depth, &ignore, &mut entries);
+    entries.join("\n")
+}
+
+pub fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) -> String {
+    let root = std::path::Path::new(workspace_path);
+    let file_tree = collect_file_tree(root, 4);
+
+    let tree_section = if file_tree.is_empty() {
+        String::new()
+    } else {
+        format!("\n\nRepository file tree:\n```\n{file_tree}\n```")
+    };
+
+    format!(
+        "You are an AI coding agent working on the repository '{repo_name}' (branch: {branch}).\n\
+         Workspace path: {workspace_path}\n\n\
+         You have tools to read and write files and run git commands. \
+         ALWAYS use your tools to actually perform the requested task — never just describe what you would do. \
+         When asked to modify a file, read it first, then write the changes back with write_file. \
+         When asked about code, read the relevant files before answering.\
+         {tree_section}"
+    )
+}
+
+pub fn build_action_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) -> String {
+    let root = std::path::Path::new(workspace_path);
+    let file_tree = collect_file_tree(root, 4);
+
+    let tree_section = if file_tree.is_empty() {
+        String::new()
+    } else {
+        format!("\n\nRepository file tree:\n```\n{file_tree}\n```")
+    };
+
+    format!(
+        "You are an autonomous git automation agent operating on the repository '{repo_name}' (branch: {branch}).\n\
+         Workspace path: {workspace_path}\n\n\
+         CRITICAL RULES — follow these exactly:\n\
+         1. Execute ALL requested shell commands immediately using your tools. Do NOT ask for permission or confirmation.\n\
+         2. Do NOT explain what you are about to do. Do NOT list steps. Just run the commands.\n\
+         3. You have FULL read and write access to the filesystem and shell. git, gh, and all standard tools are available.\n\
+         4. Never say you 'cannot' run a command. You can run any shell command via your bash/run_command tool.\n\
+         5. When done, output only the final result (e.g. the PR URL). Nothing else.\
+         {tree_section}"
+    )
+}

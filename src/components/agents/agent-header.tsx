@@ -77,7 +77,9 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
     setIsActioning(true);
     try {
-      const prompt = getPrompt(selectedAction);
+      const basePrompt = getPrompt(selectedAction);
+      const issueContext = `\n\nContext about this thread:\n- Thread title: ${issue.title}\n- Branch: ${issue.branchName}\n- Repository: ${issue.repoName}\n\nUse the thread title as the basis for the PR title and body. The PR title should clearly reflect what was done.`;
+      const prompt = basePrompt + issueContext;
       await sendMessage(issue.id, prompt, selectedModelId, true);
     } catch (err) {
       toast.error(`Failed to start action: ${err}`);
@@ -135,7 +137,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
               variant="ghost"
               disabled={isActioning}
               onClick={handleAction}
-              className="h-8 pl-4 pr-3 text-white/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none"
+              className="h-8 pl-4 pr-3 text-white/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none cursor-pointer"
             >
               <currentAction.icon className="h-4 w-4 text-[#A855F7]" />
               <span>{currentAction.label}</span>
@@ -146,7 +148,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-9 rounded-none hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-none"
+                  className="h-8 w-9 rounded-none hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-none cursor-pointer"
                 >
                   <ChevronDown className="h-4 w-4" />
                 </Button>
