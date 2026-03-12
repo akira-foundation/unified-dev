@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Settings2,
   Palette,
@@ -124,7 +124,7 @@ const SETTINGS_GROUPS = [
 
 export function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
-  const { editorTheme, setEditorTheme } = useSettingsStore();
+  const { editorTheme, setEditorTheme, promptOverrides, loadPrompts, savePrompt, resetPrompt, getPrompt } = useSettingsStore();
   const dateLabel = useDateLabel(locale);
   const [activeTab, setActiveTab] = useState("general");
   const [showThemePreview, setShowThemePreview] = useState(false);
@@ -132,6 +132,16 @@ export function SettingsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Local draft edits for the Prompts tab — keyed by action
+  const [promptDrafts, setPromptDrafts] = useState<Record<string, string>>({});
+  const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab === "prompts") {
+      loadPrompts();
+    }
+  }, [activeTab]);
 
   const showToast = (message: string) => {
     setToastMessage(message);
@@ -193,6 +203,8 @@ export function SettingsPage() {
     </div>
   );
 
+  // SettingsTextarea is superseded by the inline prompt rows in the Prompts tab.
+  // Kept for non-prompt tabs if ever needed.
   const SettingsTextarea = ({ label, description, defaultValue }: any) => (
     <div className="flex flex-col gap-3 px-4 py-6 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-900/40 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0">
       <div className="flex flex-col gap-1">
@@ -203,32 +215,8 @@ export function SettingsPage() {
         defaultValue={defaultValue}
       />
       {description && <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{description}</p>}
-    </div>
+     </div>
   );
-
-  const mergePrompt = `Merge the changes from this worktree into the base branch locally.
-
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
-
-  const mergePushPrompt = `Merge the changes from this worktree into the base branch and push to the remote.
-
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
-
-  const prPrompt = `Create a pull request for the changes on this branch.
-
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
-
-  const draftPrPrompt = `Create a draft pull request for the changes on this branch.
-
-Steps:
-1. Check for uncommitted changes with \`git status --porcelain\`
-2. If there are uncommitted changes, stage them all with \`git add -A\` and commit with a meaningful, short message that describes the changes.`;
 
   return (
     <PageLayout scroll>
@@ -844,29 +832,88 @@ AWS_PROFILE=default`}
             <div className="animate-in fade-in duration-300">
               <SettingsSection
                 title="Prompts"
-                description="Customize the instructions that the coding agent uses when executing specialized Git and GitHub actions."
+                description="Customize the instructions sent to the coding agent when executing Git and GitHub actions. Defaults are always restorable."
                 icon={FileText}
               >
-                <SettingsTextarea
-                  label="Merge Prompt"
-                  defaultValue={mergePrompt}
-                  description="Showing the default local merge prompt. This merges locally only — it does not push to the remote. Edit to customize."
-                />
-                <SettingsTextarea
-                  label="Merge and Push Prompt"
-                  defaultValue={mergePushPrompt}
-                  description="Showing the default merge-and-push prompt. This merges locally and pushes to the remote. Edit to customize."
-                />
-                <SettingsTextarea
-                  label="Pull Request Prompt"
-                  defaultValue={prPrompt}
-                  description="Showing the default PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize."
-                />
-                <SettingsTextarea
-                  label="Draft Pull Request Prompt"
-                  defaultValue={draftPrPrompt}
-                  description="Showing the default draft PR prompt. The branch name and issue details are filled in per workspace at runtime. Edit to customize."
-                />
+                {([
+                  { action: "merge_local", label: "Merge Locally", description: "Sent when the agent merges changes into the base branch without pushing." },
+                  { action: "merge_push",  label: "Merge and Push", description: "Sent when the agent merges locally and pushes to the remote." },
+                  { action: "draft_pr",    label: "Draft Pull Request", description: "Sent when the agent creates a draft PR on GitHub." },
+                  { action: "create_pr",   label: "Pull Request", description: "Sent when the agent creates a published PR on GitHub." },
+                ] as const).map(({ action, label, description }) => {
+                  const isCustomized = action in promptOverrides;
+                  const storedValue  = getPrompt(action);
+                  const draftValue   = promptDrafts[action];
+                  const currentValue = draftValue ?? storedValue;
+                  const isDirty      = draftValue !== undefined && draftValue !== storedValue;
+
+                  const handleSave = async () => {
+                    setSavingPrompt(action);
+                    try {
+                      await savePrompt(action, currentValue);
+                      setPromptDrafts((prev) => { const next = { ...prev }; delete next[action]; return next; });
+                    } finally {
+                      setSavingPrompt(null);
+                    }
+                  };
+
+                  const handleReset = async () => {
+                    setSavingPrompt(action);
+                    try {
+                      await resetPrompt(action);
+                      setPromptDrafts((prev) => { const next = { ...prev }; delete next[action]; return next; });
+                    } finally {
+                      setSavingPrompt(null);
+                    }
+                  };
+
+                  return (
+                    <div key={action} className="flex flex-col gap-3 px-4 py-6 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-zinc-900 dark:text-white">{label}</p>
+                          <span className={cn(
+                            "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded",
+                            isCustomized
+                              ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700"
+                          )}>
+                            {isCustomized ? "Custom" : "Default"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isCustomized && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={savingPrompt === action}
+                              onClick={handleReset}
+                              className="h-7 px-2.5 text-[11px] text-zinc-400 hover:text-white"
+                            >
+                              Reset to default
+                            </Button>
+                          )}
+                          {isDirty && (
+                            <Button
+                              size="sm"
+                              disabled={savingPrompt === action}
+                              onClick={handleSave}
+                              className="h-7 px-3 text-[11px] bg-purple-600 hover:bg-purple-700 text-white"
+                            >
+                              {savingPrompt === action ? "Saving..." : "Save"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <textarea
+                        className="w-full h-48 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/5 rounded-md text-zinc-600 dark:text-zinc-400 font-mono text-[13px] p-4 focus:outline-none focus:border-purple-500 transition-colors custom-scrollbar resize-none"
+                        value={currentValue}
+                        onChange={(e) => setPromptDrafts((prev) => ({ ...prev, [action]: e.target.value }))}
+                      />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{description}</p>
+                    </div>
+                  );
+                })}
               </SettingsSection>
             </div>
           )}

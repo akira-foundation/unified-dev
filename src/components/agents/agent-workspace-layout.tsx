@@ -205,7 +205,7 @@ export function AgentWorkspaceLayout() {
               <FileEditor />
             </div>
           ) : (
-            <div className="flex-1 flex flex-col overflow-hidden max-w-3xl mx-auto w-full px-6">
+            <div className="flex-1 flex flex-col overflow-hidden max-w-5xl mx-auto w-full px-6">
               <div className="flex-1 overflow-y-auto custom-scrollbar py-8">
                 <AgentTimeline
                   steps={timelineSteps}

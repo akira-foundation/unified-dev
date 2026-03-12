@@ -18,10 +18,11 @@ import {
   Trash2,
   Octagon,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { useSettingsStore } from "@/stores/settings-store";
 import { RemoveThreadDialog } from "./remove-thread-dialog";
+import { invoke } from "@tauri-apps/api/core";
 
 interface AgentHeaderProps {
   issue: AgentIssue;
@@ -63,25 +64,25 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isActioning, setIsActioning] = useState(false);
-  const { removeThread, setSelectedIssueId, fileChanges } = useAgentsStore();
+  const { removeThread, setSelectedIssueId, fileChanges, sendMessage, selectedModelId } = useAgentsStore();
+  const { getPrompt } = useSettingsStore();
 
   const currentAction = ACTION_CONFIGS[selectedAction];
 
   const handleAction = async () => {
-    if (selectedAction === "draft_pr" || selectedAction === "create_pr") {
-      setIsActioning(true);
-      try {
-        const prUrl = await invoke<string>("create_draft_pr", {
-          workspacePath: issue.workspacePath,
-          branchName: issue.branchName,
-          title: issue.title,
-        });
-        toast.success("Pull request created", { description: prUrl });
-      } catch (err) {
-        toast.error(`Failed to create PR: ${err}`);
-      } finally {
-        setIsActioning(false);
-      }
+    if (!selectedModelId) {
+      toast.error("No AI model selected. Please configure a provider in Settings.");
+      return;
+    }
+
+    setIsActioning(true);
+    try {
+      const prompt = getPrompt(selectedAction);
+      await sendMessage(issue.id, prompt, selectedModelId, true);
+    } catch (err) {
+      toast.error(`Failed to start action: ${err}`);
+    } finally {
+      setIsActioning(false);
     }
   };
 
@@ -103,27 +104,26 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   return (
     <header className="h-14 border-b border-white/[0.03] flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
       {/* Title & Metadata */}
-      <div className="flex flex-col gap-0.5 min-w-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-[14px] font-semibold tracking-tight text-white/90 truncate max-w-xl">
-            {issue.title}
-          </h1>
-          <Badge
-            variant="outline"
-            className={cn(
-              "text-[9px] font-medium px-2 py-0 h-4 min-h-0 border-none transition-all",
-              issue.status === "Running" ? "bg-blue-500/10 text-blue-400" :
-                issue.status === "Completed" ? "bg-emerald-500/10 text-emerald-400" :
-                  "bg-zinc-800 text-zinc-400"
-            )}
-          >
-            {issue.status}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground/40 font-medium">
-          <span className="hover:text-zinc-400 transition-colors cursor-default">{issue.repoName}</span>
-          <span className="text-zinc-800">/</span>
-          <span className="font-mono text-[10px] hover:text-zinc-400 transition-colors cursor-default">{issue.branchName}</span>
+      <div className="flex items-center gap-3 min-w-0">
+        <h1 className="text-[14px] font-semibold tracking-tight text-white/90 truncate max-w-xs">
+          {issue.title}
+        </h1>
+        <Badge
+          variant="outline"
+          className={cn(
+            "text-[9px] font-medium px-2 py-0 h-4 min-h-0 border-none transition-all shrink-0",
+            issue.status === "Running" ? "bg-blue-500/10 text-blue-400" :
+              issue.status === "Completed" ? "bg-emerald-500/10 text-emerald-400" :
+                "bg-zinc-800 text-zinc-400"
+          )}
+        >
+          {issue.status}
+        </Badge>
+        <span className="text-zinc-700 shrink-0">·</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/40 font-medium min-w-0">
+          <span className="truncate">{issue.repoName}</span>
+          <span className="text-zinc-700">/</span>
+          <span className="font-mono text-[10px] truncate">{issue.branchName}</span>
         </div>
       </div>
 

@@ -11,6 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { DiscardFileDialog } from "./discard-file-dialog";
 
 interface DiffViewerProps {
   files: FileChange[];
@@ -25,7 +29,35 @@ export function DiffViewer({ files }: DiffViewerProps) {
     selectedIssueId,
     collapsedFilesByThread,
     setFileCollapsed,
+    setSelectedFilePath,
+    repositoryGroups,
+    loadFileChanges,
   } = useAgentsStore();
+
+  const [discardTarget, setDiscardTarget] = useState<string | null>(null);
+  const [isDiscarding, setIsDiscarding] = useState(false);
+
+  const selectedIssue = repositoryGroups
+    .flatMap((g) => g.repositories.flatMap((r) => r.issues))
+    .find((i) => i.id === selectedIssueId);
+
+  const handleDiscard = async () => {
+    if (!discardTarget || !selectedIssue) return;
+    setIsDiscarding(true);
+    try {
+      await invoke("discard_file_changes", {
+        workspacePath: selectedIssue.workspacePath,
+        filename: discardTarget,
+      });
+      toast.success(`Changes to ${discardTarget} discarded`);
+      setDiscardTarget(null);
+      await loadFileChanges(selectedIssue.workspacePath);
+    } catch (err) {
+      toast.error(`Failed to discard changes: ${err}`);
+    } finally {
+      setIsDiscarding(false);
+    }
+  };
 
   const collapsedFiles = selectedIssueId ? (collapsedFilesByThread[selectedIssueId] ?? {}) : {};
 
@@ -137,11 +169,17 @@ export function DiffViewer({ files }: DiffViewerProps) {
                         className="bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md backdrop-blur-3xl"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer">
+                        <DropdownMenuItem
+                          className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer"
+                          onSelect={() => setSelectedFilePath(file.filename)}
+                        >
                           <Pencil className="h-3.5 w-3.5 text-zinc-400" />
                           <span>Edit</span>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer">
+                        <DropdownMenuItem
+                          className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer"
+                          onSelect={() => setDiscardTarget(file.filename)}
+                        >
                           <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
                           <span>Discard</span>
                         </DropdownMenuItem>
@@ -182,6 +220,14 @@ export function DiffViewer({ files }: DiffViewerProps) {
           <FileExplorer />
         </div>
       )}
+
+      <DiscardFileDialog
+        open={discardTarget !== null}
+        onOpenChange={(open) => { if (!open) setDiscardTarget(null); }}
+        onDiscard={handleDiscard}
+        filename={discardTarget ?? ""}
+        isDiscarding={isDiscarding}
+      />
     </div>
   );
 }

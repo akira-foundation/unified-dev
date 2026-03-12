@@ -52,7 +52,7 @@ interface AgentsState {
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
   loadMessages: (threadId: string) => Promise<void>;
-  sendMessage: (threadId: string, content: string, model: string) => Promise<void>;
+  sendMessage: (threadId: string, content: string, model: string, silent?: boolean) => Promise<void>;
   loadFileChanges: (workspacePath: string) => Promise<void>;
   addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string, workspace_path: string }) => void;
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
@@ -192,7 +192,7 @@ export const useAgentsStore = create<AgentsState>()(
           set({ fileChanges: [] });
         }
       },
-      sendMessage: async (threadId: string, content: string, model: string) => {
+      sendMessage: async (threadId: string, content: string, model: string, silent = false) => {
         const { repositoryGroups } = get();
 
         // Resolve workspace path for the current thread
@@ -262,24 +262,28 @@ export const useAgentsStore = create<AgentsState>()(
           return;
         }
         // ──────────────────────────────────────────────────────────────────
-        // Optimistically add the user message to the UI immediately.
-        const optimisticUserMessage: ChatMessage = {
-          id: crypto.randomUUID(),
-          thread_id: threadId,
-          role: "user",
-          model: null,
-          content,
-          metadata: null,
-          created_at: new Date().toISOString(),
-        };
+        // Optimistically add the user message to the UI immediately (skipped for silent/action prompts).
+        if (!silent) {
+          const optimisticUserMessage: ChatMessage = {
+            id: crypto.randomUUID(),
+            thread_id: threadId,
+            role: "user",
+            model: null,
+            content,
+            metadata: null,
+            created_at: new Date().toISOString(),
+          };
 
-        set((state) => ({
-          messages: [...state.messages, optimisticUserMessage],
-          streamingContent: "",
-          isStreaming: true,
-          streamingThreadId: threadId,
-          toolCalls: [],
-        }));
+          set((state) => ({
+            messages: [...state.messages, optimisticUserMessage],
+            streamingContent: "",
+            isStreaming: true,
+            streamingThreadId: threadId,
+            toolCalls: [],
+          }));
+        } else {
+          set({ streamingContent: "", isStreaming: true, streamingThreadId: threadId, toolCalls: [] });
+        }
 
         // Buffer for incoming tokens — flushed to Zustand at most every 50ms
         // to avoid a re-render per token (which causes ReactMarkdown to re-parse
