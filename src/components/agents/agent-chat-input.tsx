@@ -138,7 +138,8 @@ export function AgentChatInput() {
   const {
     aiProviders,
     selectedModelId,
-    setSelectedModelId,
+    selectedModelByThread,
+    setThreadModelId,
     loadAiProviders,
     sendMessage,
     streamingThreadIds,
@@ -149,14 +150,16 @@ export function AgentChatInput() {
     loadAiProviders();
   }, [loadAiProviders]);
 
+  // Effective model for this thread: per-thread override → global default.
+  const effectiveModelId = (selectedIssueId && selectedModelByThread[selectedIssueId]) || selectedModelId;
+
   const selectedModel = aiProviders
     .flatMap((p) => p.models)
-    .find((m) => m.id === selectedModelId);
+    .find((m) => m.id === effectiveModelId);
 
   const hasProviders = aiProviders.length > 0;
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
   const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId && !isCurrentThreadStreaming;
-
   // Build flat list of slash items from the current query
   const slashItems = useMemo<SlashItem[]>(() => {
     const lowerQuery = slashQuery.toLowerCase();
@@ -229,7 +232,7 @@ export function AgentChatInput() {
     if (textareaRef.current) {
       textareaRef.current.style.height = "24px";
     }
-    await sendMessage(selectedIssueId!, content, selectedModelId!);
+    await sendMessage(selectedIssueId!, content, effectiveModelId!);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -336,22 +339,24 @@ export function AgentChatInput() {
                                 key={model.id}
                                 value={model.label}
                                 onSelect={() => {
-                                  setSelectedModelId(model.id);
+                                  if (selectedIssueId) {
+                                    setThreadModelId(selectedIssueId, model.id);
+                                  }
                                   setOpen(false);
                                 }}
                                 className={cn(
                                   "flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer text-[13px] font-medium",
-                                  selectedModelId === model.id
+                                  effectiveModelId === model.id
                                     ? "bg-purple-500/10 text-purple-400"
                                     : "text-zinc-300"
                                 )}
                               >
                                 <div className={cn(
                                   "h-1.5 w-1.5 rounded-full shrink-0",
-                                  selectedModelId === model.id ? "bg-purple-400" : "bg-zinc-600"
+                                  effectiveModelId === model.id ? "bg-purple-400" : "bg-zinc-600"
                                 )} />
                                 {model.label}
-                                {selectedModelId === model.id && (
+                                {effectiveModelId === model.id && (
                                   <Check className="ml-auto h-3.5 w-3.5 text-purple-400" />
                                 )}
                               </CommandItem>

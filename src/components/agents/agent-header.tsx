@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,7 +16,10 @@ import {
   MoreVertical,
   Trash2,
   Octagon,
+  ExternalLink,
+  GitCommitHorizontal,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useSettingsStore } from "@/stores/settings-store";
@@ -28,7 +30,7 @@ interface AgentHeaderProps {
   issue: AgentIssue;
 }
 
-type HeaderAction = "merge_local" | "merge_push" | "draft_pr" | "create_pr";
+type HeaderAction = "merge_local" | "merge_push" | "draft_pr" | "create_pr" | "merge_commit";
 
 interface ActionConfig {
   label: string;
@@ -57,6 +59,11 @@ const ACTION_CONFIGS: Record<HeaderAction, ActionConfig> = {
     description: "Initialize a new PR directly on GitHub",
     icon: GitPullRequest,
   },
+  merge_commit: {
+    label: "Push changes",
+    description: "Commit and push to update the existing pull request",
+    icon: GitCommitHorizontal,
+  },
 };
 
 export function AgentHeader({ issue }: AgentHeaderProps) {
@@ -64,23 +71,31 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [isActioning, setIsActioning] = useState(false);
-  const { removeThread, setSelectedIssueId, fileChanges, sendMessage, selectedModelId } = useAgentsStore();
+  const { removeThread, setSelectedIssueId, fileChanges, sendMessage, selectedModelId, selectedModelByThread, prUrlByThread } = useAgentsStore();
   const { getPrompt } = useSettingsStore();
 
   const currentAction = ACTION_CONFIGS[selectedAction];
 
+  // Effective model for this thread: per-thread override → global default.
+  const effectiveModelId = selectedModelByThread[issue.id] ?? selectedModelId;
+
+  // Whether a PR already exists for this thread.
+  const prUrl = prUrlByThread[issue.id] ?? null;
+
   const handleAction = async () => {
-    if (!selectedModelId) {
+    if (!effectiveModelId) {
       toast.error("No AI model selected. Please configure a provider in Settings.");
       return;
     }
 
     setIsActioning(true);
     try {
-      const basePrompt = getPrompt(selectedAction);
+      // When a PR exists, always run the merge_commit action regardless of selectedAction.
+      const actionKey = prUrl ? "merge_commit" : selectedAction;
+      const basePrompt = getPrompt(actionKey);
       const issueContext = `\n\nContext about this thread:\n- Thread title: ${issue.title}\n- Branch: ${issue.branchName}\n- Repository: ${issue.repoName}\n\nUse the thread title as the basis for the PR title and body. The PR title should clearly reflect what was done.`;
       const prompt = basePrompt + issueContext;
-      await sendMessage(issue.id, prompt, selectedModelId, true);
+      await sendMessage(issue.id, prompt, effectiveModelId, true);
     } catch (err) {
       toast.error(`Failed to start action: ${err}`);
     } finally {
@@ -106,31 +121,28 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   return (
     <header className="h-14 border-b border-white/[0.03] flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
       {/* Title & Metadata */}
-      <div className="flex items-center gap-3 min-w-0">
-        <h1 className="text-[14px] font-semibold tracking-tight text-white/90 truncate max-w-xs">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="text-[13px] font-medium tracking-tight text-white/40 truncate">
+          {issue.repoName}
+        </span>
+        <span className="text-zinc-700 shrink-0">/</span>
+        <span className="text-[13px] font-semibold tracking-tight text-white/80 truncate">
           {issue.title}
-        </h1>
-        <Badge
-          variant="outline"
-          className={cn(
-            "text-[9px] font-medium px-2 py-0 h-4 min-h-0 border-none transition-all shrink-0",
-            issue.status === "Running" ? "bg-blue-500/10 text-blue-400" :
-              issue.status === "Completed" ? "bg-emerald-500/10 text-emerald-400" :
-                "bg-zinc-800 text-zinc-400"
-          )}
-        >
-          {issue.status}
-        </Badge>
-        <span className="text-zinc-700 shrink-0">·</span>
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/40 font-medium min-w-0">
-          <span className="truncate">{issue.repoName}</span>
-          <span className="text-zinc-700">/</span>
-          <span className="font-mono text-[10px] truncate">{issue.branchName}</span>
-        </div>
+        </span>
       </div>
 
       {/* Actions */}
       <div className="flex items-center gap-3">
+        {prUrl && (
+          <Button
+            variant="ghost"
+            onClick={() => openUrl(prUrl.url)}
+            className="h-8 px-3 text-[#A855F7] text-[12px] font-semibold gap-2 rounded-xl hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            <span>View PR</span>
+          </Button>
+        )}
         {fileChanges.length > 0 && (
           <div className="flex items-center bg-[#0F0F0F] rounded-xl border border-white/5 shadow-2xl overflow-hidden transition-all duration-300">
             <Button
@@ -139,50 +151,63 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
               onClick={handleAction}
               className="h-8 pl-4 pr-3 text-white/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none cursor-pointer"
             >
-              <currentAction.icon className="h-4 w-4 text-[#A855F7]" />
-              <span>{currentAction.label}</span>
+              {prUrl ? (
+                <>
+                  <GitCommitHorizontal className="h-4 w-4 text-[#A855F7]" />
+                  <span>Push changes</span>
+                </>
+              ) : (
+                <>
+                  <currentAction.icon className="h-4 w-4 text-[#A855F7]" />
+                  <span>{currentAction.label}</span>
+                </>
+              )}
             </Button>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-9 rounded-none hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-none cursor-pointer"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="w-80 bg-[#0F0F0F] border-white/[0.05] p-2 shadow-2xl rounded-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
-              >
-                {(Object.entries(ACTION_CONFIGS) as [HeaderAction, ActionConfig][]).map(([key, config]) => (
-                  <DropdownMenuItem
-                    key={key}
-                    onSelect={() => setSelectedAction(key)}
-                    className={cn(
-                      "flex items-start gap-3.5 p-3.5 focus:bg-white/[0.03] rounded-xl cursor-pointer group transition-all duration-200",
-                      selectedAction === key && "bg-white/[0.02]"
-                    )}
+            {!prUrl && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-9 rounded-none hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-none cursor-pointer"
                   >
-                    <div className={cn(
-                      "h-9 w-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-[#A855F7]/10 group-hover:border-[#A855F7]/20 transition-all duration-200",
-                      selectedAction === key && "bg-[#A855F7]/10 border-[#A855F7]/20"
-                    )}>
-                      <config.icon className={cn(
-                        "h-4 w-4 transition-colors",
-                        selectedAction === key ? "text-[#A855F7]" : "text-zinc-400 group-hover:text-[#A855F7]"
-                      )} />
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[13px] font-semibold text-white/90 tracking-tight">{config.label}</span>
-                      <span className="text-[11px] text-zinc-500 leading-tight">{config.description}</span>
-                    </div>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-80 bg-[#0F0F0F] border-white/[0.05] p-2 shadow-2xl rounded-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
+                >
+                  {(Object.entries(ACTION_CONFIGS) as [HeaderAction, ActionConfig][])
+                    .filter(([key]) => key !== "merge_commit")
+                    .map(([key, config]) => (
+                      <DropdownMenuItem
+                        key={key}
+                        onSelect={() => setSelectedAction(key)}
+                        className={cn(
+                          "flex items-start gap-3.5 p-3.5 focus:bg-white/[0.03] rounded-xl cursor-pointer group transition-all duration-200",
+                          selectedAction === key && "bg-white/[0.02]"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-9 w-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-[#A855F7]/10 group-hover:border-[#A855F7]/20 transition-all duration-200",
+                          selectedAction === key && "bg-[#A855F7]/10 border-[#A855F7]/20"
+                        )}>
+                          <config.icon className={cn(
+                            "h-4 w-4 transition-colors",
+                            selectedAction === key ? "text-[#A855F7]" : "text-zinc-400 group-hover:text-[#A855F7]"
+                          )} />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[13px] font-semibold text-white/90 tracking-tight">{config.label}</span>
+                          <span className="text-[11px] text-zinc-500 leading-tight">{config.description}</span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         )}
 

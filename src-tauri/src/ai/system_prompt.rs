@@ -77,7 +77,9 @@ pub fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) 
          You have tools to read and write files and run git commands. \
          ALWAYS use your tools to actually perform the requested task — never just describe what you would do. \
          When asked to modify a file, read it first, then write the changes back with write_file. \
-         When asked about code, read the relevant files before answering.\
+         When asked about code, read the relevant files before answering.\n\n\
+         Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
+         so the user can follow your progress. Keep these messages brief and factual.\
          {tree_section}"
     )
 }
@@ -100,7 +102,9 @@ pub fn build_action_system_prompt(repo_name: &str, workspace_path: &str, branch:
          2. Do NOT explain what you are about to do. Do NOT list steps. Just run the commands.\n\
          3. You have FULL read and write access to the filesystem and shell. git, gh, and all standard tools are available.\n\
          4. Never say you 'cannot' run a command. You can run any shell command via your bash/run_command tool.\n\
-         5. When done, output only the final result (e.g. the PR URL). Nothing else.\
+         5. When done, output only the final result (e.g. the PR URL). Nothing else.\n\
+         6. NEVER write intermediate helper files (e.g. PR_TITLE.txt, PR_BODY.md, COMMIT_MSG). \
+            Pass all values inline as arguments to the command (e.g. gh pr create --title \"...\" --body \"...\").\
          {tree_section}"
     )
 }

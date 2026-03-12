@@ -1,8 +1,69 @@
 use serde_json::{json, Value};
 
-// ---------------------------------------------------------------------------
+/// Split a shell command string into tokens, respecting single and double quoted strings.
+/// e.g. `git commit -m "chore: add routes"` → ["git", "commit", "-m", "chore: add routes"]
+/// Shell redirections (2>&1, >/dev/null, 2>/dev/null, etc.) are stripped — we capture
+/// stdout/stderr directly via tokio::process::Command, so they are never needed.
+fn shell_split(cmd: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let mut current = String::new();
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut chars = cmd.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        match c {
+            '\'' if !in_double => in_single = !in_single,
+            '"' if !in_single => in_double = !in_double,
+            ' ' | '\t' if !in_single && !in_double => {
+                if !current.is_empty() {
+                    tokens.push(current.clone());
+                    current.clear();
+                }
+            }
+            '\\' if in_double => {
+                // handle escape sequences inside double quotes
+                if let Some(next) = chars.next() {
+                    current.push(next);
+                }
+            }
+            _ => current.push(c),
+        }
+    }
+    if !current.is_empty() {
+        tokens.push(current);
+    }
+
+    // Strip shell redirection tokens and their targets so they are not
+    // passed as literal arguments to the subprocess (e.g. "2>&1", ">file").
+    let mut filtered = Vec::new();
+    let mut skip_next = false;
+    for token in tokens {
+        if skip_next {
+            skip_next = false;
+            continue;
+        }
+        // Redirection operators that consume the following token as a target.
+        if token == ">" || token == ">>" || token == "2>" || token == "&>" || token == "&>>" {
+            skip_next = true;
+            continue;
+        }
+        // Self-contained redirections: 2>&1, >/dev/null, 2>/dev/null, etc.
+        if token.starts_with("2>&")
+            || token.starts_with(">&")
+            || (token.starts_with('>') && token.len() > 1)
+            || (token.starts_with("2>") && token.len() > 2)
+        {
+            continue;
+        }
+        filtered.push(token);
+    }
+    filtered
+}
+
+
 // Tool definitions (three wire-format variants)
-// ---------------------------------------------------------------------------
+
 
 /// Anthropic tool definitions (uses `input_schema`).
 pub fn tool_definitions_anthropic() -> Value {
@@ -228,9 +289,9 @@ pub fn tool_definitions_responses() -> Value {
     ])
 }
 
-// ---------------------------------------------------------------------------
+
 // Tool executor
-// ---------------------------------------------------------------------------
+
 
 /// Execute a tool call and return the result string.
 pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
@@ -312,7 +373,7 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 return "Error: missing 'command' argument".to_string();
             };
 
-            // Security allowlist — git read-only + write operations needed for PR workflow.
+            // Security allowlist — git + gh operations needed for PR workflow.
             let allowed_prefixes = [
                 "git status",
                 "git diff",
@@ -331,6 +392,13 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 "gh pr list",
                 "gh pr view",
                 "gh pr merge",
+                "gh pr checks",
+                "gh pr comment",
+                "gh pr edit",
+                "gh pr close",
+                "gh pr reopen",
+                "gh pr diff",
+                "gh repo view",
                 "gh auth status",
             ];
             if !allowed_prefixes
@@ -338,11 +406,11 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 .any(|p| cmd_str.trim_start().starts_with(p))
             {
                 return format!(
-                    "Error: command not allowed. Permitted: git (status/diff/log/branch/show/rev-parse/add/commit/push/fetch/pull/checkout/stash) and gh pr commands."
+                    "Error: command not allowed. Permitted: git (status/diff/log/branch/show/rev-parse/add/commit/push/fetch/pull/checkout/stash) and gh pr/repo commands."
                 );
             }
 
-            let parts: Vec<&str> = cmd_str.split_whitespace().collect();
+            let parts = shell_split(cmd_str);
             let (prog, rest) = match parts.split_first() {
                 Some(s) => s,
                 None => return "Error: empty command".to_string(),
@@ -418,27 +486,129 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
 /// Build a human-readable label for a tool call event.
 pub fn tool_label(name: &str, args: &Value) -> String {
     match name {
-        "read_file" => format!(
-            "read_file: {}",
-            args.get("path").and_then(|v| v.as_str()).unwrap_or("?")
-        ),
-        "write_file" => format!(
-            "write_file: {}",
-            args.get("path").and_then(|v| v.as_str()).unwrap_or("?")
-        ),
-        "list_files" => format!(
-            "list_files: {}",
-            args.get("path").and_then(|v| v.as_str()).unwrap_or(".")
-        ),
-        "run_command" => format!(
-            "run: {}",
-            args.get("command").and_then(|v| v.as_str()).unwrap_or("?")
-        ),
-        "search_in_file" => format!(
-            "search '{}' in {}",
-            args.get("pattern").and_then(|v| v.as_str()).unwrap_or("?"),
-            args.get("path").and_then(|v| v.as_str()).unwrap_or("?")
-        ),
+        "read_file" => {
+            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("?");
+            let filename = std::path::Path::new(path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(path);
+            format!("Reading {filename}")
+        }
+        "write_file" => {
+            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("?");
+            let filename = std::path::Path::new(path)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(path);
+            format!("Editing {filename}")
+        }
+        "list_files" => {
+            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or(".");
+            if path == "." || path.is_empty() {
+                "Listing files".to_string()
+            } else {
+                format!("Listing {path}")
+            }
+        }
+        "search_in_file" => {
+            let pattern = args.get("pattern").and_then(|v| v.as_str()).unwrap_or("?");
+            format!("Searching for '{pattern}'")
+        }
+        "run_command" => {
+            let cmd = args.get("command").and_then(|v| v.as_str()).unwrap_or("?");
+            let trimmed = cmd.trim();
+
+            if trimmed.starts_with("git add") {
+                "Staging changes".to_string()
+            } else if trimmed.starts_with("git commit") {
+                // Extract commit message if present
+                if let Some(msg_start) = trimmed.find("-m \"").or_else(|| trimmed.find("-m '")) {
+                    let rest = &trimmed[msg_start + 4..];
+                    let msg = rest.trim_end_matches('"').trim_end_matches('\'');
+                    let short = if msg.len() > 60 { &msg[..60] } else { msg };
+                    format!("Committing: {short}")
+                } else {
+                    "Committing changes".to_string()
+                }
+            } else if trimmed.starts_with("git push") {
+                "Pushing to remote".to_string()
+            } else if trimmed.starts_with("git status") {
+                "Checking git status".to_string()
+            } else if trimmed.starts_with("git diff") {
+                "Reading diff".to_string()
+            } else if trimmed.starts_with("git log") {
+                "Reading git log".to_string()
+            } else if trimmed.starts_with("git checkout") || trimmed.starts_with("git switch") {
+                "Switching branch".to_string()
+            } else if trimmed.starts_with("git merge") {
+                "Merging branch".to_string()
+            } else if trimmed.starts_with("git stash") {
+                "Stashing changes".to_string()
+            } else if trimmed.starts_with("git fetch") {
+                "Fetching from remote".to_string()
+            } else if trimmed.starts_with("git pull") {
+                "Pulling from remote".to_string()
+            } else if trimmed.starts_with("git rebase") {
+                "Rebasing branch".to_string()
+            } else if trimmed.starts_with("git rev-parse") || trimmed.starts_with("git branch") {
+                "Reading branch info".to_string()
+            } else if trimmed.starts_with("gh pr create") {
+                "Creating pull request".to_string()
+            } else if trimmed.starts_with("gh pr merge") {
+                "Merging pull request".to_string()
+            } else if trimmed.starts_with("gh pr") {
+                "Checking pull request".to_string()
+            } else if trimmed.starts_with("gh issue") {
+                "Checking issue".to_string()
+            } else if trimmed.starts_with("npm install")
+                || trimmed.starts_with("pnpm install")
+                || trimmed.starts_with("yarn install")
+            {
+                "Installing dependencies".to_string()
+            } else if trimmed.starts_with("npm run")
+                || trimmed.starts_with("pnpm run")
+                || trimmed.starts_with("yarn run")
+            {
+                let script = trimmed.splitn(3, ' ').nth(2).unwrap_or("script");
+                format!("Running {script}")
+            } else if trimmed.starts_with("cargo build") {
+                "Building project".to_string()
+            } else if trimmed.starts_with("cargo test")
+                || trimmed.starts_with("php artisan test")
+                || trimmed.starts_with("pytest")
+            {
+                "Running tests".to_string()
+            } else if trimmed.starts_with("cat ")
+                || trimmed.starts_with("head ")
+                || trimmed.starts_with("tail ")
+            {
+                let file = trimmed.split_whitespace().last().unwrap_or("file");
+                let filename = std::path::Path::new(file)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(file);
+                format!("Reading {filename}")
+            } else if trimmed.starts_with("mkdir") {
+                "Creating directory".to_string()
+            } else if trimmed.starts_with("rm ") || trimmed.starts_with("rm -") {
+                "Removing files".to_string()
+            } else if trimmed.starts_with("cp ") || trimmed.starts_with("mv ") {
+                "Moving files".to_string()
+            } else if trimmed.starts_with("find ") || trimmed.starts_with("ls ") || trimmed == "ls"
+            {
+                "Listing files".to_string()
+            } else if trimmed.starts_with("grep ") || trimmed.starts_with("rg ") {
+                "Searching code".to_string()
+            } else {
+                // For anything else, show the first ~60 chars so the user knows what's running
+                let short = if trimmed.len() > 60 {
+                    &trimmed[..60]
+                } else {
+                    trimmed
+                };
+                format!("run: {short}")
+            }
+        }
         other => other.to_string(),
     }
 }

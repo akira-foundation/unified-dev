@@ -33,11 +33,12 @@ export function AgentWorkspaceLayout() {
     isTerminalOpen,
     setIsTerminalOpen,
     messages,
-    streamingContent,
+    streamingContentByThread,
     streamingThreadIds,
-    toolCalls,
+    toolCallsByThread,
     loadMessages,
     loadFileChanges,
+    loadPrUrl,
     repositoriesLoaded,
   } = useAgentsStore();
 
@@ -76,6 +77,8 @@ export function AgentWorkspaceLayout() {
 
   // Only show streaming state when the user is viewing the thread that's actively streaming.
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
+  const streamingContent = streamingContentByThread[selectedIssueId ?? ""] ?? "";
+  const toolCalls = toolCallsByThread[selectedIssueId ?? ""] ?? [];
 
   const allIssues = repositoryGroups.flatMap((g: RepositoryGroup) =>
     g.repositories.flatMap((r: AgentRepository) => r.issues)
@@ -91,10 +94,11 @@ export function AgentWorkspaceLayout() {
       const issue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
       if (issue?.workspacePath) {
         loadFileChanges(issue.workspacePath);
+        loadPrUrl(selectedIssueId, issue.workspacePath);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIssueId, repositoriesLoaded, loadMessages, loadFileChanges]);
+  }, [selectedIssueId, repositoriesLoaded, loadMessages, loadFileChanges, loadPrUrl]);
 
   // Poll for file changes every 3 seconds while the agent is actively streaming
   // so the diff panel updates in real-time as the agent writes files.

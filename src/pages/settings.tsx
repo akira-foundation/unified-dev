@@ -124,7 +124,7 @@ const SETTINGS_GROUPS = [
 
 export function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
-  const { editorTheme, setEditorTheme, promptOverrides, loadPrompts, savePrompt, resetPrompt, getPrompt } = useSettingsStore();
+  const { editorTheme, setEditorTheme, promptOverrides, loadPrompts, savePrompt, resetPrompt } = useSettingsStore();
   const dateLabel = useDateLabel(locale);
   const [activeTab, setActiveTab] = useState("general");
   const [showThemePreview, setShowThemePreview] = useState(false);
@@ -133,9 +133,18 @@ export function SettingsPage() {
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Local draft edits for the Prompts tab — keyed by action
+  // Local draft edits for the Prompts tab — keyed by action.
+  // A draft of "" means the user cleared the field (reverting to default behaviour).
   const [promptDrafts, setPromptDrafts] = useState<Record<string, string>>({});
   const [savingPrompt, setSavingPrompt] = useState<string | null>(null);
+
+  // Friendly placeholder shown when no custom prompt is set for an action.
+  const PROMPT_PLACEHOLDERS: Record<string, string> = {
+    merge_local: "Commits any uncommitted changes and merges the branch into the base branch locally.",
+    merge_push:  "Commits any uncommitted changes, merges the branch locally, and pushes to the remote.",
+    draft_pr:    "Commits any uncommitted changes, pushes the branch, and opens a draft pull request on GitHub.",
+    create_pr:   "Commits any uncommitted changes, pushes the branch, and opens a pull request on GitHub.",
+  };
 
   useEffect(() => {
     if (activeTab === "prompts") {
@@ -832,7 +841,7 @@ AWS_PROFILE=default`}
             <div className="animate-in fade-in duration-300">
               <SettingsSection
                 title="Prompts"
-                description="Customize the instructions sent to the coding agent when executing Git and GitHub actions. Defaults are always restorable."
+                description="Customize the instructions sent to the coding agent when executing Git and GitHub actions. Leave blank to use the built-in default."
                 icon={FileText}
               >
                 {([
@@ -842,7 +851,8 @@ AWS_PROFILE=default`}
                   { action: "create_pr",   label: "Pull Request", description: "Sent when the agent creates a published PR on GitHub." },
                 ] as const).map(({ action, label, description }) => {
                   const isCustomized = action in promptOverrides;
-                  const storedValue  = getPrompt(action);
+                  // Value shown in the textarea: draft > saved override > empty (default is hidden).
+                  const storedValue  = isCustomized ? promptOverrides[action] : "";
                   const draftValue   = promptDrafts[action];
                   const currentValue = draftValue ?? storedValue;
                   const isDirty      = draftValue !== undefined && draftValue !== storedValue;
@@ -850,7 +860,12 @@ AWS_PROFILE=default`}
                   const handleSave = async () => {
                     setSavingPrompt(action);
                     try {
-                      await savePrompt(action, currentValue);
+                      if (currentValue.trim() === "") {
+                        // Treat clearing as a reset
+                        await resetPrompt(action);
+                      } else {
+                        await savePrompt(action, currentValue);
+                      }
                       setPromptDrafts((prev) => { const next = { ...prev }; delete next[action]; return next; });
                     } finally {
                       setSavingPrompt(null);
@@ -882,7 +897,7 @@ AWS_PROFILE=default`}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {isCustomized && (
+                          {isCustomized && !isDirty && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -906,7 +921,8 @@ AWS_PROFILE=default`}
                         </div>
                       </div>
                       <textarea
-                        className="w-full h-48 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/5 rounded-md text-zinc-600 dark:text-zinc-400 font-mono text-[13px] p-4 focus:outline-none focus:border-purple-500 transition-colors custom-scrollbar resize-none"
+                        className="w-full h-36 bg-zinc-50 dark:bg-black/20 border border-zinc-200 dark:border-white/5 rounded-md text-zinc-600 dark:text-zinc-400 font-mono text-[13px] p-4 focus:outline-none focus:border-purple-500 transition-colors custom-scrollbar resize-none placeholder:text-zinc-400 dark:placeholder:text-zinc-600 placeholder:font-sans placeholder:not-italic"
+                        placeholder={PROMPT_PLACEHOLDERS[action]}
                         value={currentValue}
                         onChange={(e) => setPromptDrafts((prev) => ({ ...prev, [action]: e.target.value }))}
                       />

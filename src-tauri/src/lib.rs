@@ -15,7 +15,7 @@ mod threads;
 
 use std::sync::Arc;
 
-use commands::agent_commands::{agents_get_messages, agents_send_message, create_draft_pr, discard_file_changes, get_available_models, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
+use commands::agent_commands::{agents_get_messages, agents_send_message, check_pr_url, create_draft_pr, discard_file_changes, get_available_models, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
 use commands::organization_commands::{
     create_organization, delete_organization, list_organizations, list_organizations_by_provider,
     list_selected_repositories, save_selected_repositories,
@@ -27,7 +27,7 @@ use commands::provider_commands::{
 use commands::terminal_commands::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
 };
-use commands::repository_commands::{add_local_repository, delete_local_repository, create_thread, delete_thread, list_repositories};
+use commands::repository_commands::{add_local_repository, delete_local_repository, create_thread, delete_thread, list_repositories, set_thread_pr_url};
 use commands::prompt_commands::{get_prompts, save_prompt, reset_prompt};
 use db::organization_repo_repository::SqliteOrganizationRepoRepository;
 use db::organization_repository::SqliteOrganizationRepository;
@@ -111,6 +111,7 @@ pub fn run() {
             list_repositories,
             create_thread,
             delete_thread,
+            set_thread_pr_url,
             list_files,
             search_files,
             read_file,
@@ -120,6 +121,7 @@ pub fn run() {
             get_workspace_changes,
             create_draft_pr,
             discard_file_changes,
+            check_pr_url,
             get_prompts,
             save_prompt,
             reset_prompt,

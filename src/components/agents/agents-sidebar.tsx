@@ -66,6 +66,7 @@ export function AgentsSidebar() {
     expandedRepos,
     setExpandedRepos,
     streamingThreadId,
+    prUrlByThread,
   } = useAgentsStore();
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
@@ -367,14 +368,18 @@ export function AgentsSidebar() {
                                       <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:300ms]" />
                                     </span>
                                   )}
-                                  {issue.prUrl && (
-                                    <GitBranch className="h-3 w-3 text-blue-500 shrink-0" />
+                                  {prUrlByThread[issue.id] && (
+                                    <GitPullRequest
+                                      className={cn(
+                                        "h-3 w-3 shrink-0",
+                                        prUrlByThread[issue.id]?.isDraft
+                                          ? "text-zinc-500"
+                                          : "text-[#A855F7]"
+                                      )}
+                                    />
                                   )}
                                 </div>
                                 <div className="hidden group-hover/thread:flex items-center gap-2 shrink-0 ml-auto">
-                                  <span className="text-[10px] font-medium text-muted-foreground/40 tabular-nums whitespace-nowrap">
-                                    {issue.status === "Running" ? "just now" : issue.updatedAt}
-                                  </span>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

@@ -54,6 +54,16 @@ ${COMMIT_CONVENTION_BLOCK}
 5. Output only the PR URL.
 
 Execute immediately. Do not ask for confirmation. Do not say you cannot run write commands — you can.`,
+
+  merge_commit: `You are operating inside a git worktree. A pull request already exists for this branch. Execute the following steps NOW using your shell tools. Do NOT explain or describe — just run the commands.
+
+1. Run \`git status --porcelain\`
+2. If there are uncommitted changes: run \`git add -A\`, then commit.
+${COMMIT_CONVENTION_BLOCK}
+3. Run \`git push\` to push to the remote. The open PR will update automatically.
+4. Output: "Changes pushed. PR updated."
+
+Execute immediately. Do not ask for confirmation. Do not say you cannot run write commands — you can.`,
 };
 
 interface SettingsState {

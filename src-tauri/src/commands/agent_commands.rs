@@ -398,6 +398,44 @@ pub async fn discard_file_changes(workspace_path: String, filename: String) -> R
     Ok(())
 }
 
+/// Checks whether a GitHub PR exists for the current branch in the given workspace.
+/// Returns `{ url, is_draft }` if a PR exists, or `{ url: "", is_draft: false }` if not.
+#[derive(Debug, Serialize)]
+pub struct PrInfo {
+    pub url: String,
+    pub is_draft: bool,
+}
+
+#[tauri::command]
+pub async fn check_pr_url(workspace_path: String) -> Result<PrInfo, String> {
+    let workspace = Path::new(&workspace_path);
+    if !workspace.exists() {
+        return Ok(PrInfo { url: String::new(), is_draft: false });
+    }
+
+    let output = tokio::process::Command::new("gh")
+        .args(["pr", "view", "--json", "url,isDraft", "--jq", "[.url, (.isDraft | tostring)] | join(\"|\")" ])
+        .current_dir(workspace)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run gh pr view: {e}"))?;
+
+    if output.status.success() {
+        let raw = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        // Format: "https://github.com/.../pull/1|false"
+        if let Some((url, draft_str)) = raw.split_once('|') {
+            return Ok(PrInfo {
+                url: url.to_string(),
+                is_draft: draft_str.trim() == "true",
+            });
+        }
+        Ok(PrInfo { url: raw, is_draft: false })
+    } else {
+        // No PR found (gh exits non-zero when there is no PR)
+        Ok(PrInfo { url: String::new(), is_draft: false })
+    }
+}
+
 /// Run a shell command inside the given workspace directory and return its stdout+stderr output.
 /// Only a safe allow-list of base commands is accepted.
 #[tauri::command]

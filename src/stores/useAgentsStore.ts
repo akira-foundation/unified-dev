@@ -34,23 +34,27 @@ interface AgentsState {
   selectedAutomation: any | null;
   aiProviders: AiProviderGroup[];
   selectedModelId: string | null;
+  // Per-thread model override. Falls back to selectedModelId when not set for a thread.
+  selectedModelByThread: Record<string, string>;
   repositoriesLoaded: boolean;
   // Chat
   messages: ChatMessage[];
-  streamingContent: string;
+  // Per-thread streaming content and tool calls, keyed by threadId.
+  streamingContentByThread: Record<string, string>;
+  toolCallsByThread: Record<string, ToolCallEvent[]>;
   // Per-thread streaming state — keyed by threadId. Use this instead of a
   // global boolean so that streaming in one thread does not block others.
   streamingThreadIds: Record<string, boolean>;
   // Which thread is currently streaming (may differ from selectedIssueId when navigating)
   streamingThreadId: string | null;
-  // Live tool call events during agentic loop
-  toolCalls: ToolCallEvent[];
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
   setSelectedSkill: (skill: any | null) => void;
   setSelectedAutomation: (automation: any | null) => void;
   setSelectedModelId: (id: string) => void;
+  // Set the model for a specific thread (overrides the global default for that thread).
+  setThreadModelId: (threadId: string, modelId: string) => void;
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
   loadMessages: (threadId: string) => Promise<void>;
@@ -60,6 +64,9 @@ interface AgentsState {
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
   removeThread: (repoId: string, threadId: string) => void;
   removeRepository: (id: string) => void;
+  // Per-thread PR info cache. null = no PR.
+  prUrlByThread: Record<string, { url: string; isDraft: boolean } | null>;
+  loadPrUrl: (threadId: string, workspacePath: string) => Promise<void>;
   isFilesAllExpanded: boolean;
   setIsFilesAllExpanded: (expanded: boolean) => void;
   showAddRepositoryDialog: boolean;
@@ -100,17 +107,19 @@ export const useAgentsStore = create<AgentsState>()(
       selectedAutomation: null,
       aiProviders: [],
       selectedModelId: null,
+      selectedModelByThread: {},
       repositoriesLoaded: false,
       isFilesAllExpanded: false,
       showAddRepositoryDialog: false,
       isRightSidebarOpen: true,
       diffViewTab: "changes",
+      prUrlByThread: {},
       // Chat initial state
       messages: [],
-      streamingContent: "",
+      streamingContentByThread: {},
+      toolCallsByThread: {},
       streamingThreadIds: {},
       streamingThreadId: null,
-      toolCalls: [],
       setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
       setShowAddRepositoryDialog: (show) => set({ showAddRepositoryDialog: show }),
       setIsRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
@@ -137,6 +146,9 @@ export const useAgentsStore = create<AgentsState>()(
       setSelectedSkill: (skill) => set({ selectedSkill: skill, activeTab: "manage-skill" }),
       setSelectedAutomation: (automation) => set({ selectedAutomation: automation, activeTab: "create-automation" }),
       setSelectedModelId: (id) => set({ selectedModelId: id }),
+      setThreadModelId: (threadId, modelId) => set((state) => ({
+        selectedModelByThread: { ...state.selectedModelByThread, [threadId]: modelId },
+      })),
       loadAiProviders: async () => {
         try {
           const response = await invoke<AiProviderResponse>("get_available_models");
@@ -149,25 +161,34 @@ export const useAgentsStore = create<AgentsState>()(
       },
       loadRepositories: async () => {
         try {
-          const rows = await invoke<Array<{ id: string; name: string; threads: Array<{ id: string; title: string; branch: string; workspace_path: string; status: string; created_at: string }> }>>("list_repositories");
+          const rows = await invoke<Array<{ id: string; name: string; threads: Array<{ id: string; title: string; branch: string; workspace_path: string; status: string; created_at: string; pr_url: string | null; pr_is_draft: boolean }> }>>("list_repositories");
+          const prUrlByThread: Record<string, { url: string; isDraft: boolean } | null> = {};
           const repositories = rows.map((row) => ({
             id: row.id,
             name: row.name,
-            issues: row.threads.map((t) => ({
-              id: t.id,
-              title: t.title,
-              repoId: row.id,
-              workspacePath: t.workspace_path,
-              repoName: row.name,
-              branchName: t.branch,
-              agentName: "Unified Dev",
-              status: "Running" as AgentStatus,
-              updatedAt: t.created_at,
-            })),
+            issues: row.threads.map((t) => {
+              if (t.pr_url) {
+                prUrlByThread[t.id] = { url: t.pr_url, isDraft: t.pr_is_draft };
+              } else {
+                prUrlByThread[t.id] = null;
+              }
+              return {
+                id: t.id,
+                title: t.title,
+                repoId: row.id,
+                workspacePath: t.workspace_path,
+                repoName: row.name,
+                branchName: t.branch,
+                agentName: "Unified Dev",
+                status: "Running" as AgentStatus,
+                updatedAt: t.created_at,
+              };
+            }),
           }));
           set({
             repositoryGroups: [{ name: "THREADS", repositories }],
             repositoriesLoaded: true,
+            prUrlByThread,
           });
         } catch {
           set({ repositoriesLoaded: true });
@@ -176,12 +197,7 @@ export const useAgentsStore = create<AgentsState>()(
       loadMessages: async (threadId: string) => {
         try {
           const messages = await invoke<ChatMessage[]>("agents_get_messages", { threadId });
-          // Only reset streamingContent if we're loading a thread that isn't actively streaming.
-          const { streamingThreadId } = get();
-          set({
-            messages,
-            streamingContent: streamingThreadId === threadId ? get().streamingContent : "",
-          });
+          set({ messages });
         } catch {
           set({ messages: [] });
         }
@@ -192,6 +208,27 @@ export const useAgentsStore = create<AgentsState>()(
           set({ fileChanges: changes });
         } catch {
           set({ fileChanges: [] });
+        }
+      },
+      loadPrUrl: async (threadId: string, workspacePath: string) => {
+        try {
+          const info = await invoke<{ url: string; is_draft: boolean }>("check_pr_url", { workspacePath });
+          const prInfo = info.url ? { url: info.url, isDraft: info.is_draft } : null;
+          set((state) => ({
+            prUrlByThread: { ...state.prUrlByThread, [threadId]: prInfo },
+          }));
+          // Persist to DB so it survives app reloads.
+          if (info.url) {
+            await invoke("set_thread_pr_url", {
+              threadId,
+              prUrl: info.url,
+              prIsDraft: info.is_draft,
+            }).catch(() => {/* non-fatal */});
+          }
+        } catch {
+          set((state) => ({
+            prUrlByThread: { ...state.prUrlByThread, [threadId]: null },
+          }));
         }
       },
       sendMessage: async (threadId: string, content: string, model: string, silent = false) => {
@@ -206,7 +243,10 @@ export const useAgentsStore = create<AgentsState>()(
         const trimmed = content.trim();
 
         if (trimmed === "/clear") {
-          set({ messages: [], streamingContent: "" });
+          set((state) => ({
+            messages: [],
+            streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
+          }));
           return;
         }
 
@@ -278,17 +318,17 @@ export const useAgentsStore = create<AgentsState>()(
 
           set((state) => ({
             messages: [...state.messages, optimisticUserMessage],
-            streamingContent: "",
+            streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
             streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
             streamingThreadId: threadId,
-            toolCalls: [],
+            toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
           }));
         } else {
           set((state) => ({
-            streamingContent: "",
+            streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
             streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
             streamingThreadId: threadId,
-            toolCalls: [],
+            toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
           }));
         }
 
@@ -306,7 +346,12 @@ export const useAgentsStore = create<AgentsState>()(
           if (tokenBuffer) {
             const buffered = tokenBuffer;
             tokenBuffer = "";
-            set((state) => ({ streamingContent: state.streamingContent + buffered }));
+            set((state) => ({
+              streamingContentByThread: {
+                ...state.streamingContentByThread,
+                [threadId]: (state.streamingContentByThread[threadId] ?? "") + buffered,
+              },
+            }));
           }
         };
 
@@ -321,7 +366,12 @@ export const useAgentsStore = create<AgentsState>()(
                 const buffered = tokenBuffer;
                 tokenBuffer = "";
                 flushTimer = null;
-                set((state) => ({ streamingContent: state.streamingContent + buffered }));
+                set((state) => ({
+                  streamingContentByThread: {
+                    ...state.streamingContentByThread,
+                    [threadId]: (state.streamingContentByThread[threadId] ?? "") + buffered,
+                  },
+                }));
               }, 50);
             }
           }
@@ -333,26 +383,30 @@ export const useAgentsStore = create<AgentsState>()(
             if (event.payload.thread_id !== threadId) return;
             set((state) => {
               const { label, status, output } = event.payload;
+              const current = state.toolCallsByThread[threadId] ?? [];
               // Find last running entry with matching label
               let existingIdx = -1;
-              for (let i = state.toolCalls.length - 1; i >= 0; i--) {
-                if (state.toolCalls[i].label === label && state.toolCalls[i].status === "running") {
+              for (let i = current.length - 1; i >= 0; i--) {
+                if (current[i].label === label && current[i].status === "running") {
                   existingIdx = i;
                   break;
                 }
               }
               if (existingIdx !== -1) {
                 // Update existing running entry to done/error
-                const updated = [...state.toolCalls];
+                const updated = [...current];
                 updated[existingIdx] = { ...updated[existingIdx], status: status as "running" | "done" | "error", output };
-                return { toolCalls: updated };
+                return { toolCallsByThread: { ...state.toolCallsByThread, [threadId]: updated } };
               }
               // Add new entry
               return {
-                toolCalls: [
-                  ...state.toolCalls,
-                  { id: crypto.randomUUID(), label, status: status as "running" | "done" | "error", output },
-                ],
+                toolCallsByThread: {
+                  ...state.toolCallsByThread,
+                  [threadId]: [
+                    ...current,
+                    { id: crypto.randomUUID(), label, status: status as "running" | "done" | "error", output },
+                  ],
+                },
               };
             });
           }
@@ -369,9 +423,9 @@ export const useAgentsStore = create<AgentsState>()(
             flushTokenBuffer();
             set((state) => ({
               streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
-              streamingContent: "",
+              streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
               streamingThreadId: null,
-              toolCalls: [],
+              toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
             }));
             // Only reload messages into visible state if still on this thread.
             if (get().selectedIssueId === threadId) {
@@ -380,6 +434,7 @@ export const useAgentsStore = create<AgentsState>()(
             // Refresh file changes after the agent finishes writing
             if (workspacePath) {
               await get().loadFileChanges(workspacePath);
+              await get().loadPrUrl(threadId, workspacePath);
             }
           }
         );
@@ -395,9 +450,9 @@ export const useAgentsStore = create<AgentsState>()(
             flushTokenBuffer();
             set((state) => ({
               streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
-              streamingContent: "",
+              streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
               streamingThreadId: null,
-              toolCalls: [],
+              toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
             }));
             toast.error(`Agent error: ${event.payload.error}`);
           }
@@ -412,7 +467,7 @@ export const useAgentsStore = create<AgentsState>()(
           flushTokenBuffer();
           set((state) => ({
             streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
-            streamingContent: "",
+            streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
             streamingThreadId: null,
           }));
           toast.error(`Failed to send message: ${err}`);
@@ -494,6 +549,7 @@ export const useAgentsStore = create<AgentsState>()(
         selectedIssueId: state.selectedIssueId,
         activeTab: state.activeTab,
         selectedModelId: state.selectedModelId,
+        selectedModelByThread: state.selectedModelByThread,
         collapsedFilesByThread: state.collapsedFilesByThread,
       }),
     }
