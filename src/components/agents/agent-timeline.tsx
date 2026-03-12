@@ -169,9 +169,15 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
   const bottomRef = useRef<HTMLDivElement>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
+  // Scroll to bottom on new history messages (smooth) or streaming chunks (instant).
+  // Using "smooth" on every streaming flush causes layout thrashing and visible flicker.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+  }, [messages]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [streamingContent]);
 
   // Timer that counts up while streaming.
   useEffect(() => {
@@ -310,16 +316,18 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             )}
             {streamingContent && (
               <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-[14px] bg-white/[0.04] text-white/80 w-full overflow-hidden">
-                <MessageMarkdown content={streamingContent} />
+                <pre className="whitespace-pre-wrap font-sans leading-relaxed">{streamingContent}</pre>
               </div>
             )}
-            <span className="flex items-center gap-2 px-1 text-[12px] text-zinc-500">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
+            {!streamingContent && toolCalls.length === 0 && (
+              <span className="flex items-center gap-2 px-1 text-[12px] text-zinc-500">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
+                </span>
+                Working... {elapsedSeconds}s
               </span>
-              Working... {elapsedSeconds}s
-            </span>
+            )}
           </div>
         </div>
       )}

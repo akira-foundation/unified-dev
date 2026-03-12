@@ -13,7 +13,11 @@ import { SkillsPage } from "@/pages/skills";
 import { SkillDetailsPage } from "@/pages/skill-details";
 import { AutomationsPage } from "@/pages/automations";
 import { CreateAutomationPage } from "@/pages/create-automation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+
+const DIFF_MIN_WIDTH = 280;
+const DIFF_MAX_WIDTH = 900;
+const DIFF_DEFAULT_WIDTH = 600;
 
 export function AgentWorkspaceLayout() {
   const {
@@ -33,10 +37,80 @@ export function AgentWorkspaceLayout() {
     streamingThreadId,
     toolCalls,
     loadMessages,
+    loadFileChanges,
+    repositoriesLoaded,
   } = useAgentsStore();
+
+  const [diffWidth, setDiffWidth] = useState(DIFF_DEFAULT_WIDTH);
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartWidth = useRef(DIFF_DEFAULT_WIDTH);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartWidth.current = diffWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [diffWidth]);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      // Dragging left increases width, right decreases
+      const delta = dragStartX.current - e.clientX;
+      const next = Math.min(DIFF_MAX_WIDTH, Math.max(DIFF_MIN_WIDTH, dragStartWidth.current + delta));
+      setDiffWidth(next);
+    };
+    const onMouseUp = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
 
   // Only show streaming state when the user is viewing the thread that's actively streaming.
   const isCurrentThreadStreaming = isStreaming && streamingThreadId === selectedIssueId;
+
+  const allIssues = repositoryGroups.flatMap((g: RepositoryGroup) =>
+    g.repositories.flatMap((r: AgentRepository) => r.issues)
+  );
+  const selectedIssue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
+
+  // Load persisted messages and file changes whenever the active thread changes,
+  // or when repositories finish loading (covers the reload case where selectedIssueId
+  // is restored from localStorage before repositoryGroups is populated).
+  useEffect(() => {
+    if (selectedIssueId) {
+      loadMessages(selectedIssueId);
+      const issue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
+      if (issue?.workspacePath) {
+        loadFileChanges(issue.workspacePath);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIssueId, repositoriesLoaded, loadMessages, loadFileChanges]);
+
+  // Poll for file changes every 3 seconds while the agent is actively streaming
+  // so the diff panel updates in real-time as the agent writes files.
+  useEffect(() => {
+    if (!isCurrentThreadStreaming) return;
+    const workspacePath = selectedIssue?.workspacePath;
+    if (!workspacePath) return;
+
+    const interval = setInterval(() => {
+      loadFileChanges(workspacePath);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isCurrentThreadStreaming, selectedIssue?.workspacePath, loadFileChanges]);
 
   if (activeTab === "skills") {
     return (
@@ -69,18 +143,6 @@ export function AgentWorkspaceLayout() {
       </div>
     );
   }
-
-  const allIssues = repositoryGroups.flatMap((g: RepositoryGroup) =>
-    g.repositories.flatMap((r: AgentRepository) => r.issues)
-  );
-  const selectedIssue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
-
-  // Load persisted messages whenever the active thread changes.
-  useEffect(() => {
-    if (selectedIssueId) {
-      loadMessages(selectedIssueId);
-    }
-  }, [selectedIssueId, loadMessages]);
 
   if (!selectedIssue) {
     return (
@@ -163,11 +225,21 @@ export function AgentWorkspaceLayout() {
 
         <div
           className={cn(
-            "h-full flex shrink-0 border-l border-border/10 transition-all duration-300 ease-in-out overflow-hidden",
-            isRightSidebarOpen ? "w-[600px] border-l" : "w-0 border-l-0"
+            "h-full flex shrink-0 transition-all duration-300 ease-in-out overflow-hidden",
+            isRightSidebarOpen ? "border-l border-border/10" : "w-0"
           )}
+          style={isRightSidebarOpen ? { width: diffWidth } : undefined}
         >
-          <div className="w-[600px] h-full">
+          {/* Resize handle */}
+          {isRightSidebarOpen && (
+            <div
+              className="w-1 h-full cursor-col-resize shrink-0 group relative"
+              onMouseDown={onMouseDown}
+            >
+              <div className="absolute inset-y-0 left-0 w-1 group-hover:bg-purple-500/40 group-active:bg-purple-500/60 transition-colors" />
+            </div>
+          )}
+          <div className="flex-1 h-full min-w-0">
             <DiffViewer files={fileChanges} />
           </div>
         </div>

@@ -255,6 +255,13 @@ export function AgentsSidebar() {
                           <span className="flex-1 text-left text-[13px] font-medium text-foreground/70 group-hover/repo:text-foreground truncate">
                             {repo.name}
                           </span>
+                          {repo.issues.some((i) => streamingThreadId === i.id) && (
+                            <span className="flex items-center gap-[3px] shrink-0">
+                              <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:0ms]" />
+                              <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:150ms]" />
+                              <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:300ms]" />
+                            </span>
+                          )}
                         </button>
 
                         <div className="flex items-center gap-1 opacity-0 group-hover/workspace:opacity-100 transition-opacity">
@@ -345,12 +352,6 @@ export function AgentsSidebar() {
                             >
                               <div className="flex items-center justify-between gap-2 min-w-0 w-full">
                                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                                  {streamingThreadId === issue.id && (
-                                    <div className="relative h-4 w-4 flex items-center justify-center shrink-0">
-                                      <div className="absolute inset-0 border-2 border-white/10 rounded-full" />
-                                      <div className="absolute inset-0 border-2 border-transparent border-t-white/40 rounded-full animate-spin" />
-                                    </div>
-                                  )}
                                   <span className={cn(
                                     "text-[13px] truncate transition-colors flex-1",
                                     selectedIssueId === issue.id && activeTab === "workspace"
@@ -359,6 +360,13 @@ export function AgentsSidebar() {
                                   )}>
                                     {issue.title}
                                   </span>
+                                  {streamingThreadId === issue.id && (
+                                    <span className="flex items-center gap-[3px] shrink-0">
+                                      <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:0ms]" />
+                                      <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:150ms]" />
+                                      <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:300ms]" />
+                                    </span>
+                                  )}
                                   {issue.prUrl && (
                                     <GitBranch className="h-3 w-3 text-blue-500 shrink-0" />
                                   )}

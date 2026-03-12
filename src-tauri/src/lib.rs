@@ -14,7 +14,7 @@ mod threads;
 
 use std::sync::Arc;
 
-use commands::agent_commands::{agents_get_messages, agents_send_message, get_available_models, list_files, read_file, search_files, run_workspace_command};
+use commands::agent_commands::{agents_get_messages, agents_send_message, create_draft_pr, get_available_models, get_workspace_changes, list_files, read_file, search_files, run_workspace_command};
 use commands::organization_commands::{
     create_organization, delete_organization, list_organizations, list_organizations_by_provider,
     list_selected_repositories, save_selected_repositories,
@@ -115,6 +115,8 @@ pub fn run() {
             agents_get_messages,
             agents_send_message,
             run_workspace_command,
+            get_workspace_changes,
+            create_draft_pr,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

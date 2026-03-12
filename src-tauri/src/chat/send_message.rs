@@ -1303,11 +1303,9 @@ async fn copilot_responses_stream(
     ]);
 
     let mut full_text = String::new();
-    // previous_response_id enables multi-turn continuation in the Responses API.
-    let mut previous_response_id: Option<String> = None;
 
     loop {
-        let mut body = json!({
+        let body = json!({
             "model": model,
             "input": input,
             "stream": true,
@@ -1315,9 +1313,6 @@ async fn copilot_responses_stream(
             "tools": tools,
             "tool_choice": "auto"
         });
-        if let Some(ref prev_id) = previous_response_id {
-            body["previous_response_id"] = json!(prev_id);
-        }
 
         let response = client
             .post("https://api.githubcopilot.com/v1/responses")
@@ -1337,20 +1332,27 @@ async fn copilot_responses_stream(
         }
 
         // Parse the SSE stream.
-        let (text_in_turn, tool_calls, resp_id) =
+        let (text_in_turn, tool_calls) =
             stream_responses_sse(response, app, thread_id).await?;
 
         full_text.push_str(&text_in_turn);
-        if let Some(id) = resp_id {
-            previous_response_id = Some(id);
-        }
 
         if tool_calls.is_empty() {
             break;
         }
 
-        // Execute each tool call and collect function_call_output items.
-        let mut next_input: Vec<Value> = Vec::new();
+        // Append the assistant's function_call items to the running input so the
+        // full conversation context is preserved in the next request.
+        for tc in &tool_calls {
+            input.push(json!({
+                "type": "function_call",
+                "call_id": tc.call_id,
+                "name": tc.name,
+                "arguments": tc.arguments
+            }));
+        }
+
+        // Execute each tool call and append function_call_output items.
         for tc in &tool_calls {
             let args: Value = serde_json::from_str(&tc.arguments)
                 .unwrap_or(Value::Object(Default::default()));
@@ -1372,15 +1374,12 @@ async fn copilot_responses_stream(
                 output: Some(result.clone()),
             });
 
-            next_input.push(json!({
+            input.push(json!({
                 "type": "function_call_output",
                 "call_id": tc.call_id,
                 "output": result
             }));
         }
-
-        // Replace input with just the tool outputs; previous_response_id links context.
-        input = next_input;
     }
 
     Ok(full_text)
@@ -1394,17 +1393,16 @@ struct ResponsesToolCall {
     arguments: String,
 }
 
-/// Drives a Responses API SSE stream. Returns (text, tool_calls, response_id).
+/// Drives a Responses API SSE stream. Returns (text, tool_calls).
 async fn stream_responses_sse(
     response: reqwest::Response,
     app: &AppHandle,
     thread_id: &str,
-) -> AppResult<(String, Vec<ResponsesToolCall>, Option<String>)> {
+) -> AppResult<(String, Vec<ResponsesToolCall>)> {
     let mut full_text = String::new();
     let mut tool_calls: Vec<ResponsesToolCall> = Vec::new();
     // Index into tool_calls for the currently-streaming function call.
     let mut current_tc_index: Option<usize> = None;
-    let mut response_id: Option<String> = None;
 
     let mut byte_stream = response.bytes_stream();
     let mut line_buf = String::new();
@@ -1482,12 +1480,6 @@ async fn stream_responses_sse(
                             current_tc_index = None;
                         }
                         "response.completed" => {
-                            // Extract the response ID for multi-turn continuation.
-                            if let Some(resp) = val.get("response") {
-                                response_id = resp.get("id")
-                                    .and_then(|id| id.as_str())
-                                    .map(|s| s.to_string());
-                            }
                             break 'stream;
                         }
                         _ => {}
@@ -1505,7 +1497,7 @@ async fn stream_responses_sse(
         .filter(|tc| !tc.call_id.is_empty() && !tc.name.is_empty())
         .collect();
 
-    Ok((full_text, calls, response_id))
+    Ok((full_text, calls))
 }
 
 // ---------------------------------------------------------------------------
@@ -1634,15 +1626,13 @@ fn find_claude_cli() -> Option<std::path::PathBuf> {
 }
 
 /// Streams a response via the Claude CLI subprocess.
-/// The CLI doesn't support tool_use natively via our stdin/stdout approach,
-/// so we give it an enriched system prompt with direct file access instructions
-/// and rely on the CLI's own built-in tool-use capabilities.
 async fn claude_cli_stream(
     model: &str,
     system_prompt: &str,
     history: &[Message],
     app: &AppHandle,
     thread_id: &str,
+    workspace_path: &str,
 ) -> AppResult<String> {
     let claude_bin = find_claude_cli().ok_or_else(|| {
         AppError::Internal(
@@ -1666,14 +1656,21 @@ async fn claude_cli_stream(
         .arg("--output-format").arg("stream-json")
         .arg("--verbose")
         .arg("--system-prompt").arg(system_prompt)
-        .arg("--no-session-persistence");
+        .arg("--no-session-persistence")
+        // Grant the CLI read/write access to the workspace directory
+        .arg("--add-dir").arg(workspace_path)
+        // Give the CLI access to all built-in tools (read, write, edit, bash, etc.)
+        .arg("--allowedTools").arg("Bash Read Write Edit Glob Grep LS");
 
     let cli_model = resolve_claude_cli_model(model);
     cmd.arg("--model").arg(cli_model);
 
     cmd.stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::null());
+        // Pipe stderr so errors are visible in logs instead of being silently dropped
+        .stderr(std::process::Stdio::piped())
+        // Set the process working directory to the workspace
+        .current_dir(workspace_path);
 
     let mut child = cmd.spawn().map_err(|e| {
         AppError::Internal(format!("Failed to spawn claude CLI: {e}"))
@@ -1689,6 +1686,19 @@ async fn claude_cli_stream(
     let stdout = child.stdout.take().ok_or_else(|| {
         AppError::Internal("Failed to capture claude CLI stdout".to_string())
     })?;
+    // Collect stderr in background so it doesn't block stdout reading.
+    let stderr_handle = child.stderr.take().map(|stderr| {
+        tokio::spawn(async move {
+            let mut lines = BufReader::new(stderr).lines();
+            let mut buf = String::new();
+            while let Ok(Some(line)) = lines.next_line().await {
+                eprintln!("[claude CLI stderr] {}", line);
+                buf.push_str(&line);
+                buf.push('\n');
+            }
+            buf
+        })
+    });
 
     let mut lines = BufReader::new(stdout).lines();
     let mut full_response = String::new();
@@ -1761,10 +1771,201 @@ async fn claude_cli_stream(
     }
 
     let _ = child.wait().await;
+    // Log any stderr output for debugging
+    if let Some(handle) = stderr_handle {
+        if let Ok(stderr_text) = handle.await {
+            if !stderr_text.trim().is_empty() {
+                eprintln!("[claude CLI] stderr output: {}", stderr_text.trim());
+            }
+        }
+    }
 
     if full_response.is_empty() {
         return Err(AppError::Internal(
             "Claude CLI returned an empty response.".to_string(),
+        ));
+    }
+
+    Ok(full_response)
+}
+
+// ---------------------------------------------------------------------------
+// Codex CLI subprocess (gpt-5.x models via `codex exec --json`)
+// ---------------------------------------------------------------------------
+
+/// Finds the codex CLI binary, checking common install locations.
+fn find_codex_cli() -> Option<std::path::PathBuf> {
+    let home = dirs::home_dir();
+    let mut candidates: Vec<std::path::PathBuf> = vec![
+        std::path::PathBuf::from("/opt/homebrew/bin/codex"),
+        std::path::PathBuf::from("/usr/local/bin/codex"),
+    ];
+    if let Some(ref h) = home {
+        candidates.push(h.join(".local/bin/codex"));
+    }
+    if let Ok(path_var) = std::env::var("PATH") {
+        for dir in path_var.split(':') {
+            candidates.push(std::path::PathBuf::from(dir).join("codex"));
+        }
+    }
+    candidates.into_iter().find(|p| p.exists())
+}
+
+/// Runs a gpt-5.x model via `codex exec --json`.
+/// The Codex CLI handles auth (ChatGPT session), tool-use, and sandboxing natively.
+/// We pass the full conversation as a single prompt and stream `agent_message` tokens
+/// to the frontend as they complete.
+async fn codex_cli_stream(
+    model: &str,
+    history: &[Message],
+    app: &AppHandle,
+    thread_id: &str,
+    workspace_path: &str,
+) -> AppResult<String> {
+    let codex_bin = find_codex_cli().ok_or_else(|| {
+        AppError::Internal(
+            "Codex CLI not found. Install it with: brew install codex".to_string(),
+        )
+    })?;
+
+    // Build a single prompt from the conversation history.
+    // The Codex CLI is single-turn per invocation; we inline history as context.
+    let mut prompt_parts: Vec<String> = Vec::new();
+    for msg in history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
+        let role_label = if msg.role == "user" { "User" } else { "Assistant" };
+        prompt_parts.push(format!("{role_label}: {}", msg.content));
+    }
+    let stdin_prompt = if prompt_parts.is_empty() {
+        "Hello".to_string()
+    } else {
+        prompt_parts.join("\n\n")
+    };
+
+    let mut cmd = tokio::process::Command::new(&codex_bin);
+    cmd.arg("exec")
+        .arg("--json")
+        .arg("--model").arg(model)
+        .arg("--sandbox").arg("workspace-write")
+        .arg("--ephemeral")
+        .arg("-C").arg(workspace_path)
+        // Read prompt from stdin
+        .arg("-");
+
+    cmd.stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null());
+
+    let mut child = cmd.spawn().map_err(|e| {
+        AppError::Internal(format!("Failed to spawn codex CLI: {e}"))
+    })?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        use tokio::io::AsyncWriteExt;
+        stdin.write_all(stdin_prompt.as_bytes()).await.map_err(|e| {
+            AppError::Internal(format!("Failed to write to codex CLI stdin: {e}"))
+        })?;
+    }
+
+    let stdout = child.stdout.take().ok_or_else(|| {
+        AppError::Internal("Failed to capture codex CLI stdout".to_string())
+    })?;
+
+    let mut lines = BufReader::new(stdout).lines();
+    let mut full_response = String::new();
+    // Track command_execution items so we can emit tool events to the frontend.
+    let mut pending_command: Option<String> = None;
+
+    while let Some(line) = lines.next_line().await.map_err(|e| {
+        AppError::Internal(format!("Error reading codex CLI output: {e}"))
+    })? {
+        let line = line.trim().to_string();
+        if line.is_empty() {
+            continue;
+        }
+
+        let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) else {
+            continue;
+        };
+
+        let event_type = val.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match event_type {
+            "item.started" => {
+                if let Some(item) = val.get("item") {
+                    if item.get("type").and_then(|t| t.as_str()) == Some("command_execution") {
+                        let cmd_str = item.get("command")
+                            .and_then(|c| c.as_str())
+                            .unwrap_or("shell command")
+                            .to_string();
+                        pending_command = Some(cmd_str.clone());
+                        emit_tool_call(app, StreamToolCallPayload {
+                            thread_id: thread_id.to_string(),
+                            label: format!("run: {cmd_str}"),
+                            status: "running".to_string(),
+                            output: None,
+                        });
+                    }
+                }
+            }
+            "item.completed" => {
+                if let Some(item) = val.get("item") {
+                    match item.get("type").and_then(|t| t.as_str()) {
+                        Some("agent_message") => {
+                            if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
+                                if !text.is_empty() {
+                                    // Emit incrementally word-by-word for a streaming feel.
+                                    let mut buf = String::new();
+                                    for ch in text.chars() {
+                                        buf.push(ch);
+                                        if ch == ' ' || ch == '\n' || ch == ',' || ch == '.' || ch == ':' {
+                                            emit_token(app, thread_id, &buf);
+                                            buf.clear();
+                                            tokio::time::sleep(std::time::Duration::from_millis(4)).await;
+                                        }
+                                    }
+                                    if !buf.is_empty() {
+                                        emit_token(app, thread_id, &buf);
+                                    }
+                                    if !full_response.is_empty() {
+                                        full_response.push('\n');
+                                    }
+                                    full_response.push_str(text);
+                                }
+                            }
+                        }
+                        Some("command_execution") => {
+                            let output = item.get("aggregated_output")
+                                .and_then(|o| o.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            if let Some(cmd_str) = pending_command.take() {
+                                emit_tool_call(app, StreamToolCallPayload {
+                                    thread_id: thread_id.to_string(),
+                                    label: format!("run: {cmd_str}"),
+                                    status: "done".to_string(),
+                                    output: Some(output),
+                                });
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            "error" => {
+                let msg = val.get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("unknown error from codex CLI");
+                return Err(AppError::Internal(format!("Codex CLI error: {msg}")));
+            }
+            _ => {}
+        }
+    }
+
+    let _ = child.wait().await;
+
+    if full_response.is_empty() {
+        return Err(AppError::Internal(
+            "Codex CLI returned an empty response.".to_string(),
         ));
     }
 
@@ -1805,7 +2006,7 @@ async fn route_claude_with_fallback(
     // 2. Fall back to Claude CLI if installed.
     if find_claude_cli().is_some() {
         eprintln!("[router] ANTHROPIC_API_KEY not found, falling back to Claude CLI subprocess");
-        return claude_cli_stream(model, system_prompt, history, app, thread_id).await;
+        return claude_cli_stream(model, system_prompt, history, app, thread_id, workspace_path).await;
     }
 
     // 3. Fall back to Copilot if credentials exist.
@@ -1830,15 +2031,12 @@ fn route_model(model: &str) -> &str {
     if model.starts_with("claude-") {
         return "anthropic";
     }
-    // Pure codex-* CLI models (e.g. codex-mini-latest) — routed to the Codex CLI path.
-    if model.starts_with("codex-") {
-        return "codex";
-    }
-    // gpt-5.x Codex subscription models — require the /v1/responses endpoint.
-    if model.starts_with("gpt-5") {
+    // gpt-5.x and codex-* models require the Responses API (/v1/responses),
+    // with codex CLI as fallback.
+    if model.starts_with("gpt-5") || model.starts_with("codex-") {
         return "copilot_responses";
     }
-    // Everything else (gpt-4*, gemini-*, grok-*, o1/o3/o4, etc.) → Copilot.
+    // Everything else (gpt-4*, gemini-*, grok-*, o1/o3/o4, etc.) → Copilot chat completions.
     if model.starts_with("gpt-")
         || model.starts_with("o1")
         || model.starts_with("o3")
@@ -1890,12 +2088,20 @@ pub async fn send_message(
             route_claude_with_fallback(&model, &system_prompt, &history, &app, &thread_id, &workspace_path).await
         }
         "copilot_responses" => {
+            // Primary: Copilot /v1/responses endpoint (real streaming, no external binary).
+            // Fallback: codex CLI subprocess if Copilot credentials are absent or the call fails.
             if read_copilot_oauth_token().is_some() {
-                copilot_responses_stream(&model, &system_prompt, &history, &app, &thread_id, &workspace_path).await
+                let result = copilot_responses_stream(&model, &system_prompt, &history, &app, &thread_id, &workspace_path).await;
+                match result {
+                    Ok(text) => Ok(text),
+                    Err(e) => {
+                        eprintln!("[router] copilot_responses_stream failed ({e}), falling back to codex CLI");
+                        codex_cli_stream(&model, &history, &app, &thread_id, &workspace_path).await
+                    }
+                }
             } else {
-                Err(AppError::Internal(
-                    "GitHub Copilot credentials not found. Make sure the Copilot extension is installed and authenticated.".to_string(),
-                ))
+                eprintln!("[router] Copilot credentials not found, trying codex CLI for {model}");
+                codex_cli_stream(&model, &history, &app, &thread_id, &workspace_path).await
             }
         }
         "copilot" => {
@@ -1907,7 +2113,6 @@ pub async fn send_message(
                 ))
             }
         }
-        "codex" => codex_stream(&system_prompt, &history, &app, &thread_id, &workspace_path).await,
         _ => ollama_stub(&model, &app, &thread_id).await,
     };
 

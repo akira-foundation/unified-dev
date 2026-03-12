@@ -16,7 +16,7 @@ import {
   CloudUpload,
   MoreVertical,
   Trash2,
-  Octagon
+  Octagon,
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
@@ -62,9 +62,28 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
-  const { removeThread, setSelectedIssueId } = useAgentsStore();
+  const [isActioning, setIsActioning] = useState(false);
+  const { removeThread, setSelectedIssueId, fileChanges } = useAgentsStore();
 
   const currentAction = ACTION_CONFIGS[selectedAction];
+
+  const handleAction = async () => {
+    if (selectedAction === "draft_pr" || selectedAction === "create_pr") {
+      setIsActioning(true);
+      try {
+        const prUrl = await invoke<string>("create_draft_pr", {
+          workspacePath: issue.workspacePath,
+          branchName: issue.branchName,
+          title: issue.title,
+        });
+        toast.success("Pull request created", { description: prUrl });
+      } catch (err) {
+        toast.error(`Failed to create PR: ${err}`);
+      } finally {
+        setIsActioning(false);
+      }
+    }
+  };
 
   const handleRemoveThread = async () => {
     try {
@@ -83,7 +102,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
   return (
     <header className="h-14 border-b border-white/[0.03] flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
-      {/* Title & Metadata (Left Aligned) */}
+      {/* Title & Metadata */}
       <div className="flex flex-col gap-0.5 min-w-0">
         <div className="flex items-center gap-3">
           <h1 className="text-[14px] font-semibold tracking-tight text-white/90 truncate max-w-xl">
@@ -108,63 +127,60 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
         </div>
       </div>
 
-      {/* Actions (Right Aligned Menu) */}
+      {/* Actions */}
       <div className="flex items-center gap-3">
-        {issue.status !== "Running" && (
-          <div className="flex items-center">
-            {/* Split Action Button - Match Dropdown Aesthetic */}
-            <div className="flex items-center bg-[#0F0F0F] rounded-xl border border-white/5 shadow-2xl overflow-hidden transition-all duration-300">
-              <Button
-                variant="ghost"
-                className="h-8 pl-4 pr-3 text-white/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none"
-              >
-                <currentAction.icon className="h-4 w-4 text-[#A855F7]" />
-                <span>{currentAction.label}</span>
-              </Button>
+        {fileChanges.length > 0 && (
+          <div className="flex items-center bg-[#0F0F0F] rounded-xl border border-white/5 shadow-2xl overflow-hidden transition-all duration-300">
+            <Button
+              variant="ghost"
+              disabled={isActioning}
+              onClick={handleAction}
+              className="h-8 pl-4 pr-3 text-white/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none"
+            >
+              <currentAction.icon className="h-4 w-4 text-[#A855F7]" />
+              <span>{currentAction.label}</span>
+            </Button>
 
-              <div className="w-[1px] h-3.5 bg-white/10" />
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-9 rounded-none hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-none"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-80 bg-[#0F0F0F] border-white/[0.05] p-2 shadow-2xl rounded-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-9 rounded-none hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-none"
                 >
-                  {(Object.entries(ACTION_CONFIGS) as [HeaderAction, ActionConfig][]).map(([key, config]) => (
-                    <DropdownMenuItem
-                      key={key}
-                      onSelect={() => setSelectedAction(key)}
-                      className={cn(
-                        "flex items-start gap-3.5 p-3.5 focus:bg-white/[0.03] rounded-xl cursor-pointer group transition-all duration-200",
-                        selectedAction === key && "bg-white/[0.02]"
-                      )}
-                    >
-                      <div className={cn(
-                        "h-9 w-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-[#A855F7]/10 group-hover:border-[#A855F7]/20 transition-all duration-200",
-                        selectedAction === key && "bg-[#A855F7]/10 border-[#A855F7]/20"
-                      )}>
-                        <config.icon className={cn(
-                          "h-4 w-4 transition-colors",
-                          selectedAction === key ? "text-[#A855F7]" : "text-zinc-400 group-hover:text-[#A855F7]"
-                        )} />
-                      </div>
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-[13px] font-semibold text-white/90 tracking-tight">{config.label}</span>
-                        <span className="text-[11px] text-zinc-500 leading-tight">{config.description}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-80 bg-[#0F0F0F] border-white/[0.05] p-2 shadow-2xl rounded-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
+              >
+                {(Object.entries(ACTION_CONFIGS) as [HeaderAction, ActionConfig][]).map(([key, config]) => (
+                  <DropdownMenuItem
+                    key={key}
+                    onSelect={() => setSelectedAction(key)}
+                    className={cn(
+                      "flex items-start gap-3.5 p-3.5 focus:bg-white/[0.03] rounded-xl cursor-pointer group transition-all duration-200",
+                      selectedAction === key && "bg-white/[0.02]"
+                    )}
+                  >
+                    <div className={cn(
+                      "h-9 w-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-[#A855F7]/10 group-hover:border-[#A855F7]/20 transition-all duration-200",
+                      selectedAction === key && "bg-[#A855F7]/10 border-[#A855F7]/20"
+                    )}>
+                      <config.icon className={cn(
+                        "h-4 w-4 transition-colors",
+                        selectedAction === key ? "text-[#A855F7]" : "text-zinc-400 group-hover:text-[#A855F7]"
+                      )} />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[13px] font-semibold text-white/90 tracking-tight">{config.label}</span>
+                      <span className="text-[11px] text-zinc-500 leading-tight">{config.description}</span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
 

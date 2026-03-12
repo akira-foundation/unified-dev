@@ -53,6 +53,7 @@ interface AgentsState {
   loadRepositories: () => Promise<void>;
   loadMessages: (threadId: string) => Promise<void>;
   sendMessage: (threadId: string, content: string, model: string) => Promise<void>;
+  loadFileChanges: (workspacePath: string) => Promise<void>;
   addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string, workspace_path: string }) => void;
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
   removeThread: (repoId: string, threadId: string) => void;
@@ -170,6 +171,14 @@ export const useAgentsStore = create<AgentsState>()(
           set({ messages: [] });
         }
       },
+      loadFileChanges: async (workspacePath: string) => {
+        try {
+          const changes = await invoke<FileChange[]>("get_workspace_changes", { workspacePath });
+          set({ fileChanges: changes });
+        } catch {
+          set({ fileChanges: [] });
+        }
+      },
       sendMessage: async (threadId: string, content: string, model: string) => {
         const { repositoryGroups } = get();
 
@@ -259,14 +268,38 @@ export const useAgentsStore = create<AgentsState>()(
           toolCalls: [],
         }));
 
+        // Buffer for incoming tokens — flushed to Zustand at most every 50ms
+        // to avoid a re-render per token (which causes ReactMarkdown to re-parse
+        // the entire string on every keystroke, freezing the UI on long responses).
+        let tokenBuffer = "";
+        let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const flushTokenBuffer = () => {
+          if (flushTimer) {
+            clearTimeout(flushTimer);
+            flushTimer = null;
+          }
+          if (tokenBuffer) {
+            const buffered = tokenBuffer;
+            tokenBuffer = "";
+            set((state) => ({ streamingContent: state.streamingContent + buffered }));
+          }
+        };
+
         // Set up streaming listeners before invoking the command.
         const unlistenToken = await listen<{ thread_id: string; token: string }>(
           "agent-stream-token",
           (event) => {
             if (event.payload.thread_id !== threadId) return;
-            set((state) => ({
-              streamingContent: state.streamingContent + event.payload.token,
-            }));
+            tokenBuffer += event.payload.token;
+            if (!flushTimer) {
+              flushTimer = setTimeout(() => {
+                const buffered = tokenBuffer;
+                tokenBuffer = "";
+                flushTimer = null;
+                set((state) => ({ streamingContent: state.streamingContent + buffered }));
+              }, 50);
+            }
           }
         );
 
@@ -309,10 +342,15 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenToolCall();
             unlistenDone();
             unlistenError();
+            flushTokenBuffer();
             set({ isStreaming: false, streamingContent: "", streamingThreadId: null, toolCalls: [] });
             // Only reload messages into visible state if still on this thread.
             if (get().selectedIssueId === threadId) {
               await get().loadMessages(threadId);
+            }
+            // Refresh file changes after the agent finishes writing
+            if (workspacePath) {
+              await get().loadFileChanges(workspacePath);
             }
           }
         );
@@ -325,6 +363,7 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenToolCall();
             unlistenDone();
             unlistenError();
+            flushTokenBuffer();
             set({ isStreaming: false, streamingContent: "", streamingThreadId: null, toolCalls: [] });
             toast.error(`Agent error: ${event.payload.error}`);
           }
@@ -336,6 +375,7 @@ export const useAgentsStore = create<AgentsState>()(
           unlistenToken();
           unlistenDone();
           unlistenError();
+          flushTokenBuffer();
           set({ isStreaming: false, streamingContent: "", streamingThreadId: null });
           toast.error(`Failed to send message: ${err}`);
         }

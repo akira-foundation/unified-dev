@@ -6,7 +6,7 @@ use crate::error::AppResult;
 use crate::state::AppState;
 use std::fs;
 use std::path::Path;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
 #[derive(Debug, Serialize)]
@@ -176,6 +176,176 @@ pub async fn agents_send_message(
     });
 
     Ok(())
+}
+
+/// Returns the list of files changed in the workspace (relative to HEAD) along with their diffs.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FileChange {
+    pub filename: String,
+    pub status: String,
+    pub diff: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_workspace_changes(workspace_path: String) -> Result<Vec<FileChange>, String> {
+    let workspace = Path::new(&workspace_path);
+    if !workspace.exists() {
+        return Err(format!("Workspace path does not exist: {workspace_path}"));
+    }
+
+    // Check if it's a git repo
+    let git_dir = workspace.join(".git");
+    if !git_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    // Run `git status --porcelain` to get changed files and their status codes
+    let status_output = tokio::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(workspace)
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run git status: {e}"))?;
+
+    let status_text = String::from_utf8_lossy(&status_output.stdout);
+    let mut changes: Vec<FileChange> = Vec::new();
+
+    for line in status_text.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        // Porcelain format: XY filename  (XY is 2-char status, space, then filename)
+        let xy = &line[0..2];
+        let filename = line[3..].trim().to_string();
+
+        let status = match xy.trim() {
+            "M" | "MM" | " M" => "modified",
+            "A" | "AM" => "added",
+            "D" | " D" => "deleted",
+            "R" => "modified", // renamed — treat as modified
+            _ => "modified",
+        }
+        .to_string();
+
+        // Get the diff for this file. For deleted files use `git show HEAD:file`.
+        let diff = if status == "deleted" {
+            // Show what was in HEAD
+            let show_output = tokio::process::Command::new("git")
+                .args(["show", &format!("HEAD:{filename}")])
+                .current_dir(workspace)
+                .output()
+                .await
+                .ok();
+            show_output.and_then(|o| {
+                if o.status.success() {
+                    let content = String::from_utf8_lossy(&o.stdout).to_string();
+                    // Wrap as a deletion diff
+                    Some(
+                        content
+                            .lines()
+                            .map(|l| format!("-{l}"))
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    )
+                } else {
+                    None
+                }
+            })
+        } else {
+            // `git diff HEAD -- <file>` covers both staged and unstaged changes
+            let diff_output = tokio::process::Command::new("git")
+                .args(["diff", "HEAD", "--", &filename])
+                .current_dir(workspace)
+                .output()
+                .await
+                .ok();
+
+            let diff_text = diff_output
+                .and_then(|o| if o.stdout.is_empty() { None } else { Some(o.stdout) })
+                .map(|b| String::from_utf8_lossy(&b).to_string());
+
+            // If `git diff HEAD` produced nothing (e.g. newly staged file not yet committed)
+            // fall back to `git diff --cached -- <file>`
+            if diff_text.is_none() || diff_text.as_deref() == Some("") {
+                let cached_output = tokio::process::Command::new("git")
+                    .args(["diff", "--cached", "--", &filename])
+                    .current_dir(workspace)
+                    .output()
+                    .await
+                    .ok();
+                cached_output.and_then(|o| {
+                    if o.stdout.is_empty() {
+                        None
+                    } else {
+                        Some(String::from_utf8_lossy(&o.stdout).to_string())
+                    }
+                })
+            } else {
+                diff_text
+            }
+        };
+
+        changes.push(FileChange { filename, status, diff });
+    }
+
+    Ok(changes)
+}
+
+/// Creates a draft pull request on GitHub for the given branch and returns the PR URL.
+/// Steps:
+///   1. git add -A && git commit (if there are uncommitted changes)
+///   2. git push -u origin <branch>
+///   3. gh pr create --draft
+#[tauri::command]
+pub async fn create_draft_pr(
+    workspace_path: String,
+    branch_name: String,
+    title: String,
+) -> Result<String, String> {
+    let workspace = Path::new(&workspace_path);
+    if !workspace.exists() {
+        return Err(format!("Workspace path does not exist: {workspace_path}"));
+    }
+
+    let run = |args: &[&str]| -> Result<String, String> {
+        let out = std::process::Command::new(args[0])
+            .args(&args[1..])
+            .current_dir(workspace)
+            .output()
+            .map_err(|e| format!("Failed to run {:?}: {e}", args[0]))?;
+        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        if !out.status.success() {
+            return Err(if stderr.is_empty() { stdout } else { stderr });
+        }
+        Ok(stdout)
+    };
+
+    // 1. Stage all changes
+    run(&["git", "add", "-A"])?;
+
+    // 2. Commit if there is anything staged
+    let status = run(&["git", "status", "--porcelain"])?;
+    if !status.trim().is_empty() {
+        run(&["git", "commit", "-m", &format!("chore: agent changes for '{title}'")])?;
+    }
+
+    // 3. Push branch to origin (set upstream on first push)
+    run(&["git", "push", "-u", "origin", &branch_name])?;
+
+    // 4. Create draft PR via GitHub CLI
+    let pr_body = format!(
+        "This draft PR was created automatically by the Akira agent.\n\nThread: {title}"
+    );
+    let pr_url = run(&[
+        "gh", "pr", "create",
+        "--draft",
+        "--title", &title,
+        "--body", &pr_body,
+        "--head", &branch_name,
+    ])?;
+
+    Ok(pr_url.trim().to_string())
 }
 
 /// Run a shell command inside the given workspace directory and return its stdout+stderr output.
