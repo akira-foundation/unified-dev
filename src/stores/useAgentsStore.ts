@@ -70,6 +70,9 @@ interface AgentsState {
   setExpandedRepos: (update: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => void;
   isTerminalOpen: boolean;
   setIsTerminalOpen: (open: boolean) => void;
+  // Collapsed state of each file card in the diff viewer, keyed by threadId → filename
+  collapsedFilesByThread: Record<string, Record<string, boolean>>;
+  setFileCollapsed: (threadId: string, filename: string, collapsed: boolean) => void;
 }
 
 function selectDefaultModel(providers: AiProviderGroup[]): string | null {
@@ -116,6 +119,16 @@ export const useAgentsStore = create<AgentsState>()(
       })),
       isTerminalOpen: false,
       setIsTerminalOpen: (open) => set({ isTerminalOpen: open }),
+      collapsedFilesByThread: {},
+      setFileCollapsed: (threadId, filename, collapsed) => set((state) => ({
+        collapsedFilesByThread: {
+          ...state.collapsedFilesByThread,
+          [threadId]: {
+            ...state.collapsedFilesByThread[threadId],
+            [filename]: collapsed,
+          },
+        },
+      })),
       setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
       setSelectedFilePath: (path) => set({ selectedFilePath: path }),
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -456,6 +469,7 @@ export const useAgentsStore = create<AgentsState>()(
         selectedIssueId: state.selectedIssueId,
         activeTab: state.activeTab,
         selectedModelId: state.selectedModelId,
+        collapsedFilesByThread: state.collapsedFilesByThread,
       }),
     }
   )

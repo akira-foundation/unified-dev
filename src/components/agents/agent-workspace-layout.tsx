@@ -18,6 +18,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 const DIFF_MIN_WIDTH = 280;
 const DIFF_MAX_WIDTH = 900;
 const DIFF_DEFAULT_WIDTH = 600;
+const CHAT_MIN_WIDTH = 500;
 
 export function AgentWorkspaceLayout() {
   const {
@@ -43,37 +44,35 @@ export function AgentWorkspaceLayout() {
 
   const [diffWidth, setDiffWidth] = useState(DIFF_DEFAULT_WIDTH);
   const isDragging = useRef(false);
-  const dragStartX = useRef(0);
-  const dragStartWidth = useRef(DIFF_DEFAULT_WIDTH);
+  const [isResizing, setIsResizing] = useState(false);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     isDragging.current = true;
-    dragStartX.current = e.clientX;
-    dragStartWidth.current = diffWidth;
+    setIsResizing(true);
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
-  }, [diffWidth]);
 
-  useEffect(() => {
-    const onMouseMove = (e: MouseEvent) => {
+    const onMouseMove = (ev: MouseEvent) => {
       if (!isDragging.current) return;
-      // Dragging left increases width, right decreases
-      const delta = dragStartX.current - e.clientX;
-      const next = Math.min(DIFF_MAX_WIDTH, Math.max(DIFF_MIN_WIDTH, dragStartWidth.current + delta));
+      // Width = distance from mouse to right edge of viewport,
+      // clamped so the chat area never goes below CHAT_MIN_WIDTH.
+      const maxAllowed = window.innerWidth - CHAT_MIN_WIDTH;
+      const next = Math.min(DIFF_MAX_WIDTH, Math.max(DIFF_MIN_WIDTH, Math.min(maxAllowed, window.innerWidth - ev.clientX)));
       setDiffWidth(next);
     };
+
     const onMouseUp = () => {
-      if (!isDragging.current) return;
       isDragging.current = false;
+      setIsResizing(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
-    };
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    return () => {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
   }, []);
 
   // Only show streaming state when the user is viewing the thread that's actively streaming.
@@ -225,7 +224,8 @@ export function AgentWorkspaceLayout() {
 
         <div
           className={cn(
-            "h-full flex shrink-0 transition-all duration-300 ease-in-out overflow-hidden",
+            "h-full flex shrink-0 overflow-hidden",
+            !isResizing && "transition-all duration-300 ease-in-out",
             isRightSidebarOpen ? "border-l border-border/10" : "w-0"
           )}
           style={isRightSidebarOpen ? { width: diffWidth } : undefined}

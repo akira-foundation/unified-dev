@@ -1,21 +1,37 @@
-import { FileCode2, ChevronDown, Monitor, ChevronsUpDown } from "lucide-react";
-import { useState } from "react";
+import { FileCode2, ChevronDown, Monitor, ChevronsUpDown, MoreVertical, Pencil, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FileChange } from "@/types/agents";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileExplorer } from "./file-explorer";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 interface DiffViewerProps {
   files: FileChange[];
 }
 
 export function DiffViewer({ files }: DiffViewerProps) {
-  const { isFilesAllExpanded, setIsFilesAllExpanded, diffViewTab, setDiffViewTab } = useAgentsStore();
-  const [collapsedFiles, setCollapsedFiles] = useState<Record<string, boolean>>({});
+  const {
+    isFilesAllExpanded,
+    setIsFilesAllExpanded,
+    diffViewTab,
+    setDiffViewTab,
+    selectedIssueId,
+    collapsedFilesByThread,
+    setFileCollapsed,
+  } = useAgentsStore();
+
+  const collapsedFiles = selectedIssueId ? (collapsedFilesByThread[selectedIssueId] ?? {}) : {};
 
   const toggleCollapse = (filename: string) => {
-    setCollapsedFiles((prev) => ({ ...prev, [filename]: !prev[filename] }));
+    if (!selectedIssueId) return;
+    setFileCollapsed(selectedIssueId, filename, !collapsedFiles[filename]);
   };
 
   const toggleAll = () => {
@@ -23,20 +39,15 @@ export function DiffViewer({ files }: DiffViewerProps) {
       setIsFilesAllExpanded(!isFilesAllExpanded);
       return;
     }
+    if (!selectedIssueId) return;
 
-    const allCollapsed = Object.keys(collapsedFiles).length === files.length && Object.values(collapsedFiles).every(v => v);
-    if (allCollapsed) {
-      setCollapsedFiles({});
-    } else {
-      const newState: Record<string, boolean> = {};
-      files.forEach(f => newState[f.filename] = true);
-      setCollapsedFiles(newState);
-    }
+    const allCollapsed = files.length > 0 && files.every(f => collapsedFiles[f.filename]);
+    files.forEach(f => setFileCollapsed(selectedIssueId, f.filename, !allCollapsed));
   };
 
   return (
     <div className="flex flex-col h-full bg-zinc-50 dark:bg-background border-l border-zinc-200 dark:border-white/[0.05]">
-      {/* Professional Header */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 h-14 bg-white dark:bg-background border-b border-zinc-200 dark:border-white/[0.03] shrink-0">
         <div className="flex items-center gap-6 h-full">
           <button
@@ -104,9 +115,38 @@ export function DiffViewer({ files }: DiffViewerProps) {
                       </CardDescription>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] font-mono font-bold tracking-tight">
-                    <span className="text-emerald-500/70">+12</span>
-                    <span className="text-red-500/70">-4</span>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 text-[10px] font-mono font-bold tracking-tight">
+                      <span className="text-emerald-500/70">+12</span>
+                      <span className="text-red-500/70">-4</span>
+                    </div>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 rounded-md text-zinc-400 hover:text-white hover:bg-white/5 border-none shrink-0"
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md backdrop-blur-3xl"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer">
+                          <Pencil className="h-3.5 w-3.5 text-zinc-400" />
+                          <span>Edit</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer">
+                          <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
+                          <span>Discard</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardHeader>
 
