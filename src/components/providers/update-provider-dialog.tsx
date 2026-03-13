@@ -3,7 +3,10 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
+import { toast } from "sonner";
+
 import type { ProviderSummary } from "../../types/provider";
+import { TOKEN_META } from "./add-provider-dialog";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
@@ -14,13 +17,20 @@ interface UpdateProviderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: { providerId: string; token: string }) => Promise<void> | void;
+  onDisconnect?: () => Promise<void> | void;
 }
 
 const updateSchema = z.object({
   token: z.string().trim().min(10, "Token is required"),
 });
 
-export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit }: UpdateProviderDialogProps) {
+const KIND_LABEL: Record<string, string> = {
+  github: "GitHub",
+  gitlab: "GitLab",
+  bitbucket: "Bitbucket",
+};
+
+export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, onDisconnect }: UpdateProviderDialogProps) {
   const form = useForm<z.infer<typeof updateSchema>>({
     // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(updateSchema),
@@ -37,20 +47,34 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit }:
   }, [open, form]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
-    if (!provider) {
-      return;
-    }
+    if (!provider) return;
     await onSubmit({ providerId: provider.id, token: values.token.trim() });
     onOpenChange(false);
   });
+
+  const handleDisconnect = async () => {
+    if (!onDisconnect) return;
+    const toastId = toast.loading("Desconectando...");
+    try {
+      await onDisconnect();
+      toast.success("Provider desconectado", { id: toastId });
+      onOpenChange(false);
+    } catch (error) {
+      const message = typeof error === "string" ? error : error instanceof Error ? error.message : "Falha ao desconectar";
+      toast.error(message, { id: toastId });
+    }
+  };
+
+  const kindLabel = provider ? (KIND_LABEL[provider.kind] ?? provider.kind) : "";
+  const meta = provider ? (TOKEN_META[provider.kind] ?? TOKEN_META.github) : TOKEN_META.github;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Update token</DialogTitle>
+          <DialogTitle>Manage {kindLabel}</DialogTitle>
           <DialogDescription>
-            {provider ? `Update token for ${provider.name}.` : "Update provider token."}
+            {provider ? `Connected · ${provider.name}` : "Manage provider connection."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -60,21 +84,28 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit }:
               name="token"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Personal access token</FormLabel>
+                  <FormLabel>{meta.label}</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="ghp_..." {...field} />
+                    <Input type="password" placeholder={meta.placeholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Saving..." : "Update token"}
-              </Button>
+            <DialogFooter className="flex-row justify-between sm:justify-between">
+              {onDisconnect && (
+                <Button variant="destructive" type="button" onClick={handleDisconnect} disabled={form.formState.isSubmitting}>
+                  Disconnect
+                </Button>
+              )}
+              <div className="flex gap-2">
+                <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? "Saving..." : "Save"}
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>

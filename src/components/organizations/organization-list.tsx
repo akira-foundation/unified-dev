@@ -38,8 +38,8 @@ export function OrganizationList({
           </div>
         </div>
         {onCreate && (
-          <Button variant="outline" size="sm" onClick={onCreate} className="gap-2 font-bold">
-            <Plus className="h-4 w-4" strokeWidth={3} />
+          <Button onClick={onCreate}>
+            <Plus size={18} />
             New Organization
           </Button>
         )}

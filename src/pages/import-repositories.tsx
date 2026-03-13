@@ -164,8 +164,8 @@ export function ImportRepositoriesPage() {
           </PageHeaderMeta>
         </div>
         {organization && (
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigateTo("organization")}>
-            <ExternalLink className="h-3.5 w-3.5" />
+          <Button onClick={() => navigateTo("organization")}>
+            <ExternalLink size={18} />
             View organization
           </Button>
         )}

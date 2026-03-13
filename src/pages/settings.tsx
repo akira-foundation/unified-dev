@@ -22,7 +22,13 @@ import {
   Trash2,
   User,
   Shield,
+  GitlabIcon,
 } from "lucide-react";
+import { useProviders } from "@/hooks/useProviders";
+import { useNavigation } from "@/hooks/useNavigation";
+import type { ProviderKind } from "@/types/provider";
+import { AddProviderDialog } from "@/components/providers/add-provider-dialog";
+import { Badge } from "@/components/ui/badge";
 
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -115,7 +121,7 @@ const SETTINGS_GROUPS = [
     group: "Development",
     items: [
       { id: "advanced", label: "Advanced", icon: <Wrench className="h-4 w-4" /> },
-      { id: "github", label: "GitHub", icon: <Github className="h-4 w-4" /> },
+      { id: "vcs-providers", label: "VCS Providers", icon: <Unplug className="h-4 w-4" /> },
       { id: "workspaces", label: "Workspaces", icon: <FolderGit2 className="h-4 w-4" /> },
       { id: "prompts", label: "Prompts", icon: <FileText className="h-4 w-4" /> },
     ]
@@ -128,6 +134,9 @@ export function SettingsPage() {
   const dateLabel = useDateLabel(locale);
   const [activeTab, setActiveTab] = useState("general");
   const [showThemePreview, setShowThemePreview] = useState(false);
+  const [isProviderDialogOpen, setIsProviderDialogOpen] = useState(false);
+  const { providers, createProvider } = useProviders();
+  const { navigateTo, setActiveProviderId } = useNavigation("settings");
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -795,25 +804,49 @@ AWS_PROFILE=default`}
             </div>
           )}
 
-          {activeTab === "github" && (
-            <div className="animate-in fade-in duration-300">
-              <SettingsSection
-                title="GitHub Account"
-                description="Connect your GitHub account to enable pull requests and remote actions directly from the Agent workspace."
-                icon={Github}
-              >
-                <SettingsItem
-                  label="GitHub Authentication"
-                  description="Authorize this app to access your GitHub repositories."
-                  action={
-                    <Button variant="outline" className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300">
-                      <Link2 className="h-4 w-4" /> Connect
-                    </Button>
-                  }
+          {activeTab === "vcs-providers" && (() => {
+            const connectedKinds = new Set(providers.map((p) => p.kind));
+            return (
+              <div className="animate-in fade-in duration-300">
+                <div className="flex justify-end mb-4">
+                  <Button onClick={() => setIsProviderDialogOpen(true)}>
+                    <Plus size={18} /> Add manual connection
+                  </Button>
+                </div>
+
+                {([
+                  { kind: "github" as ProviderKind, title: "GitHub", description: "Authenticate with a personal access token to access GitHub repositories and organizations.", icon: Github },
+                  { kind: "gitlab" as ProviderKind, title: "GitLab", description: "Authenticate with a personal access token to access GitLab projects and groups.", icon: GitlabIcon },
+                  { kind: "bitbucket" as ProviderKind, title: "Bitbucket", description: "Authenticate with an app password to access Bitbucket repositories and workspaces.", icon: Blocks },
+                ]).map(({ kind, title, description, icon }) => (
+                  <SettingsSection key={kind} title={title} description={`Connect a ${title} account to enable repository imports and pull requests.`} icon={icon}>
+                    <SettingsItem
+                      label={title}
+                      description={description}
+                      action={
+                        connectedKinds.has(kind) ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">Connected</Badge>
+                            <Button variant="outline" size="sm" onClick={() => { const p = providers.find((p) => p.kind === kind); if (p) { setActiveProviderId(p.id); navigateTo("provider-detail"); } }}>Manage</Button>
+                          </div>
+                        ) : (
+                          <Button>
+                            <Link2 size={18} /> Connect
+                          </Button>
+                        )
+                      }
+                    />
+                  </SettingsSection>
+                ))}
+
+                <AddProviderDialog
+                  open={isProviderDialogOpen}
+                  onOpenChange={setIsProviderDialogOpen}
+                  onSubmit={createProvider}
                 />
-              </SettingsSection>
-            </div>
-          )}
+              </div>
+            );
+          })()}
 
           {activeTab === "workspaces" && (
             <div className="animate-in fade-in duration-300">

@@ -60,11 +60,9 @@ impl ProviderService {
     }
 
     pub async fn delete_provider(&self, provider_id: &str) -> AppResult<()> {
-        let count = self.organizations.count_by_provider(provider_id).await?;
-        if count > 0 {
-            return Err(AppError::Provider(
-                "cannot delete provider with organizations attached".to_string(),
-            ));
+        let organizations = self.organizations.list_by_provider(provider_id).await?;
+        for org in organizations {
+            self.organizations.delete(&org.id).await?;
         }
 
         self.providers.delete(provider_id).await

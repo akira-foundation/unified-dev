@@ -84,8 +84,8 @@ export function OrganizationPage() {
           </PageHeaderMeta>
         </div>
         {organization && (
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigateTo("import-repositories")}>
-            <Download className="h-3.5 w-3.5" />
+          <Button onClick={() => navigateTo("import-repositories")}>
+            <Download size={18} />
             Import repositories
           </Button>
         )}

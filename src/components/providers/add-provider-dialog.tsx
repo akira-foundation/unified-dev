@@ -14,6 +14,7 @@ interface AddProviderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (payload: { name: string; kind: ProviderKind; token: string }) => Promise<void> | void;
+  defaultKind?: ProviderKind;
 }
 
 const providerSchema = z.object({
@@ -22,13 +23,31 @@ const providerSchema = z.object({
   token: z.string().trim().min(10, "Token is required"),
 });
 
-export function AddProviderDialog({ open, onOpenChange, onSubmit }: AddProviderDialogProps) {
+export const TOKEN_META: Record<string, { label: string; placeholder: string; hint: string }> = {
+  github: {
+    label: "Personal access token",
+    placeholder: "ghp_...",
+    hint: "Ensure the token has read:org (and repo for private repos), otherwise organization import will fail.",
+  },
+  gitlab: {
+    label: "Personal access token",
+    placeholder: "glpat-...",
+    hint: "Ensure the token has read_api and read_user scopes, otherwise project import will fail.",
+  },
+  bitbucket: {
+    label: "App password",
+    placeholder: "ATB...",
+    hint: "Create an App Password in Bitbucket Settings with Repositories: Read and Account: Read permissions.",
+  },
+};
+
+export function AddProviderDialog({ open, onOpenChange, onSubmit, defaultKind }: AddProviderDialogProps) {
   const form = useForm<z.infer<typeof providerSchema>>({
     // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(providerSchema),
     mode: "onChange",
     defaultValues: {
-      kind: "github",
+      kind: defaultKind ?? "github",
       name: "",
       token: "",
     },
@@ -36,9 +55,9 @@ export function AddProviderDialog({ open, onOpenChange, onSubmit }: AddProviderD
 
   useEffect(() => {
     if (!open) {
-      form.reset({ kind: "github", name: "", token: "" });
+      form.reset({ kind: defaultKind ?? "github", name: "", token: "" });
     }
-  }, [open, form]);
+  }, [open, form, defaultKind]);
 
   const handleSubmit = form.handleSubmit(async (values) => {
     try {
@@ -92,7 +111,7 @@ export function AddProviderDialog({ open, onOpenChange, onSubmit }: AddProviderD
                 <FormItem>
                   <FormLabel>Display name</FormLabel>
                   <FormControl>
-                    <Input placeholder="GitHub Personal" {...field} />
+                    <Input placeholder="e.g. Personal" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -101,18 +120,21 @@ export function AddProviderDialog({ open, onOpenChange, onSubmit }: AddProviderD
             <FormField
               control={form.control}
               name="token"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Personal access token</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="ghp_..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const meta = TOKEN_META[form.watch("kind")] ?? TOKEN_META.github;
+                return (
+                  <FormItem>
+                    <FormLabel>{meta.label}</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder={meta.placeholder} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
             <div className="rounded-lg border border-amber-200/60 bg-amber-50/60 p-3 text-xs text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
-              Ensure the token has <span className="font-semibold">read:org</span> (and <span className="font-semibold">repo</span> for private repos), otherwise organization import will fail.
+              {TOKEN_META[form.watch("kind")]?.hint ?? TOKEN_META.github.hint}
             </div>
             <DialogFooter>
               <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
