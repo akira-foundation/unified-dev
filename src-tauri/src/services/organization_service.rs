@@ -38,6 +38,7 @@ impl OrganizationService {
             id,
             name: input.name,
             provider_id: input.provider_id,
+            external_id: input.external_id,
             created_at,
         };
 

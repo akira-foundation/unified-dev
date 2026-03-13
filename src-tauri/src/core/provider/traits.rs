@@ -5,10 +5,11 @@ use async_trait::async_trait;
 use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPullRequest};
 use crate::error::AppResult;
 
+#[async_trait]
 pub trait ProviderDriverFactory: Send + Sync {
     fn kind(&self) -> ProviderKind;
     fn name(&self) -> &str;
-    fn create(&self, auth: ProviderAuth) -> AppResult<Arc<dyn VcsProvider>>;
+    async fn create(&self, auth: ProviderAuth) -> AppResult<Arc<dyn VcsProvider>>;
 }
 
 #[async_trait]

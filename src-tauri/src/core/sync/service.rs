@@ -19,7 +19,7 @@ impl VcsSyncService {
         provider_kind: ProviderKind,
         auth: ProviderAuth,
     ) -> AppResult<Vec<ProviderRepo>> {
-        let provider = self.registry.create(&provider_kind, auth)?;
+        let provider = self.registry.create(&provider_kind, auth).await?;
         provider.list_repositories().await
     }
 
@@ -30,7 +30,7 @@ impl VcsSyncService {
         repository: &str,
         auth: ProviderAuth,
     ) -> AppResult<Vec<VcsPullRequest>> {
-        let provider = self.registry.create(&provider_kind, auth)?;
+        let provider = self.registry.create(&provider_kind, auth).await?;
         provider.list_pull_requests(owner, repository).await
     }
 }

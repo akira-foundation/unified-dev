@@ -1,14 +1,87 @@
 use async_trait::async_trait;
+use serde::de::DeserializeOwned;
+use serde::Deserialize;
 
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPullRequest};
+use crate::core::provider::types::{
+    ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PullRequestState, VcsPullRequest,
+};
 use crate::error::{AppError, AppResult};
 
-pub struct GitLabDriver;
+const GITLAB_API: &str = "https://gitlab.com/api/v4";
+
+pub struct GitLabDriver {
+    client: reqwest::Client,
+    token: String,
+}
 
 impl GitLabDriver {
-    pub fn new() -> Self {
-        Self
+    pub fn new(token: String) -> AppResult<Self> {
+        let client = reqwest::Client::builder()
+            .user_agent("UnifiedDev/1.0")
+            .build()?;
+
+        Ok(Self { client, token })
+    }
+
+    async fn get_json<T: DeserializeOwned>(&self, url: &str) -> AppResult<T> {
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!("GitLab API error: {status} {body}")));
+        }
+
+        Ok(response.json::<T>().await?)
+    }
+
+    async fn get_response(&self, url: &str) -> AppResult<reqwest::Response> {
+        let response = self
+            .client
+            .get(url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!("GitLab API error: {status} {body}")));
+        }
+
+        Ok(response)
+    }
+
+    async fn fetch_paginated<T: DeserializeOwned>(&self, base_url: &str) -> AppResult<Vec<T>> {
+        let mut results = Vec::new();
+        let separator = if base_url.contains('?') { '&' } else { '?' };
+        let first_url = format!("{base_url}{separator}per_page=100&page=1");
+        let mut next_url: Option<String> = Some(first_url);
+
+        while let Some(url) = next_url {
+            let response = self.get_response(&url).await?;
+            let next_page = response
+                .headers()
+                .get("x-next-page")
+                .and_then(|v| v.to_str().ok())
+                .filter(|s| !s.is_empty())
+                .map(|page| {
+                    let sep = if base_url.contains('?') { '&' } else { '?' };
+                    format!("{base_url}{sep}per_page=100&page={page}")
+                });
+
+            let chunk: Vec<T> = response.json().await?;
+            results.extend(chunk);
+            next_url = next_page;
+        }
+
+        Ok(results)
     }
 }
 
@@ -20,6 +93,7 @@ impl GitLabFactory {
     }
 }
 
+#[async_trait]
 impl ProviderDriverFactory for GitLabFactory {
     fn kind(&self) -> ProviderKind {
         ProviderKind::GitLab
@@ -29,8 +103,17 @@ impl ProviderDriverFactory for GitLabFactory {
         "GitLab"
     }
 
-    fn create(&self, _auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
-        Ok(std::sync::Arc::new(GitLabDriver::new()))
+    async fn create(&self, auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
+        let token = match auth {
+            ProviderAuth::PersonalAccessToken { token } => token,
+            _ => {
+                return Err(AppError::Provider(
+                    "unsupported auth type for GitLab provider".to_string(),
+                ))
+            }
+        };
+
+        Ok(std::sync::Arc::new(GitLabDriver::new(token)?))
     }
 }
 
@@ -45,26 +128,135 @@ impl VcsProvider for GitLabDriver {
     }
 
     async fn validate_auth(&self) -> AppResult<()> {
-        Err(AppError::Provider("GitLab driver not implemented".to_string()))
+        let _: serde_json::Value = self.get_json(&format!("{GITLAB_API}/user")).await?;
+        Ok(())
     }
 
     async fn list_organizations(&self) -> AppResult<Vec<ProviderOrg>> {
-        Err(AppError::Provider("GitLab driver not implemented".to_string()))
+        let user: GitLabUser = self.get_json(&format!("{GITLAB_API}/user")).await?;
+        let groups: Vec<GitLabGroup> = self
+            .fetch_paginated(&format!("{GITLAB_API}/groups?min_access_level=10"))
+            .await?;
+
+        let mut results = Vec::with_capacity(groups.len() + 1);
+        results.push(ProviderOrg {
+            id: user.id.to_string(),
+            login: user.username,
+            kind: ProviderOrgKind::Personal,
+        });
+
+        results.extend(groups.into_iter().map(|g| ProviderOrg {
+            id: g.id.to_string(),
+            login: g.path,
+            kind: ProviderOrgKind::Organization,
+        }));
+
+        Ok(results)
     }
 
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>> {
-        Err(AppError::Provider("GitLab driver not implemented".to_string()))
+        let projects: Vec<GitLabProject> = self
+            .fetch_paginated(&format!("{GITLAB_API}/projects?membership=true&simple=false"))
+            .await?;
+
+        Ok(projects.into_iter().map(project_to_provider).collect())
     }
 
-    async fn list_organization_repositories(&self, _organization: &str) -> AppResult<Vec<ProviderRepo>> {
-        Err(AppError::Provider("GitLab driver not implemented".to_string()))
+    async fn list_organization_repositories(&self, organization: &str) -> AppResult<Vec<ProviderRepo>> {
+        let encoded = urlencoded(organization);
+        let projects: Vec<GitLabProject> = self
+            .fetch_paginated(&format!("{GITLAB_API}/groups/{encoded}/projects"))
+            .await?;
+
+        Ok(projects.into_iter().map(project_to_provider).collect())
     }
 
-    async fn list_pull_requests(
-        &self,
-        _owner: &str,
-        _repository: &str,
-    ) -> AppResult<Vec<VcsPullRequest>> {
-        Err(AppError::Provider("GitLab driver not implemented".to_string()))
+    async fn list_pull_requests(&self, owner: &str, repository: &str) -> AppResult<Vec<VcsPullRequest>> {
+        let encoded = urlencoded(&format!("{owner}/{repository}"));
+        let mrs: Vec<GitLabMergeRequest> = self
+            .fetch_paginated(&format!("{GITLAB_API}/projects/{encoded}/merge_requests?state=all"))
+            .await?;
+
+        Ok(mrs.into_iter().map(mr_to_pull_request).collect())
     }
+}
+
+fn urlencoded(s: &str) -> String {
+    s.replace('/', "%2F")
+}
+
+fn project_to_provider(project: GitLabProject) -> ProviderRepo {
+    let is_private = project.visibility == "private";
+    let owner = project
+        .namespace
+        .as_ref()
+        .map(|ns| ns.path.clone())
+        .unwrap_or_default();
+
+    ProviderRepo {
+        id: project.id.to_string(),
+        owner,
+        name: project.path,
+        visibility: project.visibility,
+        is_private,
+        default_branch: project.default_branch.unwrap_or_else(|| "main".to_string()),
+    }
+}
+
+fn mr_to_pull_request(mr: GitLabMergeRequest) -> VcsPullRequest {
+    VcsPullRequest {
+        id: mr.id.to_string(),
+        number: mr.iid,
+        title: mr.title,
+        state: match mr.state.as_str() {
+            "opened" => PullRequestState::Open,
+            _ => PullRequestState::Closed,
+        },
+        url: mr.web_url,
+        head: mr.source_branch,
+        base: mr.target_branch,
+        updated_at: mr.updated_at,
+        is_draft: mr.draft.unwrap_or(false),
+        merged_at: mr.merged_at,
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct GitLabUser {
+    id: u64,
+    username: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitLabGroup {
+    id: u64,
+    path: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitLabNamespace {
+    path: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitLabProject {
+    id: u64,
+    path: String,
+    visibility: String,
+    default_branch: Option<String>,
+    namespace: Option<GitLabNamespace>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitLabMergeRequest {
+    id: u64,
+    iid: u64,
+    title: String,
+    state: String,
+    web_url: String,
+    source_branch: String,
+    target_branch: String,
+    updated_at: String,
+    draft: Option<bool>,
+    merged_at: Option<String>,
 }

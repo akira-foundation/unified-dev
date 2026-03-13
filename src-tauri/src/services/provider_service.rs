@@ -6,7 +6,8 @@ use uuid::Uuid;
 
 use crate::core::provider::types::{ProviderAuth, ProviderKind};
 use crate::db::models::{
-    CreateProviderInput, ProviderAuthPayload, ProviderRecord, ProviderSummary, UpdateProviderAuthInput,
+    AppPasswordAuthPayload, CreateProviderInput, GitHubAppAuthPayload, ProviderAuthPayload, ProviderRecord,
+    ProviderSummary, UpdateProviderAuthInput,
 };
 use crate::db::organization_repository::OrganizationRepository;
 use crate::db::provider_repository::ProviderRepository;
@@ -91,6 +92,27 @@ impl ProviderService {
                 let payload = ProviderAuthPayload { token: encrypted };
                 Ok(("pat".to_string(), serde_json::to_string(&payload)?))
             }
+            ProviderAuth::GitHubApp {
+                app_id,
+                private_key,
+                installation_id,
+            } => {
+                let private_key_enc = self.cipher.encrypt(private_key)?;
+                let payload = GitHubAppAuthPayload {
+                    app_id: *app_id,
+                    private_key_enc,
+                    installation_id: *installation_id,
+                };
+                Ok(("github_app".to_string(), serde_json::to_string(&payload)?))
+            }
+            ProviderAuth::AppPassword { username, password } => {
+                let password_enc = self.cipher.encrypt(password)?;
+                let payload = AppPasswordAuthPayload {
+                    username: username.clone(),
+                    password_enc,
+                };
+                Ok(("app_password".to_string(), serde_json::to_string(&payload)?))
+            }
         }
     }
 
@@ -100,6 +122,23 @@ impl ProviderService {
                 let decoded: ProviderAuthPayload = serde_json::from_str(payload)?;
                 let token = self.cipher.decrypt(&decoded.token)?;
                 Ok(ProviderAuth::PersonalAccessToken { token })
+            }
+            "github_app" => {
+                let decoded: GitHubAppAuthPayload = serde_json::from_str(payload)?;
+                let private_key = self.cipher.decrypt(&decoded.private_key_enc)?;
+                Ok(ProviderAuth::GitHubApp {
+                    app_id: decoded.app_id,
+                    private_key,
+                    installation_id: decoded.installation_id,
+                })
+            }
+            "app_password" => {
+                let decoded: AppPasswordAuthPayload = serde_json::from_str(payload)?;
+                let password = self.cipher.decrypt(&decoded.password_enc)?;
+                Ok(ProviderAuth::AppPassword {
+                    username: decoded.username,
+                    password,
+                })
             }
             _ => Err(AppError::Provider("unknown auth type".to_string())),
         }

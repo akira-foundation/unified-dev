@@ -64,6 +64,7 @@ pub async fn test_provider_connection(
     let provider = state
         .provider_factory
         .create(&kind, input.auth)
+        .await
         .map_err(|error| error.to_string())?;
 
     provider
@@ -86,6 +87,7 @@ pub async fn list_provider_organizations(
     let provider = state
         .provider_factory
         .create(&credentials.kind, credentials.auth)
+        .await
         .map_err(|error| error.to_string())?;
 
     provider
@@ -108,6 +110,7 @@ pub async fn list_provider_repositories(
     let provider = state
         .provider_factory
         .create(&credentials.kind, credentials.auth)
+        .await
         .map_err(|error| error.to_string())?;
 
     match input.scope.as_str() {

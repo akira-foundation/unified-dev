@@ -27,11 +27,12 @@ impl SqliteOrganizationRepository {
 impl OrganizationRepository for SqliteOrganizationRepository {
     async fn create(&self, organization: &OrganizationRecord) -> AppResult<OrganizationSummary> {
         sqlx::query(
-            "INSERT INTO organizations (id, name, provider_id, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO organizations (id, name, provider_id, external_id, created_at) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(&organization.id)
         .bind(&organization.name)
         .bind(&organization.provider_id)
+        .bind(&organization.external_id)
         .bind(&organization.created_at)
         .execute(&self.pool)
         .await?;
@@ -40,6 +41,7 @@ impl OrganizationRepository for SqliteOrganizationRepository {
             id: organization.id.clone(),
             name: organization.name.clone(),
             provider_id: organization.provider_id.clone(),
+            external_id: organization.external_id.clone(),
             created_at: organization.created_at.clone(),
         })
     }
@@ -54,7 +56,7 @@ impl OrganizationRepository for SqliteOrganizationRepository {
 
     async fn list(&self) -> AppResult<Vec<OrganizationSummary>> {
         let organizations = sqlx::query_as::<_, OrganizationSummary>(
-            "SELECT id, name, provider_id, created_at FROM organizations ORDER BY created_at DESC",
+            "SELECT id, name, provider_id, external_id, created_at FROM organizations ORDER BY created_at DESC",
         )
         .fetch_all(&self.pool)
         .await?;
@@ -64,7 +66,7 @@ impl OrganizationRepository for SqliteOrganizationRepository {
 
     async fn list_by_provider(&self, provider_id: &str) -> AppResult<Vec<OrganizationSummary>> {
         let organizations = sqlx::query_as::<_, OrganizationSummary>(
-            "SELECT id, name, provider_id, created_at FROM organizations WHERE provider_id = ? ORDER BY created_at DESC",
+            "SELECT id, name, provider_id, external_id, created_at FROM organizations WHERE provider_id = ? ORDER BY created_at DESC",
         )
         .bind(provider_id)
         .fetch_all(&self.pool)

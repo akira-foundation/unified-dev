@@ -21,14 +21,14 @@ impl ProviderFactory {
         self.factories.insert(factory.kind(), factory);
     }
 
-    pub fn create(&self, provider_kind: &ProviderKind, auth: ProviderAuth) -> AppResult<Arc<dyn VcsProvider>> {
+    pub async fn create(&self, provider_kind: &ProviderKind, auth: ProviderAuth) -> AppResult<Arc<dyn VcsProvider>> {
         let factory = self
             .factories
             .get(provider_kind)
             .cloned()
             .ok_or_else(|| AppError::Provider(format!("provider not found: {provider_kind}")))?;
 
-        factory.create(auth)
+        factory.create(auth).await
     }
 
     pub fn list(&self) -> Vec<ProviderKind> {

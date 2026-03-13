@@ -1,5 +1,6 @@
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
+import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "../components/ui/card";
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
 import { useDateLabel } from "../hooks/use-date-label";
@@ -8,14 +9,14 @@ import { useNavigationStore } from "../stores/navigation-store";
 import { useI18n } from "../i18n/i18n";
 import { repositorySelectionService } from "../services/repositorySelectionService";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Globe2, Lock } from "lucide-react";
+import { Activity, Download, Globe2, Lock } from "lucide-react";
 import type { OrganizationRepoSummary } from "../types/organization";
 
 export function OrganizationPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
   const { organizations } = useOrganizations();
-  const { activeOrganizationId } = useNavigationStore();
+  const { activeOrganizationId, navigateTo } = useNavigationStore();
   const [repos, setRepos] = useState<OrganizationRepoSummary[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
 
@@ -82,6 +83,12 @@ export function OrganizationPage() {
             <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
+        {organization && (
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigateTo("import-repositories")}>
+            <Download className="h-3.5 w-3.5" />
+            Import repositories
+          </Button>
+        )}
       </PageHeader>
       <div className="flex flex-col gap-6">
         {!organization && (

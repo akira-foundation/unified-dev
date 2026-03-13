@@ -9,7 +9,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Skeleton } from "../components/ui/skeleton";
-import { Building2, TriangleAlert } from "lucide-react";
+import { Building2, ExternalLink, TriangleAlert } from "lucide-react";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigation } from "../hooks/useNavigation";
@@ -25,7 +25,7 @@ const repoKey = (repo: ProviderRepo) => `${repo.owner}/${repo.name}`;
 export function ImportRepositoriesPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { activeOrganizationId } = useNavigation("dashboard");
+  const { activeOrganizationId, navigateTo } = useNavigation("dashboard");
   const { organizations, isLoading: isOrganizationsLoading } = useOrganizations();
 
   const organization = useMemo(
@@ -163,6 +163,12 @@ export function ImportRepositoriesPage() {
             <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
+        {organization && (
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigateTo("organization")}>
+            <ExternalLink className="h-3.5 w-3.5" />
+            View organization
+          </Button>
+        )}
       </PageHeader>
       {!organization && (
         <Card>

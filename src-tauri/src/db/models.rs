@@ -44,6 +44,7 @@ pub struct OrganizationRecord {
     pub id: String,
     pub name: String,
     pub provider_id: String,
+    pub external_id: Option<String>,
     pub created_at: String,
 }
 
@@ -52,6 +53,7 @@ pub struct OrganizationSummary {
     pub id: String,
     pub name: String,
     pub provider_id: String,
+    pub external_id: Option<String>,
     pub created_at: String,
 }
 
@@ -71,6 +73,7 @@ pub struct OrganizationRepoSummary {
 pub struct CreateOrganizationInput {
     pub name: String,
     pub provider_id: String,
+    pub external_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,4 +88,17 @@ pub struct SelectedRepositoryInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderAuthPayload {
     pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GitHubAppAuthPayload {
+    pub app_id: u64,
+    pub private_key_enc: String,
+    pub installation_id: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppPasswordAuthPayload {
+    pub username: String,
+    pub password_enc: String,
 }
