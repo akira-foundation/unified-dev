@@ -10,6 +10,8 @@ pub struct ProviderRecord {
     pub auth_type: String,
     pub auth_payload: String,
     pub created_at: String,
+    pub account_login: Option<String>,
+    pub account_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -18,6 +20,8 @@ pub struct ProviderSummary {
     pub name: String,
     pub kind: String,
     pub created_at: String,
+    pub account_login: Option<String>,
+    pub account_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,6 +29,10 @@ pub struct CreateProviderInput {
     pub name: String,
     pub kind: String,
     pub auth: ProviderAuth,
+    #[serde(default)]
+    pub account_login: Option<String>,
+    #[serde(default)]
+    pub account_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,10 +99,10 @@ pub struct ProviderAuthPayload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GitHubAppAuthPayload {
-    pub app_id: u64,
-    pub private_key_enc: String,
-    pub installation_id: u64,
+pub struct GitHubOAuthPayload {
+    pub access_token_enc: String,
+    pub refresh_token_enc: Option<String>,
+    pub expires_at: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

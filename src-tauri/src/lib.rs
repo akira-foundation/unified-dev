@@ -21,8 +21,8 @@ use commands::organization_commands::{
     list_selected_repositories, save_selected_repositories,
 };
 use commands::provider_commands::{
-    create_provider, delete_provider, list_provider_organizations, list_provider_repositories, list_providers,
-    test_provider_connection, update_provider_auth,
+    connect_github, create_provider, delete_provider, list_provider_organizations, list_provider_repositories,
+    list_providers, test_provider_connection, update_provider_auth,
 };
 use commands::terminal_commands::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
@@ -90,6 +90,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_available_models,
+            connect_github,
             create_provider,
             list_providers,
             update_provider_auth,

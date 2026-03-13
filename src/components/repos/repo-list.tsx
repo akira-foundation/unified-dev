@@ -1,5 +1,6 @@
 import type { OrganizationRepoSummary } from "../../types/organization";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { EmptyState } from "../ui/empty-state";
 import { RepoItem } from "./repo-item";
 
 interface RepoListProps {
@@ -15,9 +16,10 @@ export function RepoList({ repos }: RepoListProps) {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {repos.length === 0 ? (
-          <div className="rounded-xl px-4 py-6 text-sm text-gray-500  dark:text-gray-400">
-            No repositories attached yet.
-          </div>
+          <EmptyState
+            title="No repositories yet"
+            description="Import repositories from your organizations to start tracking activity."
+          />
         ) : (
           repos.map((repo) => <RepoItem key={repo.id} repo={repo} />)
         )}

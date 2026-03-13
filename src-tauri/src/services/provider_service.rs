@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::core::provider::types::{ProviderAuth, ProviderKind};
 use crate::db::models::{
-    AppPasswordAuthPayload, CreateProviderInput, GitHubAppAuthPayload, ProviderAuthPayload, ProviderRecord,
+    AppPasswordAuthPayload, CreateProviderInput, GitHubOAuthPayload, ProviderAuthPayload, ProviderRecord,
     ProviderSummary, UpdateProviderAuthInput,
 };
 use crate::db::organization_repository::OrganizationRepository;
@@ -50,6 +50,8 @@ impl ProviderService {
             auth_type,
             auth_payload,
             created_at,
+            account_login: input.account_login,
+            account_type: input.account_type,
         };
 
         self.providers.create(&provider).await
@@ -77,10 +79,79 @@ impl ProviderService {
 
     pub async fn credentials(&self, provider_id: &str) -> AppResult<ProviderCredentials> {
         let provider = self.providers.find_by_id(provider_id).await?;
-        let auth = self.deserialize_auth(&provider.auth_type, &provider.auth_payload)?;
+        let mut auth = self.deserialize_auth(&provider.auth_type, &provider.auth_payload)?;
         let kind = ProviderKind::from_str(&provider.kind);
 
+        if let ProviderAuth::GitHubOAuth { ref refresh_token, expires_at, .. } = auth {
+            let should_refresh = match (refresh_token, expires_at) {
+                (Some(_), Some(exp)) => {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs() as i64;
+                    now >= exp - 300 // refresh 5 min before expiry
+                }
+                _ => false,
+            };
+
+            if should_refresh {
+                auth = self.refresh_github_token(provider_id, auth).await?;
+            }
+        }
+
         Ok(ProviderCredentials { kind, auth })
+    }
+
+    async fn refresh_github_token(&self, provider_id: &str, auth: ProviderAuth) -> AppResult<ProviderAuth> {
+        let ProviderAuth::GitHubOAuth { refresh_token: Some(ref rt), .. } = auth else {
+            return Ok(auth);
+        };
+
+        let api_url = env!("AKIRA_API_URL");
+
+        #[derive(serde::Deserialize)]
+        struct RefreshResponse {
+            access_token: String,
+            refresh_token: Option<String>,
+        }
+
+        let client = reqwest::Client::builder()
+            .user_agent("UnifiedDev/1.0")
+            .build()
+            .map_err(|e| AppError::Provider(e.to_string()))?;
+
+        let response = client
+            .post(format!("{api_url}/github/refresh"))
+            .header("Content-Type", "application/json")
+            .json(&serde_json::json!({ "refresh_token": rt }))
+            .send()
+            .await
+            .map_err(|e| AppError::Provider(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(AppError::Provider("GitHub token refresh failed".to_string()));
+        }
+
+        let result: RefreshResponse = response
+            .json()
+            .await
+            .map_err(|e| AppError::Provider(e.to_string()))?;
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64;
+
+        let new_auth = ProviderAuth::GitHubOAuth {
+            access_token: result.access_token,
+            refresh_token: result.refresh_token,
+            expires_at: Some(now + 28800), // GitHub access tokens last 8h
+        };
+
+        let (auth_type, auth_payload) = self.serialize_auth(&new_auth)?;
+        self.providers.update_auth(provider_id, &auth_type, &auth_payload).await?;
+
+        Ok(new_auth)
     }
 
     fn serialize_auth(&self, auth: &ProviderAuth) -> AppResult<(String, String)> {
@@ -90,18 +161,18 @@ impl ProviderService {
                 let payload = ProviderAuthPayload { token: encrypted };
                 Ok(("pat".to_string(), serde_json::to_string(&payload)?))
             }
-            ProviderAuth::GitHubApp {
-                app_id,
-                private_key,
-                installation_id,
-            } => {
-                let private_key_enc = self.cipher.encrypt(private_key)?;
-                let payload = GitHubAppAuthPayload {
-                    app_id: *app_id,
-                    private_key_enc,
-                    installation_id: *installation_id,
+            ProviderAuth::GitHubOAuth { access_token, refresh_token, expires_at } => {
+                let access_token_enc = self.cipher.encrypt(access_token)?;
+                let refresh_token_enc = refresh_token
+                    .as_deref()
+                    .map(|t| self.cipher.encrypt(t))
+                    .transpose()?;
+                let payload = GitHubOAuthPayload {
+                    access_token_enc,
+                    refresh_token_enc,
+                    expires_at: *expires_at,
                 };
-                Ok(("github_app".to_string(), serde_json::to_string(&payload)?))
+                Ok(("github_oauth".to_string(), serde_json::to_string(&payload)?))
             }
             ProviderAuth::AppPassword { username, password } => {
                 let password_enc = self.cipher.encrypt(password)?;
@@ -121,14 +192,15 @@ impl ProviderService {
                 let token = self.cipher.decrypt(&decoded.token)?;
                 Ok(ProviderAuth::PersonalAccessToken { token })
             }
-            "github_app" => {
-                let decoded: GitHubAppAuthPayload = serde_json::from_str(payload)?;
-                let private_key = self.cipher.decrypt(&decoded.private_key_enc)?;
-                Ok(ProviderAuth::GitHubApp {
-                    app_id: decoded.app_id,
-                    private_key,
-                    installation_id: decoded.installation_id,
-                })
+            "github_oauth" => {
+                let decoded: GitHubOAuthPayload = serde_json::from_str(payload)?;
+                let access_token = self.cipher.decrypt(&decoded.access_token_enc)?;
+                let refresh_token = decoded
+                    .refresh_token_enc
+                    .as_deref()
+                    .map(|t| self.cipher.decrypt(t))
+                    .transpose()?;
+                Ok(ProviderAuth::GitHubOAuth { access_token, refresh_token, expires_at: decoded.expires_at })
             }
             "app_password" => {
                 let decoded: AppPasswordAuthPayload = serde_json::from_str(payload)?;

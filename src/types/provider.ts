@@ -13,6 +13,8 @@ export interface ProviderSummary {
   name: string;
   kind: ProviderKind;
   created_at: string;
+  account_login?: string;
+  account_type?: string;
 }
 
 export type ProviderAuth = {

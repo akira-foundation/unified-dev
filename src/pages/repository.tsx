@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
+import { EmptyState } from "../components/ui/empty-state";
 import type { OrganizationRepoSummary } from "../types/organization";
 import {
   PageHeader,
@@ -49,6 +50,7 @@ export function RepositoryPage() {
       isMounted = false;
     };
   }, [activeOrganizationId]);
+
   return (
     <PageLayout>
       <PageHeader>
@@ -61,7 +63,7 @@ export function RepositoryPage() {
           </PageHeaderMeta>
         </div>
         <PageHeaderActions>
-          <Button >
+          <Button>
             <Plus size={18} />
             {t("dashboard.quick.newRepo")}
           </Button>
@@ -75,9 +77,10 @@ export function RepositoryPage() {
             <Skeleton className="h-16 w-full" />
           </div>
         ) : repos.length === 0 ? (
-          <div className="rounded-xl px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
-            No repositories attached yet.
-          </div>
+          <EmptyState
+            title="No repositories yet"
+            description="Import repositories from your organizations to start tracking pull requests and activity."
+          />
         ) : (
           <RepoMetricsTable repos={repos} />
         )}

@@ -34,10 +34,9 @@ rand = "0.8"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 thiserror = "2"
 time = { version = "0.3", features = ["formatting"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "io-util", "time", "net"] }
 uuid = { version = "1", features = ["v4"] }
 portable-pty = "0.8"
 tauri-plugin-dialog = "2"
 regex = "1"
 zip = "2"
-jsonwebtoken = "9"

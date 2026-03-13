@@ -87,11 +87,7 @@ impl ProviderDriverFactory for GitHubFactory {
     async fn create(&self, auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
         let token = match auth {
             ProviderAuth::PersonalAccessToken { token } => token,
-            ProviderAuth::GitHubApp {
-                app_id,
-                private_key,
-                installation_id,
-            } => fetch_installation_token(app_id, &private_key, installation_id).await?,
+            ProviderAuth::GitHubOAuth { access_token, .. } => access_token,
             _ => {
                 return Err(AppError::Provider(
                     "unsupported auth type for GitHub provider".to_string(),
@@ -103,62 +99,6 @@ impl ProviderDriverFactory for GitHubFactory {
     }
 }
 
-async fn fetch_installation_token(app_id: u64, private_key: &str, installation_id: u64) -> AppResult<String> {
-    use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-
-    #[derive(serde::Serialize)]
-    struct AppClaims {
-        iat: i64,
-        exp: i64,
-        iss: u64,
-    }
-
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|e| AppError::Provider(format!("system time error: {e}")))?
-        .as_secs() as i64;
-
-    let claims = AppClaims {
-        iat: now - 60,
-        exp: now + 600,
-        iss: app_id,
-    };
-
-    let header = Header::new(Algorithm::RS256);
-    let key = EncodingKey::from_rsa_pem(private_key.as_bytes())
-        .map_err(|e| AppError::Provider(format!("invalid RSA private key: {e}")))?;
-    let jwt = encode(&header, &claims, &key)
-        .map_err(|e| AppError::Provider(format!("JWT signing failed: {e}")))?;
-
-    let client = reqwest::Client::builder()
-        .user_agent("UnifiedDev/1.0")
-        .build()?;
-
-    let url = format!("{GITHUB_API}/app/installations/{installation_id}/access_tokens");
-    let response = client
-        .post(&url)
-        .bearer_auth(&jwt)
-        .header("Accept", "application/vnd.github+json")
-        .header("Content-Length", "0")
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-        return Err(AppError::Provider(format!(
-            "GitHub App token exchange failed: {status} {body}"
-        )));
-    }
-
-    #[derive(Deserialize)]
-    struct InstallationToken {
-        token: String,
-    }
-
-    let result: InstallationToken = response.json().await?;
-    Ok(result.token)
-}
 
 #[async_trait]
 impl VcsProvider for GitHubDriver {

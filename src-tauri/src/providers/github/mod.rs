@@ -1,3 +1,3 @@
 mod driver;
 
-pub use driver::{GitHubDriver, GitHubFactory};
+pub use driver::GitHubFactory;

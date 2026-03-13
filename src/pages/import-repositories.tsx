@@ -8,8 +8,9 @@ import { PageLayout } from "../components/layout/page-layout";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Skeleton } from "../components/ui/skeleton";
 import { Building2, ExternalLink, TriangleAlert } from "lucide-react";
+import { Skeleton } from "../components/ui/skeleton";
+import { EmptyState } from "../components/ui/empty-state";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigation } from "../hooks/useNavigation";
@@ -61,7 +62,7 @@ export function ImportRepositoriesPage() {
       setSelectedKeys(new Set());
       setReposError(null);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load organizations";
+      const message = error instanceof Error ? error.message : String(error);
       setOrgsError(message);
       toast.error(message);
     } finally {
@@ -91,7 +92,7 @@ export function ImportRepositoriesPage() {
       setRepos(reposList);
       setSelectedKeys(new Set());
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to load repositories";
+      const message = error instanceof Error ? error.message : String(error);
       setReposError(message);
       toast.error(message);
     } finally {
@@ -322,8 +323,24 @@ export function ImportRepositoriesPage() {
               )}
               {!isLoadingRepos && !reposError && selectedOrg && filteredRepos.length === 0 && (
                 <Card className="h-full">
-                  <CardContent className="flex h-full items-center justify-center p-6 text-sm text-gray-500 dark:text-gray-400">
-                    No repositories found for this selection.
+                  <CardContent className="flex h-full flex-col items-center justify-center gap-6 p-10 text-center">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                      <TriangleAlert className="h-6 w-6" />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <span className="text-base font-semibold text-gray-900 dark:text-white">
+                        No repositories found
+                      </span>
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        No repositories match your current selection.
+                      </span>
+                    </div>
+                    <div className="w-full max-w-2xl space-y-3 opacity-60">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-[90%]" />
+                      <Skeleton className="h-10 w-[85%]" />
+                      <Skeleton className="h-10 w-[80%]" />
+                    </div>
                   </CardContent>
                 </Card>
               )}

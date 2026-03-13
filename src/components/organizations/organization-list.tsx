@@ -45,24 +45,18 @@ export function OrganizationList({
         )}
       </div>
       <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
-        {organizations.length === 0 ? (
-          <div className="rounded-xl  px-4 py-6 text-sm text-gray-500  dark:text-gray-400">
-            No organizations configured yet.
-          </div>
-        ) : (
-          organizations.map((organization) => (
-            <OrganizationItem
-              key={organization.id}
-              organization={organization}
-              onRemove={onRemove}
-              isActive={activeId === organization.id}
-              onSelect={onSelect}
-              onImportRepositories={onImportRepositories}
-              onConfigureSync={onConfigureSync}
-              providerName={providerNameById?.[organization.provider_id]}
-            />
-          ))
-        )}
+        {organizations.map((organization) => (
+          <OrganizationItem
+            key={organization.id}
+            organization={organization}
+            onRemove={onRemove}
+            isActive={activeId === organization.id}
+            onSelect={onSelect}
+            onImportRepositories={onImportRepositories}
+            onConfigureSync={onConfigureSync}
+            providerName={providerNameById?.[organization.provider_id]}
+          />
+        ))}
       </CardContent>
     </Card>
   );

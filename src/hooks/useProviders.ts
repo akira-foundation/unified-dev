@@ -70,6 +70,19 @@ export function useProviders() {
     setProviders((prev) => prev.filter((provider) => provider.id !== providerId));
   }, []);
 
+  const connectGithub = useCallback(async () => {
+    const toastId = toast.loading("Abrindo GitHub...");
+    try {
+      const created = await providerService.connectGithub();
+      setProviders((prev) => [created, ...prev]);
+      toast.success("GitHub conectado", { id: toastId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message, { id: toastId });
+      throw error;
+    }
+  }, []);
+
   return {
     providers,
     isLoading,
@@ -78,6 +91,7 @@ export function useProviders() {
     createProvider,
     updateProviderAuth,
     removeProvider,
+    connectGithub,
     reload: loadProviders,
   };
 }

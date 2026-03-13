@@ -11,6 +11,7 @@ import { repositorySelectionService } from "../services/repositorySelectionServi
 import { useEffect, useMemo, useState } from "react";
 import { Activity, Download, Globe2, Lock } from "lucide-react";
 import type { OrganizationRepoSummary } from "../types/organization";
+import { EmptyState } from "../components/ui/empty-state";
 
 export function OrganizationPage() {
   const { t, locale } = useI18n();
@@ -92,11 +93,10 @@ export function OrganizationPage() {
       </PageHeader>
       <div className="flex flex-col gap-6">
         {!organization && (
-          <Card>
-            <CardContent className="p-6 text-sm text-gray-500 dark:text-gray-400">
-              Select an organization from the sidebar.
-            </CardContent>
-          </Card>
+          <EmptyState
+            title="No organization selected"
+            description="Select an organization from the list to view its repositories and activity."
+          />
         )}
         {organization && (
           <div className="flex flex-col gap-6">

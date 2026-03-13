@@ -135,7 +135,7 @@ export function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general");
   const [showThemePreview, setShowThemePreview] = useState(false);
   const [isProviderDialogOpen, setIsProviderDialogOpen] = useState(false);
-  const { providers, createProvider } = useProviders();
+  const { providers, createProvider, connectGithub } = useProviders();
   const { navigateTo, setActiveProviderId } = useNavigation("settings");
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -815,29 +815,35 @@ AWS_PROFILE=default`}
                 </div>
 
                 {([
-                  { kind: "github" as ProviderKind, title: "GitHub", description: "Authenticate with a personal access token to access GitHub repositories and organizations.", icon: Github },
+                  { kind: "github" as ProviderKind, title: "GitHub", description: "Connect via GitHub App to access repositories and organizations.", icon: Github },
                   { kind: "gitlab" as ProviderKind, title: "GitLab", description: "Authenticate with a personal access token to access GitLab projects and groups.", icon: GitlabIcon },
                   { kind: "bitbucket" as ProviderKind, title: "Bitbucket", description: "Authenticate with an app password to access Bitbucket repositories and workspaces.", icon: Blocks },
-                ]).map(({ kind, title, description, icon }) => (
-                  <SettingsSection key={kind} title={title} description={`Connect a ${title} account to enable repository imports and pull requests.`} icon={icon}>
-                    <SettingsItem
-                      label={title}
-                      description={description}
-                      action={
-                        connectedKinds.has(kind) ? (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">Connected</Badge>
-                            <Button variant="outline" size="sm" onClick={() => { const p = providers.find((p) => p.kind === kind); if (p) { setActiveProviderId(p.id); navigateTo("provider-detail"); } }}>Manage</Button>
-                          </div>
-                        ) : (
-                          <Button>
-                            <Link2 size={18} /> Connect
-                          </Button>
-                        )
-                      }
-                    />
-                  </SettingsSection>
-                ))}
+                ]).map(({ kind, title, description, icon }) => {
+                  const connectedProvider = providers.find((p) => p.kind === kind);
+                  return (
+                    <SettingsSection key={kind} title={title} description={`Connect a ${title} account to enable repository imports and pull requests.`} icon={icon}>
+                      <SettingsItem
+                        label={title}
+                        description={description}
+                        action={
+                          connectedKinds.has(kind) ? (
+                            <div className="flex items-center gap-2">
+                              {connectedProvider?.account_login && (
+                                <span className="text-sm text-zinc-500">Connected as {connectedProvider.account_login}</span>
+                              )}
+                              <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">Connected</Badge>
+                              <Button variant="outline" size="sm" onClick={() => { if (connectedProvider) { setActiveProviderId(connectedProvider.id); navigateTo("provider-detail"); } }}>Manage</Button>
+                            </div>
+                          ) : (
+                            <Button onClick={kind === "github" ? () => connectGithub() : undefined}>
+                              <Link2 size={18} /> Connect
+                            </Button>
+                          )
+                        }
+                      />
+                    </SettingsSection>
+                  );
+                })}
 
                 <AddProviderDialog
                   open={isProviderDialogOpen}

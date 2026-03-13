@@ -43,4 +43,7 @@ export const providerService = {
   async deleteProvider(providerId: string): Promise<void> {
     await invoke<void>("delete_provider", { providerId });
   },
+  async connectGithub(): Promise<ProviderSummary> {
+    return invoke<ProviderSummary>("connect_github");
+  },
 };

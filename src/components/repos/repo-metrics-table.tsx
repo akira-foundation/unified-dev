@@ -1,30 +1,40 @@
 import type { OrganizationRepoSummary } from "../../types/organization";
-import { FolderGit2 } from "lucide-react";
+import { FolderGit2, Plus } from "lucide-react";
 
 import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 interface RepoMetricsTableProps {
   repos: OrganizationRepoSummary[];
   title?: string;
+  onCreate?: () => void;
 }
 
-export function RepoMetricsTable({ repos, title = "Repositories" }: RepoMetricsTableProps) {
+export function RepoMetricsTable({ repos, title = "Repositories", onCreate }: RepoMetricsTableProps) {
   return (
     <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
-      <div className="flex flex-row items-center gap-4 px-6 py-6 pb-6">
-        <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
-          <FolderGit2 size={22} strokeWidth={2} />
+      <div className="flex flex-row items-center justify-between px-6 py-6 pb-6">
+        <div className="flex flex-row items-center gap-4">
+          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+            <FolderGit2 size={22} strokeWidth={2} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">{title}</span>
+            <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
+              Managed source code repositories for this workspace.
+            </span>
+          </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">{title}</span>
-          <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
-            Managed source code repositories for this workspace.
-          </span>
-        </div>
+        {onCreate && (
+          <Button onClick={onCreate}>
+            <Plus size={18} />
+            New Repo
+          </Button>
+        )}
       </div>
-      <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50">
+      <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50 px-0">
         <div className="overflow-hidden rounded-xl">
           <Table>
             <TableHeader>

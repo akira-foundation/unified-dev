@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { EmptyState } from "../components/ui/empty-state";
 
 import { OrganizationList } from "../components/organizations/organization-list";
 import { RepoSelectionTable } from "../components/organizations/repo-selection-table";
@@ -88,11 +89,10 @@ export function OrganizationReposPage() {
             onSync={saveSelection}
           />
           {!activeOrganizationId && (
-            <Card>
-              <CardContent className="p-6 text-sm text-gray-500 dark:text-gray-400">
-                Select an organization to view repositories.
-              </CardContent>
-            </Card>
+            <EmptyState
+              title="Select an organization"
+              description="Choose an organization on the left to browse and manage its repositories."
+            />
           )}
           {activeOrganizationId && isLoading && (
             <Card>
@@ -100,13 +100,10 @@ export function OrganizationReposPage() {
             </Card>
           )}
           {activeOrganizationId && !isLoading && filteredRepos.length === 0 && (
-            <Card>
-              <CardContent className="p-6 text-sm text-gray-500 dark:text-gray-400">
-                {activeOrganization
-                  ? `No repositories found for ${activeOrganization.name}.`
-                  : "No repositories found."}
-              </CardContent>
-            </Card>
+            <EmptyState
+              title="No repositories found"
+              description={activeOrganization ? `${activeOrganization.name} has no repositories matching your filters.` : "No repositories match your current filters."}
+            />
           )}
           {activeOrganizationId && !isLoading && filteredRepos.length > 0 && (
             <RepoSelectionTable

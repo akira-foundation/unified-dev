@@ -94,11 +94,11 @@ pub enum ProviderAuth {
     #[serde(rename = "pat")]
     PersonalAccessToken { token: String },
 
-    #[serde(rename = "github_app")]
-    GitHubApp {
-        app_id: u64,
-        private_key: String,
-        installation_id: u64,
+    #[serde(rename = "github_oauth")]
+    GitHubOAuth {
+        access_token: String,
+        refresh_token: Option<String>,
+        expires_at: Option<i64>,
     },
 
     #[serde(rename = "app_password")]
