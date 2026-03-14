@@ -64,6 +64,10 @@ export function OrganizationsPage() {
           <OrganizationList
             organizations={organizations}
             onRemove={removeOrganization}
+            onSelect={(organizationId) => {
+              setActiveOrganizationId(organizationId);
+              navigateTo("organization");
+            }}
             onImportRepositories={(organizationId) => {
               setActiveOrganizationId(organizationId);
               navigateTo("import-repositories");

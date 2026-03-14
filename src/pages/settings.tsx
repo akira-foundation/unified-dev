@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import UpgradeModal from "@/components/upgrade-modal";
 import { useI18n } from "@/i18n/i18n";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useAppearance } from "@/hooks/use-appearance";
 import { useDateLabel } from "@/hooks/use-date-label";
 import {
   PageHeader,
@@ -131,6 +132,7 @@ const SETTINGS_GROUPS = [
 export function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
   const { editorTheme, setEditorTheme, promptOverrides, loadPrompts, savePrompt, resetPrompt } = useSettingsStore();
+  const { appearance, updateAppearance } = useAppearance();
   const dateLabel = useDateLabel(locale);
   const [activeTab, setActiveTab] = useState("general");
   const [showThemePreview, setShowThemePreview] = useState(false);
@@ -371,14 +373,23 @@ export function SettingsPage() {
                 <SettingsItem
                   label="Sync with system"
                   description="Automatically switch between dark and light themes based on your system appearance."
-                  action={<Switch />}
+                  action={
+                    <Switch
+                      checked={appearance === "system"}
+                      onCheckedChange={(checked) => updateAppearance(checked ? "system" : "dark")}
+                    />
+                  }
                 />
                 <SettingsItem
                   label="Theme"
                   description="Choose a color theme for the interface."
                   action={
-                    <Select defaultValue="dark">
-                      <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                    <Select
+                      value={appearance === "system" ? "dark" : appearance}
+                      onValueChange={(value) => updateAppearance(value as "light" | "dark")}
+                      disabled={appearance === "system"}
+                    >
+                      <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 disabled:opacity-50 disabled:cursor-not-allowed">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

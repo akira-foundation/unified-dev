@@ -13,13 +13,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KanbanBoard } from "@/components/kanban-board";
 import { AgendaView } from "@/components/agenda-view";
 import { TeamView } from "@/components/team-view";
+import { AddOrganizationDialog } from "@/components/organizations/add-organization-dialog";
 import { useI18n } from "@/i18n/i18n";
 import { useDateLabel } from "@/hooks/use-date-label";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useProviders } from "@/hooks/useProviders";
 import { cn } from "@/lib/utils";
 
 export function DashboardPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
+  const { isDialogOpen, setIsDialogOpen, createOrganization } = useOrganizations();
+  const { providers } = useProviders();
 
   return (
     <PageLayout scroll={false}>
@@ -35,7 +40,7 @@ export function DashboardPage() {
           </PageHeaderMeta>
         </div>
         <PageHeaderActions>
-          <Button>
+          <Button onClick={() => setIsDialogOpen(true)}>
             <Plus size={18} />
             {t("dashboard.header.newOrg") ?? "New Organization"}
           </Button>
@@ -161,12 +166,13 @@ export function DashboardPage() {
                     </CardHeader>
                     <CardContent className="grid p-2">
                       {[
-                        { label: t("dashboard.quick.newOrg"), icon: Plus, color: "text-purple-500", bg: "bg-purple-500/10" },
-                        { label: t("dashboard.quick.import"), icon: Search, color: "text-blue-500", bg: "bg-blue-500/10" },
-                        { label: t("dashboard.quick.newRepo"), icon: FileText, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+                        { label: t("dashboard.quick.newOrg"), icon: Plus, color: "text-purple-500", bg: "bg-purple-500/10", onClick: () => setIsDialogOpen(true) },
+                        { label: t("dashboard.quick.import"), icon: Search, color: "text-blue-500", bg: "bg-blue-500/10", onClick: undefined },
+                        { label: t("dashboard.quick.newRepo"), icon: FileText, color: "text-emerald-500", bg: "bg-emerald-500/10", onClick: undefined },
                       ].map((action) => (
                         <button
                           key={action.label}
+                          onClick={action.onClick}
                           className="group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
                         >
                           <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-transform group-hover:scale-110", action.bg, action.color)}>
@@ -195,6 +201,12 @@ export function DashboardPage() {
           </div>
         </Tabs>
       </div>
+      <AddOrganizationDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        providers={providers}
+        onSubmit={createOrganization}
+      />
     </PageLayout>
   );
 }
