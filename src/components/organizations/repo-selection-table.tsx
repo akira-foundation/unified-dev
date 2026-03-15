@@ -4,6 +4,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "../ui/table"
 import { RepoSelectionRow } from "./repo-selection-row";
 import { Button } from "@/components/ui/button.tsx";
 import { Card, CardContent, CardHeader } from "@/components/ui/card.tsx";
+import { useI18n } from "../../i18n/i18n";
 
 interface RepoSelectionTableProps {
   repos: ProviderRepo[];
@@ -28,14 +29,15 @@ export function RepoSelectionTable({
   onImportSelected,
   className,
 }: RepoSelectionTableProps) {
+  const { t } = useI18n();
   return (
     <div className={`overflow-hidden rounded-xl ${className ?? ""}`}>
       <Card className="h-full flex flex-col">
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold">Repositories</span>
+            <span className="text-sm font-semibold">{t("common.repositories")}</span>
             <Button size="sm" disabled={selectedKeys.size === 0} onClick={onImportSelected}>
-              Import selected
+              {t("common.importSelected")}
             </Button>
           </div>
         </CardHeader>
@@ -49,8 +51,8 @@ export function RepoSelectionTable({
                     onCheckedChange={(checked) => (checked ? onSelectAll() : onClearAll())}
                   />
                 </TableHead>
-                <TableHead className="bg-muted/10">Name</TableHead>
-                <TableHead className="rounded-r-lg bg-muted/10 text-right">Visibility</TableHead>
+                <TableHead className="bg-muted/10">{t("tables.header.name")}</TableHead>
+                <TableHead className="rounded-r-lg bg-muted/10 text-right">{t("tables.header.visibility")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="[&_tr]:border-b-0">

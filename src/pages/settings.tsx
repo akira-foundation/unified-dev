@@ -99,41 +99,45 @@ final readonly class CreateUserAction
     }
 }`;
 
-const SETTINGS_GROUPS = [
-  {
-    group: "Application",
-    items: [
-      { id: "general", label: "General", icon: <Settings2 className="h-4 w-4" /> },
-      { id: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
-      { id: "behaviour", label: "Behaviour", icon: <SlidersHorizontal className="h-4 w-4" /> },
-      { id: "notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
-    ]
-  },
-  {
-    group: "Features",
-    items: [
-      { id: "integrations", label: "Integrations", icon: <Blocks className="h-4 w-4" /> },
-      { id: "agents", label: "Coding Agents", icon: <Bot className="h-4 w-4" /> },
-      { id: "shortcuts", label: "Shortcuts", icon: <Keyboard className="h-4 w-4" /> },
-      { id: "dictation", label: "Dictation", icon: <Mic className="h-4 w-4" /> },
-    ]
-  },
-  {
-    group: "Development",
-    items: [
-      { id: "advanced", label: "Advanced", icon: <Wrench className="h-4 w-4" /> },
-      { id: "vcs-providers", label: "VCS Providers", icon: <Unplug className="h-4 w-4" /> },
-      { id: "workspaces", label: "Workspaces", icon: <FolderGit2 className="h-4 w-4" /> },
-      { id: "prompts", label: "Prompts", icon: <FileText className="h-4 w-4" /> },
-    ]
-  }
-];
 
 export function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
   const { editorTheme, setEditorTheme, promptOverrides, loadPrompts, savePrompt, resetPrompt } = useSettingsStore();
   const { appearance, updateAppearance } = useAppearance();
   const dateLabel = useDateLabel(locale);
+  const SETTINGS_GROUPS = [
+    {
+      id: "application",
+      group: t("settings.groups.application"),
+      items: [
+        { id: "general", label: t("settings.tabs.general"), icon: <Settings2 className="h-4 w-4" /> },
+        { id: "appearance", label: t("settings.tabs.appearance"), icon: <Palette className="h-4 w-4" /> },
+        { id: "behaviour", label: t("settings.tabs.behaviour"), icon: <SlidersHorizontal className="h-4 w-4" /> },
+        { id: "notifications", label: t("settings.tabs.notifications"), icon: <Bell className="h-4 w-4" /> },
+      ]
+    },
+    {
+      id: "features",
+      group: t("settings.groups.features"),
+      items: [
+        { id: "integrations", label: t("settings.tabs.integrations"), icon: <Blocks className="h-4 w-4" /> },
+        { id: "agents", label: t("settings.tabs.agents"), icon: <Bot className="h-4 w-4" /> },
+        { id: "shortcuts", label: t("settings.tabs.shortcuts"), icon: <Keyboard className="h-4 w-4" /> },
+        { id: "dictation", label: t("settings.tabs.dictation"), icon: <Mic className="h-4 w-4" /> },
+      ]
+    },
+    {
+      id: "development",
+      group: t("settings.groups.development"),
+      items: [
+        { id: "advanced", label: t("settings.tabs.advanced"), icon: <Wrench className="h-4 w-4" /> },
+        { id: "vcs-providers", label: t("settings.tabs.vcsProviders"), icon: <Unplug className="h-4 w-4" /> },
+        { id: "workspaces", label: t("settings.tabs.workspaces"), icon: <FolderGit2 className="h-4 w-4" /> },
+        { id: "prompts", label: t("settings.tabs.prompts"), icon: <FileText className="h-4 w-4" /> },
+      ]
+    }
+  ];
+
   const [activeTab, setActiveTab] = useState("general");
   const [showThemePreview, setShowThemePreview] = useState(false);
   const [isProviderDialogOpen, setIsProviderDialogOpen] = useState(false);
@@ -170,22 +174,22 @@ export function SettingsPage() {
 
   const handleClearHistory = () => {
     localStorage.removeItem("noxdireit_recent_searches");
-    showToast("Histórico de pesquisa limpo.");
+    showToast(t("toast.historyCleared"));
   };
 
   const handleClearSaved = () => {
-    if (window.confirm("Tem a certeza? Isto apagará todos os itens guardados.")) {
+    if (window.confirm(t("modal.reset.desc"))) {
       localStorage.removeItem("noxdireit_saved_laws");
       localStorage.removeItem("noxdireit_saved_drafts");
       localStorage.removeItem("noxdireit_saved_meetings");
       localStorage.removeItem("noxdireit_saved_checklists");
-      showToast("Todos os itens guardados foram removidos.");
+      showToast(t("toast.savedCleared"));
     }
   };
 
   const handleFactoryReset = () => {
     localStorage.clear();
-    showToast("Aplicação reiniciada. A atualizar...");
+    showToast(t("toast.appReset"));
     setTimeout(() => window.location.reload(), 1500);
   };
 
@@ -256,7 +260,7 @@ export function SettingsPage() {
         {/* Sidebar */}
         <div className="w-64 shrink-0 flex flex-col gap-6">
           {SETTINGS_GROUPS.map((group) => (
-            <div key={group.group} className="flex flex-col gap-1">
+            <div key={group.id} className="flex flex-col gap-1">
               <h3 className="px-3 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400/60 mb-2">
                 {group.group}
               </h3>
@@ -298,8 +302,8 @@ export function SettingsPage() {
           {activeTab === "general" && (
             <div className="animate-in fade-in duration-300">
               <SettingsSection
-                title="Account"
-                description="Manage your account profile and access limits."
+                title={t("settings.general.account.title")}
+                description={t("settings.general.account.description")}
                 icon={User}
               >
                 <div className="px-4 py-6 border-b border-zinc-100 dark:border-zinc-800/50">
@@ -311,36 +315,36 @@ export function SettingsPage() {
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                           <span className="text-[14px] text-zinc-900 dark:text-white font-medium">kid(akira)</span>
-                          <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded font-medium">Trial</span>
+                          <span className="text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded font-medium">{t("settings.general.account.trialBadge")}</span>
                         </div>
                         <span className="text-[13px] text-zinc-500">kidiatoliny@akira-io.com</span>
                       </div>
                     </div>
                     <button className="flex items-center gap-2 text-[13px] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
                       <LogOut className="h-4 w-4" />
-                      Sign out
+                      {t("common.signOut")}
                     </button>
                   </div>
 
                   <div className="p-5 rounded-md border border-zinc-100 bg-zinc-50 dark:border-white/5 dark:bg-white/[0.02]">
-                    <h3 className="text-[14px] text-zinc-900 dark:text-zinc-400 mb-3 font-medium dark:font-normal">Upgrade for mobile and web access.</h3>
+                    <h3 className="text-[14px] text-zinc-900 dark:text-zinc-400 mb-3 font-medium dark:font-normal">{t("settings.general.account.upgradeBanner.title")}</h3>
                     <ul className="space-y-2 mb-4">
                       <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
-                        <span className="text-blue-500">✓</span> Access from mobile, tablet, or any browser
+                        <span className="text-blue-500">✓</span> {t("settings.general.account.upgradeBanner.feature1")}
                       </li>
                       <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
-                        <span className="text-blue-500">✓</span> Start and monitor workspaces on the go
+                        <span className="text-blue-500">✓</span> {t("settings.general.account.upgradeBanner.feature2")}
                       </li>
                     </ul>
                     <Button className="w-full" variant="default">
-                      Upgrade
+                      {t("common.upgrade")}
                     </Button>
                   </div>
                 </div>
 
                 <SettingsItem
-                  label="Launch at login"
-                  description="Automatically start Polyscope when you log in. It will run in the menubar so the server is always available."
+                  label={t("settings.general.launchAtLogin.label")}
+                  description={t("settings.general.launchAtLogin.description")}
                   action={<Switch />}
                 />
 
@@ -366,13 +370,13 @@ export function SettingsPage() {
           {activeTab === "appearance" && (
             <div className="animate-in fade-in duration-300">
               <SettingsSection
-                title="Appearance"
+                title={t("settings.appearance.section.title")}
                 description={t("settings.general.appearanceDesc")}
                 icon={Palette}
               >
                 <SettingsItem
-                  label="Sync with system"
-                  description="Automatically switch between dark and light themes based on your system appearance."
+                  label={t("settings.appearance.syncWithSystem")}
+                  description={t("settings.appearance.syncWithSystem.desc")}
                   action={
                     <Switch
                       checked={appearance === "system"}
@@ -381,8 +385,8 @@ export function SettingsPage() {
                   }
                 />
                 <SettingsItem
-                  label="Theme"
-                  description="Choose a color theme for the interface."
+                  label={t("settings.appearance.theme")}
+                  description={t("settings.appearance.theme.desc")}
                   action={
                     <Select
                       value={appearance === "system" ? "dark" : appearance}
@@ -393,15 +397,15 @@ export function SettingsPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="dark">Default Dark</SelectItem>
-                        <SelectItem value="light">Light</SelectItem>
+                        <SelectItem value="dark">{t("settings.appearance.themeDark")}</SelectItem>
+                        <SelectItem value="light">{t("settings.appearance.themeLight")}</SelectItem>
                       </SelectContent>
                     </Select>
                   }
                 />
                 <SettingsItem
-                  label="Code Highlighter Theme"
-                  description="Choose a theme for the code editor."
+                  label={t("settings.appearance.codeTheme")}
+                  description={t("settings.appearance.codeTheme.desc")}
                   action={
                     <div className="flex items-center gap-2">
                       <Button
@@ -410,7 +414,7 @@ export function SettingsPage() {
                         className="h-8 text-[11px] font-bold uppercase tracking-wider"
                         onClick={() => setShowThemePreview(!showThemePreview)}
                       >
-                        {showThemePreview ? "Hide Preview" : "Preview"}
+                        {showThemePreview ? t("settings.appearance.preview.hide") : t("settings.appearance.preview.show")}
                       </Button>
                       <Select value={editorTheme} onValueChange={setEditorTheme}>
                         <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
@@ -489,8 +493,8 @@ export function SettingsPage() {
                   </div>
                 )}
                 <SettingsItem
-                  label="Zoom"
-                  description="Adjust the interface zoom level. ⌘+/⌘-"
+                  label={t("settings.appearance.zoom.label")}
+                  description={t("settings.appearance.zoom.description")}
                   action={
                     <div className="flex items-center gap-3">
                       <button className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors h-6 w-6 flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-white/10"><Minus className="h-3 w-3" /></button>
@@ -500,12 +504,12 @@ export function SettingsPage() {
                   }
                 />
                 <SettingsItem
-                  label="Terminal font"
-                  description="Custom font family for the built-in terminal. Useful for nerd fonts with icon support. Leave empty to use the default font."
+                  label={t("settings.appearance.terminalFont.label")}
+                  description={t("settings.appearance.terminalFont.description")}
                   action={
                     <input
                       type="text"
-                      placeholder="e.g. MesloLGS NF"
+                      placeholder={t("settings.appearance.terminalFont.placeholder")}
                       className="w-48 h-8 px-3 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-[13px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-purple-500 transition-colors"
                     />
                   }
@@ -516,61 +520,61 @@ export function SettingsPage() {
 
           {activeTab === "behaviour" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Behaviour" description="Configure application behavior and workflow settings." icon={SlidersHorizontal}>
+              <SettingsSection title={t("settings.behaviour.title")} description={t("settings.behaviour.description")} icon={SlidersHorizontal}>
                 <SettingsItem
-                  label="Hide inactive repositories"
-                  description="Only show repositories that have active workspaces in the sidebar."
+                  label={t("settings.behaviour.hideInactiveRepos.label")}
+                  description={t("settings.behaviour.hideInactiveRepos.description")}
                   action={<Switch />}
                 />
                 <SettingsItem
-                  label="Sidebar sort order"
-                  description="Choose how workspaces are organized in the sidebar."
+                  label={t("settings.behaviour.sidebarSortOrder.label")}
+                  description={t("settings.behaviour.sidebarSortOrder.description")}
                   action={
                     <Select defaultValue="repository">
                       <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="repository">Repository</SelectItem>
-                        <SelectItem value="recent">Recent</SelectItem>
+                        <SelectItem value="repository">{t("settings.behaviour.sidebarSortOrder.repository")}</SelectItem>
+                        <SelectItem value="recent">{t("settings.behaviour.sidebarSortOrder.recent")}</SelectItem>
                       </SelectContent>
                     </Select>
                   }
                 />
                 <SettingsItem
-                  label="Send review comments immediately"
-                  description="Send diff comments directly to the agent when you submit them. When off, comments are pasted into the prompt input when you close the diff."
+                  label={t("settings.behaviour.sendReviewComments.label")}
+                  description={t("settings.behaviour.sendReviewComments.description")}
                   action={<Switch defaultChecked />}
                 />
                 <SettingsItem
-                  label="Show inline diff comment responses"
-                  description="Display the assistant response directly under sent diff comments. Responses stay collapsed by default."
+                  label={t("settings.behaviour.inlineDiffResponses.label")}
+                  description={t("settings.behaviour.inlineDiffResponses.description")}
                   action={<Switch />}
                 />
                 <SettingsItem
-                  label="Default Merge Action"
-                  description='The primary action shown on the merge button. "Merge locally" merges into the base branch only. "Merge and push" also pushes to the remote.'
+                  label={t("settings.behaviour.defaultMergeAction.label")}
+                  description={t("settings.behaviour.defaultMergeAction.description")}
                   action={
                     <Select defaultValue="draft_pr">
                       <SelectTrigger className="w-44 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="draft_pr">Draft pull request</SelectItem>
-                        <SelectItem value="merge_locally">Merge locally</SelectItem>
-                        <SelectItem value="merge_push">Merge and push</SelectItem>
+                        <SelectItem value="draft_pr">{t("settings.behaviour.defaultMergeAction.draftPr")}</SelectItem>
+                        <SelectItem value="merge_locally">{t("settings.behaviour.defaultMergeAction.mergeLocally")}</SelectItem>
+                        <SelectItem value="merge_push">{t("settings.behaviour.defaultMergeAction.mergePush")}</SelectItem>
                       </SelectContent>
                     </Select>
                   }
                 />
                 <SettingsItem
-                  label="Fetch latest from origin"
-                  description="When enabled, new workspaces start from the latest remote state. When disabled, they start from the current local base branch."
+                  label={t("settings.behaviour.fetchLatest.label")}
+                  description={t("settings.behaviour.fetchLatest.description")}
                   action={<Switch defaultChecked />}
                 />
                 <SettingsItem
-                  label="Auto-archive workspaces"
-                  description="Automatically remove workspaces after merging or creating a PR, once CI passes."
+                  label={t("settings.behaviour.autoArchive.label")}
+                  description={t("settings.behaviour.autoArchive.description")}
                   action={<Switch />}
                 />
               </SettingsSection>
@@ -579,45 +583,45 @@ export function SettingsPage() {
 
           {activeTab === "notifications" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Notifications" description="Choose how and when alerts are presented." icon={Bell}>
+              <SettingsSection title={t("settings.notifications.title")} description={t("settings.notifications.description")} icon={Bell}>
                 <SettingsItem
-                  label="Notify when agent finishes"
-                  description="Show a native notification when an agent completes its work and the app is not focused."
+                  label={t("settings.notifications.agentFinish.label")}
+                  description={t("settings.notifications.agentFinish.description")}
                   action={<Switch defaultChecked />}
                 />
                 <SettingsItem
-                  label="Dock badge"
-                  description="Show the number of workspaces needing attention as a badge on the dock icon."
+                  label={t("settings.notifications.dockBadge.label")}
+                  description={t("settings.notifications.dockBadge.description")}
                   action={<Switch defaultChecked />}
                 />
                 <SettingsItem
-                  label="Completion sound"
-                  description="Play a sound when an agent completes its work."
+                  label={t("settings.notifications.completionSound.label")}
+                  description={t("settings.notifications.completionSound.description")}
                   action={
                     <Select defaultValue="unfocused">
                       <SelectTrigger className="w-48 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unfocused">When not focused</SelectItem>
-                        <SelectItem value="always">Always</SelectItem>
-                        <SelectItem value="never">Never</SelectItem>
+                        <SelectItem value="unfocused">{t("settings.notifications.completionSound.unfocused")}</SelectItem>
+                        <SelectItem value="always">{t("settings.notifications.completionSound.always")}</SelectItem>
+                        <SelectItem value="never">{t("settings.notifications.completionSound.never")}</SelectItem>
                       </SelectContent>
                     </Select>
                   }
                 />
                 <SettingsItem
-                  label="Sound"
-                  description="Choose which notification sound to play."
+                  label={t("settings.notifications.sound.label")}
+                  description={t("settings.notifications.sound.description")}
                   action={
                     <Select defaultValue="sparkle">
                       <SelectTrigger className="w-48 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="sparkle">Sparkle Ding</SelectItem>
-                        <SelectItem value="chime">Chime</SelectItem>
-                        <SelectItem value="pop">Pop</SelectItem>
+                        <SelectItem value="sparkle">{t("settings.notifications.sound.sparkleDing")}</SelectItem>
+                        <SelectItem value="chime">{t("settings.notifications.sound.chime")}</SelectItem>
+                        <SelectItem value="pop">{t("settings.notifications.sound.pop")}</SelectItem>
                       </SelectContent>
                     </Select>
                   }
@@ -628,28 +632,28 @@ export function SettingsPage() {
 
           {activeTab === "integrations" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Integrations" description="Manage connections to internal and external tools." icon={Blocks}>
+              <SettingsSection title={t("settings.integrations.title")} description={t("settings.integrations.description")} icon={Blocks}>
                 <SettingsItem
-                  label="Nightwatch"
-                  description="Laravel error tracking"
+                  label={t("settings.integrations.nightwatch.label")}
+                  description={t("settings.integrations.nightwatch.description")}
                   action={
                     <Button variant="outline" className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300">
-                      <Unplug className="h-4 w-4" /> Disconnect
+                      <Unplug className="h-4 w-4" /> {t("common.disconnect")}
                     </Button>
                   }
                 />
                 <SettingsItem
-                  label="Sentry"
-                  description="Error tracking and performance monitoring"
+                  label={t("settings.integrations.sentry.label")}
+                  description={t("settings.integrations.sentry.description")}
                   action={
                     <Button variant="outline" className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300">
-                      <Link2 className="h-4 w-4" /> Connect
+                      <Link2 className="h-4 w-4" /> {t("common.connect")}
                     </Button>
                   }
                 />
                 <SettingsItem
-                  label="Default IDE"
-                  description="Used by the Command Palette action for opening the current workspace."
+                  label={t("settings.integrations.defaultIde.label")}
+                  description={t("settings.integrations.defaultIde.description")}
                   action={
                     <Select defaultValue="phpstorm">
                       <SelectTrigger className="w-32 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
@@ -669,8 +673,8 @@ export function SettingsPage() {
                   }
                 />
                 <SettingsItem
-                  label="Default Terminal"
-                  description="Used when opening a workspace in a terminal."
+                  label={t("settings.integrations.defaultTerminal.label")}
+                  description={t("settings.integrations.defaultTerminal.description")}
                   action={
                     <Select defaultValue="ghostty">
                       <SelectTrigger className="w-32 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
@@ -693,10 +697,10 @@ export function SettingsPage() {
 
           {activeTab === "agents" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Coding Agents" description="Configure parameters for AI execution." icon={Bot}>
+              <SettingsSection title={t("settings.agents.title")} description={t("settings.agents.description")} icon={Bot}>
                 <SettingsTextarea
-                  label="Environment Variables"
-                  description="Configure environment variables that will be passed to Claude Code. One per line, format: VAR_NAME=value or export VAR_NAME=value"
+                  label={t("settings.agents.envVars.label")}
+                  description={t("settings.agents.envVars.description")}
                   defaultValue={`ANTHROPIC_API_KEY=sk-ant-...
 CLAUDE_CODE_USE_BEDROCK=1
 AWS_REGION=us-east-1
@@ -708,23 +712,23 @@ AWS_PROFILE=default`}
 
           {activeTab === "shortcuts" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Shortcuts" description="Keyboard shortcuts to boost your productivity." icon={Keyboard}>
+              <SettingsSection title={t("settings.shortcuts.title")} description={t("settings.shortcuts.description")} icon={Keyboard}>
                 {[
-                  { label: "Toggle Terminal", keys: "⌘`" },
-                  { label: "Toggle Sidebar", keys: "⌘B" },
-                  { label: "Toggle Changes Panel", keys: "⌘D" },
-                  { label: "Toggle Diff View", keys: "⌘⇧D" },
-                  { label: "Toggle Preview", keys: "⌘P" },
-                  { label: "Merge / Pull Request", keys: "⌘⇧M" },
-                  { label: "Add Attachment", keys: "⌘⇧A" },
-                  { label: "Toggle Plan Mode", keys: "⌘⇧P" },
-                  { label: "Toggle Opinions", keys: "⌘⇧O" },
-                  { label: "Toggle Dictation", keys: "⌘⇧V" },
-                  { label: "Focus Prompt Input", keys: "⌘L" },
+                  { labelKey: "settings.shortcuts.toggleTerminal", keys: "⌘`" },
+                  { labelKey: "settings.shortcuts.toggleSidebar", keys: "⌘B" },
+                  { labelKey: "settings.shortcuts.toggleChanges", keys: "⌘D" },
+                  { labelKey: "settings.shortcuts.toggleDiff", keys: "⌘⇧D" },
+                  { labelKey: "settings.shortcuts.togglePreview", keys: "⌘P" },
+                  { labelKey: "settings.shortcuts.mergePr", keys: "⌘⇧M" },
+                  { labelKey: "settings.shortcuts.addAttachment", keys: "⌘⇧A" },
+                  { labelKey: "settings.shortcuts.togglePlan", keys: "⌘⇧P" },
+                  { labelKey: "settings.shortcuts.toggleOpinions", keys: "⌘⇧O" },
+                  { labelKey: "settings.shortcuts.toggleDictation", keys: "⌘⇧V" },
+                  { labelKey: "settings.shortcuts.focusPrompt", keys: "⌘L" },
                 ].map((shortcut) => (
                   <SettingsItem
-                    key={shortcut.label}
-                    label={shortcut.label}
+                    key={shortcut.labelKey}
+                    label={t(shortcut.labelKey)}
                     action={
                       <div className="w-48 flex justify-end">
                         <div className="bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 rounded h-8 px-4 flex items-center justify-center font-mono text-[12px] text-zinc-600 dark:text-zinc-300 tracking-widest">
@@ -740,18 +744,18 @@ AWS_PROFILE=default`}
 
           {activeTab === "dictation" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Dictation" description="Choose the speech recognition method for prompt dictation." icon={Mic}>
+              <SettingsSection title={t("settings.dictation.title")} description={t("settings.dictation.description")} icon={Mic}>
                 <SettingsItem
-                  label="Speech Recognition Method"
-                  description="Uses the built-in speech recognition capabilities of your operating system. Lower accuracy and limited language support. No data will be sent to any servers."
+                  label={t("settings.dictation.method.label")}
+                  description={t("settings.dictation.method.description")}
                   action={
                     <Select defaultValue="web_speech">
                       <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="web_speech">Web Speech</SelectItem>
-                        <SelectItem value="custom">Custom Engine</SelectItem>
+                        <SelectItem value="web_speech">{t("settings.dictation.method.webSpeech")}</SelectItem>
+                        <SelectItem value="custom">{t("settings.dictation.method.custom")}</SelectItem>
                       </SelectContent>
                     </Select>
                   }
@@ -762,16 +766,16 @@ AWS_PROFILE=default`}
 
           {activeTab === "advanced" && (
             <div className="animate-in fade-in duration-300">
-              <SettingsSection title="Advanced" description="Developer options." icon={Wrench}>
+              <SettingsSection title={t("settings.advanced.title")} description={t("settings.advanced.description")} icon={Wrench}>
                 <SettingsItem
-                  label="Show all agent events (debug)"
-                  description="Shows raw agent and ask-user events in the activity feed."
+                  label={t("settings.advanced.debug.label")}
+                  description={t("settings.advanced.debug.description")}
                   action={<Switch />}
                 />
               </SettingsSection>
               <SettingsSection
                 title={t("settings.section.privacy")}
-                description="Manage your privacy and data settings here."
+                description={t("settings.advanced.privacy.description")}
                 icon={Shield}
               >
                 <SettingsItem
@@ -782,7 +786,7 @@ AWS_PROFILE=default`}
                       onClick={handleClearHistory}
                       className="text-sm font-bold text-purple-500 hover:text-purple-400 transition-colors"
                     >
-                      Limpar
+                      {t("settings.privacy.clear")}
                     </button>
                   }
                 />
@@ -794,7 +798,7 @@ AWS_PROFILE=default`}
                       onClick={handleClearSaved}
                       className="text-sm font-bold text-rose-500 hover:text-rose-400 transition-colors"
                     >
-                      Apagar Tudo
+                      {t("settings.privacy.clearAll")}
                     </button>
                   }
                 />
@@ -821,33 +825,33 @@ AWS_PROFILE=default`}
               <div className="animate-in fade-in duration-300">
                 <div className="flex justify-end mb-4">
                   <Button onClick={() => setIsProviderDialogOpen(true)}>
-                    <Plus size={18} /> Add manual connection
+                    <Plus size={18} /> {t("settings.vcsProviders.addManual")}
                   </Button>
                 </div>
 
                 {([
-                  { kind: "github" as ProviderKind, title: "GitHub", description: "Connect via GitHub App to access repositories and organizations.", icon: Github },
-                  { kind: "gitlab" as ProviderKind, title: "GitLab", description: "Authenticate with a personal access token to access GitLab projects and groups.", icon: GitlabIcon },
-                  { kind: "bitbucket" as ProviderKind, title: "Bitbucket", description: "Authenticate with an app password to access Bitbucket repositories and workspaces.", icon: Blocks },
-                ]).map(({ kind, title, description, icon }) => {
+                  { kind: "github" as ProviderKind, title: "GitHub", descKey: "settings.vcsProviders.github.description", icon: Github },
+                  { kind: "gitlab" as ProviderKind, title: "GitLab", descKey: "settings.vcsProviders.gitlab.description", icon: GitlabIcon },
+                  { kind: "bitbucket" as ProviderKind, title: "Bitbucket", descKey: "settings.vcsProviders.bitbucket.description", icon: Blocks },
+                ]).map(({ kind, title, descKey, icon }) => {
                   const connectedProvider = providers.find((p) => p.kind === kind);
                   return (
-                    <SettingsSection key={kind} title={title} description={`Connect a ${title} account to enable repository imports and pull requests.`} icon={icon}>
+                    <SettingsSection key={kind} title={title} description={t("settings.vcsProviders.connectAccount").replace("{title}", title)} icon={icon}>
                       <SettingsItem
                         label={title}
-                        description={description}
+                        description={t(descKey)}
                         action={
                           connectedKinds.has(kind) ? (
                             <div className="flex items-center gap-2">
                               {connectedProvider?.account_login && (
-                                <span className="text-sm text-zinc-500">Connected as {connectedProvider.account_login}</span>
+                                <span className="text-sm text-zinc-500">{t("settings.vcsProviders.connectedAs").replace("{login}", connectedProvider.account_login)}</span>
                               )}
-                              <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">Connected</Badge>
-                              <Button variant="outline" size="sm" onClick={() => { if (connectedProvider) { setActiveProviderId(connectedProvider.id); navigateTo("provider-detail"); } }}>Manage</Button>
+                              <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">{t("common.connected")}</Badge>
+                              <Button variant="outline" size="sm" onClick={() => { if (connectedProvider) { setActiveProviderId(connectedProvider.id); navigateTo("provider-detail"); } }}>{t("common.manage")}</Button>
                             </div>
                           ) : (
                             <Button onClick={kind === "github" ? () => connectGithub() : undefined}>
-                              <Link2 size={18} /> Connect
+                              <Link2 size={18} /> {t("common.connect")}
                             </Button>
                           )
                         }
@@ -868,13 +872,13 @@ AWS_PROFILE=default`}
           {activeTab === "workspaces" && (
             <div className="animate-in fade-in duration-300">
               <SettingsSection
-                title="Workspaces"
-                description="Configure how local Agent workspaces and repositories are handled."
+                title={t("settings.workspaces.title")}
+                description={t("settings.workspaces.description")}
                 icon={FolderGit2}
               >
                 <SettingsItem
-                  label="Default Workspace Directory"
-                  description="The default local path where new clone operations will be stored."
+                  label={t("settings.workspaces.defaultDir.label")}
+                  description={t("settings.workspaces.defaultDir.description")}
                   action={
                     <input
                       type="text"
@@ -890,16 +894,18 @@ AWS_PROFILE=default`}
           {activeTab === "prompts" && (
             <div className="animate-in fade-in duration-300">
               <SettingsSection
-                title="Prompts"
-                description="Customize the instructions sent to the coding agent when executing Git and GitHub actions. Leave blank to use the built-in default."
+                title={t("settings.prompts.title")}
+                description={t("settings.prompts.description")}
                 icon={FileText}
               >
                 {([
-                  { action: "merge_local", label: "Merge Locally", description: "Sent when the agent merges changes into the base branch without pushing." },
-                  { action: "merge_push",  label: "Merge and Push", description: "Sent when the agent merges locally and pushes to the remote." },
-                  { action: "draft_pr",    label: "Draft Pull Request", description: "Sent when the agent creates a draft PR on GitHub." },
-                  { action: "create_pr",   label: "Pull Request", description: "Sent when the agent creates a published PR on GitHub." },
-                ] as const).map(({ action, label, description }) => {
+                  { action: "merge_local", labelKey: "settings.prompts.mergeLocal.label", descKey: "settings.prompts.mergeLocal.description" },
+                  { action: "merge_push",  labelKey: "settings.prompts.mergePush.label",  descKey: "settings.prompts.mergePush.description" },
+                  { action: "draft_pr",    labelKey: "settings.prompts.draftPr.label",    descKey: "settings.prompts.draftPr.description" },
+                  { action: "create_pr",   labelKey: "settings.prompts.createPr.label",   descKey: "settings.prompts.createPr.description" },
+                ] as const).map(({ action, labelKey, descKey }) => {
+                  const label = t(labelKey);
+                  const description = t(descKey);
                   const isCustomized = action in promptOverrides;
                   // Value shown in the textarea: draft > saved override > empty (default is hidden).
                   const storedValue  = isCustomized ? promptOverrides[action] : "";
@@ -943,7 +949,7 @@ AWS_PROFILE=default`}
                               ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
                               : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 border border-zinc-200 dark:border-zinc-700"
                           )}>
-                            {isCustomized ? "Custom" : "Default"}
+                            {isCustomized ? t("settings.prompts.badge.custom") : t("settings.prompts.badge.default")}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -955,7 +961,7 @@ AWS_PROFILE=default`}
                               onClick={handleReset}
                               className="h-7 px-2.5 text-[11px] text-zinc-400 hover:text-white"
                             >
-                              Reset to default
+                              {t("settings.prompts.resetToDefault")}
                             </Button>
                           )}
                           {isDirty && (
@@ -965,7 +971,7 @@ AWS_PROFILE=default`}
                               onClick={handleSave}
                               className="h-7 px-3 text-[11px] bg-purple-600 hover:bg-purple-700 text-white"
                             >
-                              {savingPrompt === action ? "Saving..." : "Save"}
+                              {savingPrompt === action ? t("common.saving") : t("common.save")}
                             </Button>
                           )}
                         </div>
@@ -991,22 +997,22 @@ AWS_PROFILE=default`}
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-500">
                 <AlertTriangle size={24} />
               </div>
-              <h3 className="mb-2 text-center text-xl font-bold text-zinc-900 dark:text-white">Apagar tudo?</h3>
+              <h3 className="mb-2 text-center text-xl font-bold text-zinc-900 dark:text-white">{t("modal.reset.title")}</h3>
               <p className="mb-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                Esta ação é irreversível. Todos os seus dados locais serão eliminados.
+                {t("modal.reset.desc")}
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowResetConfirm(false)}
                   className="flex-1 rounded-md bg-zinc-100 py-3 font-bold text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
                 >
-                  Cancelar
+                  {t("modal.reset.cancel")}
                 </button>
                 <button
                   onClick={handleFactoryReset}
                   className="flex-1 rounded-md bg-red-600 py-3 font-bold text-white shadow-lg shadow-red-600/20 hover:bg-red-700"
                 >
-                  Sim, Apagar
+                  {t("modal.reset.confirm")}
                 </button>
               </div>
             </div>

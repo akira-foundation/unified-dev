@@ -16,6 +16,7 @@ import {
 } from "../ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { KeyRound, MoreVertical, Plus, Trash2, Server } from "lucide-react";
+import { useI18n } from "../../i18n/i18n";
 
 interface ProviderListProps {
   providers: ProviderSummary[];
@@ -38,6 +39,7 @@ const kindLabel = (kind: string) => {
 };
 
 export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: ProviderListProps) {
+  const { t } = useI18n();
   const [providerToRemove, setProviderToRemove] = useState<ProviderSummary | null>(null);
 
   return (
@@ -48,21 +50,21 @@ export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: P
             <Server size={22} strokeWidth={2} />
           </div>
           <div className="flex flex-col gap-1">
-            <CardTitle className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">Providers</CardTitle>
-            <CardDescription className="text-[13px] font-medium text-zinc-500/80 leading-none">Reusable VCS connections used by organizations.</CardDescription>
+            <CardTitle className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">{t("components.providerList.title")}</CardTitle>
+            <CardDescription className="text-[13px] font-medium text-zinc-500/80 leading-none">{t("components.providerList.description")}</CardDescription>
           </div>
         </div>
         {onCreate && (
           <Button onClick={onCreate}>
             <Plus size={18} />
-            New Provider
+            {t("common.newProvider")}
           </Button>
         )}
       </div>
       <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
         {providers.length === 0 ? (
           <div className="rounded-md  px-4 py-6 text-sm text-gray-500  dark:text-gray-400">
-            No providers configured yet.
+            {t("components.providerList.empty")}
           </div>
         ) : (
           providers.map((provider) => (
@@ -74,7 +76,7 @@ export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: P
                 <div className="text-sm font-semibold text-gray-900 dark:text-white">{provider.name}</div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                   <Badge variant="secondary">{kindLabel(provider.kind)}</Badge>
-                  <span>Created {new Date(provider.created_at).toLocaleDateString()}</span>
+                  <span>{t("components.providerList.created")} {new Date(provider.created_at).toLocaleDateString()}</span>
                 </div>
               </div>
               <DropdownMenu>
@@ -87,12 +89,12 @@ export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: P
                   {onUpdateToken && (
                     <DropdownMenuItem onClick={() => onUpdateToken(provider)}>
                       <KeyRound className="mr-2 h-4 w-4" />
-                      Update token
+                      {t("common.updateToken")}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem onClick={() => setProviderToRemove(provider)} className="text-red-500">
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Remove provider
+                    {t("common.removeProvider")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -103,13 +105,13 @@ export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: P
       <AlertDialog open={Boolean(providerToRemove)} onOpenChange={(open) => (!open ? setProviderToRemove(null) : null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove provider</AlertDialogTitle>
+            <AlertDialogTitle>{t("common.removeProvider")}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the provider configuration and disconnect any linked organizations.
+              {t("components.providerList.removeDialog.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
@@ -119,7 +121,7 @@ export function ProviderList({ providers, onRemove, onCreate, onUpdateToken }: P
                 setProviderToRemove(null);
               }}
             >
-              Remove
+              {t("common.remove")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

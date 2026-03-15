@@ -44,7 +44,7 @@ export function OrganizationsPage() {
         <PageHeaderActions>
           <Button onClick={() => setIsDialogOpen(true)}>
             <Plus size={18} />
-            New Organization
+            {t("pages.organizations.newOrganization")}
           </Button>
         </PageHeaderActions>
       </PageHeader>
@@ -57,8 +57,8 @@ export function OrganizationsPage() {
           </div>
         ) : organizations.length === 0 ? (
           <EmptyState
-            title="No organizations yet"
-            description="Add an organization to start importing repositories and tracking pull requests."
+            title={t("pages.organizations.empty.title")}
+            description={t("pages.organizations.empty.description")}
           />
         ) : (
           <OrganizationList

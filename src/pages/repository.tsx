@@ -78,8 +78,8 @@ export function RepositoryPage() {
           </div>
         ) : repos.length === 0 ? (
           <EmptyState
-            title="No repositories yet"
-            description="Import repositories from your organizations to start tracking pull requests and activity."
+            title={t("pages.repository.empty.title")}
+            description={t("pages.repository.empty.description")}
           />
         ) : (
           <RepoMetricsTable repos={repos} />

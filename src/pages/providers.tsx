@@ -48,7 +48,7 @@ export function ProvidersPage() {
       <PageHeader className="mx-auto w-full max-w-6xl">
         <div className="flex items-center justify-between w-full">
           <div>
-            <PageHeaderTitle>Providers</PageHeaderTitle>
+            <PageHeaderTitle>{t("pages.providers.title")}</PageHeaderTitle>
             <PageHeaderMeta>
               <span>{t("app.name")}</span>
               <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
@@ -59,14 +59,14 @@ export function ProvidersPage() {
           <div className="flex items-center gap-3">
             <Button variant="ghost" className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
               <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-              Refresh
+              {t("common.refresh")}
             </Button>
             <Button
               onClick={() => setIsDialogOpen(true)}
               className="gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
-              Add provider
+              {t("pages.providers.addProvider")}
             </Button>
           </div>
         </div>

@@ -2,6 +2,7 @@ import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { SearchInput } from "./search-input";
 import { VisibilityFilter } from "./visibility-filter";
+import { useI18n } from "../../i18n/i18n";
 
 interface RepoSelectionToolbarProps {
   search: string;
@@ -24,6 +25,7 @@ export function RepoSelectionToolbar({
   onSave,
   onSync,
 }: RepoSelectionToolbarProps) {
+  const { t } = useI18n();
   return (
     <Card>
       <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -34,13 +36,13 @@ export function RepoSelectionToolbar({
           <VisibilityFilter value={visibility} onChange={onVisibilityChange} />
         </div>
         <div className="flex flex-col gap-3 text-sm text-gray-500 dark:text-gray-400 lg:flex-row lg:items-center">
-          <span>{selectedCount} repositories selected</span>
+          <span>{t("toolbar.repositories.selected").replace("{count}", String(selectedCount))}</span>
           <div className="flex items-center gap-2">
             <Button variant="secondary" onClick={onSync} disabled={selectedCount === 0 || isSaving}>
-              Sync now
+              {t("common.syncNow")}
             </Button>
             <Button onClick={onSave} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Save selection"}
+              {isSaving ? t("common.saving") : t("toolbar.saveSelection")}
             </Button>
           </div>
         </div>

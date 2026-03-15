@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { z } from "zod";
+import { useI18n } from "../../i18n/i18n";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
@@ -23,6 +24,7 @@ const organizationSchema = z.object({
 });
 
 export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit }: AddOrganizationDialogProps) {
+  const { t } = useI18n();
   const form = useForm<z.infer<typeof organizationSchema>>({
     // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(organizationSchema),
@@ -56,8 +58,8 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add organization</DialogTitle>
-          <DialogDescription>Link an organization to an existing provider.</DialogDescription>
+          <DialogTitle>{t("dialogs.addOrg.title")}</DialogTitle>
+          <DialogDescription>{t("dialogs.addOrg.description")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit}>
@@ -66,9 +68,9 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Organization name</FormLabel>
+                  <FormLabel>{t("dialogs.addOrg.nameLabel")}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Acme Inc" {...field} />
+                    <Input placeholder={t("dialogs.addOrg.namePlaceholder")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -79,11 +81,11 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
               name="provider_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Provider</FormLabel>
+                  <FormLabel>{t("dialogs.addOrg.providerLabel")}</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select provider" />
+                        <SelectValue placeholder={t("dialogs.addOrg.providerPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
                         {providers.map((provider) => (
@@ -100,10 +102,10 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
             />
             <DialogFooter>
               <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Saving..." : "Save organization"}
+                {form.formState.isSubmitting ? t("common.saving") : t("dialogs.addOrg.save")}
               </Button>
             </DialogFooter>
             {form.formState.errors.root?.message && (

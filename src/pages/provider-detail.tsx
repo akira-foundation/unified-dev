@@ -26,9 +26,10 @@ import { Input } from "@/components/ui/input";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useProviders } from "@/hooks/useProviders";
 import { TOKEN_META } from "@/components/providers/add-provider-dialog";
+import { useI18n } from "@/i18n/i18n";
 
 const tokenSchema = z.object({
-  token: z.string().trim().min(10, "Token is required"),
+  token: z.string().trim().min(10),
 });
 
 const KIND_ICON = {
@@ -99,6 +100,7 @@ function SettingsItem({
 }
 
 export function ProviderDetailPage() {
+  const { t } = useI18n();
   const { activeProviderId, goBack } = useNavigation("provider-detail");
   const { providers, isLoading, updateProviderAuth, removeProvider } = useProviders();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
@@ -128,27 +130,27 @@ export function ProviderDetailPage() {
   const meta = TOKEN_META[provider.kind] ?? TOKEN_META.github;
 
   const handleUpdateToken = form.handleSubmit(async (values) => {
-    const toastId = toast.loading("Atualizando token...");
+    const toastId = toast.loading(t("pages.providerDetail.toast.updatingToken"));
     try {
       await updateProviderAuth({ providerId: provider.id, token: values.token.trim() });
-      toast.success("Token atualizado", { id: toastId });
+      toast.success(t("pages.providerDetail.toast.tokenUpdated"), { id: toastId });
       form.reset();
     } catch (error) {
-      const message = typeof error === "string" ? error : error instanceof Error ? error.message : "Falha ao atualizar token";
+      const message = typeof error === "string" ? error : error instanceof Error ? error.message : t("pages.providerDetail.toast.tokenUpdateFailed");
       toast.error(message, { id: toastId });
     }
   });
 
   const handleDisconnect = async () => {
     setIsDisconnecting(true);
-    const toastId = toast.loading("Desconectando...");
+    const toastId = toast.loading(t("pages.providerDetail.toast.disconnecting"));
     try {
       await removeProvider(provider.id);
-      toast.success("Provider desconectado", { id: toastId });
+      toast.success(t("pages.providerDetail.toast.disconnected"), { id: toastId });
       setDisconnectOpen(false);
       goBack();
     } catch (error) {
-      const message = typeof error === "string" ? error : error instanceof Error ? error.message : "Falha ao desconectar";
+      const message = typeof error === "string" ? error : error instanceof Error ? error.message : t("pages.providerDetail.toast.disconnectFailed");
       toast.error(message, { id: toastId });
     } finally {
       setIsDisconnecting(false);
@@ -164,7 +166,7 @@ export function ProviderDetailPage() {
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors w-fit group"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            <span className="text-sm font-medium">Back</span>
+            <span className="text-sm font-medium">{t("pages.providerDetail.back")}</span>
           </button>
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
@@ -174,7 +176,7 @@ export function ProviderDetailPage() {
               <PageHeaderTitle className="text-3xl">{provider.name}</PageHeaderTitle>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">{kindLabel}</Badge>
-                <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">Connected</Badge>
+                <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">{t("pages.providerDetail.connected")}</Badge>
               </div>
             </div>
           </div>
@@ -182,13 +184,13 @@ export function ProviderDetailPage() {
       </PageHeader>
 
       <div className="mx-auto w-full max-w-3xl px-6 pb-24 flex flex-col">
-        <SettingsSection title="Details" description="Provider information." icon={KindIcon}>
-          <SettingsItem label="Name" description={provider.name} />
-          <SettingsItem label="Kind" description={kindLabel} />
-          <SettingsItem label="Connected since" description={new Date(provider.created_at).toLocaleDateString()} />
+        <SettingsSection title={t("pages.providerDetail.details.title")} description={t("pages.providerDetail.details.description")} icon={KindIcon}>
+          <SettingsItem label={t("pages.providerDetail.details.name")} description={provider.name} />
+          <SettingsItem label={t("pages.providerDetail.details.kind")} description={kindLabel} />
+          <SettingsItem label={t("pages.providerDetail.details.connectedSince")} description={new Date(provider.created_at).toLocaleDateString()} />
         </SettingsSection>
 
-        <SettingsSection title="Authentication" description={`Update the ${meta.label.toLowerCase()} used to authenticate with ${kindLabel}.`} icon={KeyRound}>
+        <SettingsSection title={t("pages.providerDetail.auth.title")} description={t("pages.providerDetail.auth.description").replace("{label}", meta.label.toLowerCase()).replace("{kind}", kindLabel)} icon={KeyRound}>
           <div className="px-6 py-6">
             <Form {...form}>
               <form onSubmit={handleUpdateToken} className="flex flex-col gap-4">
@@ -207,7 +209,7 @@ export function ProviderDetailPage() {
                 />
                 <div className="flex justify-end">
                   <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
-                    {form.formState.isSubmitting ? "Saving..." : "Update token"}
+                    {form.formState.isSubmitting ? t("common.saving") : t("pages.providerDetail.auth.updateToken")}
                   </Button>
                 </div>
               </form>
@@ -215,13 +217,13 @@ export function ProviderDetailPage() {
           </div>
         </SettingsSection>
 
-        <SettingsSection title="Danger Zone" icon={AlertTriangle}>
+        <SettingsSection title={t("common.dangerZone")} icon={AlertTriangle}>
           <SettingsItem
-            label="Disconnect provider"
-            description="Remove this provider and all linked organizations permanently. This action cannot be undone."
+            label={t("pages.providerDetail.disconnect.label")}
+            description={t("pages.providerDetail.disconnect.description")}
             action={
               <Button variant="destructive" size="sm" onClick={() => setDisconnectOpen(true)}>
-                Disconnect
+                {t("common.disconnect")}
               </Button>
             }
           />
@@ -231,15 +233,15 @@ export function ProviderDetailPage() {
       <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Disconnect {kindLabel}?</AlertDialogTitle>
+            <AlertDialogTitle>{t("pages.providerDetail.disconnect.alert.title").replace("{kind}", kindLabel)}</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove <strong>{provider.name}</strong> and all organizations linked to it. This action cannot be undone.
+              {t("pages.providerDetail.disconnect.alert.description").replace("{name}", provider.name)}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDisconnecting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDisconnecting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={handleDisconnect} disabled={isDisconnecting}>
-              {isDisconnecting ? "Disconnecting..." : "Yes, disconnect"}
+              {isDisconnecting ? t("pages.providerDetail.disconnect.alert.confirming") : t("pages.providerDetail.disconnect.alert.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,5 +1,6 @@
 import type { OrganizationRepoSummary } from "../../types/organization";
 import { FolderGit2, Plus } from "lucide-react";
+import { useI18n } from "../../i18n/i18n";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -13,6 +14,7 @@ interface RepoMetricsTableProps {
 }
 
 export function RepoMetricsTable({ repos, title = "Repositories", onCreate }: RepoMetricsTableProps) {
+  const { t } = useI18n();
   return (
     <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
       <div className="flex flex-row items-center justify-between px-6 py-6 pb-6">
@@ -23,14 +25,14 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate }: Re
           <div className="flex flex-col gap-1">
             <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">{title}</span>
             <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
-              Managed source code repositories for this workspace.
+              {t("components.repoTable.description")}
             </span>
           </div>
         </div>
         {onCreate && (
           <Button onClick={onCreate}>
             <Plus size={18} />
-            New Repo
+            {t("common.newRepository")}
           </Button>
         )}
       </div>
@@ -39,11 +41,11 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate }: Re
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead className="text-right">Issues</TableHead>
-                <TableHead className="text-right">PRs</TableHead>
-                <TableHead className="text-right">Branches</TableHead>
-                <TableHead className="text-right">Visibility</TableHead>
+                <TableHead>{t("tables.header.name")}</TableHead>
+                <TableHead className="text-right">{t("tables.header.issues")}</TableHead>
+                <TableHead className="text-right">{t("tables.header.prs")}</TableHead>
+                <TableHead className="text-right">{t("tables.header.branches")}</TableHead>
+                <TableHead className="text-right">{t("tables.header.visibility")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

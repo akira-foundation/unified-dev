@@ -73,7 +73,7 @@ export function OrganizationReposPage() {
           />
           {organizationsLoading && (
             <Card>
-              <CardContent className="p-4 text-sm text-gray-500 dark:text-gray-400">Loading organizations...</CardContent>
+              <CardContent className="p-4 text-sm text-gray-500 dark:text-gray-400">{t("pages.organizationRepos.loadingOrgs")}</CardContent>
             </Card>
           )}
         </div>
@@ -90,19 +90,19 @@ export function OrganizationReposPage() {
           />
           {!activeOrganizationId && (
             <EmptyState
-              title="Select an organization"
-              description="Choose an organization on the left to browse and manage its repositories."
+              title={t("pages.organizationRepos.selectOrg.title")}
+              description={t("pages.organizationRepos.selectOrg.description")}
             />
           )}
           {activeOrganizationId && isLoading && (
             <Card>
-              <CardContent className="p-6 text-sm text-gray-500 dark:text-gray-400">Loading repositories...</CardContent>
+              <CardContent className="p-6 text-sm text-gray-500 dark:text-gray-400">{t("pages.organizationRepos.loadingRepos")}</CardContent>
             </Card>
           )}
           {activeOrganizationId && !isLoading && filteredRepos.length === 0 && (
             <EmptyState
-              title="No repositories found"
-              description={activeOrganization ? `${activeOrganization.name} has no repositories matching your filters.` : "No repositories match your current filters."}
+              title={t("pages.organizationRepos.noRepos.title")}
+              description={activeOrganization ? `${activeOrganization.name} has no repositories matching your filters.` : t("pages.organizationRepos.noRepos.description")}
             />
           )}
           {activeOrganizationId && !isLoading && filteredRepos.length > 0 && (

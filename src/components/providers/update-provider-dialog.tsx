@@ -11,6 +11,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
+import { useI18n } from "../../i18n/i18n";
 
 interface UpdateProviderDialogProps {
   provider: ProviderSummary | null;
@@ -21,7 +22,7 @@ interface UpdateProviderDialogProps {
 }
 
 const updateSchema = z.object({
-  token: z.string().trim().min(10, "Token is required"),
+  token: z.string().trim().min(10),
 });
 
 const KIND_LABEL: Record<string, string> = {
@@ -31,6 +32,7 @@ const KIND_LABEL: Record<string, string> = {
 };
 
 export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, onDisconnect }: UpdateProviderDialogProps) {
+  const { t } = useI18n();
   const form = useForm<z.infer<typeof updateSchema>>({
     // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(updateSchema),
@@ -54,13 +56,13 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, o
 
   const handleDisconnect = async () => {
     if (!onDisconnect) return;
-    const toastId = toast.loading("Desconectando...");
+    const toastId = toast.loading(t("pages.providerDetail.toast.disconnecting"));
     try {
       await onDisconnect();
-      toast.success("Provider desconectado", { id: toastId });
+      toast.success(t("pages.providerDetail.toast.disconnected"), { id: toastId });
       onOpenChange(false);
     } catch (error) {
-      const message = typeof error === "string" ? error : error instanceof Error ? error.message : "Falha ao desconectar";
+      const message = typeof error === "string" ? error : error instanceof Error ? error.message : t("pages.providerDetail.toast.disconnectFailed");
       toast.error(message, { id: toastId });
     }
   };
@@ -72,9 +74,9 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, o
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Manage {kindLabel}</DialogTitle>
+          <DialogTitle>{t("dialogs.updateProvider.title").replace("{kind}", kindLabel)}</DialogTitle>
           <DialogDescription>
-            {provider ? `Connected · ${provider.name}` : "Manage provider connection."}
+            {provider ? t("dialogs.updateProvider.description").replace("{name}", provider.name) : t("dialogs.updateProvider.descriptionFallback")}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -95,15 +97,15 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, o
             <DialogFooter className="flex-row justify-between sm:justify-between">
               {onDisconnect && (
                 <Button variant="destructive" type="button" onClick={handleDisconnect} disabled={form.formState.isSubmitting}>
-                  Disconnect
+                  {t("common.disconnect")}
                 </Button>
               )}
               <div className="flex gap-2">
                 <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
-                  {form.formState.isSubmitting ? "Saving..." : "Save"}
+                  {form.formState.isSubmitting ? t("common.saving") : t("common.save")}
                 </Button>
               </div>
             </DialogFooter>

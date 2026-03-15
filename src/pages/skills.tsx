@@ -151,6 +151,7 @@ function SkillIcon({ className, textIcon, iconPath, onClick }: SkillIconProps) {
 }
 
 export function SkillsPage() {
+  const { t } = useI18n();
   const { installedSkills, setInstalledSkills, setSelectedSkill } = useAgentsStore();
   const [loading, setLoading] = useState(true);
   const [installingIds, setInstallingIds] = useState<Set<string>>(new Set());

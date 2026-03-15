@@ -142,10 +142,10 @@ export function ImportRepositoriesPage() {
     if (payload.length === 0) {
       return;
     }
-    const toastId = toast.loading("Importing repositories...");
+    const toastId = toast.loading(t("pages.importRepos.importingCount"));
     try {
       await repositorySelectionService.saveSelectedRepositories(organization.id, payload);
-      toast.success(`Imported ${payload.length} repositories`, { id: toastId });
+      toast.success(t("pages.importRepos.importedCount").replace("{count}", String(payload.length)), { id: toastId });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to import repositories";
       toast.error(message, { id: toastId });
@@ -157,7 +157,7 @@ export function ImportRepositoriesPage() {
     <PageLayout>
       <PageHeader>
         <div>
-          <PageHeaderTitle>Import repositories</PageHeaderTitle>
+          <PageHeaderTitle>{t("pages.importRepos.title")}</PageHeaderTitle>
           <PageHeaderMeta>
             <span>{t("app.name")}</span>
             <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
@@ -167,7 +167,7 @@ export function ImportRepositoriesPage() {
         {organization && (
           <Button onClick={() => navigateTo("organization")}>
             <ExternalLink size={18} />
-            View organization
+            {t("pages.importRepos.viewOrganization")}
           </Button>
         )}
       </PageHeader>
@@ -175,10 +175,10 @@ export function ImportRepositoriesPage() {
         <Card>
           <CardContent className="p-6 text-sm text-gray-500 dark:text-gray-400">
             {isOrganizationsLoading
-              ? "Loading organization..."
+              ? t("pages.importRepos.loadingOrg")
               : activeOrganizationId
-                ? "Organization not found."
-                : "Select an organization first."}
+                ? t("pages.importRepos.orgNotFound")
+                : t("pages.importRepos.selectOrgFirst")}
           </CardContent>
         </Card>
       )}
@@ -188,7 +188,7 @@ export function ImportRepositoriesPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
-                GitHub organizations
+                {t("pages.importRepos.githubOrgs")}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col p-2 gap-2 overflow-y-hidden custom-scrollbar h-[calc(100vh-20rem)]">
@@ -207,7 +207,7 @@ export function ImportRepositoriesPage() {
                   </div>
                   <div className="space-y-1">
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                      Failed to load organizations
+                      {t("pages.importRepos.failedOrgs.title")}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">{orgsError}</div>
                   </div>
@@ -220,10 +220,10 @@ export function ImportRepositoriesPage() {
                   </div>
                   <div className="space-y-1">
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                      No organizations found
+                      {t("pages.importRepos.noOrgs.title")}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      Add a provider or check permissions.
+                      {t("pages.importRepos.noOrgs.description")}
                     </div>
                   </div>
                   <div className="w-full max-w-[220px] space-y-2 opacity-60">
@@ -242,17 +242,17 @@ export function ImportRepositoriesPage() {
                     onClick={() => setSelectedOrg(org)}
                   >
                     <span className="truncate">
-                      {org.kind === "personal" ? "Personal" : org.login}
+                      {org.kind === "personal" ? t("pages.importRepos.personal") : org.login}
                     </span>
                     {selectedOrg?.id === org.id ? (
                       repos.length > 0 ? (
                         <Badge variant="secondary" className="ml-auto text-[10px] uppercase">
-                          {repos.length} repos
+                          {repos.length} {t("pages.importRepos.reposCount")}
                         </Badge>
                       ) : null
                     ) : (
                       <Badge variant="secondary" className="ml-auto text-[10px] uppercase">
-                        {org.kind === "personal" ? "You" : "Org"}
+                        {org.kind === "personal" ? t("pages.importRepos.scopeYou") : t("pages.importRepos.scopeOrg")}
                       </Badge>
                     )}
                   </Button>
@@ -269,7 +269,7 @@ export function ImportRepositoriesPage() {
                   <VisibilityFilter value={visibility} onChange={setVisibility} />
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {selectedCount} repositories selected
+                  {t("pages.importRepos.selectedCount").replace("{count}", String(selectedCount))}
                 </div>
               </CardContent>
             </Card>
@@ -291,7 +291,7 @@ export function ImportRepositoriesPage() {
                     </div>
                     <div className="space-y-1">
                       <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                        Failed to load repositories
+                        {t("pages.importRepos.failedRepos.title")}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">{reposError}</div>
                     </div>
@@ -306,10 +306,10 @@ export function ImportRepositoriesPage() {
                     </div>
                     <div className="flex flex-col gap-2">
                       <span className="text-base font-semibold text-gray-900 dark:text-white">
-                        Select an organization
+                        {t("pages.importRepos.selectOrg.title")}
                       </span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">
-                        Choose an org on the left to load repositories.
+                        {t("pages.importRepos.selectOrg.description")}
                       </span>
                     </div>
                     <div className="w-full max-w-2xl space-y-3 opacity-60">
@@ -329,10 +329,10 @@ export function ImportRepositoriesPage() {
                     </div>
                     <div className="flex flex-col gap-2">
                       <span className="text-base font-semibold text-gray-900 dark:text-white">
-                        No repositories found
+                        {t("pages.importRepos.noRepos.title")}
                       </span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">
-                        No repositories match your current selection.
+                        {t("pages.importRepos.noRepos.description")}
                       </span>
                     </div>
                     <div className="w-full max-w-2xl space-y-3 opacity-60">

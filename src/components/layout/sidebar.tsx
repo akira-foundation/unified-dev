@@ -38,7 +38,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
               type="button"
               onClick={toggleSidebar}
               className="relative flex h-10 w-10 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-900 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
-              title="Expand Sidebar"
+              title={t("sidebar.expandSidebar")}
             >
               <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/toggle:opacity-100 transition-opacity" />
               <PanelLeft className="h-5 w-5 text-muted-foreground group-hover/toggle:text-primary transition-colors" />
@@ -61,7 +61,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                 type="button"
                 onClick={toggleSidebar}
                 className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
-                title="Collapse Sidebar"
+                title={t("sidebar.collapseSidebar")}
               >
                 <PanelLeft className="h-4 w-4" />
               </button>
@@ -142,7 +142,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
             v{appVersion.split(".")[0]}
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Unified Engine</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">{t("sidebar.engineLabel")}</span>
             <span className="text-[10px] font-medium text-zinc-500">v{appVersion}</span>
           </div>
         </div>

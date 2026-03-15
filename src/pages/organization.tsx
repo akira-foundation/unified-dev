@@ -71,7 +71,7 @@ export function OrganizationPage() {
       <PageHeader>
         <div>
           <PageHeaderTitle>
-            Organization
+            {t("pages.organization.title")}
             {organization && (
               <span className="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
                 / {organization.name} / <span className="font-mono text-xs">{organization.id}</span>
@@ -87,15 +87,15 @@ export function OrganizationPage() {
         {organization && (
           <Button onClick={() => navigateTo("import-repositories")}>
             <Download size={18} />
-            Import repositories
+            {t("pages.organization.importRepositories")}
           </Button>
         )}
       </PageHeader>
       <div className="flex flex-col gap-6">
         {!organization && (
           <EmptyState
-            title="No organization selected"
-            description="Select an organization from the list to view its repositories and activity."
+            title={t("pages.organization.empty.title")}
+            description={t("pages.organization.empty.description")}
           />
         )}
         {organization && (
@@ -104,7 +104,7 @@ export function OrganizationPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    Imported repos
+                    {t("pages.organization.stats.imported")}
                   </CardDescription>
                   <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-blue-500/10 text-blue-500">
                     <Activity size={16} />
@@ -119,7 +119,7 @@ export function OrganizationPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    Public repos
+                    {t("pages.organization.stats.public")}
                   </CardDescription>
                   <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-emerald-500/10 text-emerald-500">
                     <Globe2 size={16} />
@@ -134,7 +134,7 @@ export function OrganizationPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    Private repos
+                    {t("pages.organization.stats.private")}
                   </CardDescription>
                   <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-amber-500/10 text-amber-500">
                     <Lock size={16} />
@@ -149,7 +149,7 @@ export function OrganizationPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
                   <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    Last import
+                    {t("pages.organization.stats.lastImport")}
                   </CardDescription>
                   <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-500">
                     <Activity size={16} />
