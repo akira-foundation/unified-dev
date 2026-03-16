@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useI18n } from "@/i18n/i18n";
 
 interface RemoveThreadDialogProps {
   open: boolean;
@@ -24,13 +25,14 @@ export function RemoveThreadDialog({
   threadTitle,
   isRemoving
 }: RemoveThreadDialogProps) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Remove Thread</DialogTitle>
+          <DialogTitle>{t("dialogs.removeThread.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to remove the thread <strong className="text-foreground">{threadTitle}</strong>? This will delete all associated workspace files. This action cannot be undone.
+            {t("dialogs.removeThread.description").replace("{title}", threadTitle)}
           </DialogDescription>
         </DialogHeader>
 
@@ -40,7 +42,7 @@ export function RemoveThreadDialog({
             onClick={() => onOpenChange(false)}
             disabled={isRemoving}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={onRemove}
@@ -50,9 +52,9 @@ export function RemoveThreadDialog({
             {isRemoving ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Removing...
+                {t("dialogs.removeThread.removing")}
               </span>
-            ) : "Remove"}
+            ) : t("dialogs.removeThread.remove")}
           </Button>
         </DialogFooter>
       </DialogContent>

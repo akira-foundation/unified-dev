@@ -7,6 +7,7 @@ import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { cn } from "@/lib/utils";
 import type { AgentTimelineStep } from "@/types/agents";
 import type { ChatMessage, ToolCallEvent } from "@/stores/useAgentsStore";
+import { useI18n } from "@/i18n/i18n";
 
 interface AgentTimelineProps {
   steps: AgentTimelineStep[];
@@ -17,6 +18,7 @@ interface AgentTimelineProps {
 }
 
 function CodeBlock({ language, children }: { language: string; children: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
 
   function handleCopy() {
@@ -35,8 +37,8 @@ function CodeBlock({ language, children }: { language: string; children: string 
           className="flex items-center gap-1.5 text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
         >
           {copied
-            ? <><CheckIcon className="h-3 w-3 text-emerald-400" /> Copied</>
-            : <><Copy className="h-3 w-3" /> Copy</>
+            ? <><CheckIcon className="h-3 w-3 text-emerald-400" /> {t("common.copied")}</>
+            : <><Copy className="h-3 w-3" /> {t("common.copy")}</>
           }
         </button>
       </div>
@@ -166,6 +168,7 @@ function MessageMarkdown({ content }: { content: string }) {
 }
 
 export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls }: AgentTimelineProps) {
+  const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -201,8 +204,8 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             <Bot className="h-10 w-10 text-zinc-500" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <p className="text-[17px] font-semibold text-zinc-300">Thread ready</p>
-            <p className="text-[14px] text-zinc-500">Describe what you want to build or fix.</p>
+            <p className="text-[17px] font-semibold text-zinc-300">{t("agents.timeline.ready")}</p>
+            <p className="text-[14px] text-zinc-500">{t("agents.timeline.readyDescription")}</p>
           </div>
         </div>
       )}
@@ -250,7 +253,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             <div key={msg.id} className="flex flex-col gap-1">
               <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/80 border-b border-white/[0.06]">
-                  <span className="text-[11px] font-mono text-zinc-400">output</span>
+                  <span className="text-[11px] font-mono text-zinc-400">{t("agents.timeline.output")}</span>
                 </div>
                 <pre className="p-3 text-[12px] font-mono text-zinc-300 leading-relaxed overflow-x-auto whitespace-pre-wrap break-words bg-[#18181b]">
                   {msg.content}
@@ -337,7 +340,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
                 </span>
-                Working... {elapsedSeconds}s
+                {t("agents.timeline.working")} {elapsedSeconds}s
               </span>
             )}
           </div>

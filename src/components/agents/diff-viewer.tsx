@@ -1,5 +1,6 @@
 import { FileCode2, ChevronDown, Monitor, ChevronsUpDown, MoreVertical, Pencil, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/i18n";
 import type { FileChange } from "@/types/agents";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FileExplorer } from "./file-explorer";
@@ -21,6 +22,7 @@ interface DiffViewerProps {
 }
 
 export function DiffViewer({ files }: DiffViewerProps) {
+  const { t } = useI18n();
   const {
     isFilesAllExpanded,
     setIsFilesAllExpanded,
@@ -49,11 +51,11 @@ export function DiffViewer({ files }: DiffViewerProps) {
         workspacePath: selectedIssue.workspacePath,
         filename: discardTarget,
       });
-      toast.success(`Changes to ${discardTarget} discarded`);
+      toast.success(t("agents.diffViewer.toast.discarded").replace("{filename}", discardTarget));
       setDiscardTarget(null);
       await loadFileChanges(selectedIssue.workspacePath);
     } catch (err) {
-      toast.error(`Failed to discard changes: ${err}`);
+      toast.error(t("agents.diffViewer.toast.discardFailed").replace("{error}", String(err)));
     } finally {
       setIsDiscarding(false);
     }
@@ -89,7 +91,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
               diffViewTab === "changes" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
-            Changes
+            {t("agents.diffViewer.changes")}
             {diffViewTab === "changes" && <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />}
           </button>
           <button
@@ -99,7 +101,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
               diffViewTab === "files" ? "text-purple-600 dark:text-purple-400" : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300"
             )}
           >
-            Files
+            {t("agents.diffViewer.files")}
             {diffViewTab === "files" && <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.5)]" />}
           </button>
         </div>
@@ -110,12 +112,12 @@ export function DiffViewer({ files }: DiffViewerProps) {
             className="flex items-center gap-1.5 text-[8px] font-black text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors uppercase tracking-widest cursor-pointer"
           >
             <ChevronsUpDown className="h-2.5 w-2.5" />
-            <span>Toggle All</span>
+            <span>{t("agents.diffViewer.toggleAll")}</span>
           </button>
 
           <div className="flex items-center gap-3">
             <span className="text-[9px] font-black text-zinc-300 dark:text-zinc-600 uppercase tracking-widest tabular-nums">
-              {files.length} Files
+              {t("agents.diffViewer.filesCount").replace("{count}", String(files.length))}
             </span>
             <Monitor className="h-3 w-3 text-zinc-300 dark:text-zinc-600" />
           </div>
@@ -174,14 +176,14 @@ export function DiffViewer({ files }: DiffViewerProps) {
                           onSelect={() => setSelectedFilePath(file.filename)}
                         >
                           <Pencil className="h-3.5 w-3.5 text-zinc-400" />
-                          <span>Edit</span>
+                          <span>{t("agents.diffViewer.edit")}</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer"
                           onSelect={() => setDiscardTarget(file.filename)}
                         >
                           <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
-                          <span>Discard</span>
+                          <span>{t("agents.diffViewer.discard")}</span>
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useI18n } from "@/i18n/i18n";
 
 interface AddRepositoryDialogProps {
   open: boolean;
@@ -26,6 +27,7 @@ export function AddRepositoryDialog({
   onAdd,
   isLoading,
 }: AddRepositoryDialogProps) {
+  const { t } = useI18n();
   const [localPath, setLocalPath] = useState("");
   const [cloneUrl, setCloneUrl] = useState("");
 
@@ -55,9 +57,9 @@ export function AddRepositoryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Repository</DialogTitle>
+          <DialogTitle>{t("dialogs.addRepository.title")}</DialogTitle>
           <DialogDescription>
-            Select a Git repository to manage with Polyscope.
+            {t("dialogs.addRepository.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -67,20 +69,20 @@ export function AddRepositoryDialog({
               value="local"
               className="px-0 py-2 lowercase first-letter:uppercase"
             >
-              Local Path
+              {t("dialogs.addRepository.localPath")}
             </TabsTrigger>
             <TabsTrigger
               value="clone"
               className="px-0 py-2 lowercase first-letter:uppercase"
             >
-              Clone URL
+              {t("dialogs.addRepository.cloneUrl")}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="local" className="space-y-4 mt-0">
             <div className="flex gap-2">
               <Input
-                placeholder="/path/to/repository"
+                placeholder={t("dialogs.addRepository.pathPlaceholder")}
                 value={localPath}
                 onChange={(e) => setLocalPath(e.target.value)}
                 className="h-10"
@@ -91,7 +93,7 @@ export function AddRepositoryDialog({
                 onClick={handleBrowse}
               >
                 <Folder className="h-4 w-4" />
-                Browse
+                {t("dialogs.addRepository.browse")}
               </Button>
             </div>
           </TabsContent>
@@ -111,14 +113,14 @@ export function AddRepositoryDialog({
             variant="ghost"
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleAdd}
             className="px-8"
             disabled={isLoading || !localPath}
           >
-            {isLoading ? "Adding..." : "Add"}
+            {isLoading ? t("dialogs.addRepository.adding") : t("dialogs.addRepository.add")}
           </Button>
         </DialogFooter>
       </DialogContent>

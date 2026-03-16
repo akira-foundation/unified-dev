@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useI18n } from "@/i18n/i18n";
 
 interface DiscardFileDialogProps {
   open: boolean;
@@ -24,15 +25,14 @@ export function DiscardFileDialog({
   filename,
   isDiscarding,
 }: DiscardFileDialogProps) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Discard Changes</DialogTitle>
+          <DialogTitle>{t("dialogs.discardFile.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to discard all changes to{" "}
-            <strong className="text-foreground font-mono">{filename}</strong>?
-            This will restore the file to its last committed state. This action cannot be undone.
+            {t("dialogs.discardFile.description").replace("{filename}", filename)}
           </DialogDescription>
         </DialogHeader>
 
@@ -42,7 +42,7 @@ export function DiscardFileDialog({
             onClick={() => onOpenChange(false)}
             disabled={isDiscarding}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={onDiscard}
@@ -52,9 +52,9 @@ export function DiscardFileDialog({
             {isDiscarding ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Discarding...
+                {t("dialogs.discardFile.discarding")}
               </span>
-            ) : "Discard"}
+            ) : t("dialogs.discardFile.discard")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -3,6 +3,7 @@ import { X, ExternalLink, Loader2 } from "lucide-react";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useSettingsStore } from "@/stores/settings-store";
 import { invoke } from "@tauri-apps/api/core";
+import { useI18n } from "@/i18n/i18n";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
   vscDarkPlus,
@@ -41,6 +42,7 @@ const THEMES: Record<string, any> = {
 };
 
 export function FileEditor() {
+  const { t } = useI18n();
   const { selectedFilePath, setSelectedFilePath, repositoryGroups, selectedIssueId } = useAgentsStore();
   const { editorTheme } = useSettingsStore();
   const [content, setContent] = useState<string>("");
@@ -119,7 +121,7 @@ export function FileEditor() {
           <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
             <div className="flex items-center gap-2 text-zinc-500 text-[11px]">
               <Loader2 className="h-4 w-4 animate-spin text-purple-400" />
-              <span>Reading file content...</span>
+              <span>{t("agents.fileEditor.loading")}</span>
             </div>
           </div>
         )}

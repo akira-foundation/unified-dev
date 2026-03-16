@@ -3,6 +3,7 @@ import { Folder, FileCode2, ChevronRight, ChevronDown, Search, Loader2 } from "l
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { invoke } from "@tauri-apps/api/core";
+import { useI18n } from "@/i18n/i18n";
 
 interface FileNodeData {
   name: string;
@@ -103,6 +104,7 @@ function FileNode({ node, level = 0, workspacePath }: { node: FileNodeData; leve
 }
 
 export function FileExplorer() {
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [tree, setTree] = useState<FileNodeData[]>([]);
   const [searchResults, setSearchResults] = useState<FileNodeData[]>([]);
@@ -171,7 +173,7 @@ export function FileExplorer() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600 group-focus-within:text-purple-500/50 transition-colors" />
           <input
             type="text"
-            placeholder="Search files..."
+            placeholder={t("agents.fileExplorer.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-white/[0.03] border border-white/[0.05] rounded-md py-1.5 pl-9 pr-8 text-[11px] text-zinc-200 focus:outline-none focus:border-purple-500/30 focus:bg-white/[0.05] transition-all placeholder:text-zinc-600 font-medium"
@@ -188,13 +190,13 @@ export function FileExplorer() {
         {isLoading ? (
           <div className="flex items-center justify-center h-full gap-2 text-zinc-500 text-[11px]">
             <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Loading workspace...</span>
+            <span>{t("agents.fileExplorer.loading")}</span>
           </div>
         ) : search.trim() ? (
           searchResults.length > 0 ? (
             <div className="flex flex-col">
               <div className="px-3 py-1 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">Results: {searchResults.length}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">{t("agents.fileExplorer.results").replace("{count}", String(searchResults.length))}</span>
               </div>
               {searchResults.map((node) => (
                 <div
@@ -224,8 +226,8 @@ export function FileExplorer() {
                 <Search className="h-4 w-4 text-zinc-700" />
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-[11px] text-zinc-400 font-medium">No results for "{search}"</span>
-                <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">Try a different query</span>
+                <span className="text-[11px] text-zinc-400 font-medium">{t("agents.fileExplorer.noResults").replace("{query}", search)}</span>
+                <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">{t("agents.fileExplorer.tryDifferent")}</span>
               </div>
             </div>
           )
@@ -235,7 +237,7 @@ export function FileExplorer() {
           ))
         ) : (
           <div className="flex items-center justify-center h-full text-zinc-600 text-[11px]">
-            No files available
+            {t("agents.fileExplorer.noFiles")}
           </div>
         )}
       </div>

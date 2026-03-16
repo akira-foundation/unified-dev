@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { useI18n } from "@/i18n/i18n";
 import { AgentHeader } from "./agent-header";
 import { AgentTimeline } from "./agent-timeline";
 import { DiffViewer } from "./diff-viewer";
@@ -21,6 +22,7 @@ const DIFF_DEFAULT_WIDTH = 600;
 const CHAT_MIN_WIDTH = 500;
 
 export function AgentWorkspaceLayout() {
+  const { t } = useI18n();
   const {
     repositoryGroups,
     selectedIssueId,
@@ -164,9 +166,9 @@ export function AgentWorkspaceLayout() {
             </div>
 
             <div className="flex flex-col items-center gap-2">
-              <h2 className="text-[22px] font-bold text-white tracking-tight">Unified Dev</h2>
+              <h2 className="text-[22px] font-bold text-white tracking-tight">{t("app.name")}</h2>
               <p className="text-[13px] text-zinc-500 font-medium max-w-[280px] text-center leading-relaxed">
-                Select a repository from the sidebar to launch your agent workspace.
+                {t("agents.workspace.emptyDescription")}
               </p>
             </div>
           </div>
@@ -174,14 +176,14 @@ export function AgentWorkspaceLayout() {
           {/* Shortcuts Grid */}
           <div className="grid grid-cols-1 gap-y-2 w-full max-w-[320px] p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
             {[
-              { keys: ["⌘", "N"], label: "New thread" },
-              { keys: ["⌘", "1–9"], label: "Switch workspace" },
-              { keys: ["⌘", "B"], label: "Toggle sidebar" },
-              { keys: ["⌘", "D"], label: "Toggle diff panel" },
-              { keys: ["⌘", "`"], label: "Toggle terminal" },
+              { keys: ["⌘", "N"], labelKey: "agents.workspace.shortcut.newThread" },
+              { keys: ["⌘", "1–9"], labelKey: "agents.workspace.shortcut.switchWorkspace" },
+              { keys: ["⌘", "B"], labelKey: "agents.workspace.shortcut.toggleSidebar" },
+              { keys: ["⌘", "D"], labelKey: "agents.workspace.shortcut.toggleDiff" },
+              { keys: ["⌘", "`"], labelKey: "agents.workspace.shortcut.toggleTerminal" },
             ].map((shortcut, i) => (
               <div key={i} className="flex items-center justify-between px-2 py-1.5 group/item">
-                <span className="text-[11px] font-medium text-zinc-500 group-hover/item:text-zinc-400 transition-colors">{shortcut.label}</span>
+                <span className="text-[11px] font-medium text-zinc-500 group-hover/item:text-zinc-400 transition-colors">{t(shortcut.labelKey)}</span>
                 <div className="flex items-center gap-1">
                   {shortcut.keys.map((key, ki) => (
                     <kbd key={ki} className="min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded bg-white/[0.05] border border-white/[0.1] text-[9px] font-bold text-zinc-400 font-sans uppercase">

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+import { useI18n } from "@/i18n/i18n";
 
 interface RemoveRepositoryDialogProps {
   open: boolean;
@@ -24,13 +25,14 @@ export function RemoveRepositoryDialog({
   repoName,
   isRemoving
 }: RemoveRepositoryDialogProps) {
+  const { t } = useI18n();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Remove Repository</DialogTitle>
+          <DialogTitle>{t("dialogs.removeRepository.title")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to completely remove <strong className="text-foreground">{repoName}</strong> and all of its threads? This action cannot be undone.
+            {t("dialogs.removeRepository.description").replace("{name}", repoName)}
           </DialogDescription>
         </DialogHeader>
 
@@ -40,7 +42,7 @@ export function RemoveRepositoryDialog({
             onClick={() => onOpenChange(false)}
             disabled={isRemoving}
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={onRemove}
@@ -50,9 +52,9 @@ export function RemoveRepositoryDialog({
             {isRemoving ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Removing...
+                {t("dialogs.removeRepository.removing")}
               </span>
-            ) : "Remove"}
+            ) : t("dialogs.removeRepository.remove")}
           </Button>
         </DialogFooter>
       </DialogContent>

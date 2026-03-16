@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { useI18n } from "@/i18n/i18n";
 
 const templates = [
   {
@@ -91,6 +92,7 @@ const templates = [
 ];
 
 export function AutomationsPage() {
+  const { t } = useI18n();
   const { setActiveTab, setSelectedAutomation } = useAgentsStore();
 
   return (
@@ -99,24 +101,24 @@ export function AutomationsPage() {
         <PageHeader className="px-8">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <PageHeaderTitle className="text-3xl">Automations</PageHeaderTitle>
+              <PageHeaderTitle className="text-3xl">{t("pages.automations.title")}</PageHeaderTitle>
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[9px] text-zinc-400 shrink-0 font-black uppercase tracking-wider h-fit">
-                Beta
+                {t("common.beta")}
               </span>
             </div>
             <PageHeaderMeta>
-              <span>Automate work by setting up scheduled threads.</span>
+              <span>{t("pages.automations.subtitle")}</span>
             </PageHeaderMeta>
           </div>
           <PageHeaderActions className="gap-3">
             <Button variant="ghost" className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
               <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-              Refresh
+              {t("common.refresh")}
             </Button>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
               <Input
-                placeholder="Search automations"
+                placeholder={t("pages.automations.searchPlaceholder")}
                 className="w-64 pl-9 bg-zinc-900/50 border-white/5 text-sm text-zinc-300 placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-purple-500/50 transition-colors"
               />
             </div>
@@ -125,13 +127,13 @@ export function AutomationsPage() {
               className="gap-1.5"
             >
               <Plus className="h-4 w-4" strokeWidth={3} />
-              New automation
+              {t("common.newAutomation")}
             </Button>
           </PageHeaderActions>
         </PageHeader>
 
         <div className="px-8 mt-4">
-          <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">Start with a template</h2>
+          <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">{t("pages.automations.startWithTemplate")}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {templates.map((template, idx) => (
               <button
@@ -166,7 +168,7 @@ export function AutomationsPage() {
                             </button>
                           </TooltipTrigger>
                           <TooltipContent className="bg-purple-500 text-white border-none font-bold">
-                            <span className="text-xs">Configure automation</span>
+                            <span className="text-xs">{t("pages.automations.configure")}</span>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>

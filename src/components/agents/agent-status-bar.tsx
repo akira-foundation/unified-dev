@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
+import { useI18n } from "@/i18n/i18n";
 
 interface AgentStatusBarProps {
   branchName: string;
@@ -24,6 +25,7 @@ export function AgentStatusBar({
   isTerminalOpen = false,
   onToggleTerminal,
 }: AgentStatusBarProps) {
+  const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
 
   return (
@@ -39,7 +41,7 @@ export function AgentStatusBar({
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
           <span className="text-[11px] font-medium text-muted-foreground/60">
-            Connected
+            {t("agents.statusBar.connected")}
           </span>
         </div>
 
@@ -60,7 +62,7 @@ export function AgentStatusBar({
         <div className="flex items-center gap-6">
           <button className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground/40 hover:text-foreground transition-colors group">
             <MonitorCog className="h-3.5 w-3.5" />
-            <span>Mobile Remote</span>
+            <span>{t("agents.statusBar.mobileRemote")}</span>
           </button>
           <button
             onClick={onToggleTerminal}
@@ -72,7 +74,7 @@ export function AgentStatusBar({
             )}
           >
             <Terminal className="h-3.5 w-3.5" />
-            <span>Terminal</span>
+            <span>{t("agents.statusBar.terminal")}</span>
           </button>
         </div>
 

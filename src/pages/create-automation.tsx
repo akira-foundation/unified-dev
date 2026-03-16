@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/c
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/i18n";
 
 export function CreateAutomationPage() {
+  const { t } = useI18n();
   const { setActiveTab, selectedAutomation } = useAgentsStore();
 
   const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
@@ -57,14 +59,14 @@ export function CreateAutomationPage() {
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors w-fit group"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            <span className="text-sm font-medium">Back to Automations</span>
+            <span className="text-sm font-medium">{t("pages.createAutomation.back")}</span>
           </button>
           <div>
             <PageHeaderTitle className="text-3xl">
-              {selectedAutomation ? "Configure automation" : "Create automation"}
+              {selectedAutomation ? t("pages.createAutomation.titleConfigure") : t("pages.createAutomation.titleCreate")}
             </PageHeaderTitle>
             <PageHeaderMeta>
-              <span>Automate recurring tasks in the background.</span>
+              <span>{t("pages.createAutomation.subtitle")}</span>
             </PageHeaderMeta>
           </div>
         </div>
@@ -75,45 +77,45 @@ export function CreateAutomationPage() {
         <div className="flex gap-4 p-5 rounded-md bg-blue-500/5 border border-blue-500/10 text-sm">
           <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
           <p className="leading-relaxed text-zinc-300 text-[13px]">
-            Automations run with your default sandbox settings. Tool calls will fail if they require modifying files outside the workspace, accessing network, or working with apps on your computer.
+            {t("pages.createAutomation.infoBox")}
           </p>
         </div>
 
         <form onSubmit={(e) => e.preventDefault()}>
           <SettingsSection
-            title="General Information"
-            description="Basic configuration for your automation thread."
+            title={t("pages.createAutomation.generalInfo.title")}
+            description={t("pages.createAutomation.generalInfo.description")}
             icon={Settings}
           >
             <SettingsItem
-              label="Name"
-              description="Choose a descriptive name for this automation."
+              label={t("pages.createAutomation.name.label")}
+              description={t("pages.createAutomation.name.description")}
               action={
                 <Input
                   defaultValue={selectedAutomation?.text ? `Auto: ${selectedAutomation.text.split(' ').slice(0, 3).join(' ')}...` : ""}
-                  placeholder="Check for sentry issues"
+                  placeholder={t("pages.createAutomation.name.placeholder")}
                   className="w-64 bg-black/20 border-white/5 rounded-md"
                 />
               }
             />
             <SettingsItem
-              label="Projects"
-              description="Specify which folders or repositories this automation should monitor."
+              label={t("pages.createAutomation.projects.label")}
+              description={t("pages.createAutomation.projects.description")}
               action={
                 <Input
-                  placeholder="Choose a folder"
+                  placeholder={t("pages.createAutomation.projects.placeholder")}
                   className="w-64 bg-black/20 border-white/5 rounded-md"
                 />
               }
             />
             <SettingsItem
-              label="Execution environment"
-              description="Where the automation tasks will be executed by the agent."
+              label={t("pages.createAutomation.executionEnv.label")}
+              description={t("pages.createAutomation.executionEnv.description")}
               action={
                 <Tabs defaultValue="worktree">
                   <TabsList className="bg-black/20 border border-white/5 rounded-md">
-                    <TabsTrigger value="worktree" className="rounded-md">Worktree</TabsTrigger>
-                    <TabsTrigger value="local" className="rounded-md">Local</TabsTrigger>
+                    <TabsTrigger value="worktree" className="rounded-md">{t("pages.createAutomation.executionEnv.worktree")}</TabsTrigger>
+                    <TabsTrigger value="local" className="rounded-md">{t("pages.createAutomation.executionEnv.local")}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               }
@@ -121,30 +123,30 @@ export function CreateAutomationPage() {
           </SettingsSection>
 
           <SettingsSection
-            title="Agent Configuration"
-            description="Define the instructions and schedule for the automation."
+            title={t("pages.createAutomation.agentConfig.title")}
+            description={t("pages.createAutomation.agentConfig.description")}
             icon={Bot}
           >
             <SettingsItem
-              label="Prompt"
-              description="The core instructions for the agent. Use $variable syntax for integrations."
+              label={t("pages.createAutomation.prompt.label")}
+              description={t("pages.createAutomation.prompt.description")}
             >
               <textarea
                 defaultValue={selectedAutomation?.text || ""}
-                placeholder="look for crashes in $Sentry"
+                placeholder={t("pages.createAutomation.prompt.placeholder")}
                 rows={4}
                 className="w-full rounded-md bg-black/20 border border-white/5 p-4 text-[13px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all custom-scrollbar resize-none font-sans"
               />
             </SettingsItem>
 
             <SettingsItem
-              label="Schedule"
-              description="How often should this automation run?"
+              label={t("pages.createAutomation.schedule.label")}
+              description={t("pages.createAutomation.schedule.description")}
               action={
                 <Tabs defaultValue="daily">
                   <TabsList className="bg-black/20 border border-white/5">
-                    <TabsTrigger value="daily">Daily</TabsTrigger>
-                    <TabsTrigger value="interval">Interval</TabsTrigger>
+                    <TabsTrigger value="daily">{t("pages.createAutomation.schedule.daily")}</TabsTrigger>
+                    <TabsTrigger value="interval">{t("pages.createAutomation.schedule.interval")}</TabsTrigger>
                   </TabsList>
                 </Tabs>
               }
@@ -174,10 +176,10 @@ export function CreateAutomationPage() {
               onClick={() => setActiveTab("automations")}
               className="font-bold"
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button className="font-bold px-8">
-              Create automation
+              {t("pages.createAutomation.submit")}
             </Button>
           </div>
         </form>

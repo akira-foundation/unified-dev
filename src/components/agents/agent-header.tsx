@@ -25,6 +25,7 @@ import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useSettingsStore } from "@/stores/settings-store";
 import { RemoveThreadDialog } from "./remove-thread-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import { useI18n } from "@/i18n/i18n";
 
 interface AgentHeaderProps {
   issue: AgentIssue;
@@ -38,35 +39,35 @@ interface ActionConfig {
   icon: React.ElementType;
 }
 
-const ACTION_CONFIGS: Record<HeaderAction, ActionConfig> = {
-  merge_local: {
-    label: "Merge locally",
-    description: "Sync changes with your local base branch",
-    icon: Monitor,
-  },
-  merge_push: {
-    label: "Merge and push",
-    description: "Update local and sync with remote repository",
-    icon: CloudUpload,
-  },
-  draft_pr: {
-    label: "Draft PR",
-    description: "Initialize a new draft PR on GitHub",
-    icon: GitPullRequest,
-  },
-  create_pr: {
-    label: "Create pull request",
-    description: "Initialize a new PR directly on GitHub",
-    icon: GitPullRequest,
-  },
-  merge_commit: {
-    label: "Push changes",
-    description: "Commit and push to update the existing pull request",
-    icon: GitCommitHorizontal,
-  },
-};
-
 export function AgentHeader({ issue }: AgentHeaderProps) {
+  const { t } = useI18n();
+  const ACTION_CONFIGS: Record<HeaderAction, ActionConfig> = {
+    merge_local: {
+      label: t("agents.header.action.mergeLocal.label"),
+      description: t("agents.header.action.mergeLocal.description"),
+      icon: Monitor,
+    },
+    merge_push: {
+      label: t("agents.header.action.mergePush.label"),
+      description: t("agents.header.action.mergePush.description"),
+      icon: CloudUpload,
+    },
+    draft_pr: {
+      label: t("agents.header.action.draftPr.label"),
+      description: t("agents.header.action.draftPr.description"),
+      icon: GitPullRequest,
+    },
+    create_pr: {
+      label: t("agents.header.action.createPr.label"),
+      description: t("agents.header.action.createPr.description"),
+      icon: GitPullRequest,
+    },
+    merge_commit: {
+      label: t("agents.header.action.mergeCommit.label"),
+      description: t("agents.header.action.mergeCommit.description"),
+      icon: GitCommitHorizontal,
+    },
+  };
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -84,7 +85,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
   const handleAction = async () => {
     if (!effectiveModelId) {
-      toast.error("No AI model selected. Please configure a provider in Settings.");
+      toast.error(t("agents.header.toast.noModel"));
       return;
     }
 
@@ -109,7 +110,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
       await invoke("delete_thread", { threadId: issue.id });
       removeThread(issue.repoId, issue.id);
       setSelectedIssueId(null);
-      toast.success("Thread removed");
+      toast.success(t("agents.header.toast.threadRemoved"));
       setShowRemoveDialog(false);
     } catch (error) {
       toast.error(`Failed to remove thread: ${error}`);
@@ -140,7 +141,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
             className="h-8 px-3 text-[#A855F7] text-[12px] font-semibold gap-2 rounded-xl hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            <span>View PR</span>
+            <span>{t("agents.header.viewPr")}</span>
           </Button>
         )}
         {fileChanges.length > 0 && (
@@ -154,7 +155,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
               {prUrl ? (
                 <>
                   <GitCommitHorizontal className="h-4 w-4 text-[#A855F7]" />
-                  <span>Push changes</span>
+                  <span>{t("agents.header.pushChanges")}</span>
                 </>
               ) : (
                 <>
@@ -227,14 +228,14 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           >
             <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer transition-all">
               <Octagon className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
-              <span>Stop agent</span>
+              <span>{t("agents.header.stopAgent")}</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setShowRemoveDialog(true)}
               className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer transition-all"
             >
               <Trash2 className="h-4 w-4" />
-              <span>Remove</span>
+              <span>{t("common.remove")}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

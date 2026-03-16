@@ -4,8 +4,10 @@ import { PageHeader, PageHeaderTitle } from "@/components/layout/page-header";
 import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/i18n";
 
 export function SkillDetailsPage() {
+  const { t } = useI18n();
   const { selectedSkill, setActiveTab } = useAgentsStore();
 
   if (!selectedSkill) {
@@ -58,7 +60,7 @@ export function SkillDetailsPage() {
             className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors w-fit group"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            <span className="text-sm font-medium">Back to Skills</span>
+            <span className="text-sm font-medium">{t("pages.skillDetails.back")}</span>
           </button>
           <div className="flex items-center gap-4">
             <div className={cn("h-12 w-12 rounded-md flex items-center justify-center text-2xl shadow-inner shrink-0 bg-white/5 border border-white/5", iconClass)}>
@@ -73,19 +75,19 @@ export function SkillDetailsPage() {
 
       <div className="mx-auto w-full max-w-3xl px-6 pb-24 flex flex-col">
         <SettingsSection
-          title="General"
-          description="Basic information about this skill."
+          title={t("pages.skillDetails.general.title")}
+          description={t("pages.skillDetails.general.description")}
           icon={Info}
         >
           {displayDescription ? (
             <SettingsItem
-              label="Description"
+              label={t("pages.skillDetails.description")}
               description={displayDescription}
             />
           ) : null}
           {sourcePath ? (
             <SettingsItem
-              label="Location"
+              label={t("pages.skillDetails.location")}
               description={sourcePath}
             />
           ) : null}

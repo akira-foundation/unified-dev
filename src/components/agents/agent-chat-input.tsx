@@ -1,6 +1,7 @@
 import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/i18n";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,7 @@ interface SlashMenuProps {
 }
 
 function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
+  const { t } = useI18n();
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   // Scroll focused item into view
@@ -44,7 +46,7 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
   if (items.length === 0) {
     return (
       <div className="rounded-xl border border-white/[0.06] bg-zinc-900 shadow-2xl p-3 text-[12px] text-zinc-500">
-        No commands or skills match <span className="text-white/60">/{query}</span>
+        {t("agents.chatInput.slash.noMatch")} <span className="text-white/60">/{query}</span>
       </div>
     );
   }
@@ -60,7 +62,7 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
         <div>
           <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
             <Terminal className="h-3 w-3 text-zinc-500" />
-            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">Commands</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">{t("agents.chatInput.slash.commands")}</span>
           </div>
           {commands.map((cmd) => {
             const idx = globalIndex++;
@@ -90,7 +92,7 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
         <div>
           <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
             <Zap className="h-3 w-3 text-zinc-500" />
-            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">Skills</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-500">{t("agents.chatInput.slash.skills")}</span>
           </div>
           {skills.map((skill) => {
             const idx = globalIndex++;
@@ -129,6 +131,7 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
 // ─── Main input ───────────────────────────────────────────────────────────────
 
 export function AgentChatInput() {
+  const { t } = useI18n();
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
@@ -288,9 +291,9 @@ export function AgentChatInput() {
         <div className="flex items-center gap-3 mb-3 px-4 py-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
           <AlertCircle className="h-4 w-4 text-amber-500 shrink-0" />
           <div className="flex flex-col gap-0.5">
-            <span className="text-[13px] font-semibold text-amber-400">No AI providers detected</span>
+            <span className="text-[13px] font-semibold text-amber-400">{t("agents.chatInput.noProviders.title")}</span>
             <span className="text-[11px] text-zinc-500">
-              Set ANTHROPIC_API_KEY or OPENAI_API_KEY to enable agents.
+              {t("agents.chatInput.noProviders.description")}
             </span>
           </div>
         </div>
@@ -310,7 +313,7 @@ export function AgentChatInput() {
                   <PopoverTrigger asChild>
                     <button className="flex items-center gap-2 hover:text-white transition-colors group outline-none">
                       <span className="text-[13px] font-medium">
-                        {selectedModel?.label ?? "Select model"}
+                        {selectedModel?.label ?? t("agents.chatInput.selectModel")}
                       </span>
                       <ChevronDown className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                     </button>
@@ -321,12 +324,12 @@ export function AgentChatInput() {
                   >
                     <Command className="bg-transparent">
                       <CommandInput
-                        placeholder="Search models..."
+                        placeholder={t("agents.chatInput.searchModels")}
                         className="text-[13px] text-white/90 placeholder:text-zinc-600 border-white/[0.04]"
                       />
                       <CommandList className="max-h-[280px]">
                         <CommandEmpty className="py-6 text-center text-[12px] text-zinc-500">
-                          No models found
+                          {t("agents.chatInput.noModels")}
                         </CommandEmpty>
                         {aiProviders.map((provider) => (
                           <CommandGroup
@@ -368,7 +371,7 @@ export function AgentChatInput() {
                   </PopoverContent>
                 </Popover>
               ) : (
-                <span className="text-[13px] font-medium text-zinc-600">No models available</span>
+                <span className="text-[13px] font-medium text-zinc-600">{t("agents.chatInput.noModelsAvailable")}</span>
               )}
 
               <button className="hover:text-white transition-colors p-1">
@@ -401,10 +404,10 @@ export function AgentChatInput() {
               onKeyDown={handleKeyDown}
               placeholder={
                 isCurrentThreadStreaming
-                  ? "Agent is responding..."
+                  ? t("agents.chatInput.placeholder.responding")
                   : hasProviders
-                  ? "Ask to make changes... (/ for commands)"
-                  : "Configure an AI provider to start..."
+                  ? t("agents.chatInput.placeholder.ready")
+                  : t("agents.chatInput.placeholder.noProvider")
               }
               disabled={!hasProviders || isCurrentThreadStreaming}
               className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-white/90 placeholder:text-zinc-500 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"

@@ -89,16 +89,16 @@ export function AgentsSidebar() {
     let loadingToast;
     try {
       setIsAddingRepo(true);
-      loadingToast = toast.loading("Adding repository...");
+      loadingToast = toast.loading(t("agents.sidebar.toast.addingRepo"));
 
       const response = await invoke<any>("add_local_repository", { localPath: path });
 
       if (response && response.repository && response.thread) {
-        toast.success(`Repository ${response.repository.name} added`, { id: loadingToast });
+        toast.success(t("agents.sidebar.toast.repoAdded").replace("{name}", response.repository.name), { id: loadingToast });
         addRepository(response.repository, response.thread);
         setShowAddRepositoryDialog(false);
       } else {
-        toast.error("Invalid response from server", { id: loadingToast });
+        toast.error(t("agents.sidebar.toast.invalidResponse"), { id: loadingToast });
       }
     } catch (error) {
       toast.error(`Error: ${error}`, { id: loadingToast });
@@ -114,7 +114,7 @@ export function AgentsSidebar() {
       setIsRemovingRepo(true);
       await invoke("delete_local_repository", { repoId: repoToRemove.id });
       removeRepository(repoToRemove.id);
-      toast.success(`Repository ${repoToRemove.name} removed`);
+      toast.success(t("agents.sidebar.toast.repoRemoved").replace("{name}", repoToRemove.name));
       setRepoToRemove(null);
     } catch (error) {
       toast.error(`Failed to remove repository: ${error}`);
@@ -143,7 +143,7 @@ export function AgentsSidebar() {
       setRemovingThreadId(threadToRemove.id);
       await invoke("delete_thread", { threadId: threadToRemove.id });
       removeThread(threadToRemove.repoId, threadToRemove.id);
-      toast.success("Thread removed");
+      toast.success(t("agents.sidebar.toast.threadRemoved"));
       setThreadToRemove(null);
     } catch (error) {
       toast.error(`Failed to remove thread: ${error}`);
@@ -159,21 +159,21 @@ export function AgentsSidebar() {
           <button
             onClick={handleBack}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all group"
-            title="Back to Dashboard"
+            title={t("agents.sidebar.backToDashboard")}
           >
             <CornerUpLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
           </button>
           <div className="flex flex-col flex-1 overflow-hidden">
             <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
             <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold truncate">
-              Agents
+              {t("agents.sidebar.agents")}
             </span>
           </div>
           <button
             type="button"
             onClick={toggleSidebar}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
-            title="Collapse Sidebar"
+            title={t("sidebar.collapseSidebar")}
           >
             <PanelLeft className="h-4 w-4" />
           </button>
@@ -185,7 +185,7 @@ export function AgentsSidebar() {
             className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group"
           >
             <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-            <span>Add Repository</span>
+            <span>{t("agents.sidebar.addRepository")}</span>
           </button>
           <button
             onClick={() => setActiveTab('automations')}
@@ -200,7 +200,7 @@ export function AgentsSidebar() {
               "h-4 w-4 transition-colors",
               activeTab === 'automations' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
             )} />
-            <span>Automations</span>
+            <span>{t("agents.sidebar.automations")}</span>
           </button>
           <button
             onClick={() => setActiveTab('skills')}
@@ -215,7 +215,7 @@ export function AgentsSidebar() {
               "h-4 w-4 transition-colors",
               activeTab === 'skills' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
             )} />
-            <span>Skills</span>
+            <span>{t("agents.sidebar.skills")}</span>
           </button>
         </div>
       </SidebarHeader>
@@ -282,7 +282,7 @@ export function AgentsSidebar() {
                                 </button>
                               </TooltipTrigger>
                               <TooltipContent className="bg-purple-500 text-white border-none font-bold">
-                                <span className="text-xs">Add new thread</span>
+                                <span className="text-xs">{t("agents.sidebar.addThread")}</span>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
@@ -296,40 +296,40 @@ export function AgentsSidebar() {
                             <DropdownMenuContent align="end" className="w-56 bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md">
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <CircleDot className="h-4 w-4 text-white/40" />
-                                <span>From issue</span>
+                                <span>{t("agents.sidebar.fromIssue")}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <GitPullRequest className="h-4 w-4 text-white/40" />
-                                <span>From pull request</span>
+                                <span>{t("agents.sidebar.fromPr")}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <GitBranch className="h-4 w-4 text-white/40" />
-                                <span>From branch</span>
+                                <span>{t("agents.sidebar.fromBranch")}</span>
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator className="bg-white/[0.03]" />
 
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <Play className="h-4 w-4 text-white/40" />
-                                <span>Run task</span>
+                                <span>{t("agents.sidebar.runTask")}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <Rocket className="h-4 w-4 text-white/40" />
-                                <span>Autopilot</span>
+                                <span>{t("agents.sidebar.autopilot")}</span>
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator className="bg-white/[0.03]" />
 
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
                                 <Settings className="h-4 w-4 text-white/40" />
-                                <span>Settings</span>
+                                <span>{t("agents.sidebar.settings")}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => setRepoToRemove({ id: repo.id, name: repo.name })}
                                 className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer"
                               >
                                 <Trash2 className="h-4 w-4" />
-                                <span>Remove</span>
+                                <span>{t("common.remove")}</span>
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
