@@ -120,14 +120,14 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   };
 
   return (
-    <header className="h-14 border-b border-white/[0.03] flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
+    <header className="h-14 border-b border-border/30 flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
       {/* Title & Metadata */}
       <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-[13px] font-medium tracking-tight text-white/40 truncate">
+        <span className="text-[13px] font-medium tracking-tight text-foreground/40 truncate">
           {issue.repoName}
         </span>
-        <span className="text-zinc-700 shrink-0">/</span>
-        <span className="text-[13px] font-semibold tracking-tight text-white/80 truncate">
+        <span className="text-muted-foreground shrink-0">/</span>
+        <span className="text-[13px] font-semibold tracking-tight text-foreground/80 truncate">
           {issue.title}
         </span>
       </div>
@@ -145,12 +145,12 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           </Button>
         )}
         {fileChanges.length > 0 && (
-          <div className="flex items-center bg-[#0F0F0F] rounded-xl border border-white/5 shadow-2xl overflow-hidden transition-all duration-300">
+          <div className="flex items-center dark:bg-[#0F0F0F] bg-secondary rounded-xl dark:border-white/5 border-border border shadow-2xl overflow-hidden transition-all duration-300">
             <Button
               variant="ghost"
               disabled={isActioning}
               onClick={handleAction}
-              className="h-8 pl-4 pr-3 text-white/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none cursor-pointer"
+              className="h-8 pl-4 pr-3 text-foreground/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none cursor-pointer"
             >
               {prUrl ? (
                 <>
@@ -171,14 +171,14 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-9 rounded-none hover:bg-white/5 text-zinc-400 hover:text-white transition-colors border-none cursor-pointer"
+                    className="h-8 w-9 rounded-none dark:hover:bg-white/5 hover:bg-black/5 text-zinc-400 hover:text-foreground transition-colors border-none cursor-pointer"
                   >
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
-                  className="w-80 bg-[#0F0F0F] border-white/[0.05] p-2 shadow-2xl rounded-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
+                  className="w-80 dark:bg-[#0F0F0F] bg-popover dark:border-white/[0.05] border-border p-2 shadow-2xl rounded-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
                 >
                   {(Object.entries(ACTION_CONFIGS) as [HeaderAction, ActionConfig][])
                     .filter(([key]) => key !== "merge_commit")
@@ -187,12 +187,12 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
                         key={key}
                         onSelect={() => setSelectedAction(key)}
                         className={cn(
-                          "flex items-start gap-3.5 p-3.5 focus:bg-white/[0.03] rounded-xl cursor-pointer group transition-all duration-200",
-                          selectedAction === key && "bg-white/[0.02]"
+                          "flex items-start gap-3.5 p-3.5 dark:focus:bg-white/[0.03] focus:bg-black/[0.03] rounded-xl cursor-pointer group transition-all duration-200",
+                          selectedAction === key && "dark:bg-white/[0.02] bg-black/[0.02]"
                         )}
                       >
                         <div className={cn(
-                          "h-9 w-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-[#A855F7]/10 group-hover:border-[#A855F7]/20 transition-all duration-200",
+                          "h-9 w-9 rounded-lg dark:bg-white/5 bg-black/5 flex items-center justify-center shrink-0 dark:border-white/5 border-border border group-hover:bg-[#A855F7]/10 group-hover:border-[#A855F7]/20 transition-all duration-200",
                           selectedAction === key && "bg-[#A855F7]/10 border-[#A855F7]/20"
                         )}>
                           <config.icon className={cn(
@@ -201,7 +201,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
                           )} />
                         </div>
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-[13px] font-semibold text-white/90 tracking-tight">{config.label}</span>
+                          <span className="text-[13px] font-semibold text-foreground/90 tracking-tight">{config.label}</span>
                           <span className="text-[11px] text-zinc-500 leading-tight">{config.description}</span>
                         </div>
                       </DropdownMenuItem>
@@ -217,17 +217,17 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-lg hover:bg-white/5 text-muted-foreground/40 hover:text-white transition-colors border-none"
+              className="h-8 w-8 rounded-lg dark:hover:bg-white/5 hover:bg-black/5 text-muted-foreground/40 hover:text-foreground transition-colors border-none"
             >
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-56 bg-background border-white/[0.05] p-1 shadow-2xl rounded-md backdrop-blur-3xl"
+            className="w-56 bg-popover dark:border-white/[0.05] border-border p-1 shadow-2xl rounded-md backdrop-blur-3xl"
           >
-            <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer transition-all">
-              <Octagon className="h-4 w-4 text-white/40 group-hover:text-white transition-colors" />
+            <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer transition-all">
+              <Octagon className="h-4 w-4 text-foreground/40" />
               <span>{t("agents.header.stopAgent")}</span>
             </DropdownMenuItem>
             <DropdownMenuItem

@@ -29,7 +29,7 @@ export function AgentStatusBar({
   const { toggleSidebar } = useSidebar();
 
   return (
-    <div className="h-10 border-t border-white/[0.05] bg-background flex items-center px-4 justify-between select-none">
+    <div className="h-10 border-t border-border bg-background flex items-center px-4 justify-between select-none">
       <div className="flex items-center gap-6">
         <button
           onClick={toggleSidebar}

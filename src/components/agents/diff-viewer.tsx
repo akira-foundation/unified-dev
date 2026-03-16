@@ -161,25 +161,25 @@ export function DiffViewer({ files }: DiffViewerProps) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 rounded-md text-zinc-400 hover:text-white hover:bg-white/5 border-none shrink-0"
+                          className="h-6 w-6 rounded-md text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 border-none shrink-0"
                         >
                           <MoreVertical className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent
                         align="end"
-                        className="bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md backdrop-blur-3xl"
+                        className="dark:bg-[#0D0D0D] bg-popover dark:border-white/[0.05] border-border p-1 shadow-2xl rounded-md backdrop-blur-3xl"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <DropdownMenuItem
-                          className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer"
+                          className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-foreground/70 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
                           onSelect={() => setSelectedFilePath(file.filename)}
                         >
                           <Pencil className="h-3.5 w-3.5 text-zinc-400" />
                           <span>{t("agents.diffViewer.edit")}</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-zinc-300 focus:bg-white/5 rounded-md cursor-pointer"
+                          className="flex items-center gap-2.5 px-3 py-2 text-[11px] font-medium text-foreground/70 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
                           onSelect={() => setDiscardTarget(file.filename)}
                         >
                           <RotateCcw className="h-3.5 w-3.5 text-zinc-400" />
@@ -194,7 +194,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
                   "overflow-hidden transition-all duration-300",
                   collapsedFiles[file.filename] ? "max-h-0" : "max-h-none"
                 )}>
-                  <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800 bg-[#0A0A0A]/30">
+                  <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800 dark:bg-[#0A0A0A]/30 bg-zinc-50">
                     <div className="py-2 font-mono text-[10.5px] leading-relaxed overflow-x-auto custom-scrollbar">
                       {file.diff?.split('\n').map((line, i) => (
                         <div

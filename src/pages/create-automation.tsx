@@ -56,7 +56,7 @@ export function CreateAutomationPage() {
         <div className="flex flex-col gap-4">
           <button
             onClick={() => setActiveTab("automations")}
-            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors w-fit group"
+            className="flex items-center gap-2 text-zinc-500 hover:text-foreground transition-colors w-fit group"
           >
             <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
             <span className="text-sm font-medium">{t("pages.createAutomation.back")}</span>
@@ -76,7 +76,7 @@ export function CreateAutomationPage() {
         {/* Info Box */}
         <div className="flex gap-4 p-5 rounded-md bg-blue-500/5 border border-blue-500/10 text-sm">
           <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-          <p className="leading-relaxed text-zinc-300 text-[13px]">
+          <p className="leading-relaxed dark:text-zinc-300 text-foreground/70 text-[13px]">
             {t("pages.createAutomation.infoBox")}
           </p>
         </div>
@@ -94,7 +94,7 @@ export function CreateAutomationPage() {
                 <Input
                   defaultValue={selectedAutomation?.text ? `Auto: ${selectedAutomation.text.split(' ').slice(0, 3).join(' ')}...` : ""}
                   placeholder={t("pages.createAutomation.name.placeholder")}
-                  className="w-64 bg-black/20 border-white/5 rounded-md"
+                  className="w-64"
                 />
               }
             />
@@ -104,7 +104,7 @@ export function CreateAutomationPage() {
               action={
                 <Input
                   placeholder={t("pages.createAutomation.projects.placeholder")}
-                  className="w-64 bg-black/20 border-white/5 rounded-md"
+                  className="w-64"
                 />
               }
             />
@@ -113,7 +113,7 @@ export function CreateAutomationPage() {
               description={t("pages.createAutomation.executionEnv.description")}
               action={
                 <Tabs defaultValue="worktree">
-                  <TabsList className="bg-black/20 border border-white/5 rounded-md">
+                  <TabsList className="rounded-md">
                     <TabsTrigger value="worktree" className="rounded-md">{t("pages.createAutomation.executionEnv.worktree")}</TabsTrigger>
                     <TabsTrigger value="local" className="rounded-md">{t("pages.createAutomation.executionEnv.local")}</TabsTrigger>
                   </TabsList>
@@ -135,7 +135,7 @@ export function CreateAutomationPage() {
                 defaultValue={selectedAutomation?.text || ""}
                 placeholder={t("pages.createAutomation.prompt.placeholder")}
                 rows={4}
-                className="w-full rounded-md bg-black/20 border border-white/5 p-4 text-[13px] text-zinc-200 placeholder:text-zinc-600 focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all custom-scrollbar resize-none font-sans"
+                className="w-full rounded-md border border-input bg-transparent p-4 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all custom-scrollbar resize-none font-sans"
               />
             </SettingsItem>
 
@@ -144,7 +144,7 @@ export function CreateAutomationPage() {
               description={t("pages.createAutomation.schedule.description")}
               action={
                 <Tabs defaultValue="daily">
-                  <TabsList className="bg-black/20 border border-white/5">
+                  <TabsList>
                     <TabsTrigger value="daily">{t("pages.createAutomation.schedule.daily")}</TabsTrigger>
                     <TabsTrigger value="interval">{t("pages.createAutomation.schedule.interval")}</TabsTrigger>
                   </TabsList>
@@ -155,13 +155,13 @@ export function CreateAutomationPage() {
                 <div className="relative w-32">
                   <Input
                     defaultValue="09:00"
-                    className="bg-black/20 border-white/5 pr-10 text-zinc-200 transition-all font-mono text-[13px]"
+                    className="pr-10 font-mono text-[13px]"
                   />
                   <ClockIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
                 </div>
                 <div className="flex gap-1.5">
                   {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(day => (
-                    <button key={day} className="h-8 w-8 rounded-md bg-white text-black font-black text-[9px] hover:bg-zinc-200 transition-all shadow-sm">
+                    <button key={day} className="h-8 w-8 rounded-md dark:bg-white dark:text-black bg-zinc-100 text-foreground font-black text-[9px] hover:bg-zinc-200 transition-all shadow-sm">
                       {day}
                     </button>
                   ))}

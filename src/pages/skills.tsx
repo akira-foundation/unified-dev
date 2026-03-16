@@ -129,7 +129,7 @@ function SkillIcon({ className, textIcon, iconPath, onClick }: SkillIconProps) {
   return (
     <div
       className={cn(
-        "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/5 border border-white/5 font-bold shadow-sm transition-transform group-hover:scale-110 overflow-hidden",
+        "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border font-bold shadow-sm transition-transform group-hover:scale-110 overflow-hidden",
         onClick && "cursor-pointer hover:ring-2 hover:ring-purple-500/50",
         className,
       )}
@@ -241,7 +241,7 @@ export function SkillsPage() {
           <div>
             <div className="flex items-center gap-3">
               <PageHeaderTitle className="text-3xl">{t("pages.skills.title")}</PageHeaderTitle>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[9px] text-zinc-400 shrink-0 font-black uppercase tracking-wider h-fit">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border text-[9px] text-zinc-500 shrink-0 font-black uppercase tracking-wider h-fit">
                 {t("common.beta")}
               </span>
             </div>
@@ -252,7 +252,7 @@ export function SkillsPage() {
           <PageHeaderActions className="gap-3">
             <Button
               variant="ghost"
-              className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs"
+              className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs"
               onClick={loadSkills}
             >
               <RefreshCcw className="mr-2 h-3.5 w-3.5" />
@@ -264,7 +264,7 @@ export function SkillsPage() {
                 placeholder={t("pages.skills.searchPlaceholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-64 pl-9 bg-zinc-900/50 border-white/5 text-sm text-zinc-300 placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-purple-500/50 transition-colors"
+                className="w-64 pl-9 focus-visible:ring-purple-500/50"
               />
             </div>
             <Button className="gap-1.5">
@@ -283,7 +283,7 @@ export function SkillsPage() {
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-[66px] rounded-xl bg-white/[0.03] animate-pulse" />
+                  <div key={i} className="h-[66px] rounded-xl dark:bg-white/[0.03] bg-black/[0.03] animate-pulse" />
                 ))}
               </div>
             ) : filteredInstalled.length === 0 ? (
@@ -293,7 +293,7 @@ export function SkillsPage() {
                 {filteredInstalled.map((skill) => (
                   <Card
                     key={skill.id}
-                    className="group overflow-hidden cursor-pointer hover:border-white/10 transition-colors"
+                    className="group overflow-hidden cursor-pointer dark:hover:border-white/10 hover:border-border transition-colors"
                     onClick={() => setSelectedSkill(skill)}
                   >
                     <CardContent className="p-4 flex items-center justify-between">
@@ -304,7 +304,7 @@ export function SkillsPage() {
                           onClick={() => changeIcon(skill.id)}
                         />
                         <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[14px] font-bold text-zinc-100 truncate">
+                          <span className="text-[14px] font-bold dark:text-zinc-100 text-foreground truncate">
                             {skill.name}
                           </span>
                           <span className="text-[13px] text-zinc-500 truncate font-medium">
@@ -361,7 +361,7 @@ export function SkillsPage() {
                   return (
                     <Card
                       key={skill.id}
-                      className="group overflow-hidden hover:border-white/10 transition-colors cursor-pointer"
+                      className="group overflow-hidden dark:hover:border-white/10 hover:border-border transition-colors cursor-pointer"
                       onClick={() => setSelectedSkill(skill)}
                     >
                       <CardContent className="p-4 flex items-center justify-between">
@@ -371,7 +371,7 @@ export function SkillsPage() {
                             textIcon={skill.textIcon}
                           />
                           <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-[14px] font-bold text-zinc-100 truncate">
+                            <span className="text-[14px] font-bold dark:text-zinc-100 text-foreground truncate">
                               {skill.title}
                             </span>
                             <span className="text-[13px] text-zinc-500 truncate font-medium">
@@ -386,7 +386,7 @@ export function SkillsPage() {
                               <TooltipTrigger asChild>
                                 <button
                                   disabled={isInstalling}
-                                  className="flex items-center gap-1.5 px-2 h-8 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-semibold"
+                                  className="flex items-center gap-1.5 px-2 h-8 rounded-md text-zinc-400 hover:text-foreground dark:hover:bg-white/10 hover:bg-black/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-semibold"
                                   onClick={() => installSkill(skill.id, skill.repoUrl)}
                                 >
                                   {isInstalling ? (

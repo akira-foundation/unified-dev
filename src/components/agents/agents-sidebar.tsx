@@ -153,7 +153,7 @@ export function AgentsSidebar() {
   };
 
   return (
-    <Sidebar className="border-r-0 bg-[#121212] dark:bg-[#0c0c0c] backdrop-blur-xl">
+    <Sidebar className="border-r-0 bg-sidebar backdrop-blur-xl">
       <SidebarHeader className="h-auto border-b border-white/[0.03] flex flex-col p-4 gap-4">
         <div className="flex items-center gap-3 w-full">
           <button
@@ -182,7 +182,7 @@ export function AgentsSidebar() {
         <div className="flex flex-col gap-1">
           <button
             onClick={() => setShowAddRepositoryDialog(true)}
-            className="flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-white/5 text-xs font-medium text-foreground/80 transition-all group"
+            className="flex items-center gap-3 px-2 py-1.5 rounded-md dark:hover:bg-white/5 hover:bg-black/5 text-xs font-medium text-foreground/80 transition-all group"
           >
             <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
             <span>{t("agents.sidebar.addRepository")}</span>
@@ -192,8 +192,8 @@ export function AgentsSidebar() {
             className={cn(
               "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
               activeTab === 'automations'
-                ? "bg-white/10 text-foreground"
-                : "hover:bg-white/5 text-foreground/80"
+                ? "dark:bg-white/10 bg-black/10 text-foreground"
+                : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
             )}
           >
             <Zap className={cn(
@@ -207,8 +207,8 @@ export function AgentsSidebar() {
             className={cn(
               "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
               activeTab === 'skills'
-                ? "bg-white/10 text-foreground"
-                : "hover:bg-white/5 text-foreground/80"
+                ? "dark:bg-white/10 bg-black/10 text-foreground"
+                : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
             )}
           >
             <Lightbulb className={cn(
@@ -258,9 +258,9 @@ export function AgentsSidebar() {
                           </span>
                           {repo.issues.some((i) => streamingThreadId === i.id) && (
                             <span className="flex items-center gap-[3px] shrink-0">
-                              <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:0ms]" />
-                              <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:150ms]" />
-                              <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:300ms]" />
+                              <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:0ms]" />
+                              <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:150ms]" />
+                              <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:300ms]" />
                             </span>
                           )}
                         </button>
@@ -272,7 +272,7 @@ export function AgentsSidebar() {
                                 <button
                                   onClick={() => handleAddThread(repo.id)}
                                   disabled={addingThreadForRepo === repo.id}
-                                  className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer"
+                                  className="p-1 rounded dark:hover:bg-white/5 hover:bg-black/5 text-muted-foreground/40 hover:text-foreground transition-colors disabled:opacity-50 cursor-pointer"
                                 >
                                   {addingThreadForRepo === repo.id ? (
                                     <div className="h-3.5 w-3.5 border border-white/30 border-t-white/80 rounded-full animate-spin" />
@@ -289,39 +289,39 @@ export function AgentsSidebar() {
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <button className="p-1 rounded hover:bg-white/5 text-muted-foreground/40 hover:text-foreground transition-colors cursor-pointer">
+                              <button className="p-1 rounded dark:hover:bg-white/5 hover:bg-black/5 text-muted-foreground/40 hover:text-foreground transition-colors cursor-pointer">
                                 <MoreVertical className="h-3.5 w-3.5" />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56 bg-[#0D0D0D] border-white/[0.05] p-1 shadow-2xl rounded-md">
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
-                                <CircleDot className="h-4 w-4 text-white/40" />
+                            <DropdownMenuContent align="end" className="w-56 dark:bg-[#0D0D0D] bg-popover dark:border-white/[0.05] border-border p-1 shadow-2xl rounded-md">
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                                <CircleDot className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.fromIssue")}</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
-                                <GitPullRequest className="h-4 w-4 text-white/40" />
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                                <GitPullRequest className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.fromPr")}</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
-                                <GitBranch className="h-4 w-4 text-white/40" />
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                                <GitBranch className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.fromBranch")}</span>
                               </DropdownMenuItem>
 
-                              <DropdownMenuSeparator className="bg-white/[0.03]" />
+                              <DropdownMenuSeparator className="dark:bg-white/[0.03] bg-black/[0.05]" />
 
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
-                                <Play className="h-4 w-4 text-white/40" />
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                                <Play className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.runTask")}</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
-                                <Rocket className="h-4 w-4 text-white/40" />
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                                <Rocket className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.autopilot")}</span>
                               </DropdownMenuItem>
 
-                              <DropdownMenuSeparator className="bg-white/[0.03]" />
+                              <DropdownMenuSeparator className="dark:bg-white/[0.03] bg-black/[0.05]" />
 
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-white/5 rounded-md cursor-pointer">
-                                <Settings className="h-4 w-4 text-white/40" />
+                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                                <Settings className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.settings")}</span>
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -356,16 +356,16 @@ export function AgentsSidebar() {
                                   <span className={cn(
                                     "text-[13px] truncate transition-colors flex-1",
                                     selectedIssueId === issue.id && activeTab === "workspace"
-                                      ? "text-white font-semibold"
-                                      : "text-white/90 font-medium"
+                                      ? "text-foreground font-semibold"
+                                      : "text-foreground/80 font-medium"
                                   )}>
                                     {issue.title}
                                   </span>
                                   {streamingThreadId === issue.id && (
                                     <span className="flex items-center gap-[3px] shrink-0">
-                                      <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:0ms]" />
-                                      <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:150ms]" />
-                                      <span className="h-[3px] w-[3px] rounded-full bg-white/50 animate-bounce [animation-delay:300ms]" />
+                                      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:0ms]" />
+                                      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:150ms]" />
+                                      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:300ms]" />
                                     </span>
                                   )}
                                   {prUrlByThread[issue.id] && (

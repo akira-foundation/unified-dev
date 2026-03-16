@@ -45,8 +45,8 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-white/[0.06] bg-zinc-900 shadow-2xl p-3 text-[12px] text-zinc-500">
-        {t("agents.chatInput.slash.noMatch")} <span className="text-white/60">/{query}</span>
+      <div className="rounded-xl dark:border-white/[0.06] border-border border dark:bg-zinc-900 bg-popover shadow-2xl p-3 text-[12px] text-zinc-500">
+        {t("agents.chatInput.slash.noMatch")} <span className="text-foreground/60">/{query}</span>
       </div>
     );
   }
@@ -57,7 +57,7 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
   let globalIndex = 0;
 
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-zinc-900 shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
+    <div className="rounded-xl dark:border-white/[0.06] border-border border dark:bg-zinc-900 bg-popover shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
       {commands.length > 0 && (
         <div>
           <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
@@ -77,7 +77,7 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
                 }}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2 transition-colors text-left",
-                  focused ? "bg-white/[0.07]" : "hover:bg-white/[0.04]",
+                  focused ? "dark:bg-white/[0.07] bg-black/[0.07]" : "dark:hover:bg-white/[0.04] hover:bg-black/[0.04]",
                 )}
               >
                 <span className="text-[13px] font-mono font-medium text-purple-400 w-24 shrink-0">{cmd.label}</span>
@@ -107,16 +107,16 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
                 }}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2 transition-colors text-left",
-                  focused ? "bg-white/[0.07]" : "hover:bg-white/[0.04]",
+                  focused ? "dark:bg-white/[0.07] bg-black/[0.07]" : "dark:hover:bg-white/[0.04] hover:bg-black/[0.04]",
                 )}
               >
-                <div className={cn("h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[9px] font-bold border border-white/5", skill.icon)}>
+                <div className={cn("h-6 w-6 shrink-0 rounded-md flex items-center justify-center text-[9px] font-bold dark:border-white/5 border-border border", skill.icon)}>
                   {skill.textIcon
                     ? skill.textIcon
                     : <div className="h-2.5 w-2.5 rounded-full bg-current opacity-80" />}
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-[13px] font-medium text-white/80 truncate">{skill.label}</span>
+                  <span className="text-[13px] font-medium text-foreground/80 truncate">{skill.label}</span>
                   <span className="text-[11px] text-zinc-500 truncate">{skill.description}</span>
                 </div>
               </button>
@@ -304,14 +304,14 @@ export function AgentChatInput() {
 
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-4 text-zinc-400">
-              <button className="hover:text-white transition-colors p-1">
+              <button className="hover:text-foreground transition-colors p-1">
                 <Plus className="h-4 w-4" />
               </button>
 
               {hasProviders ? (
                 <Popover open={open} onOpenChange={setOpen}>
                   <PopoverTrigger asChild>
-                    <button className="flex items-center gap-2 hover:text-white transition-colors group outline-none">
+                    <button className="flex items-center gap-2 hover:text-foreground transition-colors group outline-none">
                       <span className="text-[13px] font-medium">
                         {selectedModel?.label ?? t("agents.chatInput.selectModel")}
                       </span>
@@ -320,12 +320,12 @@ export function AgentChatInput() {
                   </PopoverTrigger>
                   <PopoverContent
                     align="start"
-                    className="w-64 bg-background border-white/[0.05] p-0 shadow-2xl rounded-md"
+                    className="w-64 bg-popover dark:border-white/[0.05] border-border p-0 shadow-2xl rounded-md"
                   >
                     <Command className="bg-transparent">
                       <CommandInput
                         placeholder={t("agents.chatInput.searchModels")}
-                        className="text-[13px] text-white/90 placeholder:text-zinc-600 border-white/[0.04]"
+                        className="text-[13px] text-foreground/90 placeholder:text-zinc-500 dark:border-white/[0.04] border-border"
                       />
                       <CommandList className="max-h-[280px]">
                         <CommandEmpty className="py-6 text-center text-[12px] text-zinc-500">
@@ -351,12 +351,12 @@ export function AgentChatInput() {
                                   "flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer text-[13px] font-medium",
                                   effectiveModelId === model.id
                                     ? "bg-purple-500/10 text-purple-400"
-                                    : "text-zinc-300"
+                                    : "text-foreground/70"
                                 )}
                               >
                                 <div className={cn(
                                   "h-1.5 w-1.5 rounded-full shrink-0",
-                                  effectiveModelId === model.id ? "bg-purple-400" : "bg-zinc-600"
+                                  effectiveModelId === model.id ? "bg-purple-400" : "bg-zinc-400"
                                 )} />
                                 {model.label}
                                 {effectiveModelId === model.id && (
@@ -371,10 +371,10 @@ export function AgentChatInput() {
                   </PopoverContent>
                 </Popover>
               ) : (
-                <span className="text-[13px] font-medium text-zinc-600">{t("agents.chatInput.noModelsAvailable")}</span>
+                <span className="text-[13px] font-medium text-zinc-500">{t("agents.chatInput.noModelsAvailable")}</span>
               )}
 
-              <button className="hover:text-white transition-colors p-1">
+              <button className="hover:text-foreground transition-colors p-1">
                 <Mic className="h-4 w-4" />
               </button>
               <span className="text-[12.5px] font-medium tracking-wide">
@@ -388,8 +388,8 @@ export function AgentChatInput() {
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-300 shrink-0",
                 canSend
-                  ? "bg-white/10 text-white hover:bg-white/20 cursor-pointer"
-                  : "bg-white/[0.03] text-zinc-500 cursor-not-allowed"
+                  ? "dark:bg-white/10 bg-black/10 text-foreground dark:hover:bg-white/20 hover:bg-black/20 cursor-pointer"
+                  : "dark:bg-white/[0.03] bg-black/[0.03] text-zinc-400 cursor-not-allowed"
               )}
             >
               <ArrowUp className="h-4 w-4" />
@@ -410,7 +410,7 @@ export function AgentChatInput() {
                   : t("agents.chatInput.placeholder.noProvider")
               }
               disabled={!hasProviders || isCurrentThreadStreaming}
-              className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-white/90 placeholder:text-zinc-500 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
+              className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-foreground/90 placeholder:text-zinc-400 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
               rows={1}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;

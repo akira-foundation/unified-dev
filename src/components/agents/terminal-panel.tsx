@@ -220,7 +220,7 @@ export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) 
 
   return (
     <div className="h-full w-full flex flex-col bg-background">
-      <div className="flex items-center h-8 shrink-0 bg-background border-b border-white/[0.04] px-1 gap-0.5">
+      <div className="flex items-center h-8 shrink-0 bg-muted border-b border-border px-1 gap-0.5">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}
@@ -229,8 +229,8 @@ export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) 
             className={cn(
               "flex items-center gap-1.5 h-6 px-2.5 rounded text-[11px] font-medium transition-colors group",
               tab.id === activeTabId
-                ? "bg-white/[0.08] text-zinc-200"
-                : "text-zinc-500 hover:text-zinc-400"
+                ? "dark:bg-white/[0.08] bg-background text-foreground"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             <TerminalSquare className="h-3 w-3 shrink-0" />

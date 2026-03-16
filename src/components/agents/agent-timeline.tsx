@@ -29,8 +29,8 @@ function CodeBlock({ language, children }: { language: string; children: string 
   }
 
   return (
-    <div className="relative my-3 rounded-xl overflow-hidden border border-white/[0.06] w-full">
-      <div className="flex items-center justify-between px-4 py-1.5 bg-zinc-800/80 border-b border-white/[0.06]">
+    <div className="relative my-3 rounded-xl overflow-hidden dark:border-white/[0.06] border-border border w-full">
+      <div className="flex items-center justify-between px-4 py-1.5 dark:bg-zinc-800/80 bg-zinc-100 dark:border-white/[0.06] border-b border-zinc-200">
         <span className="text-[11px] font-mono text-zinc-400">{language || "text"}</span>
         <button
           onClick={handleCopy}
@@ -80,7 +80,7 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCallEvent }) {
       </div>
       <div className="min-w-0 flex-1">
         <button
-          className="flex items-center gap-1 font-mono text-zinc-400 hover:text-zinc-300 transition-colors"
+          className="flex items-center gap-1 font-mono text-zinc-500 dark:text-zinc-400 dark:hover:text-zinc-300 hover:text-zinc-600 transition-colors"
           onClick={() => hasOutput && setExpanded((v) => !v)}
         >
           <span className="truncate">{toolCall.label}</span>
@@ -91,7 +91,7 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCallEvent }) {
           )}
         </button>
         {expanded && toolCall.output && (
-          <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg bg-zinc-900 px-3 py-2 text-[11px] text-zinc-300 leading-relaxed whitespace-pre-wrap break-words border border-white/[0.05]">
+          <pre className="mt-1.5 max-h-48 overflow-auto rounded-lg dark:bg-zinc-900 bg-zinc-100 px-3 py-2 text-[11px] dark:text-zinc-300 text-zinc-700 leading-relaxed whitespace-pre-wrap break-words dark:border-white/[0.05] border border-zinc-200">
             {toolCall.output}
           </pre>
         )}
@@ -120,7 +120,7 @@ function MessageMarkdown({ content }: { content: string }) {
             );
           }
           return (
-            <code className="rounded px-1.5 py-0.5 text-[13px] bg-white/[0.08] text-purple-300 font-mono">
+            <code className="rounded px-1.5 py-0.5 text-[13px] dark:bg-white/[0.08] bg-black/[0.08] dark:text-purple-300 text-purple-600 font-mono">
               {children}
             </code>
           );
@@ -136,24 +136,24 @@ function MessageMarkdown({ content }: { content: string }) {
           <li className="leading-relaxed">{children}</li>
         ),
         strong: ({ children }) => (
-          <strong className="font-semibold text-white/95">{children}</strong>
+          <strong className="font-semibold text-foreground/95">{children}</strong>
         ),
         em: ({ children }) => (
-          <em className="italic text-white/70">{children}</em>
+          <em className="italic text-foreground/70">{children}</em>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="my-2 border-l-2 border-purple-400/40 pl-3 text-white/50 italic">
+          <blockquote className="my-2 border-l-2 border-purple-400/40 pl-3 text-foreground/50 italic">
             {children}
           </blockquote>
         ),
         h1: ({ children }) => (
-          <h1 className="mt-4 mb-2 text-[15px] font-bold text-white/95">{children}</h1>
+          <h1 className="mt-4 mb-2 text-[15px] font-bold text-foreground/95">{children}</h1>
         ),
         h2: ({ children }) => (
-          <h2 className="mt-3 mb-1.5 text-[14px] font-bold text-white/90">{children}</h2>
+          <h2 className="mt-3 mb-1.5 text-[14px] font-bold text-foreground/90">{children}</h2>
         ),
         h3: ({ children }) => (
-          <h3 className="mt-2 mb-1 text-[13px] font-semibold text-white/85">{children}</h3>
+          <h3 className="mt-2 mb-1 text-[13px] font-semibold text-foreground/85">{children}</h3>
         ),
         a: ({ href, children }) => (
           <a href={href} target="_blank" rel="noopener noreferrer" className="text-purple-400 underline underline-offset-2 hover:text-purple-300">
@@ -200,11 +200,11 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
       {/* Legacy timeline steps — shown when there are no real messages yet */}
       {!hasContent && steps.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 py-32 text-center select-none">
-          <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-white/[0.04] border border-white/[0.06]">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl dark:bg-white/[0.04] bg-black/[0.04] dark:border-white/[0.06] border-black/[0.06] border">
             <Bot className="h-10 w-10 text-zinc-500" />
           </div>
           <div className="flex flex-col gap-1.5">
-            <p className="text-[17px] font-semibold text-zinc-300">{t("agents.timeline.ready")}</p>
+            <p className="text-[17px] font-semibold text-zinc-300 dark:text-zinc-300 text-foreground/70">{t("agents.timeline.ready")}</p>
             <p className="text-[14px] text-zinc-500">{t("agents.timeline.readyDescription")}</p>
           </div>
         </div>
@@ -251,11 +251,11 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
         if (msg.role === "tool") {
           return (
             <div key={msg.id} className="flex flex-col gap-1">
-              <div className="rounded-xl overflow-hidden border border-white/[0.06] w-full">
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800/80 border-b border-white/[0.06]">
+              <div className="rounded-xl overflow-hidden dark:border-white/[0.06] border border-zinc-200 w-full">
+                <div className="flex items-center gap-2 px-3 py-1.5 dark:bg-zinc-800/80 bg-zinc-100 dark:border-white/[0.06] border-b border-zinc-200">
                   <span className="text-[11px] font-mono text-zinc-400">{t("agents.timeline.output")}</span>
                 </div>
-                <pre className="p-3 text-[12px] font-mono text-zinc-300 leading-relaxed overflow-x-auto whitespace-pre-wrap break-words bg-[#18181b]">
+                <pre className="p-3 text-[12px] font-mono dark:text-zinc-300 text-zinc-700 leading-relaxed overflow-x-auto whitespace-pre-wrap break-words dark:bg-[#18181b] bg-zinc-50">
                   {msg.content}
                 </pre>
               </div>
@@ -295,8 +295,8 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             <div className={cn(
               "rounded-2xl px-4 py-3 text-[14px] min-w-0 w-full overflow-hidden",
               msg.role === "user"
-                ? "bg-purple-500/10 text-white/90 rounded-tr-sm whitespace-pre-wrap leading-relaxed"
-                : "bg-white/[0.04] text-white/80 rounded-tl-sm"
+                ? "bg-purple-500/10 text-foreground/90 rounded-tr-sm whitespace-pre-wrap leading-relaxed"
+                : "dark:bg-white/[0.04] bg-black/[0.04] text-foreground/80 rounded-tl-sm"
             )}>
               {msg.role === "user"
                 ? msg.content
@@ -323,14 +323,14 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
           <div className="flex flex-col gap-2 items-start w-full min-w-0">
             {/* Tool call steps */}
             {toolCalls.length > 0 && (
-              <div className="w-full rounded-xl border border-white/[0.05] bg-zinc-900/60 px-3 py-2.5 flex flex-col gap-1.5">
+              <div className="w-full rounded-xl dark:border-white/[0.05] border border-zinc-200 dark:bg-zinc-900/60 bg-zinc-100 px-3 py-2.5 flex flex-col gap-1.5">
                 {toolCalls.map((tc) => (
                   <ToolCallBlock key={tc.id} toolCall={tc} />
                 ))}
               </div>
             )}
             {streamingContent && (
-              <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-[14px] bg-white/[0.04] text-white/80 w-full overflow-hidden">
+              <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-[14px] dark:bg-white/[0.04] bg-black/[0.04] text-foreground/80 w-full overflow-hidden">
                 <pre className="whitespace-pre-wrap font-sans leading-relaxed">{streamingContent}</pre>
               </div>
             )}

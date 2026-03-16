@@ -102,7 +102,7 @@ export function AutomationsPage() {
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <PageHeaderTitle className="text-3xl">{t("pages.automations.title")}</PageHeaderTitle>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 text-[9px] text-zinc-400 shrink-0 font-black uppercase tracking-wider h-fit">
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border text-[9px] text-zinc-500 shrink-0 font-black uppercase tracking-wider h-fit">
                 {t("common.beta")}
               </span>
             </div>
@@ -111,7 +111,7 @@ export function AutomationsPage() {
             </PageHeaderMeta>
           </div>
           <PageHeaderActions className="gap-3">
-            <Button variant="ghost" className="text-zinc-400 hover:text-white hover:bg-white/5 font-medium text-xs">
+            <Button variant="ghost" className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs">
               <RefreshCcw className="mr-2 h-3.5 w-3.5" />
               {t("common.refresh")}
             </Button>
@@ -119,7 +119,7 @@ export function AutomationsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
               <Input
                 placeholder={t("pages.automations.searchPlaceholder")}
-                className="w-64 pl-9 bg-zinc-900/50 border-white/5 text-sm text-zinc-300 placeholder:text-zinc-600 focus-visible:ring-1 focus-visible:ring-purple-500/50 transition-colors"
+                className="w-64 pl-9 focus-visible:ring-purple-500/50"
               />
             </div>
             <Button
@@ -144,11 +144,11 @@ export function AutomationsPage() {
                 <Card className="group overflow-hidden">
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4 min-w-0 pr-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white/5 border border-white/5 font-bold shadow-sm transition-transform group-hover:scale-110">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border font-bold shadow-sm transition-transform group-hover:scale-110">
                         <span className="text-xl leading-none">{template.icon}</span>
                       </div>
                       <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-[13px] text-zinc-400 font-medium leading-snug group-hover:text-zinc-200 transition-colors line-clamp-2">
+                        <span className="text-[13px] dark:text-zinc-400 text-foreground/60 font-medium leading-snug dark:group-hover:text-zinc-200 group-hover:text-foreground transition-colors line-clamp-2">
                           {template.text}
                         </span>
                       </div>
@@ -158,7 +158,7 @@ export function AutomationsPage() {
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-white hover:bg-white/10 transition-all font-medium"
+                              className="opacity-0 group-hover:opacity-100 flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 hover:text-foreground dark:hover:bg-white/10 hover:bg-black/10 transition-all font-medium"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedAutomation(template);
@@ -173,7 +173,7 @@ export function AutomationsPage() {
                         </Tooltip>
                       </TooltipProvider>
 
-                      <div className="flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 group-hover:text-white group-hover:bg-white/10 transition-colors">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-md text-zinc-500 group-hover:text-foreground dark:group-hover:bg-white/10 group-hover:bg-black/10 transition-colors">
                         <Plus className="h-4 w-4" />
                       </div>
                     </div>
