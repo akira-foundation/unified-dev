@@ -20,6 +20,9 @@ const DIFF_MIN_WIDTH = 280;
 const DIFF_MAX_WIDTH = 900;
 const DIFF_DEFAULT_WIDTH = 600;
 const CHAT_MIN_WIDTH = 500;
+const TERMINAL_MIN_HEIGHT = 100;
+const TERMINAL_MAX_HEIGHT = 600;
+const TERMINAL_DEFAULT_HEIGHT = 260;
 
 export function AgentWorkspaceLayout() {
   const { t } = useI18n();
@@ -47,6 +50,47 @@ export function AgentWorkspaceLayout() {
   const [diffWidth, setDiffWidth] = useState(DIFF_DEFAULT_WIDTH);
   const isDragging = useRef(false);
   const [isResizing, setIsResizing] = useState(false);
+  const [terminalHeight, setTerminalHeight] = useState(TERMINAL_DEFAULT_HEIGHT);
+  const isTerminalDragging = useRef(false);
+  const [isTerminalMounted, setIsTerminalMounted] = useState(false);
+
+  const onTerminalResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isTerminalDragging.current = true;
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isTerminalDragging.current) return;
+      const next = Math.min(TERMINAL_MAX_HEIGHT, Math.max(TERMINAL_MIN_HEIGHT, window.innerHeight - ev.clientY));
+      setTerminalHeight(next);
+    };
+
+    const onMouseUp = () => {
+      isTerminalDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }, []);
+
+  const handleToggleTerminal = useCallback(() => {
+    if (!isTerminalMounted) {
+      // Fresh open after close: mount + show
+      setIsTerminalMounted(true);
+      setIsTerminalOpen(true);
+    } else if (isTerminalOpen) {
+      // Visible → minimize (keep mounted, sessions alive)
+      setIsTerminalOpen(false);
+    } else {
+      // Minimized → show again
+      setIsTerminalOpen(true);
+    }
+  }, [isTerminalMounted, isTerminalOpen, setIsTerminalOpen]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -250,9 +294,27 @@ export function AgentWorkspaceLayout() {
         </div>
       </div>
 
-      {isTerminalOpen && (
-        <div className="h-[260px] shrink-0 border-t border-white/[0.06]">
-          <TerminalPanel onClose={() => setIsTerminalOpen(false)} />
+      {isTerminalMounted && (
+        <div
+          className={cn(
+            "shrink-0 relative",
+            isTerminalOpen ? "border-t border-white/[0.06]" : "h-0 overflow-hidden"
+          )}
+          style={isTerminalOpen ? { height: terminalHeight } : undefined}
+        >
+          {isTerminalOpen && (
+            <div
+              className="absolute top-0 left-0 right-0 h-1 cursor-row-resize group z-10"
+              onMouseDown={onTerminalResizeMouseDown}
+            >
+              <div className="absolute inset-x-0 top-0 h-1 group-hover:bg-purple-500/40 group-active:bg-purple-500/60 transition-colors" />
+            </div>
+          )}
+          <TerminalPanel
+            onMinimize={() => setIsTerminalOpen(false)}
+            onClose={() => { setIsTerminalOpen(false); setIsTerminalMounted(false); }}
+            cwd={selectedIssue.workspacePath}
+          />
         </div>
       )}
 
@@ -261,7 +323,7 @@ export function AgentWorkspaceLayout() {
         isRightOpen={isRightSidebarOpen}
         onToggleRight={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
         isTerminalOpen={isTerminalOpen}
-        onToggleTerminal={() => setIsTerminalOpen(!isTerminalOpen)}
+        onToggleTerminal={handleToggleTerminal}
       />
     </div>
   );

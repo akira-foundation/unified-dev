@@ -3,7 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Plus, X, TerminalSquare } from "lucide-react";
+import { Plus, X, TerminalSquare, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "@xterm/xterm/css/xterm.css";
 
@@ -46,9 +46,11 @@ const XTERM_THEME = {
 
 interface TerminalPanelProps {
   onClose?: () => void;
+  onMinimize?: () => void;
+  cwd?: string;
 }
 
-export function TerminalPanel({ onClose }: TerminalPanelProps) {
+export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<TerminalTab[]>([]);
   const [tabs, setTabs] = useState<{ id: string; label: string; renamed: boolean }[]>([]);
@@ -86,7 +88,7 @@ export function TerminalPanel({ onClose }: TerminalPanelProps) {
 
     try {
       const sessionId = await invoke<string>("terminal_spawn", {
-        cwd: null,
+        cwd: cwd ?? null,
         cols: dims?.cols ?? 120,
         rows: dims?.rows ?? 24,
       });
@@ -268,6 +270,14 @@ export function TerminalPanel({ onClose }: TerminalPanelProps) {
           className="flex items-center justify-center h-6 w-6 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] transition-colors ml-0.5"
         >
           <Plus className="h-3 w-3" />
+        </button>
+        <div className="flex-1" />
+        <button
+          onClick={onMinimize}
+          className="flex items-center justify-center h-6 w-6 rounded text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.05] transition-colors mr-1"
+          title="Minimize terminal"
+        >
+          <ChevronDown className="h-3 w-3" />
         </button>
       </div>
       <div ref={hostRef} className="flex-1 relative overflow-hidden" />
