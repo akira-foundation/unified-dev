@@ -14,6 +14,14 @@ pub trait OrganizationRepoRepository: Send + Sync {
         repos: &[SelectedRepositoryInput],
         created_at: &str,
     ) -> AppResult<()>;
+    async fn update_repo_stats(
+        &self,
+        organization_id: &str,
+        repo_name: &str,
+        default_branch: &str,
+        visibility: &str,
+        open_prs_count: i64,
+    ) -> AppResult<()>;
 }
 
 pub struct SqliteOrganizationRepoRepository {
@@ -30,7 +38,7 @@ impl SqliteOrganizationRepoRepository {
 impl OrganizationRepoRepository for SqliteOrganizationRepoRepository {
     async fn list_selected_by_org(&self, organization_id: &str) -> AppResult<Vec<OrganizationRepoSummary>> {
         let repos = sqlx::query_as::<_, OrganizationRepoSummary>(
-            "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
+            "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
         )
         .bind(organization_id)
         .fetch_all(&self.pool)
@@ -42,7 +50,8 @@ impl OrganizationRepoRepository for SqliteOrganizationRepoRepository {
     async fn list_all_selected(&self) -> AppResult<Vec<OrganizationRepoWithOrg>> {
         let repos = sqlx::query_as::<_, OrganizationRepoWithOrg>(
             "SELECT o_r.id, o_r.organization_id, org.name as organization_name, \
-             o_r.owner, o_r.repo_name, o_r.visibility, o_r.is_selected, o_r.auto_sync, o_r.created_at \
+             o_r.owner, o_r.repo_name, o_r.visibility, o_r.is_selected, o_r.auto_sync, \
+             o_r.default_branch, o_r.open_prs_count, o_r.created_at \
              FROM organization_repos o_r \
              JOIN organizations org ON org.id = o_r.organization_id \
              WHERE o_r.is_selected = 1 \
@@ -62,27 +71,60 @@ impl OrganizationRepoRepository for SqliteOrganizationRepoRepository {
     ) -> AppResult<()> {
         let mut transaction = self.pool.begin().await?;
 
-        sqlx::query("DELETE FROM organization_repos WHERE organization_id = ?")
-            .bind(organization_id)
-            .execute(&mut *transaction)
-            .await?;
-
         for repo in repos {
-            sqlx::query(
-                "INSERT INTO organization_repos (organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            let updated = sqlx::query(
+                "UPDATE organization_repos SET visibility = ?, is_selected = ?, auto_sync = ?, default_branch = ? WHERE organization_id = ? AND repo_name = ?",
             )
-            .bind(organization_id)
-            .bind(&repo.owner)
-            .bind(&repo.repo_name)
             .bind(&repo.visibility)
             .bind(repo.is_selected)
             .bind(repo.auto_sync.unwrap_or(true))
-            .bind(created_at)
+            .bind(repo.default_branch.as_deref().unwrap_or("main"))
+            .bind(organization_id)
+            .bind(&repo.repo_name)
             .execute(&mut *transaction)
             .await?;
+
+            if updated.rows_affected() == 0 {
+                sqlx::query(
+                    "INSERT INTO organization_repos (organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(organization_id)
+                .bind(&repo.owner)
+                .bind(&repo.repo_name)
+                .bind(&repo.visibility)
+                .bind(repo.is_selected)
+                .bind(repo.auto_sync.unwrap_or(true))
+                .bind(repo.default_branch.as_deref().unwrap_or("main"))
+                .bind(repo.open_prs_count.unwrap_or(0))
+                .bind(created_at)
+                .execute(&mut *transaction)
+                .await?;
+            }
         }
 
         transaction.commit().await?;
+        Ok(())
+    }
+
+    async fn update_repo_stats(
+        &self,
+        organization_id: &str,
+        repo_name: &str,
+        default_branch: &str,
+        visibility: &str,
+        open_prs_count: i64,
+    ) -> AppResult<()> {
+        sqlx::query(
+            "UPDATE organization_repos SET default_branch = ?, visibility = ?, open_prs_count = ? WHERE organization_id = ? AND repo_name = ?",
+        )
+        .bind(default_branch)
+        .bind(visibility)
+        .bind(open_prs_count)
+        .bind(organization_id)
+        .bind(repo_name)
+        .execute(&self.pool)
+        .await?;
+
         Ok(())
     }
 }

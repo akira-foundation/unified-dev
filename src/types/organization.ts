@@ -24,6 +24,8 @@ export interface OrganizationRepoSummary {
   visibility: string;
   is_selected: boolean;
   auto_sync: boolean;
+  default_branch: string;
+  open_prs_count: number;
   created_at: string;
 }
 
@@ -46,6 +48,7 @@ export interface ProviderRepo {
   name: string;
   visibility: string;
   is_private: boolean;
+  default_branch: string;
 }
 
 export interface SelectedRepositoryInput {
@@ -54,4 +57,5 @@ export interface SelectedRepositoryInput {
   visibility: string;
   is_selected: boolean;
   auto_sync?: boolean;
+  default_branch?: string;
 }

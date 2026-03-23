@@ -11,9 +11,9 @@ interface RepoSelectionRowProps {
 
 export function RepoSelectionRow({ repo, isSelected, onToggle }: RepoSelectionRowProps) {
   return (
-    <TableRow className="group">
+    <TableRow className="group cursor-pointer" onClick={() => onToggle(repo)}>
       <TableCell className="w-12 rounded-l-lg bg-muted/10 transition-colors group-hover:bg-muted/20">
-        <Checkbox checked={isSelected} onCheckedChange={() => onToggle(repo)} />
+        <Checkbox checked={isSelected} onCheckedChange={() => onToggle(repo)} onClick={(e) => e.stopPropagation()} />
       </TableCell>
       <TableCell className="bg-muted/10 transition-colors group-hover:bg-muted/20">
         <div className="flex flex-col">

@@ -74,6 +74,8 @@ pub struct OrganizationRepoSummary {
     pub visibility: String,
     pub is_selected: bool,
     pub auto_sync: bool,
+    pub default_branch: String,
+    pub open_prs_count: i64,
     pub created_at: String,
 }
 
@@ -87,6 +89,8 @@ pub struct OrganizationRepoWithOrg {
     pub visibility: String,
     pub is_selected: bool,
     pub auto_sync: bool,
+    pub default_branch: String,
+    pub open_prs_count: i64,
     pub created_at: String,
 }
 
@@ -111,6 +115,8 @@ pub struct SelectedRepositoryInput {
     pub visibility: String,
     pub is_selected: bool,
     pub auto_sync: Option<bool>,
+    pub default_branch: Option<String>,
+    pub open_prs_count: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

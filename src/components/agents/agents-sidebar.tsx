@@ -50,7 +50,7 @@ import { RemoveThreadDialog } from "@/components/agents/remove-thread-dialog";
 export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
-  const { setIsAgentMode, navigateTo } = useNavigationStore();
+  const { setIsAgentMode, navigateTo, goBack, canGoBack } = useNavigationStore();
   const {
     repositoryGroups,
     selectedIssueId,
@@ -77,7 +77,11 @@ export function AgentsSidebar() {
 
   const handleBack = () => {
     setIsAgentMode(false);
-    navigateTo("dashboard");
+    if (canGoBack) {
+      goBack();
+    } else {
+      navigateTo("dashboard");
+    }
   };
 
   const toggleRepo = (id: string, e: React.MouseEvent) => {

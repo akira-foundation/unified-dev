@@ -9,8 +9,10 @@ import { useNavigationStore } from "../stores/navigation-store";
 import { useI18n } from "../i18n/i18n";
 import { repositorySelectionService } from "../services/repositorySelectionService";
 import { useEffect, useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 import { Activity, Download, Globe2, Lock } from "lucide-react";
-import type { OrganizationRepoSummary } from "../types/organization";
+import type { OrganizationRepoSummary, OrganizationRepoWithOrg } from "../types/organization";
 import { EmptyState } from "../components/ui/empty-state";
 
 export function OrganizationPage() {
@@ -20,6 +22,8 @@ export function OrganizationPage() {
   const { activeOrganizationId, navigateTo } = useNavigationStore();
   const [repos, setRepos] = useState<OrganizationRepoSummary[]>([]);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncingRepoId, setSyncingRepoId] = useState<string | undefined>();
 
   const organization = useMemo(
     () => organizations.find((item) => item.id === activeOrganizationId) ?? null,
@@ -65,6 +69,46 @@ export function OrganizationPage() {
       isMounted = false;
     };
   }, [organization]);
+
+  const reposWithOrg: OrganizationRepoWithOrg[] = useMemo(
+    () => repos.map((r) => ({ ...r, organization_name: organization?.name ?? "" })),
+    [repos, organization],
+  );
+
+  const refreshRepos = async () => {
+    if (!organization) return;
+    const data = await repositorySelectionService.listSelectedRepositories(organization.id);
+    setRepos(data);
+  };
+
+  const handleSync = async () => {
+    if (!organization) return;
+    setIsSyncing(true);
+    const loadingToast = toast.loading(t("agents.sidebar.toast.syncingAll"));
+    try {
+      await invoke("sync_repository_stats", { organizationId: organization.id });
+      await refreshRepos();
+      toast.success(t("agents.sidebar.toast.syncAllDone"), { id: loadingToast });
+    } catch (error) {
+      toast.error(t("agents.sidebar.toast.syncAllFailed"), { id: loadingToast });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSyncRepo = async (repo: OrganizationRepoWithOrg) => {
+    setSyncingRepoId(String(repo.id));
+    const loadingToast = toast.loading(t("agents.sidebar.toast.syncingRepo").replace("{name}", repo.repo_name));
+    try {
+      await invoke("sync_single_repo_stats", { organizationId: repo.organization_id, repoName: repo.repo_name });
+      await refreshRepos();
+      toast.success(t("agents.sidebar.toast.repoSynced").replace("{name}", repo.repo_name), { id: loadingToast });
+    } catch (error) {
+      toast.error(t("agents.sidebar.toast.syncFailed").replace("{name}", repo.repo_name), { id: loadingToast });
+    } finally {
+      setSyncingRepoId(undefined);
+    }
+  };
 
   return (
     <PageLayout>
@@ -162,7 +206,16 @@ export function OrganizationPage() {
                 </CardContent>
               </Card>
             </div>
-            {!isLoadingRepos && repos.length > 0 && <RepoMetricsTable repos={repos} />}
+            {!isLoadingRepos && reposWithOrg.length > 0 && (
+              <RepoMetricsTable
+                repos={reposWithOrg}
+                onSync={handleSync}
+                isSyncing={isSyncing}
+                onSyncRepo={handleSyncRepo}
+                syncingRepoId={syncingRepoId}
+                hideOrganization
+              />
+            )}
 
           </div>
         )}

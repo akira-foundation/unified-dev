@@ -40,10 +40,21 @@ export function ImportRepositoriesPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [visibility, setVisibility] = useState<"all" | "public" | "private">("all");
+  const [importedRepoKeys, setImportedRepoKeys] = useState<Set<string>>(new Set());
   const [isLoadingOrgs, setIsLoadingOrgs] = useState(false);
   const [isLoadingRepos, setIsLoadingRepos] = useState(false);
   const [orgsError, setOrgsError] = useState<string | null>(null);
   const [reposError, setReposError] = useState<string | null>(null);
+
+  const loadImportedRepos = useCallback(async () => {
+    if (!organization) return;
+    const imported = await repositorySelectionService.listSelectedRepositories(organization.id);
+    setImportedRepoKeys(new Set(imported.map((r) => `${r.owner}/${r.repo_name}`)));
+  }, [organization]);
+
+  useEffect(() => {
+    void loadImportedRepos();
+  }, [loadImportedRepos]);
 
   const loadProviderOrgs = useCallback(async () => {
     if (!organization || !organization.provider_id) {
@@ -106,13 +117,14 @@ export function ImportRepositoriesPage() {
 
   const filteredRepos = useMemo(() => {
     return repos.filter((repo) => {
+      if (importedRepoKeys.has(repoKey(repo))) return false;
       const matchesSearch =
         repo.name.toLowerCase().includes(search.toLowerCase()) ||
         repo.owner.toLowerCase().includes(search.toLowerCase());
       const matchesVisibility = visibility === "all" || repo.visibility === visibility;
       return matchesSearch && matchesVisibility;
     });
-  }, [repos, search, visibility]);
+  }, [repos, search, visibility, importedRepoKeys]);
 
   const selectedCount = selectedKeys.size;
   const visibleSelectedCount = filteredRepos.filter((repo) => selectedKeys.has(repoKey(repo))).length;
@@ -146,9 +158,10 @@ export function ImportRepositoriesPage() {
     try {
       await repositorySelectionService.saveSelectedRepositories(organization.id, payload);
       toast.success(t("pages.importRepos.importedCount").replace("{count}", String(payload.length)), { id: toastId });
+      await loadImportedRepos();
+      setSelectedKeys(new Set());
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to import repositories";
-      toast.error(message, { id: toastId });
+      toast.error(t("pages.importRepos.importFailed"), { id: toastId });
       throw error;
     }
   }, [organization, repos, selectedKeys]);

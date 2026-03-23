@@ -37,4 +37,15 @@ impl OrganizationRepoService {
     pub async fn list_all_selected_repositories(&self) -> AppResult<Vec<OrganizationRepoWithOrg>> {
         self.repos.list_all_selected().await
     }
+
+    pub async fn update_repo_stats(
+        &self,
+        organization_id: &str,
+        repo_name: &str,
+        default_branch: &str,
+        visibility: &str,
+        open_prs_count: i64,
+    ) -> AppResult<()> {
+        self.repos.update_repo_stats(organization_id, repo_name, default_branch, visibility, open_prs_count).await
+    }
 }

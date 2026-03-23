@@ -83,6 +83,25 @@ pub async fn set_thread_pr_url(
     .bind(&thread_id)
     .execute(&state.db_pool)
     .await?;
+
+    // Increment open_prs_count for the matching organization_repo
+    let repo_name: Option<String> = sqlx::query_scalar(
+        "SELECT lr.name FROM threads t JOIN local_repositories lr ON lr.id = t.repo_id WHERE t.id = ?",
+    )
+    .bind(&thread_id)
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(name) = repo_name {
+        let _ = sqlx::query(
+            "UPDATE organization_repos SET open_prs_count = open_prs_count + 1 WHERE repo_name = ? AND is_selected = 1",
+        )
+        .bind(&name)
+        .execute(&state.db_pool)
+        .await;
+    }
+
     Ok(())
 }
 

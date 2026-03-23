@@ -98,6 +98,7 @@ export function useOrganizationRepoSelection(organizationId: string | null) {
           visibility: repo.visibility,
           is_selected: true,
           auto_sync: true,
+          default_branch: repo.default_branch,
         }));
 
       await repositorySelectionService.saveSelectedRepositories(organizationId, payload);
