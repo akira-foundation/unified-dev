@@ -85,13 +85,16 @@ export function AgentsSidebar() {
     setExpandedRepos((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleAddRepo = async (path: string) => {
+  const handleAddRepo = async (value: string, mode: "local" | "clone") => {
     let loadingToast;
     try {
       setIsAddingRepo(true);
       loadingToast = toast.loading(t("agents.sidebar.toast.addingRepo"));
 
-      const response = await invoke<any>("add_local_repository", { localPath: path });
+      const response = await invoke<any>(
+        mode === "clone" ? "add_remote_repository" : "add_local_repository",
+        mode === "clone" ? { url: value } : { localPath: value },
+      );
 
       if (response && response.repository && response.thread) {
         toast.success(t("agents.sidebar.toast.repoAdded").replace("{name}", response.repository.name), { id: loadingToast });

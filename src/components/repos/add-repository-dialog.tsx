@@ -17,8 +17,14 @@ import { useI18n } from "@/i18n/i18n";
 interface AddRepositoryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAdd: (path: string) => void;
+  onAdd: (value: string, mode: "local" | "clone") => void;
   isLoading?: boolean;
+}
+
+function detectProtocol(url: string): "SSH" | "HTTPS" | null {
+  if (url.startsWith("git@")) return "SSH";
+  if (url.startsWith("https://") || url.startsWith("http://")) return "HTTPS";
+  return null;
 }
 
 export function AddRepositoryDialog({
@@ -30,14 +36,21 @@ export function AddRepositoryDialog({
   const { t } = useI18n();
   const [localPath, setLocalPath] = useState("");
   const [cloneUrl, setCloneUrl] = useState("");
+  const [activeTab, setActiveTab] = useState<"local" | "clone">("local");
+
+  const protocol = detectProtocol(cloneUrl);
 
   const handleAdd = () => {
-    if (localPath) {
-      onAdd(localPath);
-      onOpenChange(false);
+    if (activeTab === "local" && localPath) {
+      onAdd(localPath, "local");
       setLocalPath("");
+    } else if (activeTab === "clone" && cloneUrl) {
+      onAdd(cloneUrl, "clone");
+      setCloneUrl("");
     }
   };
+
+  const isAddDisabled = isLoading || (activeTab === "local" ? !localPath : !cloneUrl);
 
   const handleBrowse = async () => {
     try {
@@ -63,7 +76,11 @@ export function AddRepositoryDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs defaultValue="local" className="w-full mt-4">
+        <Tabs
+          defaultValue="local"
+          className="w-full mt-4"
+          onValueChange={(v) => setActiveTab(v as "local" | "clone")}
+        >
           <TabsList variant="line" className="h-auto gap-8 mb-6">
             <TabsTrigger
               value="local"
@@ -99,12 +116,19 @@ export function AddRepositoryDialog({
           </TabsContent>
 
           <TabsContent value="clone" className="space-y-4 mt-0">
-            <Input
-              placeholder="https://github.com/owner/repo.git"
-              value={cloneUrl}
-              onChange={(e) => setCloneUrl(e.target.value)}
-              className="h-10"
-            />
+            <div className="relative">
+              <Input
+                placeholder="https://github.com/owner/repo.git"
+                value={cloneUrl}
+                onChange={(e) => setCloneUrl(e.target.value)}
+                className="h-10 pr-16"
+              />
+              {protocol && (
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                  {protocol}
+                </span>
+              )}
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -118,7 +142,7 @@ export function AddRepositoryDialog({
           <Button
             onClick={handleAdd}
             className="px-8"
-            disabled={isLoading || !localPath}
+            disabled={isAddDisabled}
           >
             {isLoading ? t("dialogs.addRepository.adding") : t("dialogs.addRepository.add")}
           </Button>

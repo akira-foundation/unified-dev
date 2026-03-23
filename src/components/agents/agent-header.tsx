@@ -138,7 +138,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           <Button
             variant="ghost"
             onClick={() => openUrl(prUrl.url)}
-            className="h-8 px-3 text-[#A855F7] text-[12px] font-semibold gap-2 rounded-xl hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
+            className="h-8 px-3 text-[#A855F7] text-[12px] font-semibold gap-2 rounded-md hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             <span>{t("agents.header.viewPr")}</span>

@@ -127,6 +127,38 @@ pub fn is_github_url(url: &str) -> bool {
     url.contains("github.com")
 }
 
+/// Clone a repository from a remote URL string.
+pub fn clone_from_url(url: &str, destination: &Path) -> AppResult<()> {
+    let output = Command::new("git")
+        .args(["clone", url, &destination.to_string_lossy()])
+        .output()
+        .map_err(|e| AppError::Io(e))?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(AppError::Internal(format!(
+            "Failed to clone repository: {}",
+            err
+        )));
+    }
+
+    Ok(())
+}
+
+/// Parse the repository name from an SSH or HTTPS git URL.
+///
+/// "git@github.com:owner/repo.git"     → Some("repo")
+/// "https://github.com/owner/repo.git" → Some("repo")
+pub fn repo_name_from_url(url: &str) -> Option<String> {
+    let last = url.trim_end_matches('/').split('/').last()?;
+    let name = last.trim_end_matches(".git");
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
+}
+
 /// Replaces the URL of `remote` in `path` with `url`.
 pub fn set_remote_url(path: &Path, remote: &str, url: &str) -> AppResult<()> {
     let output = Command::new("git")

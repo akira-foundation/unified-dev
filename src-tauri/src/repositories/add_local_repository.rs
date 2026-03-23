@@ -85,7 +85,7 @@ pub async fn add_local_repository(
     .execute(pool)
     .await?;
 
-    let thread = create_initial_thread(repo_id, &base_repo_path, &workspace_root, source_path, pool).await?;
+    let thread = create_initial_thread(repo_id, &base_repo_path, &workspace_root, source_path, None, pool).await?;
 
     Ok(AddLocalRepositoryResponse {
         repository,

@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::error::AppResult;
 use crate::state::AppState;
 use crate::repositories::add_local_repository::{add_local_repository as add_logic, AddLocalRepositoryResponse};
+use crate::repositories::add_remote_repository::add_remote_repository as add_remote_logic;
 use crate::repositories::delete_local_repository::delete_local_repository as delete_logic;
 use crate::threads::add_thread::add_thread as add_thread_logic;
 use crate::threads::delete_thread::delete_thread as delete_thread_logic;
@@ -33,6 +34,14 @@ pub async fn add_local_repository(
     state: State<'_, AppState>,
 ) -> AppResult<AddLocalRepositoryResponse> {
     add_logic(local_path, &state.db_pool).await
+}
+
+#[tauri::command]
+pub async fn add_remote_repository(
+    url: String,
+    state: State<'_, AppState>,
+) -> AppResult<AddLocalRepositoryResponse> {
+    add_remote_logic(url, &state.db_pool).await
 }
 
 #[tauri::command]

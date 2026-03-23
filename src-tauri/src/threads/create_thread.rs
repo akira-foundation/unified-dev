@@ -38,6 +38,7 @@ pub async fn create_initial_thread(
     base_repo_path: &Path,
     workspace_root: &Path,
     source_path: &Path,
+    remote_url_override: Option<String>,
     pool: &sqlx::SqlitePool,
 ) -> AppResult<ThreadConfig> {
     let thread_uuid = Uuid::new_v4();
@@ -48,11 +49,13 @@ pub async fn create_initial_thread(
 
     git_utils::clone_repository(base_repo_path, &workspace_path)?;
 
-    // Propagate the real GitHub remote from the source repo to the workspace,
-    // so that `git push origin` reaches GitHub rather than the local base clone.
-    if let Some(github_url) = git_utils::get_remote_url(source_path, "origin") {
-        if git_utils::is_github_url(&github_url) {
-            let _ = git_utils::set_remote_url(&workspace_path, "origin", &github_url);
+    // Propagate the real GitHub remote to the workspace so that `git push origin`
+    // reaches GitHub rather than the local base clone.
+    let github_url = remote_url_override
+        .or_else(|| git_utils::get_remote_url(source_path, "origin"));
+    if let Some(url) = github_url {
+        if git_utils::is_github_url(&url) {
+            let _ = git_utils::set_remote_url(&workspace_path, "origin", &url);
         }
     }
 
