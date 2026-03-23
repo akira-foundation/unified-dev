@@ -1,12 +1,13 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::db::models::{OrganizationRepoSummary, SelectedRepositoryInput};
+use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg, SelectedRepositoryInput};
 use crate::error::AppResult;
 
 #[async_trait]
 pub trait OrganizationRepoRepository: Send + Sync {
     async fn list_selected_by_org(&self, organization_id: &str) -> AppResult<Vec<OrganizationRepoSummary>>;
+    async fn list_all_selected(&self) -> AppResult<Vec<OrganizationRepoWithOrg>>;
     async fn replace_selected_repos(
         &self,
         organization_id: &str,
@@ -32,6 +33,21 @@ impl OrganizationRepoRepository for SqliteOrganizationRepoRepository {
             "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
         )
         .bind(organization_id)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(repos)
+    }
+
+    async fn list_all_selected(&self) -> AppResult<Vec<OrganizationRepoWithOrg>> {
+        let repos = sqlx::query_as::<_, OrganizationRepoWithOrg>(
+            "SELECT o_r.id, o_r.organization_id, org.name as organization_name, \
+             o_r.owner, o_r.repo_name, o_r.visibility, o_r.is_selected, o_r.auto_sync, o_r.created_at \
+             FROM organization_repos o_r \
+             JOIN organizations org ON org.id = o_r.organization_id \
+             WHERE o_r.is_selected = 1 \
+             ORDER BY org.name, o_r.repo_name",
+        )
         .fetch_all(&self.pool)
         .await?;
 

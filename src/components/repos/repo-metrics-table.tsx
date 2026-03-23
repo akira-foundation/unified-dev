@@ -1,4 +1,4 @@
-import type { OrganizationRepoSummary } from "../../types/organization";
+import type { OrganizationRepoWithOrg } from "../../types/organization";
 import { FolderGit2, Plus } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 
@@ -8,7 +8,7 @@ import { Card, CardContent } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 
 interface RepoMetricsTableProps {
-  repos: OrganizationRepoSummary[];
+  repos: OrganizationRepoWithOrg[];
   title?: string;
   onCreate?: () => void;
 }
@@ -42,6 +42,7 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate }: Re
             <TableHeader>
               <TableRow>
                 <TableHead>{t("tables.header.name")}</TableHead>
+                <TableHead>{t("tables.header.organization")}</TableHead>
                 <TableHead className="text-right">{t("tables.header.issues")}</TableHead>
                 <TableHead className="text-right">{t("tables.header.prs")}</TableHead>
                 <TableHead className="text-right">{t("tables.header.branches")}</TableHead>
@@ -59,6 +60,7 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate }: Re
                       <span className="text-xs text-gray-500 dark:text-gray-400">{repo.owner}</span>
                     </div>
                   </TableCell>
+                  <TableCell className="text-sm text-gray-500 dark:text-gray-400">{repo.organization_name}</TableCell>
                   <TableCell className="text-right text-sm text-gray-500 dark:text-gray-400">—</TableCell>
                   <TableCell className="text-right text-sm text-gray-500 dark:text-gray-400">—</TableCell>
                   <TableCell className="text-right text-sm text-gray-500 dark:text-gray-400">—</TableCell>

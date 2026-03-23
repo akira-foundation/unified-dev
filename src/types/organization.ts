@@ -21,6 +21,10 @@ export interface OrganizationRepoSummary {
   created_at: string;
 }
 
+export interface OrganizationRepoWithOrg extends OrganizationRepoSummary {
+  organization_name: string;
+}
+
 export interface AttachRepoInput {
   organization_id: string;
   owner: string;

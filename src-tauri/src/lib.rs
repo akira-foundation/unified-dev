@@ -17,8 +17,8 @@ use std::sync::Arc;
 
 use commands::agent_commands::{agents_get_messages, agents_send_message, check_pr_url, create_draft_pr, discard_file_changes, get_available_models, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
 use commands::organization_commands::{
-    create_organization, delete_organization, list_organizations, list_organizations_by_provider,
-    list_selected_repositories, save_selected_repositories,
+    create_organization, delete_organization, list_all_selected_repositories, list_organizations,
+    list_organizations_by_provider, list_selected_repositories, save_selected_repositories,
 };
 use commands::provider_commands::{
     connect_github, create_provider, delete_provider, list_provider_organizations, list_provider_repositories,
@@ -104,6 +104,7 @@ pub fn run() {
             delete_organization,
             save_selected_repositories,
             list_selected_repositories,
+            list_all_selected_repositories,
             terminal_spawn,
             terminal_write,
             terminal_resize,

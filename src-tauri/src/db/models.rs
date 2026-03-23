@@ -77,6 +77,19 @@ pub struct OrganizationRepoSummary {
     pub created_at: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct OrganizationRepoWithOrg {
+    pub id: i64,
+    pub organization_id: String,
+    pub organization_name: String,
+    pub owner: String,
+    pub repo_name: String,
+    pub visibility: String,
+    pub is_selected: bool,
+    pub auto_sync: bool,
+    pub created_at: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateOrganizationInput {
     pub name: String,

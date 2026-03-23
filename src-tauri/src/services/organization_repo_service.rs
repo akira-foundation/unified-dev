@@ -3,7 +3,7 @@ use std::sync::Arc;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
-use crate::db::models::{OrganizationRepoSummary, SelectedRepositoryInput};
+use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg, SelectedRepositoryInput};
 use crate::db::organization_repo_repository::OrganizationRepoRepository;
 use crate::error::AppResult;
 
@@ -32,5 +32,9 @@ impl OrganizationRepoService {
         organization_id: &str,
     ) -> AppResult<Vec<OrganizationRepoSummary>> {
         self.repos.list_selected_by_org(organization_id).await
+    }
+
+    pub async fn list_all_selected_repositories(&self) -> AppResult<Vec<OrganizationRepoWithOrg>> {
+        self.repos.list_all_selected().await
     }
 }

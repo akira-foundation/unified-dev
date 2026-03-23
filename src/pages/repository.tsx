@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
 import { EmptyState } from "../components/ui/empty-state";
-import type { OrganizationRepoSummary } from "../types/organization";
+import type { OrganizationRepoWithOrg } from "../types/organization";
 import {
   PageHeader,
   PageHeaderActions,
@@ -16,25 +16,18 @@ import { useDateLabel } from "../hooks/use-date-label";
 import { Button } from "@/components/ui/button.tsx";
 import { Skeleton } from "../components/ui/skeleton";
 import { repositorySelectionService } from "../services/repositorySelectionService";
-import { useNavigationStore } from "../stores/navigation-store";
 
 export function RepositoryPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { activeOrganizationId } = useNavigationStore();
-  const [repos, setRepos] = useState<OrganizationRepoSummary[]>([]);
+  const [repos, setRepos] = useState<OrganizationRepoWithOrg[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!activeOrganizationId) {
-      setRepos([]);
-      return;
-    }
-
     let isMounted = true;
     setIsLoading(true);
     repositorySelectionService
-      .listSelectedRepositories(activeOrganizationId)
+      .listAllSelectedRepositories()
       .then((data) => {
         if (isMounted) {
           setRepos(data);
@@ -49,7 +42,7 @@ export function RepositoryPage() {
     return () => {
       isMounted = false;
     };
-  }, [activeOrganizationId]);
+  }, []);
 
   return (
     <PageLayout>

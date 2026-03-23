@@ -1,7 +1,7 @@
 use tauri::State;
 
 use crate::db::models::{
-    CreateOrganizationInput, OrganizationRepoSummary, OrganizationSummary, SelectedRepositoryInput,
+    CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
 };
 use crate::state::AppState;
 
@@ -68,6 +68,17 @@ pub async fn list_selected_repositories(
     state
         .organization_repo_service
         .list_selected_repositories(&organization_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn list_all_selected_repositories(
+    state: State<'_, AppState>,
+) -> Result<Vec<OrganizationRepoWithOrg>, String> {
+    state
+        .organization_repo_service
+        .list_all_selected_repositories()
         .await
         .map_err(|error| error.to_string())
 }
