@@ -12,6 +12,7 @@ interface OrganizationListProps {
   onSelect?: (id: string) => void;
   onImportRepositories?: (id: string) => void;
   onConfigureSync?: (id: string) => void;
+  onEdit?: (id: string) => void;
   onCreate?: () => void;
   providerNameById?: Record<string, string>;
 }
@@ -23,6 +24,7 @@ export function OrganizationList({
   onSelect,
   onImportRepositories,
   onConfigureSync,
+  onEdit,
   onCreate,
   providerNameById,
 }: OrganizationListProps) {
@@ -56,7 +58,8 @@ export function OrganizationList({
             onSelect={onSelect}
             onImportRepositories={onImportRepositories}
             onConfigureSync={onConfigureSync}
-            providerName={providerNameById?.[organization.provider_id]}
+            onEdit={onEdit}
+            providerName={organization.provider_id ? providerNameById?.[organization.provider_id] : undefined}
           />
         ))}
       </CardContent>

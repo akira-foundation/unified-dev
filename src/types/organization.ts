@@ -1,13 +1,19 @@
 export interface OrganizationSummary {
   id: string;
   name: string;
-  provider_id: string;
+  provider_id: string | null;
   created_at: string;
 }
 
 export interface CreateOrganizationInput {
   name: string;
   provider_id: string;
+}
+
+export interface UpdateOrganizationInput {
+  id: string;
+  name: string;
+  provider_id: string | null;
 }
 
 export interface OrganizationRepoSummary {

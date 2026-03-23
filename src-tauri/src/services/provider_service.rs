@@ -61,10 +61,12 @@ impl ProviderService {
         self.providers.list().await
     }
 
-    pub async fn delete_provider(&self, provider_id: &str) -> AppResult<()> {
-        let organizations = self.organizations.list_by_provider(provider_id).await?;
-        for org in organizations {
-            self.organizations.delete(&org.id).await?;
+    pub async fn delete_provider(&self, provider_id: &str, keep_organizations: bool) -> AppResult<()> {
+        if !keep_organizations {
+            let organizations = self.organizations.list_by_provider(provider_id).await?;
+            for org in organizations {
+                self.organizations.delete(&org.id).await?;
+            }
         }
 
         self.providers.delete(provider_id).await

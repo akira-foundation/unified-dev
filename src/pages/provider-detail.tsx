@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useProviders } from "@/hooks/useProviders";
 import { TOKEN_META } from "@/components/providers/add-provider-dialog";
@@ -105,6 +106,7 @@ export function ProviderDetailPage() {
   const { providers, isLoading, updateProviderAuth, removeProvider } = useProviders();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [keepOrganizations, setKeepOrganizations] = useState(true);
 
   const provider = providers.find((p) => p.id === activeProviderId) ?? null;
 
@@ -145,7 +147,7 @@ export function ProviderDetailPage() {
     setIsDisconnecting(true);
     const toastId = toast.loading(t("pages.providerDetail.toast.disconnecting"));
     try {
-      await removeProvider(provider.id);
+      await removeProvider(provider.id, keepOrganizations);
       toast.success(t("pages.providerDetail.toast.disconnected"), { id: toastId });
       setDisconnectOpen(false);
       goBack();
@@ -238,6 +240,16 @@ export function ProviderDetailPage() {
               {t("pages.providerDetail.disconnect.alert.description").replace("{name}", provider.name)}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="flex items-center gap-3 py-2 px-1">
+            <Switch
+              id="keep-orgs"
+              checked={keepOrganizations}
+              onCheckedChange={setKeepOrganizations}
+            />
+            <label htmlFor="keep-orgs" className="text-sm">
+              {t("pages.providerDetail.disconnect.alert.keepOrganizations")}
+            </label>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDisconnecting}>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction variant="destructive" onClick={handleDisconnect} disabled={isDisconnecting}>

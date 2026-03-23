@@ -2,6 +2,7 @@ use tauri::State;
 
 use crate::db::models::{
     CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
+    UpdateOrganizationInput,
 };
 use crate::state::AppState;
 
@@ -34,6 +35,18 @@ pub async fn list_organizations_by_provider(
     state
         .organization_service
         .list_by_provider(&provider_id)
+        .await
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn update_organization(
+    state: State<'_, AppState>,
+    input: UpdateOrganizationInput,
+) -> Result<OrganizationSummary, String> {
+    state
+        .organization_service
+        .update_organization(input)
         .await
         .map_err(|error| error.to_string())
 }

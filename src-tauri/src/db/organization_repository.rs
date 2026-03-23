@@ -1,12 +1,13 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::db::models::{OrganizationRecord, OrganizationSummary};
+use crate::db::models::{OrganizationRecord, OrganizationSummary, UpdateOrganizationInput};
 use crate::error::AppResult;
 
 #[async_trait]
 pub trait OrganizationRepository: Send + Sync {
     async fn create(&self, organization: &OrganizationRecord) -> AppResult<OrganizationSummary>;
+    async fn update(&self, input: &UpdateOrganizationInput) -> AppResult<OrganizationSummary>;
     async fn delete(&self, organization_id: &str) -> AppResult<()>;
     async fn list(&self) -> AppResult<Vec<OrganizationSummary>>;
     async fn list_by_provider(&self, provider_id: &str) -> AppResult<Vec<OrganizationSummary>>;
@@ -44,6 +45,24 @@ impl OrganizationRepository for SqliteOrganizationRepository {
             external_id: organization.external_id.clone(),
             created_at: organization.created_at.clone(),
         })
+    }
+
+    async fn update(&self, input: &UpdateOrganizationInput) -> AppResult<OrganizationSummary> {
+        sqlx::query("UPDATE organizations SET name = ?, provider_id = ? WHERE id = ?")
+            .bind(&input.name)
+            .bind(&input.provider_id)
+            .bind(&input.id)
+            .execute(&self.pool)
+            .await?;
+
+        let updated = sqlx::query_as::<_, OrganizationSummary>(
+            "SELECT id, name, provider_id, external_id, created_at FROM organizations WHERE id = ?",
+        )
+        .bind(&input.id)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(updated)
     }
 
     async fn delete(&self, organization_id: &str) -> AppResult<()> {

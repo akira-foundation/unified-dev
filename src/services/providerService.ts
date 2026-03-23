@@ -40,8 +40,8 @@ export const providerService = {
   async createProvider(input: CreateProviderInput): Promise<ProviderSummary> {
     return invoke<ProviderSummary>("create_provider", { input });
   },
-  async deleteProvider(providerId: string): Promise<void> {
-    await invoke<void>("delete_provider", { providerId });
+  async deleteProvider(providerId: string, keepOrganizations: boolean): Promise<void> {
+    await invoke<void>("delete_provider", { providerId, keepOrganizations });
   },
   async connectGithub(): Promise<ProviderSummary> {
     return invoke<ProviderSummary>("connect_github");

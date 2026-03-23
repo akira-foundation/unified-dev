@@ -51,7 +51,7 @@ pub struct TestProviderInput {
 pub struct OrganizationRecord {
     pub id: String,
     pub name: String,
-    pub provider_id: String,
+    pub provider_id: Option<String>,
     pub external_id: Option<String>,
     pub created_at: String,
 }
@@ -60,7 +60,7 @@ pub struct OrganizationRecord {
 pub struct OrganizationSummary {
     pub id: String,
     pub name: String,
-    pub provider_id: String,
+    pub provider_id: Option<String>,
     pub external_id: Option<String>,
     pub created_at: String,
 }
@@ -95,6 +95,13 @@ pub struct CreateOrganizationInput {
     pub name: String,
     pub provider_id: String,
     pub external_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateOrganizationInput {
+    pub id: String,
+    pub name: String,
+    pub provider_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

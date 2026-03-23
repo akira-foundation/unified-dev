@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useOrganizations } from "../hooks/useOrganizations";
 import { OrganizationList } from "../components/organizations/organization-list";
 import { AddOrganizationDialog } from "../components/organizations/add-organization-dialog";
+import { EditOrganizationDialog } from "../components/organizations/edit-organization-dialog";
 import { EmptyState } from "../components/ui/empty-state";
 import {
   PageHeader,
@@ -22,7 +23,7 @@ import { Skeleton } from "../components/ui/skeleton";
 export function OrganizationsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { organizations, isLoading, isDialogOpen, setIsDialogOpen, createOrganization, removeOrganization } = useOrganizations();
+  const { organizations, isLoading, isDialogOpen, setIsDialogOpen, editOrganization, setEditOrganization, createOrganization, updateOrganization, removeOrganization } = useOrganizations();
   const { providers } = useProviders();
   const providerNameById = useMemo(
     () => Object.fromEntries(providers.map((provider) => [provider.id, provider.name])),
@@ -72,6 +73,10 @@ export function OrganizationsPage() {
               setActiveOrganizationId(organizationId);
               navigateTo("import-repositories");
             }}
+            onEdit={(organizationId) => {
+              const org = organizations.find((o) => o.id === organizationId) ?? null;
+              setEditOrganization(org);
+            }}
             providerNameById={providerNameById}
           />
         )}
@@ -81,6 +86,13 @@ export function OrganizationsPage() {
         onOpenChange={setIsDialogOpen}
         providers={providers}
         onSubmit={createOrganization}
+      />
+      <EditOrganizationDialog
+        open={editOrganization !== null}
+        onOpenChange={(open) => { if (!open) setEditOrganization(null); }}
+        organization={editOrganization}
+        providers={providers}
+        onSubmit={updateOrganization}
       />
     </PageLayout>
   );

@@ -47,10 +47,14 @@ pub async fn update_provider_auth(
 }
 
 #[tauri::command]
-pub async fn delete_provider(state: State<'_, AppState>, provider_id: String) -> Result<(), String> {
+pub async fn delete_provider(
+    state: State<'_, AppState>,
+    provider_id: String,
+    keep_organizations: bool,
+) -> Result<(), String> {
     state
         .provider_service
-        .delete_provider(&provider_id)
+        .delete_provider(&provider_id, keep_organizations)
         .await
         .map_err(|error| error.to_string())
 }

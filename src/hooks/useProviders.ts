@@ -65,8 +65,8 @@ export function useProviders() {
     }
   }, []);
 
-  const removeProvider = useCallback(async (providerId: string) => {
-    await providerService.deleteProvider(providerId);
+  const removeProvider = useCallback(async (providerId: string, keepOrganizations: boolean) => {
+    await providerService.deleteProvider(providerId, keepOrganizations);
     setProviders((prev) => prev.filter((provider) => provider.id !== providerId));
   }, []);
 

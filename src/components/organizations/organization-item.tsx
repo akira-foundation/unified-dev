@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, FolderDown, MoreVertical, Settings2, Trash2 } from "lucide-react";
+import { Eye, FolderDown, MoreVertical, Pencil, Settings2, Trash2 } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 
 import type { OrganizationSummary } from "../../types/organization";
@@ -29,6 +29,7 @@ interface OrganizationItemProps {
   onSelect?: (id: string) => void;
   onImportRepositories?: (id: string) => void;
   onConfigureSync?: (id: string) => void;
+  onEdit?: (id: string) => void;
   providerName?: string | null;
 }
 
@@ -38,6 +39,7 @@ export function OrganizationItem({
   onSelect,
   onImportRepositories,
   onConfigureSync,
+  onEdit,
   providerName,
 }: OrganizationItemProps) {
   const { t } = useI18n();
@@ -75,6 +77,10 @@ export function OrganizationItem({
           <DropdownMenuItem onSelect={() => onConfigureSync?.(organization.id)}>
             <Settings2 className="mr-2 h-4 w-4" />
             {t("common.configureSync")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => onEdit?.(organization.id)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            {t("common.editOrganization")}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => setIsConfirmOpen(true)} className="text-red-500">
             <Trash2 className="mr-2 h-4 w-4" />

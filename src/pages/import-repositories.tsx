@@ -46,7 +46,7 @@ export function ImportRepositoriesPage() {
   const [reposError, setReposError] = useState<string | null>(null);
 
   const loadProviderOrgs = useCallback(async () => {
-    if (!organization) {
+    if (!organization || !organization.provider_id) {
       setProviderOrgs([]);
       setSelectedOrg(null);
       return;
@@ -75,7 +75,7 @@ export function ImportRepositoriesPage() {
   }, [loadProviderOrgs]);
 
   const loadRepos = useCallback(async () => {
-    if (!organization || !selectedOrg) {
+    if (!organization || !organization.provider_id || !selectedOrg) {
       setRepos([]);
       return;
     }
