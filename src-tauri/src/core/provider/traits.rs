@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPrComment, VcsPullRequest, PrReviewEvent, PrMergeStrategy};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -62,4 +62,11 @@ pub trait VcsProvider: Send + Sync {
         pr_number: u64,
         strategy: PrMergeStrategy,
     ) -> AppResult<()>;
+
+    async fn list_pull_request_files(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+    ) -> AppResult<Vec<VcsPrFile>>;
 }

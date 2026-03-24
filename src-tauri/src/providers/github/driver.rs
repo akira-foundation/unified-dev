@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsPrComment, VcsPullRequest,
+    PrReviewEvent, PullRequestState, VcsPrComment, VcsPrFile, VcsPullRequest,
 };
 use crate::error::{AppError, AppResult};
 
@@ -318,6 +318,27 @@ impl VcsProvider for GitHubDriver {
         let payload = serde_json::json!({ "merge_method": merge_method });
         self.put_json(url, &payload).await
     }
+
+    async fn list_pull_request_files(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+    ) -> AppResult<Vec<VcsPrFile>> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/pulls/{pr_number}/files");
+        let files: Vec<GitHubPrFile> = self.fetch_paginated(url).await?;
+
+        Ok(files
+            .into_iter()
+            .map(|f| VcsPrFile {
+                filename: f.filename,
+                status: f.status,
+                additions: f.additions,
+                deletions: f.deletions,
+                patch: f.patch,
+            })
+            .collect())
+    }
 }
 
 fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
@@ -404,4 +425,13 @@ struct GitHubIssueComment {
     user: Option<GitHubCommentUser>,
     body: Option<String>,
     created_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubPrFile {
+    filename: String,
+    status: String,
+    additions: u64,
+    deletions: u64,
+    patch: Option<String>,
 }

@@ -15,6 +15,7 @@ import { OrganizationsPage } from "./pages/organizations";
 import { ImportRepositoriesPage } from "./pages/import-repositories";
 import { RepositoryPage } from "./pages/repository";
 import { RepositoryPRsPage } from "./pages/repository-prs";
+import { PrReviewPage } from "./pages/pr-review";
 import { SettingsPage } from "./pages/settings";
 import { ProviderDetailPage } from "./pages/provider-detail";
 import { Bot, Building2, FolderGit2, LayoutDashboard, Settings } from "lucide-react";
@@ -64,6 +65,7 @@ export default function App() {
             {currentPage === "import-repositories" && <ImportRepositoriesPage />}
             {currentPage === "repository" && <RepositoryPage />}
             {currentPage === "repository-prs" && <RepositoryPRsPage />}
+            {currentPage === "pr-review" && <PrReviewPage />}
             {currentPage === "settings" && <SettingsPage />}
             {currentPage === "provider-detail" && <ProviderDetailPage />}
             {currentPage === "agents" && <AgentWorkspaceLayout />}

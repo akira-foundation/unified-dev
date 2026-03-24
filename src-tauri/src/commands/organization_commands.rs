@@ -7,7 +7,7 @@ use crate::db::models::{
     CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
     UpdateOrganizationInput,
 };
-use crate::core::provider::types::{PrCommentDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
+use crate::core::provider::types::{PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -467,4 +467,19 @@ pub async fn merge_pr(
         .merge_pull_request(&owner, &repo_name, pr_number, strategy)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_pr_files(
+    state: State<'_, crate::state::AppState>,
+    organization_id: String,
+    repo_name: String,
+    pr_number: u64,
+) -> Result<Vec<PrFileDto>, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let files = provider
+        .list_pull_request_files(&owner, &repo_name, pr_number)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(files.into_iter().map(PrFileDto::from).collect())
 }

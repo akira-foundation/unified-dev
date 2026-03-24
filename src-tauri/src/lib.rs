@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use commands::agent_commands::{agents_get_messages, agents_send_message, check_pr_url, create_draft_pr, discard_file_changes, get_available_models, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
 use commands::organization_commands::{
-    create_organization, delete_organization, get_pr_comments, list_all_selected_repositories,
+    create_organization, delete_organization, get_pr_comments, get_pr_files, list_all_selected_repositories,
     list_organizations, list_organizations_by_provider, list_selected_repositories,
     list_repo_pull_requests, merge_pr, post_pr_comment, save_selected_repositories,
     submit_pr_review, sync_repository_stats, sync_single_repo_stats, update_organization,
@@ -115,6 +115,7 @@ pub fn run() {
             post_pr_comment,
             submit_pr_review,
             merge_pr,
+            get_pr_files,
             terminal_spawn,
             terminal_write,
             terminal_resize,

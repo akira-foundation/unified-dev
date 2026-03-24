@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { AppPage } from "../types/navigation";
+import type { PullRequestDto } from "../types/organization";
 
 export interface ActiveRepo {
   name: string;
@@ -14,6 +15,7 @@ interface NavigationState {
   activeProviderId: string | null;
   activeOrganizationId: string | null;
   activeRepo: ActiveRepo | null;
+  activePr: PullRequestDto | null;
   history: AppPage[];
   canGoBack: boolean;
   isAgentMode: boolean;
@@ -24,6 +26,7 @@ interface NavigationState {
   setActiveProviderId: (providerId: string | null) => void;
   setActiveOrganizationId: (organizationId: string | null) => void;
   setActiveRepo: (repo: ActiveRepo | null) => void;
+  setActivePr: (pr: PullRequestDto | null) => void;
 }
 
 export const useNavigationStore = create<NavigationState>()(
@@ -33,6 +36,7 @@ export const useNavigationStore = create<NavigationState>()(
       activeProviderId: null,
       activeOrganizationId: null,
       activeRepo: null,
+      activePr: null,
       history: [],
       canGoBack: false,
       isAgentMode: false,
@@ -74,6 +78,7 @@ export const useNavigationStore = create<NavigationState>()(
       setActiveProviderId: (providerId) => set({ activeProviderId: providerId }),
       setActiveOrganizationId: (organizationId) => set({ activeOrganizationId: organizationId }),
       setActiveRepo: (repo) => set({ activeRepo: repo }),
+      setActivePr: (pr) => set({ activePr: pr }),
     }),
     {
       name: "unified_dev_navigation",

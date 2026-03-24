@@ -1,4 +1,7 @@
-import { Check, ChevronLeft, MessageSquare, X } from "lucide-react";
+import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
+import { Check, MessageSquare, X } from "lucide-react";
 
 import { useI18n } from "../../i18n/i18n";
 import { Button } from "../ui/button";
@@ -10,33 +13,65 @@ import {
   SheetDescription,
 } from "../ui/sheet";
 import type { PrReviewEvent, PullRequestDto } from "../../types/organization";
+import type { ActiveRepo } from "../../stores/navigation-store";
 
-type ReviewMode = "comment" | "approve" | "request_changes" | null;
+type ReviewMode = "comment" | "approve" | "request_changes";
 
 export function PrReviewSheet({
   pr,
+  repo,
   open,
-  reviewMode,
-  reviewBody,
-  reviewSubmitting,
-  reviewSuccess,
   onOpenChange,
-  onReviewModeChange,
-  onReviewBodyChange,
-  onSubmit,
 }: {
   pr: PullRequestDto;
+  repo: ActiveRepo;
   open: boolean;
-  reviewMode: ReviewMode;
-  reviewBody: string;
-  reviewSubmitting: boolean;
-  reviewSuccess: string | null;
   onOpenChange: (open: boolean) => void;
-  onReviewModeChange: (mode: ReviewMode) => void;
-  onReviewBodyChange: (body: string) => void;
-  onSubmit: () => void;
 }) {
   const { t } = useI18n();
+  const [reviewMode, setReviewMode] = useState<ReviewMode>("comment");
+  const [reviewBody, setReviewBody] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      setReviewBody("");
+      setReviewMode("comment");
+      setReviewSuccess(null);
+    }
+    onOpenChange(next);
+  };
+
+  const handleSubmit = async () => {
+    setReviewSubmitting(true);
+    try {
+      await invoke("submit_pr_review", {
+        organizationId: repo.organizationId,
+        repoName: repo.name,
+        prNumber: pr.number,
+        event: reviewMode as PrReviewEvent,
+        body: reviewBody.trim() || null,
+      });
+      const msg =
+        reviewMode === "approve"
+          ? t("components.prReview.approved")
+          : reviewMode === "request_changes"
+            ? t("components.prReview.changesRequested")
+            : t("components.prReview.commentSubmitted");
+      setReviewSuccess(msg);
+      setReviewBody("");
+      setReviewMode("comment");
+    } catch (err) {
+      const raw = String(err);
+      const errorsMatch = raw.match(/"errors"\s*:\s*\["([^"]+)"/);
+      const messageMatch = raw.match(/"message"\s*:\s*"([^"]+)"/);
+      const msg = errorsMatch ? errorsMatch[1] : messageMatch ? messageMatch[1] : raw;
+      toast.error(msg);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const reviewOptions = [
     {
@@ -58,28 +93,19 @@ export function PrReviewSheet({
       icon: <X className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />,
     },
   ];
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="right"
-        className="w-full sm:max-w-lg flex flex-col p-0 overflow-hidden"
-      >
-        <SheetHeader className="px-5 pt-5 pb-4 shrink-0">
-          <div className="flex items-center gap-3 pr-6">
-            <button
-              onClick={() => onOpenChange(false)}
-              className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div>
-              <SheetTitle className="text-sm">{t("components.prReview.title")}</SheetTitle>
-              <SheetDescription className="text-xs">
-                {pr.title}{" "}
-                <span className="text-zinc-400">#{pr.number}</span>
-              </SheetDescription>
-            </div>
-          </div>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
+      <SheetContent side="right" className="flex flex-col p-0 overflow-hidden w-full sm:max-w-md">
+        <SheetHeader className="px-5 pt-5 pb-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+          <SheetTitle className="text-base text-left">
+            {t("components.prReview.title")}
+          </SheetTitle>
+          <SheetDescription className="text-xs flex items-center gap-1 flex-wrap">
+            <span className="font-mono truncate max-w-[240px]">{pr.title}</span>
+            <span>·</span>
+            <span>#{pr.number}</span>
+          </SheetDescription>
         </SheetHeader>
 
         {reviewSuccess ? (
@@ -94,7 +120,7 @@ export function PrReviewSheet({
             <div className="flex-1 overflow-y-auto flex flex-col">
               <textarea
                 value={reviewBody}
-                onChange={(e) => onReviewBodyChange(e.target.value)}
+                onChange={(e) => setReviewBody(e.target.value)}
                 placeholder={t("components.prReview.placeholder")}
                 className="flex-1 min-h-[160px] w-full bg-white dark:bg-zinc-900 px-5 py-4 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 resize-none focus:outline-none"
               />
@@ -110,7 +136,7 @@ export function PrReviewSheet({
                       name="review-type"
                       value={value}
                       checked={reviewMode === value}
-                      onChange={() => onReviewModeChange(value)}
+                      onChange={() => setReviewMode(value)}
                       className="mt-1 accent-purple-600"
                     />
                     {icon}
@@ -130,10 +156,12 @@ export function PrReviewSheet({
             <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0">
               <Button
                 className="w-full"
-                disabled={reviewSubmitting || reviewMode === null}
-                onClick={onSubmit}
+                disabled={reviewSubmitting}
+                onClick={handleSubmit}
               >
-                {reviewSubmitting ? t("components.prReview.submitting") : t("components.prReview.submit")}
+                {reviewSubmitting
+                  ? t("components.prReview.submitting")
+                  : t("components.prReview.submit")}
               </Button>
             </div>
           </>
@@ -142,6 +170,3 @@ export function PrReviewSheet({
     </Sheet>
   );
 }
-
-export type { ReviewMode };
-export type { PrReviewEvent };

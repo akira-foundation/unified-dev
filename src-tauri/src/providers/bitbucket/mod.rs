@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsPrComment, VcsPullRequest,
+    PrReviewEvent, PullRequestState, VcsPrComment, VcsPrFile, VcsPullRequest,
 };
 use crate::error::{AppError, AppResult};
 
@@ -192,6 +192,15 @@ impl VcsProvider for BitbucketDriver {
         _strategy: PrMergeStrategy,
     ) -> AppResult<()> {
         Err(AppError::Provider("PR merge not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn list_pull_request_files(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _pr_number: u64,
+    ) -> AppResult<Vec<VcsPrFile>> {
+        Err(AppError::Provider("PR file diff not yet supported for Bitbucket".to_string()))
     }
 }
 

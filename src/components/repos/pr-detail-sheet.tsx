@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { toast } from "sonner";
 import { useI18n } from "../../i18n/i18n";
 import {
   ArrowRight,
@@ -14,6 +13,7 @@ import {
   MessageSquare,
   Minimize2,
 } from "lucide-react";
+import { useNavigationStore } from "../../stores/navigation-store";
 import {
   Collapsible,
   CollapsibleContent,
@@ -38,16 +38,12 @@ import {
 } from "../ui/dropdown-menu";
 import { MarkdownBody } from "./markdown-body";
 import { PrCommentItem } from "./pr-comment-item";
-import { PrReviewSheet } from "./pr-review-sheet";
 import { formatRelativeDate } from "./pr-item";
 import type {
   PrCommentDto,
   PrMergeStrategy,
-  PrReviewEvent,
   PullRequestDto,
 } from "../../types/organization";
-
-type ReviewMode = "comment" | "approve" | "request_changes" | null;
 
 export function PrDetailSheet({
   pr,
@@ -67,6 +63,7 @@ export function PrDetailSheet({
   onMerged: (prId: string) => void;
 }) {
   const { t } = useI18n();
+  const { navigateTo, setActivePr } = useNavigationStore();
   const strategyLabels: Record<PrMergeStrategy, string> = {
     merge: t("components.prDetail.mergeCommit"),
     squash: t("components.prDetail.mergeSquash"),
@@ -76,14 +73,9 @@ export function PrDetailSheet({
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [commentSubmitting, setCommentSubmitting] = useState(false);
-  const [reviewMode, setReviewMode] = useState<ReviewMode>("comment");
-  const [reviewBody, setReviewBody] = useState("");
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewPanelOpen, setReviewPanelOpen] = useState(false);
   const [mergeStrategy, setMergeStrategy] = useState<PrMergeStrategy>("merge");
   const [merging, setMerging] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
-  const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
@@ -91,11 +83,7 @@ export function PrDetailSheet({
     if (!open || !pr) {
       setComments([]);
       setCommentBody("");
-      setReviewMode("comment");
-      setReviewBody("");
-      setReviewPanelOpen(false);
       setMergeError(null);
-      setReviewSuccess(null);
       setFullscreen(false);
       return;
     }
@@ -127,39 +115,6 @@ export function PrDetailSheet({
       setCommentBody("");
     } finally {
       setCommentSubmitting(false);
-    }
-  };
-
-  const handleSubmitReview = async () => {
-    if (!reviewMode) return;
-    setReviewSubmitting(true);
-    try {
-      await invoke("submit_pr_review", {
-        organizationId,
-        repoName,
-        prNumber: pr.number,
-        event: reviewMode as PrReviewEvent,
-        body: reviewBody.trim() || null,
-      });
-      const msg =
-        reviewMode === "approve"
-          ? t("components.prReview.approved")
-          : reviewMode === "request_changes"
-            ? t("components.prReview.changesRequested")
-            : t("components.prReview.commentSubmitted");
-      setReviewSuccess(msg);
-      setReviewBody("");
-      setReviewMode("comment");
-      setReviewPanelOpen(false);
-    } catch (err) {
-      setReviewSuccess(null);
-      const raw = String(err);
-      const errorsMatch = raw.match(/"errors"\s*:\s*\["([^"]+)"/);
-      const messageMatch = raw.match(/"message"\s*:\s*"([^"]+)"/);
-      const msg = errorsMatch ? errorsMatch[1] : messageMatch ? messageMatch[1] : raw;
-      toast.error(msg);
-    } finally {
-      setReviewSubmitting(false);
     }
   };
 
@@ -208,7 +163,7 @@ export function PrDetailSheet({
                     variant="outline"
                     size="sm"
                     className="h-7 px-2.5 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer inline-flex items-center gap-1.5"
-                    onClick={() => setReviewPanelOpen(true)}
+                    onClick={() => { setActivePr(pr); navigateTo("pr-review"); }}
                   >
                     <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                     <span>{t("components.prDetail.review")}</span>
@@ -463,19 +418,6 @@ export function PrDetailSheet({
           </div>
         </div>
       </SheetContent>
-
-      <PrReviewSheet
-        pr={pr}
-        open={reviewPanelOpen}
-        reviewMode={reviewMode}
-        reviewBody={reviewBody}
-        reviewSubmitting={reviewSubmitting}
-        reviewSuccess={reviewSuccess}
-        onOpenChange={setReviewPanelOpen}
-        onReviewModeChange={setReviewMode}
-        onReviewBodyChange={setReviewBody}
-        onSubmit={handleSubmitReview}
-      />
     </Sheet>
   );
 }

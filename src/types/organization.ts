@@ -87,3 +87,11 @@ export interface PrCommentDto {
 export type PrReviewEvent = "approve" | "request_changes" | "comment";
 
 export type PrMergeStrategy = "merge" | "squash" | "rebase";
+
+export interface PrFileDto {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  patch: string | null;
+}
