@@ -243,7 +243,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
                   collapsedFiles[file.filename] ? "max-h-0 overflow-hidden" : "max-h-none overflow-visible"
                 )}>
                   <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800">
-                    {file.diff && <PatchViewer patch={file.diff} splitView={splitView} />}
+                    {file.diff && <PatchViewer patch={file.diff} splitView={splitView} filename={file.filename} />}
                   </CardContent>
                 </div>
               </Card>

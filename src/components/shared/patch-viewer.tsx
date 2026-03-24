@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { cn } from "../../lib/utils";
+import { getLanguageFromFilename, highlightLine } from "../../lib/highlight";
 
 export interface PatchLine {
   type: "added" | "removed" | "context" | "hunk" | "meta";
@@ -20,7 +22,6 @@ export function parsePatchLines(patch: string): PatchLine[] {
       raw.startsWith("--- ") ||
       raw.startsWith("+++ ")
     ) {
-      // skip file header lines — not useful in the viewer
       continue;
     } else if (raw.startsWith("@@")) {
       const match = raw.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
@@ -48,14 +49,46 @@ export function parsePatchLines(patch: string): PatchLine[] {
   return result;
 }
 
-export function PatchViewer({ patch, splitView = false }: { patch: string; splitView?: boolean }) {
+export function PatchViewer({
+  patch,
+  splitView = false,
+  filename,
+}: {
+  patch: string;
+  splitView?: boolean;
+  filename?: string;
+}) {
   const lines = parsePatchLines(patch);
+  const language = filename ? getLanguageFromFilename(filename) : null;
+
+  const highlighted = useMemo(() => {
+    if (!language) return null;
+    return lines.map((l) =>
+      l.type === "added" || l.type === "removed" || l.type === "context"
+        ? highlightLine(l.content, language)
+        : null
+    );
+  }, [patch, language]);
+
+  const renderContent = (line: PatchLine | null, idx: number, cls: string) => {
+    if (!line) return <span className={cls} />;
+    const html = highlighted?.[idx] ?? null;
+    if (html !== null) {
+      return (
+        <span
+          className={cls}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      );
+    }
+    return <span className={cls}>{line.content}</span>;
+  };
 
   if (splitView) {
     type SplitRow =
       | { kind: "hunk"; content: string }
       | { kind: "meta"; content: string }
-      | { kind: "pair"; left: PatchLine | null; right: PatchLine | null };
+      | { kind: "pair"; left: PatchLine | null; right: PatchLine | null; leftIdx: number; rightIdx: number };
 
     const rows: SplitRow[] = [];
     let i = 0;
@@ -66,25 +99,25 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
       if (l.type === "removed") {
         const next = lines[i + 1];
         if (next?.type === "added") {
-          rows.push({ kind: "pair", left: l, right: next });
+          rows.push({ kind: "pair", left: l, right: next, leftIdx: i, rightIdx: i + 1 });
           i += 2;
         } else {
-          rows.push({ kind: "pair", left: l, right: null });
+          rows.push({ kind: "pair", left: l, right: null, leftIdx: i, rightIdx: -1 });
           i++;
         }
         continue;
       }
       if (l.type === "added") {
-        rows.push({ kind: "pair", left: null, right: l });
+        rows.push({ kind: "pair", left: null, right: l, leftIdx: -1, rightIdx: i });
         i++;
         continue;
       }
-      rows.push({ kind: "pair", left: l, right: l });
+      rows.push({ kind: "pair", left: l, right: l, leftIdx: i, rightIdx: i });
       i++;
     }
 
     const cellCls = (line: PatchLine | null) => cn(
-      "flex-1 flex gap-0",
+      "flex-1 flex gap-0 min-w-0",
       line?.type === "added" && "bg-emerald-500/10 dark:bg-emerald-500/8",
       line?.type === "removed" && "bg-red-500/10 dark:bg-red-500/8",
     );
@@ -96,11 +129,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
       (!line || line.type === "context") && "text-transparent",
     );
 
-    const contentCls = (line: PatchLine | null) => cn(
-      "flex-1 whitespace-pre-wrap break-all pl-1 pr-3",
-      (line?.type === "added" || line?.type === "removed") && "text-zinc-800 dark:text-zinc-200",
-      (!line || line.type === "context") && "text-zinc-600 dark:text-zinc-400",
-    );
+    const contentCls = cn("flex-1 whitespace-pre-wrap break-all pl-1 pr-3 hljs");
 
     return (
       <div className="py-1 font-mono text-[11px] leading-5">
@@ -122,7 +151,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
               </div>
             );
           }
-          const { left, right } = row;
+          const { left, right, leftIdx, rightIdx } = row;
           return (
             <div key={idx} className="flex">
               <div className={cellCls(left)}>
@@ -130,7 +159,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
                   {left?.oldLineNo ?? ""}
                 </span>
                 <span className={markerCls(left)}>{left?.type === "removed" ? "−" : ""}</span>
-                <span className={contentCls(left)}>{left?.content ?? ""}</span>
+                {renderContent(left, leftIdx, contentCls)}
               </div>
               <span className="w-px shrink-0 bg-zinc-200/60 dark:bg-zinc-700/40" />
               <div className={cellCls(right)}>
@@ -138,7 +167,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
                   {right?.newLineNo ?? ""}
                 </span>
                 <span className={markerCls(right)}>{right?.type === "added" ? "+" : ""}</span>
-                <span className={contentCls(right)}>{right?.content ?? ""}</span>
+                {renderContent(right, rightIdx, contentCls)}
               </div>
             </div>
           );
@@ -146,6 +175,8 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
       </div>
     );
   }
+
+  const contentCls = cn("flex-1 whitespace-pre-wrap break-all pl-1 pr-4 hljs");
 
   return (
     <div className="py-1 font-mono text-[11px] leading-5">
@@ -202,13 +233,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
             )}>
               {isAdded ? "+" : isRemoved ? "−" : ""}
             </span>
-            <span className={cn(
-              "flex-1 whitespace-pre-wrap break-all pl-1 pr-4",
-              (isAdded || isRemoved) && "text-zinc-800 dark:text-zinc-200",
-              !isAdded && !isRemoved && "text-zinc-600 dark:text-zinc-400",
-            )}>
-              {line.content}
-            </span>
+            {renderContent(line, i, contentCls)}
           </div>
         );
       })}

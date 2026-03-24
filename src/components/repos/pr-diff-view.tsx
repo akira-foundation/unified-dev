@@ -76,7 +76,7 @@ function FileDiffCard({
           <CardContent className="px-0 py-0 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
             {everOpened && (
               file.patch ? (
-                <PatchViewer patch={file.patch} splitView={splitView} />
+                <PatchViewer patch={file.patch} splitView={splitView} filename={file.filename} />
               ) : (
                 <p className="px-4 py-3 text-sm text-zinc-400 dark:text-zinc-500 italic">
                   {t("components.prDiff.binary")}
