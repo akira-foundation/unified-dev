@@ -849,10 +849,19 @@ AWS_PROFILE=default`}
                               <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">{t("common.connected")}</Badge>
                               <Button variant="outline" size="sm" onClick={() => { if (connectedProvider) { setActiveProviderId(connectedProvider.id); navigateTo("provider-detail"); } }}>{t("common.manage")}</Button>
                             </div>
-                          ) : (
-                            <Button onClick={kind === "github" ? () => connectGithub() : undefined}>
+                          ) : kind === "github" ? (
+                            <Button onClick={() => connectGithub()}>
                               <Link2 size={18} /> {t("common.connect")}
                             </Button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-zinc-500 border-zinc-200 dark:border-zinc-700 dark:text-zinc-400">
+                                {t("common.comingSoon")}
+                              </Badge>
+                              <Button disabled>
+                                <Link2 size={18} /> {t("common.connect")}
+                              </Button>
+                            </div>
                           )
                         }
                       />

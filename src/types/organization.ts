@@ -76,3 +76,14 @@ export interface PullRequestDto {
   labels: string[];
   reviewers: string[];
 }
+
+export interface PrCommentDto {
+  id: string;
+  author: string;
+  body: string;
+  created_at: string;
+}
+
+export type PrReviewEvent = "approve" | "request_changes" | "comment";
+
+export type PrMergeStrategy = "merge" | "squash" | "rebase";

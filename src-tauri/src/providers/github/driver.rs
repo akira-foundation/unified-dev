@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
-    ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PullRequestState, VcsPullRequest,
+    ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
+    PrReviewEvent, PullRequestState, VcsPrComment, VcsPullRequest,
 };
 use crate::error::{AppError, AppResult};
 
@@ -42,6 +43,56 @@ impl GitHubDriver {
         }
 
         Ok(response.json::<T>().await?)
+    }
+
+    async fn post_json<B: Serialize + Send + Sync, T: DeserializeOwned>(
+        &self,
+        url: String,
+        payload: &B,
+    ) -> AppResult<T> {
+        let response = self
+            .client
+            .post(url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .json(payload)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!(
+                "GitHub API error: {status} {body}"
+            )));
+        }
+
+        Ok(response.json::<T>().await?)
+    }
+
+    async fn put_json<B: Serialize + Send + Sync>(
+        &self,
+        url: String,
+        payload: &B,
+    ) -> AppResult<()> {
+        let response = self
+            .client
+            .put(url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .json(payload)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!(
+                "GitHub API error: {status} {body}"
+            )));
+        }
+
+        Ok(())
     }
 
     async fn fetch_paginated<T: DeserializeOwned>(
@@ -189,6 +240,84 @@ impl VcsProvider for GitHubDriver {
             })
             .collect())
     }
+
+    async fn get_pull_request_comments(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+    ) -> AppResult<Vec<VcsPrComment>> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{pr_number}/comments");
+        let comments: Vec<GitHubIssueComment> = self.fetch_paginated(url).await?;
+
+        Ok(comments
+            .into_iter()
+            .map(|c| VcsPrComment {
+                id: c.id.to_string(),
+                author: c.user.map(|u| u.login).unwrap_or_else(|| "unknown".to_string()),
+                body: c.body.unwrap_or_default(),
+                created_at: c.created_at,
+            })
+            .collect())
+    }
+
+    async fn post_pull_request_comment(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        body: &str,
+    ) -> AppResult<VcsPrComment> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{pr_number}/comments");
+        let payload = serde_json::json!({ "body": body });
+        let comment: GitHubIssueComment = self.post_json(url, &payload).await?;
+
+        Ok(VcsPrComment {
+            id: comment.id.to_string(),
+            author: comment.user.map(|u| u.login).unwrap_or_else(|| "unknown".to_string()),
+            body: comment.body.unwrap_or_default(),
+            created_at: comment.created_at,
+        })
+    }
+
+    async fn submit_pull_request_review(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        event: PrReviewEvent,
+        body: Option<&str>,
+    ) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/pulls/{pr_number}/reviews");
+        let event_str = match event {
+            PrReviewEvent::Approve => "APPROVE",
+            PrReviewEvent::RequestChanges => "REQUEST_CHANGES",
+            PrReviewEvent::Comment => "COMMENT",
+        };
+        let mut payload = serde_json::json!({ "event": event_str });
+        if let Some(b) = body {
+            payload["body"] = serde_json::Value::String(b.to_string());
+        }
+        let _: serde_json::Value = self.post_json(url, &payload).await?;
+        Ok(())
+    }
+
+    async fn merge_pull_request(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        strategy: PrMergeStrategy,
+    ) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/pulls/{pr_number}/merge");
+        let merge_method = match strategy {
+            PrMergeStrategy::Merge => "merge",
+            PrMergeStrategy::Squash => "squash",
+            PrMergeStrategy::Rebase => "rebase",
+        };
+        let payload = serde_json::json!({ "merge_method": merge_method });
+        self.put_json(url, &payload).await
+    }
 }
 
 fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
@@ -262,4 +391,17 @@ struct GitHubPullRequest {
     user: Option<GitHubPullUser>,
     labels: Option<Vec<GitHubPullLabel>>,
     requested_reviewers: Option<Vec<GitHubPullUser>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubCommentUser {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubIssueComment {
+    id: u64,
+    user: Option<GitHubCommentUser>,
+    body: Option<String>,
+    created_at: String,
 }

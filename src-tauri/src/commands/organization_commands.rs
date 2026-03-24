@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use futures_util::future::join_all;
 use tauri::State;
 
@@ -5,7 +7,7 @@ use crate::db::models::{
     CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
     UpdateOrganizationInput,
 };
-use crate::core::provider::types::{PullRequestDto, PullRequestState};
+use crate::core::provider::types::{PrCommentDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -359,4 +361,110 @@ pub async fn list_repo_pull_requests(
         .filter(|pr| matches!(pr.state, PullRequestState::Open))
         .map(PullRequestDto::from)
         .collect())
+}
+
+/// Shared helper: resolve owner + provider for a given org + repo_name
+async fn resolve_pr_provider(
+    state: &crate::state::AppState,
+    organization_id: &str,
+    repo_name: &str,
+) -> Result<(String, Arc<dyn crate::core::provider::traits::VcsProvider>), String> {
+    let repos = state
+        .organization_repo_service
+        .list_selected_repositories(organization_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let repo = repos
+        .iter()
+        .find(|r| r.repo_name == repo_name)
+        .ok_or_else(|| format!("repository '{}' not found", repo_name))?;
+
+    let owner = repo.owner.clone();
+
+    let provider_id = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT provider_id FROM organizations WHERE id = ?",
+    )
+    .bind(organization_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .ok()
+    .flatten()
+    .ok_or_else(|| "no provider linked to organization".to_string())?;
+
+    let credentials = state
+        .provider_service
+        .credentials(&provider_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let provider = state
+        .provider_factory
+        .create(&credentials.kind, credentials.auth)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok((owner, provider))
+}
+
+#[tauri::command]
+pub async fn get_pr_comments(
+    state: State<'_, crate::state::AppState>,
+    organization_id: String,
+    repo_name: String,
+    pr_number: u64,
+) -> Result<Vec<PrCommentDto>, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let comments = provider
+        .get_pull_request_comments(&owner, &repo_name, pr_number)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(comments.into_iter().map(PrCommentDto::from).collect())
+}
+
+#[tauri::command]
+pub async fn post_pr_comment(
+    state: State<'_, crate::state::AppState>,
+    organization_id: String,
+    repo_name: String,
+    pr_number: u64,
+    body: String,
+) -> Result<PrCommentDto, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let comment = provider
+        .post_pull_request_comment(&owner, &repo_name, pr_number, &body)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(PrCommentDto::from(comment))
+}
+
+#[tauri::command]
+pub async fn submit_pr_review(
+    state: State<'_, crate::state::AppState>,
+    organization_id: String,
+    repo_name: String,
+    pr_number: u64,
+    event: PrReviewEvent,
+    body: Option<String>,
+) -> Result<(), String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    provider
+        .submit_pull_request_review(&owner, &repo_name, pr_number, event, body.as_deref())
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn merge_pr(
+    state: State<'_, crate::state::AppState>,
+    organization_id: String,
+    repo_name: String,
+    pr_number: u64,
+    strategy: PrMergeStrategy,
+) -> Result<(), String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    provider
+        .merge_pull_request(&owner, &repo_name, pr_number, strategy)
+        .await
+        .map_err(|e| e.to_string())
 }

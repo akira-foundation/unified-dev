@@ -4,7 +4,8 @@ use serde::Deserialize;
 
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
-    ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PullRequestState, VcsPullRequest,
+    ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
+    PrReviewEvent, PullRequestState, VcsPrComment, VcsPullRequest,
 };
 use crate::error::{AppError, AppResult};
 
@@ -151,6 +152,46 @@ impl VcsProvider for BitbucketDriver {
         );
         let prs: Vec<BitbucketPullRequest> = self.fetch_paginated(&url).await?;
         Ok(prs.into_iter().map(pr_to_pull_request).collect())
+    }
+
+    async fn get_pull_request_comments(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _pr_number: u64,
+    ) -> AppResult<Vec<VcsPrComment>> {
+        Err(AppError::Provider("PR comments not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn post_pull_request_comment(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _pr_number: u64,
+        _body: &str,
+    ) -> AppResult<VcsPrComment> {
+        Err(AppError::Provider("PR comments not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn submit_pull_request_review(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _pr_number: u64,
+        _event: PrReviewEvent,
+        _body: Option<&str>,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("PR reviews not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn merge_pull_request(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _pr_number: u64,
+        _strategy: PrMergeStrategy,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("PR merge not yet supported for Bitbucket".to_string()))
     }
 }
 

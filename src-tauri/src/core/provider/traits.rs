@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPullRequest};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPrComment, VcsPullRequest, PrReviewEvent, PrMergeStrategy};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -30,4 +30,36 @@ pub trait VcsProvider: Send + Sync {
         owner: &str,
         repository: &str,
     ) -> AppResult<Vec<VcsPullRequest>>;
+
+    async fn get_pull_request_comments(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+    ) -> AppResult<Vec<VcsPrComment>>;
+
+    async fn post_pull_request_comment(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        body: &str,
+    ) -> AppResult<VcsPrComment>;
+
+    async fn submit_pull_request_review(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        event: PrReviewEvent,
+        body: Option<&str>,
+    ) -> AppResult<()>;
+
+    async fn merge_pull_request(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        strategy: PrMergeStrategy,
+    ) -> AppResult<()>;
 }

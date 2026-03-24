@@ -95,11 +95,15 @@ export function AddProviderDialog({ open, onOpenChange, onSubmit, defaultKind }:
                       <SelectTrigger>
                         <SelectValue placeholder={t("dialogs.addProvider.kindPlaceholder")} />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="github">GitHub</SelectItem>
-                        <SelectItem value="gitlab">GitLab</SelectItem>
-                        <SelectItem value="bitbucket">Bitbucket</SelectItem>
-                      </SelectContent>
+                        <SelectContent>
+                          <SelectItem value="github">GitHub</SelectItem>
+                          <SelectItem value="gitlab" disabled>
+                            GitLab — Coming soon
+                          </SelectItem>
+                          <SelectItem value="bitbucket" disabled>
+                            Bitbucket — Coming soon
+                          </SelectItem>
+                        </SelectContent>
                     </Select>
                   </FormControl>
                   <FormMessage />
