@@ -84,7 +84,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
     }
 
     const cellCls = (line: PatchLine | null) => cn(
-      "flex-1 min-w-0 flex gap-0",
+      "flex-1 flex gap-0",
       line?.type === "added" && "bg-emerald-500/10 dark:bg-emerald-500/8",
       line?.type === "removed" && "bg-red-500/10 dark:bg-red-500/8",
     );
@@ -97,13 +97,13 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
     );
 
     const contentCls = (line: PatchLine | null) => cn(
-      "flex-1 whitespace-pre pl-1 pr-3 min-w-0 overflow-hidden",
+      "flex-1 whitespace-pre-wrap break-all pl-1 pr-3",
       (line?.type === "added" || line?.type === "removed") && "text-zinc-800 dark:text-zinc-200",
       (!line || line.type === "context") && "text-zinc-600 dark:text-zinc-400",
     );
 
     return (
-      <div className="py-1 font-mono text-[11px] leading-5 overflow-x-auto">
+      <div className="py-1 font-mono text-[11px] leading-5">
         {rows.map((row, idx) => {
           if (row.kind === "hunk") {
             return (
@@ -148,7 +148,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
   }
 
   return (
-    <div className="py-1 font-mono text-[11px] leading-5 overflow-x-auto">
+    <div className="py-1 font-mono text-[11px] leading-5">
       {lines.map((line, i) => {
         if (line.type === "hunk") {
           return (
@@ -203,7 +203,7 @@ export function PatchViewer({ patch, splitView = false }: { patch: string; split
               {isAdded ? "+" : isRemoved ? "−" : ""}
             </span>
             <span className={cn(
-              "flex-1 whitespace-pre pl-1 pr-4",
+              "flex-1 whitespace-pre-wrap break-all pl-1 pr-4",
               (isAdded || isRemoved) && "text-zinc-800 dark:text-zinc-200",
               !isAdded && !isRemoved && "text-zinc-600 dark:text-zinc-400",
             )}>

@@ -92,8 +92,8 @@ export function PrReviewPage() {
           </PageHeaderActions>
         </PageHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Tabs defaultValue="files" className="flex h-full w-full flex-col">
+        <div className="flex flex-col">
+          <Tabs defaultValue="files" className="flex w-full flex-col">
             <div className="shrink-0 mb-4">
               <TabsList variant="line">
                 <TabsTrigger value="files">{filesTabLabel}</TabsTrigger>
@@ -101,11 +101,11 @@ export function PrReviewPage() {
               </TabsList>
             </div>
 
-            <TabsContent value="files" className="flex-1 overflow-y-auto min-h-0">
-              <PrDiffView files={files} loading={filesLoading} />
+            <TabsContent value="files" className="">
+              <PrDiffView files={files} loading={filesLoading} prNumber={activePr.number} />
             </TabsContent>
 
-            <TabsContent value="checks" className="flex-1 overflow-y-auto min-h-0">
+            <TabsContent value="checks" className="">
               <PrChecksView
                 checks={checks}
                 loading={checksLoading}

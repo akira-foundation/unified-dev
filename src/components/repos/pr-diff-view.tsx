@@ -9,6 +9,7 @@ import { Card, CardContent, CardTitle } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
 import { useI18n } from "../../i18n/i18n";
 import { PatchViewer } from "../shared/patch-viewer";
+import { useViewedFilesStore } from "../../stores/useViewedFilesStore";
 import type { PrFileDto } from "../../types/organization";
 
 function FileDiffCard({
@@ -92,22 +93,18 @@ function FileDiffCard({
 export function PrDiffView({
   files,
   loading,
+  prNumber,
 }: {
   files: PrFileDto[];
   loading: boolean;
+  prNumber: number;
 }) {
   const { t } = useI18n();
   const [splitView, setSplitView] = useState(true);
-  const [viewedFiles, setViewedFiles] = useState<Set<string>>(new Set());
+  const storeKey = `pr:${prNumber}`;
+  const { isViewed, setViewed } = useViewedFilesStore();
 
-  const toggleViewed = (filename: string, viewed: boolean) => {
-    setViewedFiles((prev) => {
-      const next = new Set(prev);
-      if (viewed) next.add(filename);
-      else next.delete(filename);
-      return next;
-    });
-  };
+  const viewedCount = files.filter((f) => isViewed(storeKey, f.filename)).length;
 
   if (loading) {
     return (
@@ -138,10 +135,10 @@ export function PrDiffView({
           <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
             {t("components.prDiff.filesCount").replace("{count}", String(files.length))}
           </p>
-          {viewedFiles.size > 0 && (
+          {viewedCount > 0 && (
             <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
               {t("components.prDiff.viewedCount")
-                .replace("{viewed}", String(viewedFiles.size))
+                .replace("{viewed}", String(viewedCount))
                 .replace("{total}", String(files.length))}
             </p>
           )}
@@ -181,8 +178,8 @@ export function PrDiffView({
           file={file}
           splitView={splitView}
           defaultOpen={index === 0}
-          viewed={viewedFiles.has(file.filename)}
-          onViewedChange={(v) => toggleViewed(file.filename, v)}
+          viewed={isViewed(storeKey, file.filename)}
+          onViewedChange={(v) => setViewed(storeKey, file.filename, v)}
         />
       ))}
     </div>

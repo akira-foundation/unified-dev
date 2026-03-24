@@ -17,6 +17,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { DiscardFileDialog } from "./discard-file-dialog";
 import { PatchViewer } from "@/components/shared/patch-viewer";
+import { useViewedFilesStore } from "@/stores/useViewedFilesStore";
 
 interface DiffViewerProps {
   files: FileChange[];
@@ -40,16 +41,9 @@ export function DiffViewer({ files }: DiffViewerProps) {
   const [discardTarget, setDiscardTarget] = useState<string | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [splitView, setSplitView] = useState(false);
-  const [viewedFiles, setViewedFiles] = useState<Set<string>>(new Set());
 
-  const toggleViewed = (filename: string) => {
-    setViewedFiles((prev) => {
-      const next = new Set(prev);
-      if (next.has(filename)) next.delete(filename);
-      else next.add(filename);
-      return next;
-    });
-  };
+  const storeKey = selectedIssueId ? `issue:${selectedIssueId}` : null;
+  const { isViewed, toggleViewed: toggleViewedFile } = useViewedFilesStore();
 
   const selectedIssue = repositoryGroups
     .flatMap((g) => g.repositories.flatMap((r) => r.issues))
@@ -170,7 +164,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
           <div className="flex-1 overflow-y-auto m-0 p-4 custom-scrollbar">
           <div className="flex flex-col gap-2 max-w-5xl mx-auto">
             {files.map((file) => (
-              <Card key={file.filename} className={cn("gap-0 border-zinc-200 dark:border-white/[0.05] shadow-none transition-opacity", viewedFiles.has(file.filename) && "opacity-60")}>
+              <Card key={file.filename} className={cn("gap-0 border-zinc-200 dark:border-white/[0.05] shadow-none transition-opacity", storeKey && isViewed(storeKey, file.filename) && "opacity-60")}>
                 <CardHeader
                   className="flex flex-row items-center justify-between p-2.5 cursor-pointer select-none transition-colors rounded-t-2xl"
                   onClick={() => toggleCollapse(file.filename)}
@@ -199,15 +193,15 @@ export function DiffViewer({ files }: DiffViewerProps) {
                     </div>
 
                     <div
-                      onClick={(e) => { e.stopPropagation(); toggleViewed(file.filename); }}
+                      onClick={(e) => { e.stopPropagation(); if (storeKey) toggleViewedFile(storeKey, file.filename); }}
                       className={cn(
                         "h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer shrink-0",
-                        viewedFiles.has(file.filename)
+                        storeKey && isViewed(storeKey, file.filename)
                           ? "bg-emerald-500 border-emerald-500 text-white"
                           : "border-zinc-300 dark:border-zinc-600 bg-transparent"
                       )}
                     >
-                      {viewedFiles.has(file.filename) && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
+                      {storeKey && isViewed(storeKey, file.filename) && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
                     </div>
 
                     <DropdownMenu>
@@ -245,8 +239,8 @@ export function DiffViewer({ files }: DiffViewerProps) {
                 </CardHeader>
 
                 <div className={cn(
-                  "overflow-hidden transition-all duration-300",
-                  collapsedFiles[file.filename] ? "max-h-0" : "max-h-none"
+                  "transition-all duration-300",
+                  collapsedFiles[file.filename] ? "max-h-0 overflow-hidden" : "max-h-none overflow-visible"
                 )}>
                   <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800">
                     {file.diff && <PatchViewer patch={file.diff} splitView={splitView} />}
