@@ -8,26 +8,36 @@ import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigationStore } from "../stores/navigation-store";
 import { useI18n } from "../i18n/i18n";
 import { repositorySelectionService } from "../services/repositorySelectionService";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { Activity, Download, Globe2, Lock } from "lucide-react";
-import type { OrganizationRepoSummary, OrganizationRepoWithOrg } from "../types/organization";
+import type { OrganizationRepoWithOrg } from "../types/organization";
 import { EmptyState } from "../components/ui/empty-state";
+import { queryKeys } from "../lib/query-keys";
 
 export function OrganizationPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
   const { organizations } = useOrganizations();
   const { activeOrganizationId, navigateTo } = useNavigationStore();
-  const [repos, setRepos] = useState<OrganizationRepoSummary[]>([]);
-  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncingRepoId, setSyncingRepoId] = useState<string | undefined>();
+  const queryClient = useQueryClient();
 
   const organization = useMemo(
     () => organizations.find((item) => item.id === activeOrganizationId) ?? null,
     [organizations, activeOrganizationId],
+  );
+
+  const { data: repos = [], isLoading: isLoadingRepos } = useQuery({
+    queryKey: queryKeys.selectedRepositories(organization?.id ?? ""),
+    queryFn: () => repositorySelectionService.listSelectedRepositories(organization!.id),
+    enabled: !!organization,
+  });
+
+  const reposWithOrg: OrganizationRepoWithOrg[] = useMemo(
+    () => repos.map((r) => ({ ...r, organization_name: organization?.name ?? "" })),
+    [repos, organization],
   );
 
   const stats = useMemo(() => {
@@ -35,80 +45,36 @@ export function OrganizationPage() {
     const publicCount = repos.filter((repo) => repo.visibility === "public").length;
     const privateCount = repos.filter((repo) => repo.visibility === "private").length;
     const lastImported = repos[0]?.created_at ?? null;
-
-    return {
-      total,
-      publicCount,
-      privateCount,
-      lastImported,
-    };
+    return { total, publicCount, privateCount, lastImported };
   }, [repos]);
 
-  useEffect(() => {
-    if (!organization) {
-      setRepos([]);
-      return;
-    }
+  const syncAll = useMutation({
+    mutationFn: () => invoke("sync_repository_stats", { organizationId: organization!.id }),
+    onMutate: () => toast.loading(t("agents.sidebar.toast.syncingAll")),
+    onSuccess: (_, __, toastId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(organization!.id) });
+      toast.success(t("agents.sidebar.toast.syncAllDone"), { id: toastId as string });
+    },
+    onError: (_, __, toastId) => {
+      toast.error(t("agents.sidebar.toast.syncAllFailed"), { id: toastId as string });
+    },
+  });
 
-    let isMounted = true;
-    setIsLoadingRepos(true);
-    repositorySelectionService
-      .listSelectedRepositories(organization.id)
-      .then((data) => {
-        if (isMounted) {
-          setRepos(data);
-        }
-      })
-      .finally(() => {
-        if (isMounted) {
-          setIsLoadingRepos(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [organization]);
-
-  const reposWithOrg: OrganizationRepoWithOrg[] = useMemo(
-    () => repos.map((r) => ({ ...r, organization_name: organization?.name ?? "" })),
-    [repos, organization],
-  );
-
-  const refreshRepos = async () => {
-    if (!organization) return;
-    const data = await repositorySelectionService.listSelectedRepositories(organization.id);
-    setRepos(data);
-  };
-
-  const handleSync = async () => {
-    if (!organization) return;
-    setIsSyncing(true);
-    const loadingToast = toast.loading(t("agents.sidebar.toast.syncingAll"));
-    try {
-      await invoke("sync_repository_stats", { organizationId: organization.id });
-      await refreshRepos();
-      toast.success(t("agents.sidebar.toast.syncAllDone"), { id: loadingToast });
-    } catch (error) {
-      toast.error(t("agents.sidebar.toast.syncAllFailed"), { id: loadingToast });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleSyncRepo = async (repo: OrganizationRepoWithOrg) => {
-    setSyncingRepoId(String(repo.id));
-    const loadingToast = toast.loading(t("agents.sidebar.toast.syncingRepo").replace("{name}", repo.repo_name));
-    try {
-      await invoke("sync_single_repo_stats", { organizationId: repo.organization_id, repoName: repo.repo_name });
-      await refreshRepos();
-      toast.success(t("agents.sidebar.toast.repoSynced").replace("{name}", repo.repo_name), { id: loadingToast });
-    } catch (error) {
-      toast.error(t("agents.sidebar.toast.syncFailed").replace("{name}", repo.repo_name), { id: loadingToast });
-    } finally {
-      setSyncingRepoId(undefined);
-    }
-  };
+  const syncRepo = useMutation({
+    mutationFn: (repo: OrganizationRepoWithOrg) =>
+      invoke("sync_single_repo_stats", {
+        organizationId: repo.organization_id,
+        repoName: repo.repo_name,
+      }),
+    onMutate: (repo) => toast.loading(t("agents.sidebar.toast.syncingRepo").replace("{name}", repo.repo_name)),
+    onSuccess: (_, repo, toastId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(organization!.id) });
+      toast.success(t("agents.sidebar.toast.repoSynced").replace("{name}", repo.repo_name), { id: toastId as string });
+    },
+    onError: (_, repo, toastId) => {
+      toast.error(t("agents.sidebar.toast.syncFailed").replace("{name}", repo.repo_name), { id: toastId as string });
+    },
+  });
 
   return (
     <PageLayout>
@@ -209,14 +175,13 @@ export function OrganizationPage() {
             {!isLoadingRepos && reposWithOrg.length > 0 && (
               <RepoMetricsTable
                 repos={reposWithOrg}
-                onSync={handleSync}
-                isSyncing={isSyncing}
-                onSyncRepo={handleSyncRepo}
-                syncingRepoId={syncingRepoId}
+                onSync={() => syncAll.mutate()}
+                isSyncing={syncAll.isPending}
+                onSyncRepo={(repo) => syncRepo.mutate(repo)}
+                syncingRepoId={syncRepo.isPending ? String(syncRepo.variables?.id) : undefined}
                 hideOrganization
               />
             )}
-
           </div>
         )}
       </div>

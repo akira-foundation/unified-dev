@@ -47,7 +47,12 @@ export function OrganizationItem({
   return (
     <div className="flex items-center justify-between rounded-md border px-4 py-3 shadow-sm transition">
       <div className="flex flex-col gap-1">
-        <div className="text-sm font-semibold text-gray-900 dark:text-white">{organization.name}</div>
+        <button
+          className="text-sm font-semibold text-gray-900 dark:text-white text-left hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+          onClick={() => onSelect?.(organization.id)}
+        >
+          {organization.name}
+        </button>
         <div className="text-xs text-gray-500 dark:text-gray-400">
           {t("components.orgItem.added")} {new Date(organization.created_at).toLocaleString()}
         </div>

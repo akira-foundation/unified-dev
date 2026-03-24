@@ -246,6 +246,7 @@ fn pr_to_pull_request(pr: BitbucketPullRequest) -> VcsPullRequest {
         author: pr.author.map(|a| a.display_name),
         labels: vec![],
         reviewers: pr.reviewers.unwrap_or_default().into_iter().map(|r| r.display_name).collect(),
+        ci_status: None,
     }
 }
 

@@ -1,7 +1,17 @@
+import {
+  type ColumnDef,
+  type SortingState,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+  flexRender,
+} from "@tanstack/react-table";
+import { useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
+import { useRepoActions } from "../../hooks/useRepoActions";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -13,18 +23,172 @@ interface RepoMetricsTableProps {
   repos: OrganizationRepoWithOrg[];
   title?: string;
   onCreate?: () => void;
-  onNewTask?: (repo: OrganizationRepoWithOrg) => void;
   onSync?: () => void;
   onSyncRepo?: (repo: OrganizationRepoWithOrg) => void;
   onOrganizationClick?: (repo: OrganizationRepoWithOrg) => void;
-  onViewPrs?: (repo: OrganizationRepoWithOrg) => void;
   isSyncing?: boolean;
   syncingRepoId?: string;
   hideOrganization?: boolean;
 }
 
-export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onNewTask, onSync, onSyncRepo, onOrganizationClick, onViewPrs, isSyncing, syncingRepoId, hideOrganization }: RepoMetricsTableProps) {
+function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
+  if (sorted === "asc") return <ChevronUp className="ml-1 inline h-3.5 w-3.5" />;
+  if (sorted === "desc") return <ChevronDown className="ml-1 inline h-3.5 w-3.5" />;
+  return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-40" />;
+}
+
+export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSync, onSyncRepo, onOrganizationClick, isSyncing, syncingRepoId, hideOrganization }: RepoMetricsTableProps) {
   const { t } = useI18n();
+  const { handleViewPrs, handleNewTask } = useRepoActions();
+  const [sorting, setSorting] = useState<SortingState>([]);
+
+  const columns = useMemo<ColumnDef<OrganizationRepoWithOrg>[]>(() => {
+    const cols: ColumnDef<OrganizationRepoWithOrg>[] = [
+      {
+        id: "name",
+        accessorFn: (row) => row.repo_name,
+        header: ({ column }) => (
+          <button
+            className="flex items-center"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            {t("tables.header.name")}
+            <SortIcon sorted={column.getIsSorted()} />
+          </button>
+        ),
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+              {row.original.repo_name}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{row.original.owner}</span>
+          </div>
+        ),
+      },
+    ];
+
+    if (!hideOrganization) {
+      cols.push({
+        id: "organization",
+        accessorFn: (row) => row.organization_name,
+        header: t("tables.header.organization"),
+        cell: ({ row }) =>
+          onOrganizationClick ? (
+            <button onClick={() => onOrganizationClick(row.original)} className="cursor-pointer">
+              <Badge variant="secondary" className="hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                {row.original.organization_name}
+              </Badge>
+            </button>
+          ) : (
+            <Badge variant="secondary">{row.original.organization_name}</Badge>
+          ),
+      });
+    }
+
+    cols.push(
+      {
+        id: "open_prs_count",
+        accessorFn: (row) => row.open_prs_count,
+        header: ({ column }) => (
+          <div className="flex justify-center">
+            <button
+              className="flex items-center"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            >
+              {t("tables.header.prs")}
+              <SortIcon sorted={column.getIsSorted()} />
+            </button>
+          </div>
+        ),
+        cell: ({ row }) =>
+          row.original.open_prs_count > 0 ? (
+            <button
+              onClick={() => handleViewPrs(row.original)}
+              className="font-semibold tabular-nums text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 underline-offset-2 hover:underline cursor-pointer w-full text-center block"
+            >
+              {row.original.open_prs_count}
+            </button>
+          ) : (
+            <span className="block text-center">—</span>
+          ),
+      },
+      {
+        id: "default_branch",
+        accessorFn: (row) => row.default_branch,
+        header: t("tables.header.default"),
+        cell: ({ row }) => (
+          <div className="flex justify-end items-center gap-2">
+            <Badge variant="secondary">{row.original.default_branch}</Badge>
+          </div>
+        ),
+      },
+      {
+        id: "visibility",
+        accessorFn: (row) => row.visibility,
+        header: ({ column }) => (
+          <div className="flex justify-end">
+            <button
+              className="flex items-center"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            >
+              {t("tables.header.visibility")}
+              <SortIcon sorted={column.getIsSorted()} />
+            </button>
+          </div>
+        ),
+        cell: ({ row }) => (
+          <Badge variant={row.original.visibility === "private" ? "warning" : "secondary"}>
+            {row.original.visibility}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => void handleNewTask(row.original)}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("common.newTask")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleViewPrs(row.original)}>
+                <GitPullRequest className="mr-2 h-4 w-4" />
+                {t("tables.header.prs")}
+              </DropdownMenuItem>
+              {onSyncRepo && (
+                <DropdownMenuItem
+                  onSelect={() => onSyncRepo(row.original)}
+                  disabled={syncingRepoId === String(row.original.id)}
+                >
+                  <RotateCw className={cn("mr-2 h-4 w-4", syncingRepoId === String(row.original.id) && "animate-spin")} />
+                  {t("common.sync")}
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+        enableSorting: false,
+      },
+    );
+
+    return cols;
+  }, [t, hideOrganization, onOrganizationClick, onSyncRepo, syncingRepoId, handleViewPrs, handleNewTask]);
+
+  const table = useReactTable({
+    data: repos,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+
   return (
     <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
       <div className="flex flex-row items-center justify-between px-6 py-6 pb-6">
@@ -58,93 +222,38 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onNe
         <div className="overflow-hidden rounded-xl">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>{t("tables.header.name")}</TableHead>
-                {!hideOrganization && <TableHead>{t("tables.header.organization")}</TableHead>}
-                <TableHead className="text-right">{t("tables.header.prs")}</TableHead>
-                <TableHead className="text-right">{t("tables.header.default")}</TableHead>
-                <TableHead className="text-right">{t("tables.header.visibility")}</TableHead>
-                <TableHead />
-              </TableRow>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        header.id === "open_prs_count" && "text-center",
+                        ["default_branch", "visibility", "actions"].includes(header.id) && "text-right",
+                      )}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
             </TableHeader>
             <TableBody>
-              {repos.map((repo) => (
-                <TableRow key={repo.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {repo.repo_name}
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400">{repo.owner}</span>
-                    </div>
-                  </TableCell>
-                  {!hideOrganization && (
-                    <TableCell>
-                      {onOrganizationClick ? (
-                        <button onClick={() => onOrganizationClick(repo)} className="cursor-pointer">
-                          <Badge variant="secondary" className="hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
-                            {repo.organization_name}
-                          </Badge>
-                        </button>
-                      ) : (
-                        <Badge variant="secondary">{repo.organization_name}</Badge>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        cell.column.id === "open_prs_count" && "text-center",
+                        ["default_branch", "visibility", "actions"].includes(cell.column.id) && "text-right",
                       )}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
-                  )}
-                  <TableCell className="text-right text-sm text-gray-500 dark:text-gray-400">
-                    {repo.open_prs_count > 0 ? (
-                      <button
-                        onClick={() => onViewPrs?.(repo)}
-                        className={cn(
-                          "font-semibold tabular-nums",
-                          onViewPrs
-                            ? "text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 underline-offset-2 hover:underline cursor-pointer"
-                            : "cursor-default"
-                        )}
-                      >
-                        {repo.open_prs_count}
-                      </button>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end items-center gap-2">
-                      <Badge variant="secondary">{repo.default_branch}</Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={repo.visibility === "private" ? "warning" : "secondary"}>
-                      {repo.visibility}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => onNewTask?.(repo)}>
-                          <Plus className="mr-2 h-4 w-4" />
-                          {t("common.newTask")}
-                        </DropdownMenuItem>
-                        {onViewPrs && (
-                          <DropdownMenuItem onSelect={() => onViewPrs(repo)}>
-                            <GitPullRequest className="mr-2 h-4 w-4" />
-                            {t("tables.header.prs")}
-                          </DropdownMenuItem>
-                        )}
-                        {onSyncRepo && (
-                          <DropdownMenuItem onSelect={() => onSyncRepo(repo)} disabled={syncingRepoId === String(repo.id)}>
-                            <RotateCw className={cn("mr-2 h-4 w-4", syncingRepoId === String(repo.id) && "animate-spin")} />
-                            {t("common.sync")}
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
@@ -154,3 +263,5 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onNe
     </Card>
   );
 }
+
+

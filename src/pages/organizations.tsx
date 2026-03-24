@@ -1,7 +1,8 @@
 import { Plus } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useOrganizations } from "../hooks/useOrganizations";
+import type { OrganizationSummary } from "../types/organization";
 import { OrganizationList } from "../components/organizations/organization-list";
 import { AddOrganizationDialog } from "../components/organizations/add-organization-dialog";
 import { EditOrganizationDialog } from "../components/organizations/edit-organization-dialog";
@@ -23,8 +24,10 @@ import { Skeleton } from "../components/ui/skeleton";
 export function OrganizationsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { organizations, isLoading, isDialogOpen, setIsDialogOpen, editOrganization, setEditOrganization, createOrganization, updateOrganization, removeOrganization } = useOrganizations();
+  const { organizations, isLoading, createOrganization, updateOrganization, removeOrganization } = useOrganizations();
   const { providers } = useProviders();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editOrganization, setEditOrganization] = useState<OrganizationSummary | null>(null);
   const providerNameById = useMemo(
     () => Object.fromEntries(providers.map((provider) => [provider.id, provider.name])),
     [providers],

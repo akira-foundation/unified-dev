@@ -17,7 +17,7 @@ interface EditOrganizationDialogProps {
   onOpenChange: (open: boolean) => void;
   organization: OrganizationSummary | null;
   providers: ProviderSummary[];
-  onSubmit: (input: UpdateOrganizationInput) => Promise<void> | void;
+  onSubmit: (input: UpdateOrganizationInput) => Promise<unknown> | void;
 }
 
 const editOrganizationSchema = z.object({

@@ -1,15 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { GitPullRequest } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { EmptyState } from "../components/ui/empty-state";
 import { Skeleton } from "../components/ui/skeleton";
 import {
   PageHeader,
-  PageHeaderActions,
   PageHeaderMeta,
   PageHeaderTitle,
 } from "../components/layout/page-header";
@@ -19,38 +18,27 @@ import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useNavigationStore } from "../stores/navigation-store";
+import { queryKeys } from "../lib/query-keys";
 import type { PullRequestDto } from "../types/organization";
 
 export function RepositoryPRsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { activeRepo, goBack } = useNavigationStore();
-  const [prs, setPrs] = useState<PullRequestDto[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const { activeRepo } = useNavigationStore();
+  const queryClient = useQueryClient();
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  useEffect(() => {
-    if (!activeRepo) return;
-
-    let isMounted = true;
-    setIsLoading(true);
-
-    invoke<PullRequestDto[]>("list_repo_pull_requests", {
-      organizationId: activeRepo.organizationId,
-      repoName: activeRepo.name,
-    })
-      .then((data) => {
-        if (isMounted) setPrs(data);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeRepo]);
+  const { data: prs = [], isLoading } = useQuery({
+    queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
+    queryFn: () =>
+      invoke<PullRequestDto[]>("list_repo_pull_requests", {
+        organizationId: activeRepo!.organizationId,
+        repoName: activeRepo!.name,
+      }),
+    enabled: !!activeRepo,
+    staleTime: 0,
+  });
 
   const handleOpenUrl = async (url: string) => {
     try {
@@ -65,8 +53,10 @@ export function RepositoryPRsPage() {
     setSheetOpen(true);
   };
 
-  const handleMerged = (prId: string) => {
-    setPrs((prev) => prev.filter((p) => p.id !== prId));
+  const handleMerged = () => {
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
+    });
   };
 
   if (!activeRepo) return null;
@@ -84,11 +74,7 @@ export function RepositoryPRsPage() {
             <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
-        <PageHeaderActions>
-          <Button variant="outline" onClick={goBack}>
-            {t("common.back")}
-          </Button>
-        </PageHeaderActions>
+
       </PageHeader>
 
       <div className="flex flex-col gap-6">

@@ -15,7 +15,7 @@ interface AddOrganizationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   providers: ProviderSummary[];
-  onSubmit: (payload: { name: string; provider_id: string }) => Promise<void> | void;
+  onSubmit: (payload: { name: string; provider_id: string }) => Promise<unknown> | void;
 }
 
 const organizationSchema = z.object({

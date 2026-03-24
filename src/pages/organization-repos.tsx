@@ -3,17 +3,15 @@ import { EmptyState } from "../components/ui/empty-state";
 
 import { OrganizationList } from "../components/organizations/organization-list";
 import { RepoSelectionTable } from "../components/organizations/repo-selection-table";
-import { RepoSelectionToolbar } from "../components/organizations/repo-selection-toolbar";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
+import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizationRepoSelection } from "../hooks/use-organization-repo-selection";
 import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigationStore } from "../stores/navigation-store";
 import { useI18n } from "../i18n/i18n";
-
-const repoKey = (repo: { owner: string; name: string }) => `${repo.owner}/${repo.name}`;
 
 export function OrganizationReposPage() {
   const { t, locale } = useI18n();
@@ -27,29 +25,13 @@ export function OrganizationReposPage() {
   );
 
   const {
-    filteredRepos,
+    repos,
     selectedKeys,
-    search,
-    visibility,
     isLoading,
     isSaving,
-    selectedCount,
-    setSearch,
-    setVisibility,
-    toggleRepo,
-    selectAllVisible,
-    clearAllVisible,
+    setSelectedKeys,
     saveSelection,
   } = useOrganizationRepoSelection(activeOrganizationId);
-
-  const visibleSelectedCount = filteredRepos.filter((repo) => selectedKeys.has(repoKey(repo))).length;
-  const selectAllState: boolean | "indeterminate" = filteredRepos.length === 0
-    ? false
-    : visibleSelectedCount === filteredRepos.length
-      ? true
-      : visibleSelectedCount > 0
-        ? "indeterminate"
-        : false;
 
   return (
     <PageLayout>
@@ -78,16 +60,6 @@ export function OrganizationReposPage() {
           )}
         </div>
         <div className="flex flex-col gap-4">
-          <RepoSelectionToolbar
-            search={search}
-            visibility={visibility}
-            selectedCount={selectedCount}
-            isSaving={isSaving}
-            onSearchChange={setSearch}
-            onVisibilityChange={setVisibility}
-            onSave={saveSelection}
-            onSync={saveSelection}
-          />
           {!activeOrganizationId && (
             <EmptyState
               title={t("pages.organizationRepos.selectOrg.title")}
@@ -99,20 +71,26 @@ export function OrganizationReposPage() {
               <CardContent className="p-6 text-sm text-gray-500 dark:text-gray-400">{t("pages.organizationRepos.loadingRepos")}</CardContent>
             </Card>
           )}
-          {activeOrganizationId && !isLoading && filteredRepos.length === 0 && (
+          {activeOrganizationId && !isLoading && repos.length === 0 && (
             <EmptyState
               title={t("pages.organizationRepos.noRepos.title")}
               description={activeOrganization ? `${activeOrganization.name} has no repositories matching your filters.` : t("pages.organizationRepos.noRepos.description")}
             />
           )}
-          {activeOrganizationId && !isLoading && filteredRepos.length > 0 && (
+          {activeOrganizationId && !isLoading && repos.length > 0 && (
             <RepoSelectionTable
-              repos={filteredRepos}
+              repos={repos}
               selectedKeys={selectedKeys}
-              selectAllState={selectAllState}
-              onSelectAll={selectAllVisible}
-              onClearAll={clearAllVisible}
-              onToggleRepo={toggleRepo}
+              onSelectionChange={setSelectedKeys}
+              action={
+                <Button
+                  size="sm"
+                  disabled={selectedKeys.size === 0 || isSaving}
+                  onClick={() => void saveSelection()}
+                >
+                  {isSaving ? t("common.saving") : t("toolbar.saveSelection")}
+                </Button>
+              }
             />
           )}
         </div>

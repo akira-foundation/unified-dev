@@ -1,4 +1,5 @@
 import { Activity, FileText, Plus, Search, TrendingUp, MessageSquare, Sparkles } from "lucide-react";
+import { useState } from "react";
 
 import {
   PageHeader,
@@ -23,8 +24,9 @@ import { cn } from "@/lib/utils";
 export function DashboardPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { isDialogOpen, setIsDialogOpen, createOrganization } = useOrganizations();
+  const { createOrganization } = useOrganizations();
   const { providers } = useProviders();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   return (
     <PageLayout scroll={false}>

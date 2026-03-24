@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { RepoSelectionTable } from "../components/organizations/repo-selection-table";
-import { SearchInput } from "../components/organizations/search-input";
-import { VisibilityFilter } from "../components/organizations/visibility-filter";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
 import { Badge } from "../components/ui/badge";
@@ -10,12 +9,12 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Building2, ExternalLink, TriangleAlert } from "lucide-react";
 import { Skeleton } from "../components/ui/skeleton";
-import { EmptyState } from "../components/ui/empty-state";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigation } from "../hooks/useNavigation";
 import { providerService } from "../services/providerService";
 import { repositorySelectionService } from "../services/repositorySelectionService";
+import { queryKeys } from "../lib/query-keys";
 import type { ProviderRepo } from "../types/organization";
 import type { ProviderOrg } from "../types/provider";
 import { useI18n } from "../i18n/i18n";
@@ -28,118 +27,91 @@ export function ImportRepositoriesPage() {
   const dateLabel = useDateLabel(locale);
   const { activeOrganizationId, navigateTo } = useNavigation("dashboard");
   const { organizations, isLoading: isOrganizationsLoading } = useOrganizations();
+  const queryClient = useQueryClient();
 
   const organization = useMemo(
     () => organizations.find((item) => item.id === activeOrganizationId) ?? null,
     [organizations, activeOrganizationId],
   );
 
-  const [providerOrgs, setProviderOrgs] = useState<ProviderOrg[]>([]);
   const [selectedOrg, setSelectedOrg] = useState<ProviderOrg | null>(null);
-  const [repos, setRepos] = useState<ProviderRepo[]>([]);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
-  const [search, setSearch] = useState("");
-  const [visibility, setVisibility] = useState<"all" | "public" | "private">("all");
-  const [importedRepoKeys, setImportedRepoKeys] = useState<Set<string>>(new Set());
-  const [isLoadingOrgs, setIsLoadingOrgs] = useState(false);
-  const [isLoadingRepos, setIsLoadingRepos] = useState(false);
-  const [orgsError, setOrgsError] = useState<string | null>(null);
-  const [reposError, setReposError] = useState<string | null>(null);
 
-  const loadImportedRepos = useCallback(async () => {
-    if (!organization) return;
-    const imported = await repositorySelectionService.listSelectedRepositories(organization.id);
-    setImportedRepoKeys(new Set(imported.map((r) => `${r.owner}/${r.repo_name}`)));
-  }, [organization]);
+  // Query 1: imported repos (to filter out already-imported ones)
+  const { data: importedRepos = [] } = useQuery({
+    queryKey: queryKeys.selectedRepositories(organization?.id ?? ""),
+    queryFn: () => repositorySelectionService.listSelectedRepositories(organization!.id),
+    enabled: !!organization,
+  });
+  const importedRepoKeys = useMemo(
+    () => new Set(importedRepos.map((r) => `${r.owner}/${r.repo_name}`)),
+    [importedRepos],
+  );
 
-  useEffect(() => {
-    void loadImportedRepos();
-  }, [loadImportedRepos]);
+  // Query 2: provider orgs for this organization's provider
+  const {
+    data: providerOrgs = [],
+    isLoading: isLoadingOrgs,
+    error: orgsError,
+  } = useQuery({
+    queryKey: queryKeys.providerOrganizations(organization?.provider_id ?? ""),
+    queryFn: () => providerService.listProviderOrganizations(organization!.provider_id!),
+    enabled: !!organization?.provider_id,
+  });
 
-  const loadProviderOrgs = useCallback(async () => {
-    if (!organization || !organization.provider_id) {
-      setProviderOrgs([]);
-      setSelectedOrg(null);
-      return;
-    }
+  // Reset selectedOrg when provider changes
+  useMemo(() => {
+    setSelectedOrg(null);
+    setSelectedKeys(new Set());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization?.provider_id]);
 
-    setIsLoadingOrgs(true);
-    setOrgsError(null);
-    try {
-      const orgs = await providerService.listProviderOrganizations(organization.provider_id);
-      setProviderOrgs(orgs);
-      setSelectedOrg(null);
-      setRepos([]);
-      setSelectedKeys(new Set());
-      setReposError(null);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setOrgsError(message);
-      toast.error(message);
-    } finally {
-      setIsLoadingOrgs(false);
-    }
-  }, [organization]);
+  // Query 3: repos for the selected org
+  const scope = selectedOrg?.kind === "personal" ? "personal" : "organization";
+  const orgLogin = selectedOrg?.kind === "organization" ? selectedOrg.login : undefined;
 
-  useEffect(() => {
-    void loadProviderOrgs();
-  }, [loadProviderOrgs]);
-
-  const loadRepos = useCallback(async () => {
-    if (!organization || !organization.provider_id || !selectedOrg) {
-      setRepos([]);
-      return;
-    }
-
-    setIsLoadingRepos(true);
-    setReposError(null);
-    try {
-      const scope = selectedOrg.kind === "personal" ? "personal" : "organization";
-      const reposList = await providerService.listProviderRepositories({
-        providerId: organization.provider_id,
+  const {
+    data: repos = [],
+    isLoading: isLoadingRepos,
+    error: reposError,
+  } = useQuery({
+    queryKey: queryKeys.providerRepositories(
+      organization?.provider_id ?? "",
+      scope,
+      orgLogin,
+    ),
+    queryFn: () =>
+      providerService.listProviderRepositories({
+        providerId: organization!.provider_id!,
         scope,
-        organizationLogin: selectedOrg.kind === "organization" ? selectedOrg.login : undefined,
+        organizationLogin: orgLogin,
+      }),
+    enabled: !!organization?.provider_id && !!selectedOrg,
+  });
+
+  // Strip already-imported repos before passing to the table
+  const availableRepos = useMemo(
+    () => repos.filter((repo) => !importedRepoKeys.has(repoKey(repo))),
+    [repos, importedRepoKeys],
+  );
+
+  const importMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof repositorySelectionService.saveSelectedRepositories>[1]) =>
+      repositorySelectionService.saveSelectedRepositories(organization!.id, payload),
+    onSuccess: (_, payload) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.selectedRepositories(organization!.id),
       });
-      setRepos(reposList);
+      toast.success(t("pages.importRepos.importedCount").replace("{count}", String(payload.length)));
       setSelectedKeys(new Set());
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setReposError(message);
-      toast.error(message);
-    } finally {
-      setIsLoadingRepos(false);
-    }
-  }, [organization, selectedOrg]);
+    },
+    onError: () => {
+      toast.error(t("pages.importRepos.importFailed"));
+    },
+  });
 
-  useEffect(() => {
-    void loadRepos();
-  }, [loadRepos]);
-
-  const filteredRepos = useMemo(() => {
-    return repos.filter((repo) => {
-      if (importedRepoKeys.has(repoKey(repo))) return false;
-      const matchesSearch =
-        repo.name.toLowerCase().includes(search.toLowerCase()) ||
-        repo.owner.toLowerCase().includes(search.toLowerCase());
-      const matchesVisibility = visibility === "all" || repo.visibility === visibility;
-      return matchesSearch && matchesVisibility;
-    });
-  }, [repos, search, visibility, importedRepoKeys]);
-
-  const selectedCount = selectedKeys.size;
-  const visibleSelectedCount = filteredRepos.filter((repo) => selectedKeys.has(repoKey(repo))).length;
-  const selectAllState: boolean | "indeterminate" = filteredRepos.length === 0
-    ? false
-    : visibleSelectedCount === filteredRepos.length
-      ? true
-      : visibleSelectedCount > 0
-        ? "indeterminate"
-    : false;
-
-  const handleImportSelected = useCallback(async () => {
-    if (!organization) {
-      return;
-    }
+  const handleImportSelected = async () => {
+    if (!organization) return;
 
     const payload = repos
       .filter((repo) => selectedKeys.has(repoKey(repo)))
@@ -151,20 +123,19 @@ export function ImportRepositoriesPage() {
         auto_sync: true,
       }));
 
-    if (payload.length === 0) {
-      return;
-    }
+    if (payload.length === 0) return;
+
     const toastId = toast.loading(t("pages.importRepos.importingCount"));
     try {
-      await repositorySelectionService.saveSelectedRepositories(organization.id, payload);
-      toast.success(t("pages.importRepos.importedCount").replace("{count}", String(payload.length)), { id: toastId });
-      await loadImportedRepos();
-      setSelectedKeys(new Set());
-    } catch (error) {
-      toast.error(t("pages.importRepos.importFailed"), { id: toastId });
-      throw error;
+      await importMutation.mutateAsync(payload);
+      toast.dismiss(toastId);
+    } catch {
+      toast.dismiss(toastId);
     }
-  }, [organization, repos, selectedKeys]);
+  };
+
+  const orgsErrorMessage = orgsError instanceof Error ? orgsError.message : orgsError ? String(orgsError) : null;
+  const reposErrorMessage = reposError instanceof Error ? reposError.message : reposError ? String(reposError) : null;
 
   return (
     <PageLayout>
@@ -213,7 +184,7 @@ export function ImportRepositoriesPage() {
                   <Skeleton className="h-10 w-full rounded-full" />
                 </div>
               )}
-              {!isLoadingOrgs && orgsError && (
+              {!isLoadingOrgs && orgsErrorMessage && (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-gray-500 dark:text-gray-400">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
                     <TriangleAlert className="h-5 w-5" />
@@ -222,11 +193,11 @@ export function ImportRepositoriesPage() {
                     <div className="text-sm font-semibold text-gray-900 dark:text-white">
                       {t("pages.importRepos.failedOrgs.title")}
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{orgsError}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{orgsErrorMessage}</div>
                   </div>
                 </div>
               )}
-              {!isLoadingOrgs && !orgsError && providerOrgs.length === 0 && (
+              {!isLoadingOrgs && !orgsErrorMessage && providerOrgs.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-gray-500 dark:text-gray-400">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
                     <TriangleAlert className="h-5 w-5" />
@@ -246,13 +217,13 @@ export function ImportRepositoriesPage() {
                   </div>
                 </div>
               )}
-              {!isLoadingOrgs && !orgsError &&
+              {!isLoadingOrgs && !orgsErrorMessage &&
                 providerOrgs.map((org) => (
                   <Button
                     key={org.id}
                     variant={selectedOrg?.id === org.id ? "secondary" : "ghost"}
                     className="justify-start gap-2"
-                    onClick={() => setSelectedOrg(org)}
+                    onClick={() => { setSelectedOrg(org); setSelectedKeys(new Set()); }}
                   >
                     <span className="truncate">
                       {org.kind === "personal" ? t("pages.importRepos.personal") : org.login}
@@ -272,127 +243,71 @@ export function ImportRepositoriesPage() {
                 ))}
             </CardContent>
           </Card>
-          <div className="flex flex-col gap-4">
-            <Card>
-              <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center">
-                  <div className="w-full lg:max-w-xs">
-                    <SearchInput value={search} onChange={setSearch} />
+          <div className="h-[calc(100vh-16rem)]">
+            {isLoadingRepos && (
+              <div className="space-y-3">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            )}
+            {!isLoadingRepos && reposErrorMessage && (
+              <Card className="h-full">
+                <CardContent className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                    <TriangleAlert className="h-5 w-5" />
                   </div>
-                  <VisibilityFilter value={visibility} onChange={setVisibility} />
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {t("pages.importRepos.selectedCount").replace("{count}", String(selectedCount))}
-                </div>
-              </CardContent>
-            </Card>
-            <div className="h-[calc(100vh-26rem)]">
-              {isLoadingRepos && (
-                <div className="space-y-3">
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                  <Skeleton className="h-12 w-full" />
-                </div>
-              )}
-              {!isLoadingRepos && reposError && (
-                <Card className="h-full">
-                  <CardContent className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
-                      <TriangleAlert className="h-5 w-5" />
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                      {t("pages.importRepos.failedRepos.title")}
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {t("pages.importRepos.failedRepos.title")}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{reposError}</div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {!isLoadingRepos && !reposError && !selectedOrg && (
-                <Card className="h-full">
-                  <CardContent className="relative flex h-full flex-col items-center justify-center gap-6 p-10 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
-                      <TriangleAlert className="h-6 w-6" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <span className="text-base font-semibold text-gray-900 dark:text-white">
-                        {t("pages.importRepos.selectOrg.title")}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {t("pages.importRepos.selectOrg.description")}
-                      </span>
-                    </div>
-                    <div className="w-full max-w-2xl space-y-3 opacity-60">
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-10 w-[90%]" />
-                      <Skeleton className="h-10 w-[85%]" />
-                      <Skeleton className="h-10 w-[80%]" />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {!isLoadingRepos && !reposError && selectedOrg && filteredRepos.length === 0 && (
-                <Card className="h-full">
-                  <CardContent className="flex h-full flex-col items-center justify-center gap-6 p-10 text-center">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
-                      <TriangleAlert className="h-6 w-6" />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <span className="text-base font-semibold text-gray-900 dark:text-white">
-                        {t("pages.importRepos.noRepos.title")}
-                      </span>
-                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                        {t("pages.importRepos.noRepos.description")}
-                      </span>
-                    </div>
-                    <div className="w-full max-w-2xl space-y-3 opacity-60">
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-10 w-[90%]" />
-                      <Skeleton className="h-10 w-[85%]" />
-                      <Skeleton className="h-10 w-[80%]" />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              {!isLoadingRepos && !reposError && selectedOrg && filteredRepos.length > 0 && (
-                <RepoSelectionTable
-                  className="h-full"
-                  repos={filteredRepos}
-                  selectedKeys={selectedKeys}
-                  selectAllState={selectAllState}
-                  onSelectAll={() => {
-                    setSelectedKeys((prev) => {
-                      const next = new Set(prev);
-                      filteredRepos.forEach((repo) => next.add(repoKey(repo)));
-                      return next;
-                    });
-                  }}
-                  onClearAll={() => {
-                    setSelectedKeys((prev) => {
-                      const next = new Set(prev);
-                      filteredRepos.forEach((repo) => next.delete(repoKey(repo)));
-                      return next;
-                    });
-                  }}
-                  onToggleRepo={(repo) => {
-                    setSelectedKeys((prev) => {
-                      const next = new Set(prev);
-                      const key = repoKey(repo);
-                      if (next.has(key)) {
-                        next.delete(key);
-                      } else {
-                        next.add(key);
-                      }
-                      return next;
-                    });
-                  }}
-                  onImportSelected={handleImportSelected}
-                />
-              )}
-            </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{reposErrorMessage}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {!isLoadingRepos && !reposErrorMessage && !selectedOrg && (
+              <Card className="h-full">
+                <CardContent className="relative flex h-full flex-col items-center justify-center gap-6 p-10 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
+                    <TriangleAlert className="h-6 w-6" />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <span className="text-base font-semibold text-gray-900 dark:text-white">
+                      {t("pages.importRepos.selectOrg.title")}
+                    </span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {t("pages.importRepos.selectOrg.description")}
+                    </span>
+                  </div>
+                  <div className="w-full max-w-2xl space-y-3 opacity-60">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-[90%]" />
+                    <Skeleton className="h-10 w-[85%]" />
+                    <Skeleton className="h-10 w-[80%]" />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {!isLoadingRepos && !reposErrorMessage && selectedOrg && (
+              <RepoSelectionTable
+                className="h-full"
+                repos={availableRepos}
+                selectedKeys={selectedKeys}
+                onSelectionChange={setSelectedKeys}
+                action={
+                  <Button
+                    size="sm"
+                    disabled={selectedKeys.size === 0 || importMutation.isPending}
+                    onClick={handleImportSelected}
+                  >
+                    {t("common.importSelected")}
+                  </Button>
+                }
+              />
+            )}
           </div>
         </div>
       )}

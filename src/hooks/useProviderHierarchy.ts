@@ -1,34 +1,37 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { useOrganizations } from "./useOrganizations";
 import { useProviders } from "./useProviders";
 
 export function useProviderHierarchy() {
-  const providersState = useProviders();
-  const organizationsState = useOrganizations();
+  const { providers, isLoading: providersLoading, createProvider, removeProvider } = useProviders();
+  const { organizations, isLoading: organizationsLoading, createOrganization, removeOrganization } = useOrganizations();
+
+  const [providerDialogOpen, setProviderDialogOpen] = useState(false);
+  const [organizationDialogOpen, setOrganizationDialogOpen] = useState(false);
 
   const providersWithOrganizations = useMemo(() => {
-    return providersState.providers.map((provider) => ({
+    return providers.map((provider) => ({
       ...provider,
-      organizations: organizationsState.organizations.filter(
+      organizations: organizations.filter(
         (organization) => organization.provider_id === provider.id,
       ),
     }));
-  }, [providersState.providers, organizationsState.organizations]);
+  }, [providers, organizations]);
 
   return {
-    providers: providersState.providers,
-    organizations: organizationsState.organizations,
+    providers,
+    organizations,
     providersWithOrganizations,
-    providersLoading: providersState.isLoading,
-    organizationsLoading: organizationsState.isLoading,
-    createProvider: providersState.createProvider,
-    removeProvider: providersState.removeProvider,
-    createOrganization: organizationsState.createOrganization,
-    removeOrganization: organizationsState.removeOrganization,
-    providerDialogOpen: providersState.isDialogOpen,
-    setProviderDialogOpen: providersState.setIsDialogOpen,
-    organizationDialogOpen: organizationsState.isDialogOpen,
-    setOrganizationDialogOpen: organizationsState.setIsDialogOpen,
+    providersLoading,
+    organizationsLoading,
+    createProvider,
+    removeProvider,
+    createOrganization,
+    removeOrganization,
+    providerDialogOpen,
+    setProviderDialogOpen,
+    organizationDialogOpen,
+    setOrganizationDialogOpen,
   };
 }

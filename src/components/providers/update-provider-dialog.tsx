@@ -17,7 +17,7 @@ interface UpdateProviderDialogProps {
   provider: ProviderSummary | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (payload: { providerId: string; token: string }) => Promise<void> | void;
+  onSubmit: (payload: { providerId: string; token: string }) => Promise<unknown> | void;
   onDisconnect?: () => Promise<void> | void;
 }
 

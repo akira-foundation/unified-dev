@@ -22,21 +22,19 @@ export function ProvidersPage() {
   const {
     providers,
     isLoading,
-    isDialogOpen,
-    setIsDialogOpen,
     createProvider,
     removeProvider,
     updateProviderAuth,
   } = useProviders();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [providerToUpdate, setProviderToUpdate] = useState<typeof providers[number] | null>(null);
   const {
     organizations,
     isLoading: organizationsLoading,
-    isDialogOpen: organizationDialogOpen,
-    setIsDialogOpen: setOrganizationDialogOpen,
     createOrganization,
     removeOrganization,
   } = useOrganizations();
+  const [organizationDialogOpen, setOrganizationDialogOpen] = useState(false);
   const providerNameById = useMemo(
     () => Object.fromEntries(providers.map((provider) => [provider.id, provider.name])),
     [providers],
@@ -83,7 +81,7 @@ export function ProvidersPage() {
           ) : (
             <ProviderList
               providers={providers}
-              onRemove={removeProvider}
+              onRemove={(id) => removeProvider(id, false)}
               onUpdateToken={(provider) => setProviderToUpdate(provider)}
             />
           )}

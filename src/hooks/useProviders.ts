@@ -1,97 +1,94 @@
-import { useCallback, useEffect, useState } from "react";
-
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { providerService } from "../services/providerService";
-import type { ProviderKind, ProviderSummary } from "../types/provider";
+import { queryKeys } from "../lib/query-keys";
+import type { ProviderKind } from "../types/provider";
 
 export function useProviders() {
-  const [providers, setProviders] = useState<ProviderSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const loadProviders = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await providerService.listProviders();
-      setProviders(data);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data: providers = [], isLoading } = useQuery({
+    queryKey: queryKeys.providers(),
+    queryFn: () => providerService.listProviders(),
+  });
 
-  useEffect(() => {
-    loadProviders();
-  }, [loadProviders]);
-
-  const createProvider = useCallback(async (input: { name: string; kind: ProviderKind; token: string }) => {
-    const auth = {
-      auth_type: "pat" as const,
-      auth_payload: {
-        token: input.token,
-      },
-    };
-
-    const toastId = toast.loading("Iniciando conexao...");
-    try {
-      toast.loading("Verificando conexao...", { id: toastId });
-      await providerService.testConnection({ kind: input.kind, auth });
-      toast.success("Conexao verificada com sucesso", { id: toastId });
-
-      const payload = {
-        name: input.name,
-        kind: input.kind,
-        auth,
+  const createProvider = useMutation({
+    mutationFn: async (input: { name: string; kind: ProviderKind; token: string }) => {
+      const auth = {
+        auth_type: "pat" as const,
+        auth_payload: { token: input.token },
       };
-      const created = await providerService.createProvider(payload);
-      setProviders((prev) => [created, ...prev]);
-      toast.success("Provider salvo", { id: toastId });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao verificar conexao";
-      toast.error(message, { id: toastId });
-      throw error;
-    }
-  }, []);
+      const toastId = toast.loading("Iniciando conexao...");
+      try {
+        toast.loading("Verificando conexao...", { id: toastId });
+        await providerService.testConnection({ kind: input.kind, auth });
+        toast.success("Conexao verificada com sucesso", { id: toastId });
+        const created = await providerService.createProvider({
+          name: input.name,
+          kind: input.kind,
+          auth,
+        });
+        toast.success("Provider salvo", { id: toastId });
+        return created;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Falha ao verificar conexao";
+        toast.error(message, { id: toastId });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
+    },
+  });
 
-  const updateProviderAuth = useCallback(async (input: { providerId: string; token: string }) => {
-    const toastId = toast.loading("Atualizando token...");
-    try {
-      await providerService.updateProviderAuth(input);
-      toast.success("Token atualizado", { id: toastId });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha ao atualizar token";
-      toast.error(message, { id: toastId });
-      throw error;
-    }
-  }, []);
+  const updateProviderAuth = useMutation({
+    mutationFn: async (input: { providerId: string; token: string }) => {
+      const toastId = toast.loading("Atualizando token...");
+      try {
+        await providerService.updateProviderAuth(input);
+        toast.success("Token atualizado", { id: toastId });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Falha ao atualizar token";
+        toast.error(message, { id: toastId });
+        throw error;
+      }
+    },
+  });
 
-  const removeProvider = useCallback(async (providerId: string, keepOrganizations: boolean) => {
-    await providerService.deleteProvider(providerId, keepOrganizations);
-    setProviders((prev) => prev.filter((provider) => provider.id !== providerId));
-  }, []);
+  const removeProvider = useMutation({
+    mutationFn: ({ providerId, keepOrganizations }: { providerId: string; keepOrganizations: boolean }) =>
+      providerService.deleteProvider(providerId, keepOrganizations),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
+    },
+  });
 
-  const connectGithub = useCallback(async () => {
-    const toastId = toast.loading("Abrindo GitHub...");
-    try {
-      const created = await providerService.connectGithub();
-      setProviders((prev) => [created, ...prev]);
-      toast.success("GitHub conectado", { id: toastId });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      toast.error(message, { id: toastId });
-      throw error;
-    }
-  }, []);
+  const connectGithub = useMutation({
+    mutationFn: async () => {
+      const toastId = toast.loading("Abrindo GitHub...");
+      try {
+        const created = await providerService.connectGithub();
+        toast.success("GitHub conectado", { id: toastId });
+        return created;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        toast.error(message, { id: toastId });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
+    },
+  });
 
   return {
     providers,
     isLoading,
-    isDialogOpen,
-    setIsDialogOpen,
-    createProvider,
-    updateProviderAuth,
-    removeProvider,
-    connectGithub,
-    reload: loadProviders,
+    createProvider: createProvider.mutateAsync,
+    updateProviderAuth: updateProviderAuth.mutateAsync,
+    removeProvider: (providerId: string, keepOrganizations: boolean) =>
+      removeProvider.mutateAsync({ providerId, keepOrganizations }),
+    connectGithub: connectGithub.mutateAsync,
   };
 }

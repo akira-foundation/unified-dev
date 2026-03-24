@@ -84,6 +84,7 @@ pub struct VcsPullRequest {
     pub author: Option<String>,
     pub labels: Vec<String>,
     pub reviewers: Vec<String>,
+    pub ci_status: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,6 +109,7 @@ pub struct PullRequestDto {
     pub author: Option<String>,
     pub labels: Vec<String>,
     pub reviewers: Vec<String>,
+    pub ci_status: Option<String>,
 }
 
 impl From<VcsPullRequest> for PullRequestDto {
@@ -130,6 +132,7 @@ impl From<VcsPullRequest> for PullRequestDto {
             author: pr.author,
             labels: pr.labels,
             reviewers: pr.reviewers,
+            ci_status: pr.ci_status,
         }
     }
 }

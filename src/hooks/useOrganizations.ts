@@ -1,60 +1,50 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQueryClient, useQuery, useMutation } from "@tanstack/react-query";
 
 import { organizationService } from "../services/organizationService";
 import { useNavigationStore } from "../stores/navigation-store";
-import type { OrganizationSummary, UpdateOrganizationInput } from "../types/organization";
+import { queryKeys } from "../lib/query-keys";
+import type { UpdateOrganizationInput } from "../types/organization";
 
 export function useOrganizations() {
-  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editOrganization, setEditOrganization] = useState<OrganizationSummary | null>(null);
+  const queryClient = useQueryClient();
   const { navigateTo, setActiveOrganizationId } = useNavigationStore();
 
-  const loadOrganizations = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await organizationService.listOrganizations();
-      setOrganizations(data);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const { data: organizations = [], isLoading } = useQuery({
+    queryKey: queryKeys.organizations(),
+    queryFn: () => organizationService.listOrganizations(),
+  });
 
-  useEffect(() => {
-    loadOrganizations();
-  }, [loadOrganizations]);
-
-  const createOrganization = useCallback(
-    async (input: { name: string; provider_id: string }) => {
-      const created = await organizationService.createOrganization(input);
-      setOrganizations((prev) => [created, ...prev]);
+  const createOrganization = useMutation({
+    mutationFn: (input: { name: string; provider_id: string }) =>
+      organizationService.createOrganization(input),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
       setActiveOrganizationId(created.id);
       navigateTo("organization");
     },
-    [setActiveOrganizationId, navigateTo],
-  );
+  });
 
-  const updateOrganization = useCallback(async (input: UpdateOrganizationInput) => {
-    const updated = await organizationService.updateOrganization(input);
-    setOrganizations((prev) => prev.map((org) => (org.id === updated.id ? updated : org)));
-  }, []);
+  const updateOrganization = useMutation({
+    mutationFn: (input: UpdateOrganizationInput) =>
+      organizationService.updateOrganization(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
+    },
+  });
 
-  const removeOrganization = useCallback(async (organizationId: string) => {
-    await organizationService.deleteOrganization(organizationId);
-    setOrganizations((prev) => prev.filter((org) => org.id !== organizationId));
-  }, []);
+  const removeOrganization = useMutation({
+    mutationFn: (organizationId: string) =>
+      organizationService.deleteOrganization(organizationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
+    },
+  });
 
   return {
     organizations,
     isLoading,
-    isDialogOpen,
-    setIsDialogOpen,
-    editOrganization,
-    setEditOrganization,
-    createOrganization,
-    updateOrganization,
-    removeOrganization,
-    reload: loadOrganizations,
+    createOrganization: createOrganization.mutateAsync,
+    updateOrganization: updateOrganization.mutateAsync,
+    removeOrganization: removeOrganization.mutateAsync,
   };
 }

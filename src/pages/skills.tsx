@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { RefreshCcw, Plus, Search, Trash2, Download, Loader2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import { useI18n } from "@/i18n/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { queryKeys } from "@/lib/query-keys";
 
 interface RecommendedSkill {
   id: string;
@@ -153,37 +155,39 @@ function SkillIcon({ className, textIcon, iconPath, onClick }: SkillIconProps) {
 
 export function SkillsPage() {
   const { t } = useI18n();
-  const { installedSkills, setInstalledSkills, setSelectedSkill } = useAgentsStore();
-  const [loading, setLoading] = useState(true);
-  const [installingIds, setInstallingIds] = useState<Set<string>>(new Set());
+  const { setSelectedSkill } = useAgentsStore();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+
+  const { data: installedSkills = [], isLoading: loading, refetch } = useQuery({
+    queryKey: queryKeys.skills(),
+    queryFn: () => invoke<InstalledSkill[]>("sync_skills"),
+  });
+
   const installedIds = new Set(installedSkills.map((s) => s.id));
 
-  const loadSkills = async () => {
-    setLoading(true);
-    try {
-      const skills = await invoke<InstalledSkill[]>("sync_skills");
-      setInstalledSkills(skills);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const toggleSkill = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      invoke("set_skill_enabled", { id, enabled }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.skills() });
+    },
+  });
 
-  useEffect(() => {
-    loadSkills();
-  }, []);
+  const uninstallSkill = useMutation({
+    mutationFn: (id: string) => invoke("uninstall_skill", { id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.skills() });
+    },
+  });
 
-  const toggleSkill = async (id: string, enabled: boolean) => {
-    setInstalledSkills(
-      installedSkills.map((s) => (s.id === id ? { ...s, enabled } : s)),
-    );
-    await invoke("set_skill_enabled", { id, enabled });
-  };
-
-  const uninstallSkill = async (id: string) => {
-    await invoke("uninstall_skill", { id });
-    setInstalledSkills(installedSkills.filter((s) => s.id !== id));
-  };
+  const installSkill = useMutation({
+    mutationFn: ({ skillId, repoUrl }: { skillId: string; repoUrl: string }) =>
+      invoke<InstalledSkill>("install_skill", { skillId, repoUrl }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.skills() });
+    },
+  });
 
   const changeIcon = async (id: string) => {
     const selected = await openDialog({
@@ -197,26 +201,8 @@ export function SkillsPage() {
       .then((r) => r.arrayBuffer())
       .then((b) => Array.from(new Uint8Array(b)));
 
-    const newPath = await invoke<string>("set_skill_icon", { id, data: bytes, extension: ext });
-    setInstalledSkills(
-      installedSkills.map((s) => (s.id === id ? { ...s, icon_path: newPath } : s)),
-    );
-  };
-
-  const installSkill = async (skillId: string, repoUrl: string) => {
-    setInstallingIds((prev) => new Set(prev).add(skillId));
-    try {
-      const skill = await invoke<InstalledSkill>("install_skill", { skillId, repoUrl });
-      setInstalledSkills([...installedSkills.filter((s) => s.id !== skill.id), skill].sort((a, b) =>
-        a.name.localeCompare(b.name),
-      ));
-    } finally {
-      setInstallingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(skillId);
-        return next;
-      });
-    }
+    await invoke<string>("set_skill_icon", { id, data: bytes, extension: ext });
+    queryClient.invalidateQueries({ queryKey: queryKeys.skills() });
   };
 
   const filteredInstalled = installedSkills.filter(
@@ -253,7 +239,7 @@ export function SkillsPage() {
             <Button
               variant="ghost"
               className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs"
-              onClick={loadSkills}
+              onClick={() => refetch()}
             >
               <RefreshCcw className="mr-2 h-3.5 w-3.5" />
               {t("common.refresh")}
@@ -323,7 +309,7 @@ export function SkillsPage() {
                             <TooltipTrigger asChild>
                               <button
                                 className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-2 h-8 rounded-md text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-xs font-semibold"
-                                onClick={() => uninstallSkill(skill.id)}
+                                onClick={() => uninstallSkill.mutate(skill.id)}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                                 {t("common.uninstall")}
@@ -333,12 +319,11 @@ export function SkillsPage() {
                               {t("pages.skills.removeTooltip")}
                             </TooltipContent>
                           </Tooltip>
-
                         </TooltipProvider>
 
                         <Switch
                           checked={skill.enabled}
-                          onCheckedChange={(checked) => toggleSkill(skill.id, checked)}
+                          onCheckedChange={(checked) => toggleSkill.mutate({ id: skill.id, enabled: checked })}
                           className="data-[state=checked]:bg-purple-500 ml-1"
                         />
                       </div>
@@ -357,7 +342,7 @@ export function SkillsPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filteredRecommended.map((skill) => {
-                  const isInstalling = installingIds.has(skill.id);
+                  const isInstalling = installSkill.isPending && installSkill.variables?.skillId === skill.id;
                   return (
                     <Card
                       key={skill.id}
@@ -387,7 +372,7 @@ export function SkillsPage() {
                                 <button
                                   disabled={isInstalling}
                                   className="flex items-center gap-1.5 px-2 h-8 rounded-md text-zinc-400 hover:text-foreground dark:hover:bg-white/10 hover:bg-black/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-semibold"
-                                  onClick={() => installSkill(skill.id, skill.repoUrl)}
+                                  onClick={() => installSkill.mutate({ skillId: skill.id, repoUrl: skill.repoUrl })}
                                 >
                                   {isInstalling ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

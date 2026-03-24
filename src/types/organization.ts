@@ -75,6 +75,7 @@ export interface PullRequestDto {
   author: string | null;
   labels: string[];
   reviewers: string[];
+  ci_status: string | null;
 }
 
 export interface PrCommentDto {

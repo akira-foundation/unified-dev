@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use futures_util::future::join_all;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -217,9 +218,51 @@ impl VcsProvider for GitHubDriver {
         );
         let pulls: Vec<GitHubPullRequest> = self.fetch_paginated(url).await?;
 
+        let ci_futures: Vec<_> = pulls
+            .iter()
+            .map(|pr| {
+                let sha = pr.head.sha.clone();
+                let check_url = format!(
+                    "{GITHUB_API}/repos/{owner}/{repository}/commits/{sha}/check-runs?per_page=100"
+                );
+                async move {
+                    let resp = self
+                        .get_json::<GitHubCheckRunsResponse>(check_url)
+                        .await
+                        .ok()?;
+
+                    if resp.total_count == 0 {
+                        return None;
+                    }
+
+                    let has_pending = resp.check_runs.iter().any(|r| {
+                        matches!(r.status.as_str(), "in_progress" | "queued" | "waiting")
+                    });
+                    if has_pending {
+                        return Some("pending".to_string());
+                    }
+
+                    let has_failure = resp.check_runs.iter().any(|r| {
+                        r.conclusion
+                            .as_deref()
+                            .map(|c| matches!(c, "failure" | "timed_out" | "cancelled"))
+                            .unwrap_or(false)
+                    });
+                    if has_failure {
+                        return Some("failure".to_string());
+                    }
+
+                    Some("success".to_string())
+                }
+            })
+            .collect();
+
+        let ci_statuses = join_all(ci_futures).await;
+
         Ok(pulls
             .into_iter()
-            .map(|pr| VcsPullRequest {
+            .zip(ci_statuses)
+            .map(|(pr, ci_status)| VcsPullRequest {
                 id: pr.id.to_string(),
                 number: pr.number,
                 title: pr.title,
@@ -237,6 +280,7 @@ impl VcsProvider for GitHubDriver {
                 author: pr.user.map(|u| u.login),
                 labels: pr.labels.unwrap_or_default().into_iter().map(|l| l.name).collect(),
                 reviewers: pr.requested_reviewers.unwrap_or_default().into_iter().map(|u| u.login).collect(),
+                ci_status,
             })
             .collect())
     }
@@ -384,6 +428,7 @@ struct GitHubRepo {
 struct GitHubPullReference {
     #[serde(rename = "ref")]
     reference: String,
+    sha: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -412,6 +457,18 @@ struct GitHubPullRequest {
     user: Option<GitHubPullUser>,
     labels: Option<Vec<GitHubPullLabel>>,
     requested_reviewers: Option<Vec<GitHubPullUser>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubCheckRunsResponse {
+    total_count: u64,
+    check_runs: Vec<GitHubCheckRun>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubCheckRun {
+    status: String,
+    conclusion: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

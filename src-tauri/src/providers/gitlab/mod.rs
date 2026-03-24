@@ -272,6 +272,7 @@ fn mr_to_pull_request(mr: GitLabMergeRequest) -> VcsPullRequest {
         author: mr.author.map(|u| u.username),
         labels: mr.labels.unwrap_or_default(),
         reviewers: mr.reviewers.unwrap_or_default().into_iter().map(|u| u.username).collect(),
+        ci_status: None,
     }
 }
 

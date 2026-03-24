@@ -14,7 +14,7 @@ import { useI18n } from "../../i18n/i18n";
 interface AddProviderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (payload: { name: string; kind: ProviderKind; token: string }) => Promise<void> | void;
+  onSubmit: (payload: { name: string; kind: ProviderKind; token: string }) => Promise<unknown> | void;
   defaultKind?: ProviderKind;
 }
 

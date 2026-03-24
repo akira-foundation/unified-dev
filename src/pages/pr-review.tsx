@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { MessageSquare } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useI18n } from "../i18n/i18n";
 import { Button } from "../components/ui/button";
@@ -14,28 +15,28 @@ import { PageLayout } from "../components/layout/page-layout";
 import { PrDiffView } from "../components/repos/pr-diff-view";
 import { PrReviewSheet } from "../components/repos/pr-review-sheet";
 import { useNavigationStore } from "../stores/navigation-store";
+import { queryKeys } from "../lib/query-keys";
 import type { PrFileDto } from "../types/organization";
 
 export function PrReviewPage() {
   const { t } = useI18n();
   const { activePr, activeRepo } = useNavigationStore();
-
-  const [files, setFiles] = useState<PrFileDto[]>([]);
-  const [filesLoading, setFilesLoading] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
 
-  useEffect(() => {
-    if (!activePr || !activeRepo) return;
-    setFilesLoading(true);
-    invoke<PrFileDto[]>("get_pr_files", {
-      organizationId: activeRepo.organizationId,
-      repoName: activeRepo.name,
-      prNumber: activePr.number,
-    })
-      .then(setFiles)
-      .catch(() => setFiles([]))
-      .finally(() => setFilesLoading(false));
-  }, [activePr, activeRepo]);
+  const { data: files = [], isLoading: filesLoading } = useQuery({
+    queryKey: queryKeys.prFiles(
+      activeRepo?.organizationId ?? "",
+      activeRepo?.name ?? "",
+      activePr?.number ?? 0,
+    ),
+    queryFn: () =>
+      invoke<PrFileDto[]>("get_pr_files", {
+        organizationId: activeRepo!.organizationId,
+        repoName: activeRepo!.name,
+        prNumber: activePr!.number,
+      }),
+    enabled: !!activePr && !!activeRepo,
+  });
 
   if (!activePr || !activeRepo) return null;
 

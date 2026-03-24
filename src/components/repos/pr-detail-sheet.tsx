@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n/i18n";
 import {
   ArrowRight,
@@ -39,6 +40,7 @@ import {
 import { MarkdownBody } from "./markdown-body";
 import { PrCommentItem } from "./pr-comment-item";
 import { formatRelativeDate } from "./pr-item";
+import { queryKeys } from "../../lib/query-keys";
 import type {
   PrCommentDto,
   PrMergeStrategy,
@@ -60,66 +62,56 @@ export function PrDetailSheet({
   repoName: string;
   onOpenChange: (open: boolean) => void;
   onOpenUrl: (url: string) => void;
-  onMerged: (prId: string) => void;
+  onMerged: () => void;
 }) {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const { navigateTo, setActivePr } = useNavigationStore();
   const strategyLabels: Record<PrMergeStrategy, string> = {
     merge: t("components.prDetail.mergeCommit"),
     squash: t("components.prDetail.mergeSquash"),
     rebase: t("components.prDetail.mergeRebase"),
   };
-  const [comments, setComments] = useState<PrCommentDto[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentBody, setCommentBody] = useState("");
-  const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [mergeStrategy, setMergeStrategy] = useState<PrMergeStrategy>("merge");
-  const [merging, setMerging] = useState(false);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    if (!open || !pr) {
-      setComments([]);
+  const { data: comments = [], isLoading: commentsLoading } = useQuery({
+    queryKey: queryKeys.prComments(organizationId, repoName, pr?.number ?? 0),
+    queryFn: () =>
+      invoke<PrCommentDto[]>("get_pr_comments", {
+        organizationId,
+        repoName,
+        prNumber: pr!.number,
+      }),
+    enabled: open && !!pr,
+  });
+
+  const postComment = useMutation({
+    mutationFn: () =>
+      invoke<PrCommentDto>("post_pr_comment", {
+        organizationId,
+        repoName,
+        prNumber: pr!.number,
+        body: commentBody.trim(),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.prComments(organizationId, repoName, pr!.number),
+      });
       setCommentBody("");
-      setMergeError(null);
-      setFullscreen(false);
-      return;
-    }
-
-    setCommentsLoading(true);
-    invoke<PrCommentDto[]>("get_pr_comments", {
-      organizationId,
-      repoName,
-      prNumber: pr.number,
-    })
-      .then(setComments)
-      .catch(() => setComments([]))
-      .finally(() => setCommentsLoading(false));
-  }, [open, pr, organizationId, repoName]);
-
-  if (!pr) return null;
+    },
+  });
 
   const handlePostComment = async () => {
     if (!commentBody.trim()) return;
-    setCommentSubmitting(true);
-    try {
-      const newComment = await invoke<PrCommentDto>("post_pr_comment", {
-        organizationId,
-        repoName,
-        prNumber: pr.number,
-        body: commentBody.trim(),
-      });
-      setComments((prev) => [...prev, newComment]);
-      setCommentBody("");
-    } finally {
-      setCommentSubmitting(false);
-    }
+    await postComment.mutateAsync();
   };
 
   const handleMerge = async () => {
-    setMerging(true);
+    if (!pr) return;
     setMergeError(null);
     try {
       await invoke("merge_pr", {
@@ -128,17 +120,17 @@ export function PrDetailSheet({
         prNumber: pr.number,
         strategy: mergeStrategy,
       });
-      onMerged(pr.id);
+      onMerged();
       onOpenChange(false);
     } catch (err) {
       setMergeError(String(err));
-    } finally {
-      setMerging(false);
     }
   };
 
+  if (!pr) return null;
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={(o) => { if (!o) { setMergeError(null); setFullscreen(false); } onOpenChange(o); }}>
       <SheetContent
         side="right"
         className={`flex flex-col p-0 overflow-hidden transition-all duration-200 ${fullscreen ? "w-full sm:max-w-full" : "w-full sm:max-w-lg"}`}
@@ -285,7 +277,7 @@ export function PrDetailSheet({
             </Collapsible>
 
             {/* Description card */}
-            <Collapsible>
+            <Collapsible defaultOpen>
               <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
                 <CollapsibleTrigger className="w-full cursor-pointer">
                   <div className="flex flex-row items-center gap-3 px-4 py-3">
@@ -360,10 +352,10 @@ export function PrDetailSheet({
                   <div className="flex justify-end px-4 pb-3">
                     <Button
                       size="sm"
-                      disabled={!commentBody.trim() || commentSubmitting}
+                      disabled={!commentBody.trim() || postComment.isPending}
                       onClick={handlePostComment}
                     >
-                      {commentSubmitting ? t("components.prDetail.commentPosting") : t("components.prDetail.commentSubmit")}
+                      {postComment.isPending ? t("components.prDetail.commentPosting") : t("components.prDetail.commentSubmit")}
                     </Button>
                   </div>
                 </div>
@@ -382,11 +374,10 @@ export function PrDetailSheet({
           <div className="flex gap-2">
             <Button
               className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-              disabled={merging}
               onClick={handleMerge}
             >
               <GitMerge className="h-4 w-4 mr-1.5" />
-              {merging ? t("components.prDetail.merging") : strategyLabels[mergeStrategy]}
+              {strategyLabels[mergeStrategy]}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
