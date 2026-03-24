@@ -1,4 +1,4 @@
-import { FileCode2, ChevronDown, Monitor, ChevronsUpDown, MoreVertical, Pencil, RotateCcw } from "lucide-react";
+import { FileCode2, ChevronDown, Monitor, ChevronsUpDown, MoreVertical, Pencil, RotateCcw, Columns2, WrapText, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import type { FileChange } from "@/types/agents";
@@ -16,6 +16,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { DiscardFileDialog } from "./discard-file-dialog";
+import { PatchViewer } from "@/components/shared/patch-viewer";
 
 interface DiffViewerProps {
   files: FileChange[];
@@ -38,6 +39,17 @@ export function DiffViewer({ files }: DiffViewerProps) {
 
   const [discardTarget, setDiscardTarget] = useState<string | null>(null);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [splitView, setSplitView] = useState(false);
+  const [viewedFiles, setViewedFiles] = useState<Set<string>>(new Set());
+
+  const toggleViewed = (filename: string) => {
+    setViewedFiles((prev) => {
+      const next = new Set(prev);
+      if (next.has(filename)) next.delete(filename);
+      else next.add(filename);
+      return next;
+    });
+  };
 
   const selectedIssue = repositoryGroups
     .flatMap((g) => g.repositories.flatMap((r) => r.issues))
@@ -106,7 +118,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
           </button>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
           <button
             onClick={toggleAll}
             className="flex items-center gap-1.5 text-[8px] font-black text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors uppercase tracking-widest cursor-pointer"
@@ -125,10 +137,40 @@ export function DiffViewer({ files }: DiffViewerProps) {
       </div>
 
       {diffViewTab === "changes" ? (
-        <div className="flex-1 overflow-y-auto m-0 p-4 custom-scrollbar bg-zinc-50 dark:bg-background">
+        <>
+          {/* Toolbar */}
+          <div className="flex items-center justify-end px-4 py-2 shrink-0">
+            <div className="flex items-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-0.5">
+              <button
+                onClick={() => setSplitView(false)}
+                title={t("components.prDiff.unifiedView")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
+                  !splitView
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
+                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                }`}
+              >
+                <WrapText className="h-3 w-3" />
+                {t("components.prDiff.unifiedView")}
+              </button>
+              <button
+                onClick={() => setSplitView(true)}
+                title={t("components.prDiff.splitView")}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
+                  splitView
+                    ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
+                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                }`}
+              >
+                <Columns2 className="h-3 w-3" />
+                {t("components.prDiff.splitView")}
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto m-0 p-4 custom-scrollbar">
           <div className="flex flex-col gap-2 max-w-5xl mx-auto">
             {files.map((file) => (
-              <Card key={file.filename} className="gap-0 border-zinc-200 dark:border-white/[0.05] shadow-none">
+              <Card key={file.filename} className={cn("gap-0 border-zinc-200 dark:border-white/[0.05] shadow-none transition-opacity", viewedFiles.has(file.filename) && "opacity-60")}>
                 <CardHeader
                   className="flex flex-row items-center justify-between p-2.5 cursor-pointer select-none transition-colors rounded-t-2xl"
                   onClick={() => toggleCollapse(file.filename)}
@@ -154,6 +196,18 @@ export function DiffViewer({ files }: DiffViewerProps) {
                     <div className="flex items-center gap-3 text-[10px] font-mono font-bold tracking-tight">
                       <span className="text-emerald-500/70">+12</span>
                       <span className="text-red-500/70">-4</span>
+                    </div>
+
+                    <div
+                      onClick={(e) => { e.stopPropagation(); toggleViewed(file.filename); }}
+                      className={cn(
+                        "h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer shrink-0",
+                        viewedFiles.has(file.filename)
+                          ? "bg-emerald-500 border-emerald-500 text-white"
+                          : "border-zinc-300 dark:border-zinc-600 bg-transparent"
+                      )}
+                    >
+                      {viewedFiles.has(file.filename) && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
                     </div>
 
                     <DropdownMenu>
@@ -194,29 +248,15 @@ export function DiffViewer({ files }: DiffViewerProps) {
                   "overflow-hidden transition-all duration-300",
                   collapsedFiles[file.filename] ? "max-h-0" : "max-h-none"
                 )}>
-                  <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800 dark:bg-[#0A0A0A]/30 bg-zinc-50">
-                    <div className="py-2 font-mono text-[10.5px] leading-relaxed overflow-x-auto custom-scrollbar">
-                      {file.diff?.split('\n').map((line, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            "px-4 py-0 whitespace-pre min-h-[16px] flex gap-4 transition-colors group/line",
-                            line.startsWith('+') ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400/90" :
-                              line.startsWith('-') ? "bg-red-500/10 text-red-600 dark:text-red-400/80" :
-                                "text-zinc-400 dark:text-white/20"
-                          )}
-                        >
-                          <span className="select-none opacity-20 w-8 text-right shrink-0 tabular-nums border-r border-zinc-100 dark:border-white/5 pr-4">{i + 1}</span>
-                          <span className="flex-1 pl-1">{line}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800">
+                    {file.diff && <PatchViewer patch={file.diff} splitView={splitView} />}
                   </CardContent>
                 </div>
               </Card>
             ))}
           </div>
         </div>
+        </>
       ) : (
         <div className="flex-1 overflow-hidden bg-background">
           <FileExplorer />

@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import ReactDiffViewer from "react-diff-viewer-continued";
+import { useState } from "react";
 import { Check, ChevronDown, Columns2, FileCode, WrapText } from "lucide-react";
 import {
   Collapsible,
@@ -9,48 +8,8 @@ import {
 import { Card, CardContent, CardTitle } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
 import { useI18n } from "../../i18n/i18n";
+import { PatchViewer } from "../shared/patch-viewer";
 import type { PrFileDto } from "../../types/organization";
-
-function useDarkMode(): boolean {
-  const [isDark, setIsDark] = useState(() =>
-    document.documentElement.classList.contains("dark"),
-  );
-
-  useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDark(document.documentElement.classList.contains("dark"));
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  return isDark;
-}
-
-function parsePatch(patch: string): { oldValue: string; newValue: string } {
-  const lines = patch.split("\n");
-  const oldLines: string[] = [];
-  const newLines: string[] = [];
-
-  for (const line of lines) {
-    if (line.startsWith("@@") || line.startsWith("\\ No newline")) {
-      continue;
-    } else if (line.startsWith("-")) {
-      oldLines.push(line.slice(1));
-    } else if (line.startsWith("+")) {
-      newLines.push(line.slice(1));
-    } else {
-      const context = line.startsWith(" ") ? line.slice(1) : line;
-      oldLines.push(context);
-      newLines.push(context);
-    }
-  }
-
-  return { oldValue: oldLines.join("\n"), newValue: newLines.join("\n") };
-}
 
 function FileDiffCard({
   file,
@@ -68,63 +27,10 @@ function FileDiffCard({
   const { t } = useI18n();
   const [open, setOpen] = useState(defaultOpen);
   const [everOpened, setEverOpened] = useState(defaultOpen);
-  const isDark = useDarkMode();
-
-  const parsed = file.patch ? parsePatch(file.patch) : null;
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (next) setEverOpened(true);
-  };
-
-  const lightStyles = {
-    variables: {
-      light: {
-        diffViewerBackground: "transparent",
-        diffViewerTitleBackground: "transparent",
-        addedBackground: "#dcfce7",
-        addedColor: "#18181b",
-        removedBackground: "#fee2e2",
-        removedColor: "#18181b",
-        wordAddedBackground: "#86efac",
-        wordRemovedBackground: "#fca5a5",
-        gutterBackground: "#f4f4f5",
-        gutterBackgroundDark: "#e4e4e7",
-        gutterColor: "#a1a1aa",
-        addedGutterBackground: "#dcfce7",
-        removedGutterBackground: "#fee2e2",
-        codeFoldBackground: "#f4f4f5",
-        codeFoldContentColor: "#71717a",
-        emptyLineBackground: "transparent",
-        diffViewerColor: "#18181b",
-        codeFoldGutterBackground: "#e4e4e7",
-      },
-    },
-  };
-
-  const darkStyles = {
-    variables: {
-      dark: {
-        diffViewerBackground: "transparent",
-        diffViewerTitleBackground: "transparent",
-        addedBackground: "#14532d40",
-        addedColor: "#e4e4e7",
-        removedBackground: "#7f1d1d40",
-        removedColor: "#e4e4e7",
-        wordAddedBackground: "#166534",
-        wordRemovedBackground: "#991b1b",
-        gutterBackground: "#18181b",
-        gutterBackgroundDark: "#09090b",
-        gutterColor: "#52525b",
-        addedGutterBackground: "#14532d40",
-        removedGutterBackground: "#7f1d1d40",
-        codeFoldBackground: "#18181b",
-        codeFoldContentColor: "#71717a",
-        emptyLineBackground: "transparent",
-        diffViewerColor: "#e4e4e7",
-        codeFoldGutterBackground: "#27272a",
-      },
-    },
   };
 
   return (
@@ -151,14 +57,13 @@ function FileDiffCard({
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); onViewedChange(!viewed); }}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border transition-colors cursor-pointer ${
+                className={`h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
                   viewed
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
-                    : "bg-transparent text-zinc-400 dark:text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400"
+                    ? "bg-emerald-500 border-emerald-500 text-white"
+                    : "border-zinc-300 dark:border-zinc-600 bg-transparent"
                 }`}
               >
-                {viewed && <Check className="h-2.5 w-2.5 shrink-0" />}
-                {t("components.prDiff.markViewed")}
+                {viewed && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
               </button>
             </div>
             <ChevronDown
@@ -167,20 +72,10 @@ function FileDiffCard({
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="px-0 py-0 overflow-x-auto">
+          <CardContent className="px-0 py-0 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
             {everOpened && (
-              parsed ? (
-                <div className="text-xs [&_table]:w-full [&_td]:text-xs [&_pre]:text-xs [&_pre]:leading-5 [&_table]:border-collapse [&_td:nth-child(3)]:border-l [&_td:nth-child(3)]:border-zinc-200 dark:[&_td:nth-child(3)]:border-zinc-700">
-                  <ReactDiffViewer
-                    oldValue={parsed.oldValue}
-                    newValue={parsed.newValue}
-                    splitView={splitView}
-                    hideLineNumbers={false}
-                    showDiffOnly={true}
-                    useDarkTheme={isDark}
-                    styles={isDark ? darkStyles : lightStyles}
-                  />
-                </div>
+              file.patch ? (
+                <PatchViewer patch={file.patch} splitView={splitView} />
               ) : (
                 <p className="px-4 py-3 text-sm text-zinc-400 dark:text-zinc-500 italic">
                   {t("components.prDiff.binary")}
@@ -253,18 +148,6 @@ export function PrDiffView({
         </div>
         <div className="flex items-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-0.5">
           <button
-            onClick={() => setSplitView(true)}
-            title={t("components.prDiff.splitView")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
-              splitView
-                ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
-          >
-            <Columns2 className="h-3 w-3" />
-            {t("components.prDiff.splitView")}
-          </button>
-          <button
             onClick={() => setSplitView(false)}
             title={t("components.prDiff.unifiedView")}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
@@ -275,6 +158,18 @@ export function PrDiffView({
           >
             <WrapText className="h-3 w-3" />
             {t("components.prDiff.unifiedView")}
+          </button>
+          <button
+            onClick={() => setSplitView(true)}
+            title={t("components.prDiff.splitView")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
+              splitView
+                ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
+                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+            }`}
+          >
+            <Columns2 className="h-3 w-3" />
+            {t("components.prDiff.splitView")}
           </button>
         </div>
       </div>

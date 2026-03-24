@@ -42,7 +42,7 @@ export function PrItem({
 }) {
   const { t } = useI18n();
   return (
-    <div className="flex items-start justify-between px-4 py-3 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20">
+    <div className="flex items-start justify-between px-4 py-3 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 border-b border-zinc-100 dark:border-zinc-800/60 last:border-b-0">
       <div className="flex items-start gap-3 min-w-0 flex-1">
         <div className="mt-1.5 shrink-0">
           {pr.is_draft ? (
