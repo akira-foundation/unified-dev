@@ -1,8 +1,9 @@
-import { ArrowRight, CheckCircle2, Clock, ExternalLink, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, ExternalLink, FileCode, XCircle } from "lucide-react";
 
 import { useI18n } from "../../i18n/i18n";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import type { PullRequestDto } from "../../types/organization";
 
 export function formatRelativeDate(dateStr: string): string {
@@ -32,10 +33,12 @@ export function PrItem({
   pr,
   onOpen,
   onViewDetail,
+  onReview,
 }: {
   pr: PullRequestDto;
   onOpen: (url: string) => void;
   onViewDetail: (pr: PullRequestDto) => void;
+  onReview: (pr: PullRequestDto) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -77,7 +80,7 @@ export function PrItem({
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0 ml-4">
+      <div className="flex items-center gap-1 shrink-0 ml-4">
         {pr.is_draft && (
           <Badge variant="secondary" className="text-[10px] uppercase">
             {t("components.prItem.draft")}
@@ -88,14 +91,32 @@ export function PrItem({
             {label}
           </Badge>
         ))}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-          onClick={() => onOpen(pr.url)}
-        >
-          <ExternalLink className="h-4 w-4" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+              onClick={() => onReview(pr)}
+            >
+              <FileCode className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("components.prDetail.review")}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+              onClick={() => onOpen(pr.url)}
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("components.prReview.viewPrButton")}</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

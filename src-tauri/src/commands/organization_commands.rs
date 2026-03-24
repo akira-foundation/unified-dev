@@ -7,7 +7,7 @@ use crate::db::models::{
     CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
     UpdateOrganizationInput,
 };
-use crate::core::provider::types::{PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
+use crate::core::provider::types::{CiCheckDto, PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -482,4 +482,33 @@ pub async fn get_pr_files(
         .await
         .map_err(|e| e.to_string())?;
     Ok(files.into_iter().map(PrFileDto::from).collect())
+}
+
+#[tauri::command]
+pub async fn get_pr_checks(
+    state: State<'_, crate::state::AppState>,
+    organization_id: String,
+    repo_name: String,
+    head_sha: String,
+) -> Result<Vec<CiCheckDto>, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let checks = provider
+        .list_pr_checks(&owner, &repo_name, &head_sha)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(checks.into_iter().map(CiCheckDto::from).collect())
+}
+
+#[tauri::command]
+pub async fn get_job_logs(
+    state: State<'_, crate::state::AppState>,
+    organization_id: String,
+    repo_name: String,
+    job_id: u64,
+) -> Result<String, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    provider
+        .get_job_logs(&owner, &repo_name, job_id)
+        .await
+        .map_err(|e| e.to_string())
 }

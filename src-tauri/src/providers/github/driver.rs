@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsPrComment, VcsPrFile, VcsPullRequest,
+    PrReviewEvent, PullRequestState, VcsCiCheck, VcsCiCheckStep, VcsPrComment, VcsPrFile, VcsPullRequest,
 };
 use crate::error::{AppError, AppResult};
 
@@ -44,6 +44,61 @@ impl GitHubDriver {
         }
 
         Ok(response.json::<T>().await?)
+    }
+
+    async fn get_text(&self, url: String) -> AppResult<String> {
+        let response = self
+            .client
+            .get(url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!(
+                "GitHub API error: {status} {body}"
+            )));
+        }
+
+        Ok(response.text().await?)
+    }
+
+    async fn get_redirect_url(&self, url: String) -> AppResult<String> {
+        // Build a client that does NOT follow redirects so we can get the Location header.
+        let no_redirect = reqwest::Client::builder()
+            .user_agent("UnifiedDev/1.0")
+            .redirect(reqwest::redirect::Policy::none())
+            .build()?;
+
+        let response = no_redirect
+            .get(&url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        let status = response.status();
+        if status.is_redirection() {
+            let location = response
+                .headers()
+                .get("location")
+                .and_then(|v| v.to_str().ok())
+                .ok_or_else(|| AppError::Provider("Missing Location header in redirect".to_string()))?
+                .to_string();
+            return Ok(location);
+        }
+
+        // Not a redirect — treat the body as the content URL (or error)
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!("GitHub API error: {status} {body}")));
+        }
+
+        // Already text — return the body as-is (unexpected but handle gracefully)
+        Ok(response.text().await?)
     }
 
     async fn post_json<B: Serialize + Send + Sync, T: DeserializeOwned>(
@@ -273,6 +328,7 @@ impl VcsProvider for GitHubDriver {
                 url: pr.html_url,
                 head: pr.head.reference,
                 base: pr.base.reference,
+                head_sha: pr.head.sha,
                 updated_at: pr.updated_at,
                 is_draft: pr.draft.unwrap_or(false),
                 merged_at: pr.merged_at,
@@ -383,6 +439,78 @@ impl VcsProvider for GitHubDriver {
             })
             .collect())
     }
+
+    async fn list_pr_checks(
+        &self,
+        owner: &str,
+        repository: &str,
+        sha: &str,
+    ) -> AppResult<Vec<VcsCiCheck>> {
+        let url = format!(
+            "{GITHUB_API}/repos/{owner}/{repository}/commits/{sha}/check-runs?per_page=100"
+        );
+        let resp: GitHubCheckRunsResponse = self.get_json(url).await?;
+
+        let step_futures = resp.check_runs.iter().map(|r| {
+            let job_url = format!("{GITHUB_API}/repos/{owner}/{repository}/actions/jobs/{}", r.id);
+            self.get_json::<GitHubJobResponse>(job_url)
+        });
+        let step_results = join_all(step_futures).await;
+
+        Ok(resp
+            .check_runs
+            .into_iter()
+            .zip(step_results.into_iter())
+            .map(|(r, steps_result)| {
+                let steps = steps_result
+                    .ok()
+                    .and_then(|j| j.steps)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|s| VcsCiCheckStep {
+                        number: s.number,
+                        name: s.name,
+                        status: s.status,
+                        conclusion: s.conclusion,
+                        started_at: s.started_at,
+                        completed_at: s.completed_at,
+                    })
+                    .collect();
+                VcsCiCheck {
+                    id: r.id,
+                    name: r.name,
+                    status: r.status,
+                    conclusion: r.conclusion,
+                    started_at: r.started_at,
+                    completed_at: r.completed_at,
+                    steps,
+                }
+            })
+            .collect())
+    }
+
+    async fn get_job_logs(
+        &self,
+        owner: &str,
+        repository: &str,
+        job_id: u64,
+    ) -> AppResult<String> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/actions/jobs/{job_id}/logs");
+        let blob_url = self.get_redirect_url(url).await?;
+        // Fetch the presigned S3 URL without auth headers (S3 rejects Bearer token on presigned URLs)
+        let response = reqwest::Client::builder()
+            .user_agent("UnifiedDev/1.0")
+            .build()?
+            .get(blob_url)
+            .send()
+            .await?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!("Logs fetch error: {status} {body}")));
+        }
+        Ok(response.text().await?)
+    }
 }
 
 fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
@@ -467,8 +595,27 @@ struct GitHubCheckRunsResponse {
 
 #[derive(Debug, Deserialize)]
 struct GitHubCheckRun {
+    id: u64,
+    name: String,
     status: String,
     conclusion: Option<String>,
+    started_at: Option<String>,
+    completed_at: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubJobResponse {
+    steps: Option<Vec<GitHubJobStep>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubJobStep {
+    number: u64,
+    name: String,
+    status: String,
+    conclusion: Option<String>,
+    started_at: Option<String>,
+    completed_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

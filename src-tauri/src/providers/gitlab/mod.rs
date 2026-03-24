@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsPrComment, VcsPrFile, VcsPullRequest,
+    PrReviewEvent, PullRequestState, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest,
 };
 use crate::error::{AppError, AppResult};
 
@@ -229,6 +229,24 @@ impl VcsProvider for GitLabDriver {
     ) -> AppResult<Vec<VcsPrFile>> {
         Err(AppError::Provider("PR file diff not yet supported for GitLab".to_string()))
     }
+
+    async fn list_pr_checks(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _sha: &str,
+    ) -> AppResult<Vec<VcsCiCheck>> {
+        Ok(vec![])
+    }
+
+    async fn get_job_logs(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _job_id: u64,
+    ) -> AppResult<String> {
+        Ok(String::new())
+    }
 }
 
 fn urlencoded(s: &str) -> String {
@@ -265,6 +283,7 @@ fn mr_to_pull_request(mr: GitLabMergeRequest) -> VcsPullRequest {
         url: mr.web_url,
         head: mr.source_branch,
         base: mr.target_branch,
+        head_sha: "".to_string(),
         updated_at: mr.updated_at,
         is_draft: mr.draft.unwrap_or(false),
         merged_at: mr.merged_at,

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { useI18n } from "../i18n/i18n";
 import { Button } from "../components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import {
   PageHeader,
   PageHeaderActions,
@@ -13,10 +15,11 @@ import {
 } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
 import { PrDiffView } from "../components/repos/pr-diff-view";
+import { PrChecksView } from "../components/repos/pr-checks-view";
 import { PrReviewSheet } from "../components/repos/pr-review-sheet";
 import { useNavigationStore } from "../stores/navigation-store";
 import { queryKeys } from "../lib/query-keys";
-import type { PrFileDto } from "../types/organization";
+import type { CiCheckDto, PrFileDto } from "../types/organization";
 
 export function PrReviewPage() {
   const { t } = useI18n();
@@ -38,7 +41,25 @@ export function PrReviewPage() {
     enabled: !!activePr && !!activeRepo,
   });
 
+  const { data: checks = [], isLoading: checksLoading } = useQuery({
+    queryKey: queryKeys.prChecks(
+      activeRepo?.organizationId ?? "",
+      activeRepo?.name ?? "",
+      activePr?.head_sha ?? "",
+    ),
+    queryFn: () =>
+      invoke<CiCheckDto[]>("get_pr_checks", {
+        organizationId: activeRepo!.organizationId,
+        repoName: activeRepo!.name,
+        headSha: activePr!.head_sha,
+      }),
+    enabled: !!activePr && !!activeRepo && !!activePr.head_sha,
+  });
+
   if (!activePr || !activeRepo) return null;
+
+  const filesTabLabel = `${t("components.prReview.tabFiles")}${files.length > 0 ? ` (${files.length})` : ""}`;
+  const checksTabLabel = `${t("components.prReview.tabChecks")}${checks.length > 0 ? ` (${checks.length})` : ""}`;
 
   return (
     <>
@@ -57,6 +78,15 @@ export function PrReviewPage() {
               variant="outline"
               size="sm"
               className="inline-flex items-center gap-1.5"
+              onClick={() => openUrl(activePr.url)}
+            >
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+              {t("components.prReview.viewPrButton")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="inline-flex items-center gap-1.5"
               onClick={() => setReviewOpen(true)}
             >
               <MessageSquare className="h-3.5 w-3.5 shrink-0" />
@@ -65,9 +95,27 @@ export function PrReviewPage() {
           </PageHeaderActions>
         </PageHeader>
 
-        <div className="flex-1 overflow-y-auto">
-          <PrDiffView files={files} loading={filesLoading} />
-        </div>
+        <Tabs defaultValue="files" className="flex-1 overflow-hidden">
+          <div className="px-4 pt-2">
+            <TabsList variant="line">
+              <TabsTrigger value="files">{filesTabLabel}</TabsTrigger>
+              <TabsTrigger value="checks">{checksTabLabel}</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="files" className="overflow-y-auto h-full">
+            <PrDiffView files={files} loading={filesLoading} />
+          </TabsContent>
+
+          <TabsContent value="checks" className="overflow-y-auto h-full">
+            <PrChecksView
+              checks={checks}
+              loading={checksLoading}
+              orgId={activeRepo.organizationId}
+              repoName={activeRepo.name}
+            />
+          </TabsContent>
+        </Tabs>
       </PageLayout>
 
       <PrReviewSheet

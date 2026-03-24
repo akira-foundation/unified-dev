@@ -68,6 +68,7 @@ export interface PullRequestDto {
   url: string;
   head: string;
   base: string;
+  head_sha: string;
   updated_at: string;
   is_draft: boolean;
   merged_at: string | null;
@@ -76,6 +77,25 @@ export interface PullRequestDto {
   labels: string[];
   reviewers: string[];
   ci_status: string | null;
+}
+
+export interface CiCheckStepDto {
+  number: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface CiCheckDto {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  steps: CiCheckStepDto[];
 }
 
 export interface PrCommentDto {

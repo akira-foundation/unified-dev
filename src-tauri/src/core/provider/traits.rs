@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -69,4 +69,18 @@ pub trait VcsProvider: Send + Sync {
         repository: &str,
         pr_number: u64,
     ) -> AppResult<Vec<VcsPrFile>>;
+
+    async fn list_pr_checks(
+        &self,
+        owner: &str,
+        repository: &str,
+        sha: &str,
+    ) -> AppResult<Vec<VcsCiCheck>>;
+
+    async fn get_job_logs(
+        &self,
+        owner: &str,
+        repository: &str,
+        job_id: u64,
+    ) -> AppResult<String>;
 }

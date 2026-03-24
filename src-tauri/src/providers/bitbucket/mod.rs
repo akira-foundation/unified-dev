@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsPrComment, VcsPrFile, VcsPullRequest,
+    PrReviewEvent, PullRequestState, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest,
 };
 use crate::error::{AppError, AppResult};
 
@@ -202,6 +202,24 @@ impl VcsProvider for BitbucketDriver {
     ) -> AppResult<Vec<VcsPrFile>> {
         Err(AppError::Provider("PR file diff not yet supported for Bitbucket".to_string()))
     }
+
+    async fn list_pr_checks(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _sha: &str,
+    ) -> AppResult<Vec<VcsCiCheck>> {
+        Ok(vec![])
+    }
+
+    async fn get_job_logs(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _job_id: u64,
+    ) -> AppResult<String> {
+        Ok(String::new())
+    }
 }
 
 fn repo_to_provider(repo: BitbucketRepo) -> ProviderRepo {
@@ -239,6 +257,7 @@ fn pr_to_pull_request(pr: BitbucketPullRequest) -> VcsPullRequest {
         url: pr.links.and_then(|l| l.html).map(|h| h.href).unwrap_or_default(),
         head: pr.source.branch.name,
         base: pr.destination.branch.name,
+        head_sha: "".to_string(),
         updated_at: pr.updated_on,
         is_draft: false,
         merged_at: None,

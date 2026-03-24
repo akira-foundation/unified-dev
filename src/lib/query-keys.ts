@@ -10,6 +10,10 @@ export const queryKeys = {
     ["pr-comments", orgId, repo, prNumber] as const,
   prFiles: (orgId: string, repo: string, prNumber: number) =>
     ["pr-files", orgId, repo, prNumber] as const,
+  prChecks: (orgId: string, repo: string, headSha: string) =>
+    ["pr-checks", orgId, repo, headSha] as const,
+  jobLogs: (orgId: string, repo: string, jobId: number) =>
+    ["job-logs", orgId, repo, jobId] as const,
   skills: () => ["skills"] as const,
   allRepositories: () => ["all-repositories"] as const,
 };

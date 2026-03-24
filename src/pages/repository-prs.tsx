@@ -24,7 +24,7 @@ import type { PullRequestDto } from "../types/organization";
 export function RepositoryPRsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { activeRepo } = useNavigationStore();
+  const { activeRepo, navigateTo, setActivePr } = useNavigationStore();
   const queryClient = useQueryClient();
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -51,6 +51,11 @@ export function RepositoryPRsPage() {
   const handleViewDetail = (pr: PullRequestDto) => {
     setSelectedPr(pr);
     setSheetOpen(true);
+  };
+
+  const handleReview = (pr: PullRequestDto) => {
+    setActivePr(pr);
+    navigateTo("pr-review");
   };
 
   const handleMerged = () => {
@@ -111,12 +116,13 @@ export function RepositoryPRsPage() {
             </div>
             <CardContent className="">
               {prs.map((pr) => (
-                <PrItem
-                  key={pr.id}
-                  pr={pr}
-                  onOpen={handleOpenUrl}
-                  onViewDetail={handleViewDetail}
-                />
+                 <PrItem
+                   key={pr.id}
+                   pr={pr}
+                   onOpen={handleOpenUrl}
+                   onViewDetail={handleViewDetail}
+                   onReview={handleReview}
+                 />
               ))}
             </CardContent>
           </Card>
