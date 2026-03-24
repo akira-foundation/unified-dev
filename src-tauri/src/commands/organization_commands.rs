@@ -5,7 +5,7 @@ use crate::db::models::{
     CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
     UpdateOrganizationInput,
 };
-use crate::core::provider::types::PullRequestState;
+use crate::core::provider::types::{PullRequestDto, PullRequestState};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -304,4 +304,59 @@ async fn enrich_repos_with_pr_counts(
     }
 
     repos
+}
+
+#[tauri::command]
+pub async fn list_repo_pull_requests(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+) -> Result<Vec<PullRequestDto>, String> {
+    let repos = state
+        .organization_repo_service
+        .list_selected_repositories(&organization_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let Some(repo) = repos.iter().find(|r| r.repo_name == repo_name) else {
+        return Ok(vec![]);
+    };
+
+    let owner = repo.owner.clone();
+
+    let provider_id = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT provider_id FROM organizations WHERE id = ?",
+    )
+    .bind(&organization_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .ok()
+    .flatten();
+
+    let Some(provider_id) = provider_id else {
+        return Ok(vec![]);
+    };
+
+    let credentials = state
+        .provider_service
+        .credentials(&provider_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let provider = state
+        .provider_factory
+        .create(&credentials.kind, credentials.auth)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let prs = provider
+        .list_pull_requests(&owner, &repo_name)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(prs
+        .into_iter()
+        .filter(|pr| matches!(pr.state, PullRequestState::Open))
+        .map(PullRequestDto::from)
+        .collect())
 }

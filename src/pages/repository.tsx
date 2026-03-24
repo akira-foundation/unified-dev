@@ -29,7 +29,12 @@ export function RepositoryPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncingRepoId, setSyncingRepoId] = useState<string | undefined>();
   const { repositoryGroups, addThread, addRepository, setSelectedIssueId } = useAgentsStore();
-  const { navigateTo, setActiveOrganizationId } = useNavigationStore();
+  const { navigateTo, setActiveOrganizationId, setActiveRepo } = useNavigationStore();
+
+  const handleViewPrs = (repo: OrganizationRepoWithOrg) => {
+    setActiveRepo({ name: repo.repo_name, owner: repo.owner, organizationId: repo.organization_id });
+    navigateTo("repository-prs");
+  };
 
   const handleNewTask = async (repo: OrganizationRepoWithOrg) => {
     const allRepos = repositoryGroups.flatMap((g) => g.repositories);
@@ -159,6 +164,7 @@ export function RepositoryPage() {
             isSyncing={isSyncing}
             onSyncRepo={handleSyncRepo}
             syncingRepoId={syncingRepoId}
+            onViewPrs={handleViewPrs}
             onOrganizationClick={(repo) => {
               setActiveOrganizationId(repo.organization_id);
               navigateTo("organization");

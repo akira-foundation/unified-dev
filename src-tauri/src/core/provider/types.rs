@@ -80,12 +80,58 @@ pub struct VcsPullRequest {
     pub updated_at: String,
     pub is_draft: bool,
     pub merged_at: Option<String>,
+    pub body: Option<String>,
+    pub author: Option<String>,
+    pub labels: Vec<String>,
+    pub reviewers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PullRequestState {
     Open,
     Closed,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PullRequestDto {
+    pub id: String,
+    pub number: u64,
+    pub title: String,
+    pub state: String,
+    pub url: String,
+    pub head: String,
+    pub base: String,
+    pub updated_at: String,
+    pub is_draft: bool,
+    pub merged_at: Option<String>,
+    pub body: Option<String>,
+    pub author: Option<String>,
+    pub labels: Vec<String>,
+    pub reviewers: Vec<String>,
+}
+
+impl From<VcsPullRequest> for PullRequestDto {
+    fn from(pr: VcsPullRequest) -> Self {
+        Self {
+            id: pr.id,
+            number: pr.number,
+            title: pr.title,
+            state: match pr.state {
+                PullRequestState::Open => "open".to_string(),
+                PullRequestState::Closed => "closed".to_string(),
+            },
+            url: pr.url,
+            head: pr.head,
+            base: pr.base,
+            updated_at: pr.updated_at,
+            is_draft: pr.is_draft,
+            merged_at: pr.merged_at,
+            body: pr.body,
+            author: pr.author,
+            labels: pr.labels,
+            reviewers: pr.reviewers,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

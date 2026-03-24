@@ -1,5 +1,5 @@
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { FolderGit2, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
+import { FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 
@@ -17,12 +17,13 @@ interface RepoMetricsTableProps {
   onSync?: () => void;
   onSyncRepo?: (repo: OrganizationRepoWithOrg) => void;
   onOrganizationClick?: (repo: OrganizationRepoWithOrg) => void;
+  onViewPrs?: (repo: OrganizationRepoWithOrg) => void;
   isSyncing?: boolean;
   syncingRepoId?: string;
   hideOrganization?: boolean;
 }
 
-export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onNewTask, onSync, onSyncRepo, onOrganizationClick, isSyncing, syncingRepoId, hideOrganization }: RepoMetricsTableProps) {
+export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onNewTask, onSync, onSyncRepo, onOrganizationClick, onViewPrs, isSyncing, syncingRepoId, hideOrganization }: RepoMetricsTableProps) {
   const { t } = useI18n();
   return (
     <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
@@ -91,7 +92,21 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onNe
                     </TableCell>
                   )}
                   <TableCell className="text-right text-sm text-gray-500 dark:text-gray-400">
-                    {repo.open_prs_count > 0 ? repo.open_prs_count : "—"}
+                    {repo.open_prs_count > 0 ? (
+                      <button
+                        onClick={() => onViewPrs?.(repo)}
+                        className={cn(
+                          "font-semibold tabular-nums",
+                          onViewPrs
+                            ? "text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 underline-offset-2 hover:underline cursor-pointer"
+                            : "cursor-default"
+                        )}
+                      >
+                        {repo.open_prs_count}
+                      </button>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end items-center gap-2">
@@ -115,6 +130,12 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onNe
                           <Plus className="mr-2 h-4 w-4" />
                           {t("common.newTask")}
                         </DropdownMenuItem>
+                        {onViewPrs && (
+                          <DropdownMenuItem onSelect={() => onViewPrs(repo)}>
+                            <GitPullRequest className="mr-2 h-4 w-4" />
+                            {t("tables.header.prs")}
+                          </DropdownMenuItem>
+                        )}
                         {onSyncRepo && (
                           <DropdownMenuItem onSelect={() => onSyncRepo(repo)} disabled={syncingRepoId === String(repo.id)}>
                             <RotateCw className={cn("mr-2 h-4 w-4", syncingRepoId === String(repo.id) && "animate-spin")} />

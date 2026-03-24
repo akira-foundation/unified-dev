@@ -218,6 +218,10 @@ fn mr_to_pull_request(mr: GitLabMergeRequest) -> VcsPullRequest {
         updated_at: mr.updated_at,
         is_draft: mr.draft.unwrap_or(false),
         merged_at: mr.merged_at,
+        body: mr.description,
+        author: mr.author.map(|u| u.username),
+        labels: mr.labels.unwrap_or_default(),
+        reviewers: mr.reviewers.unwrap_or_default().into_iter().map(|u| u.username).collect(),
     }
 }
 
@@ -248,6 +252,11 @@ struct GitLabProject {
 }
 
 #[derive(Debug, Deserialize)]
+struct GitLabMergeRequestUser {
+    username: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct GitLabMergeRequest {
     id: u64,
     iid: u64,
@@ -259,4 +268,8 @@ struct GitLabMergeRequest {
     updated_at: String,
     draft: Option<bool>,
     merged_at: Option<String>,
+    description: Option<String>,
+    author: Option<GitLabMergeRequestUser>,
+    labels: Option<Vec<String>>,
+    reviewers: Option<Vec<GitLabMergeRequestUser>>,
 }

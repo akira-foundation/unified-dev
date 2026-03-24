@@ -3,10 +3,17 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { AppPage } from "../types/navigation";
 
+export interface ActiveRepo {
+  name: string;
+  owner: string;
+  organizationId: string;
+}
+
 interface NavigationState {
   currentPage: AppPage;
   activeProviderId: string | null;
   activeOrganizationId: string | null;
+  activeRepo: ActiveRepo | null;
   history: AppPage[];
   canGoBack: boolean;
   isAgentMode: boolean;
@@ -16,6 +23,7 @@ interface NavigationState {
   goBack: () => void;
   setActiveProviderId: (providerId: string | null) => void;
   setActiveOrganizationId: (organizationId: string | null) => void;
+  setActiveRepo: (repo: ActiveRepo | null) => void;
 }
 
 export const useNavigationStore = create<NavigationState>()(
@@ -24,6 +32,7 @@ export const useNavigationStore = create<NavigationState>()(
       currentPage: "dashboard",
       activeProviderId: null,
       activeOrganizationId: null,
+      activeRepo: null,
       history: [],
       canGoBack: false,
       isAgentMode: false,
@@ -64,6 +73,7 @@ export const useNavigationStore = create<NavigationState>()(
       },
       setActiveProviderId: (providerId) => set({ activeProviderId: providerId }),
       setActiveOrganizationId: (organizationId) => set({ activeOrganizationId: organizationId }),
+      setActiveRepo: (repo) => set({ activeRepo: repo }),
     }),
     {
       name: "unified_dev_navigation",
@@ -72,6 +82,7 @@ export const useNavigationStore = create<NavigationState>()(
         currentPage: state.currentPage,
         activeProviderId: state.activeProviderId,
         activeOrganizationId: state.activeOrganizationId,
+        activeRepo: state.activeRepo,
         history: state.history,
         isAgentMode: state.isAgentMode,
       }),

@@ -59,3 +59,20 @@ export interface SelectedRepositoryInput {
   auto_sync?: boolean;
   default_branch?: string;
 }
+
+export interface PullRequestDto {
+  id: string;
+  number: number;
+  title: string;
+  state: string;
+  url: string;
+  head: string;
+  base: string;
+  updated_at: string;
+  is_draft: boolean;
+  merged_at: string | null;
+  body: string | null;
+  author: string | null;
+  labels: string[];
+  reviewers: string[];
+}

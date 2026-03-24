@@ -192,6 +192,10 @@ fn pr_to_pull_request(pr: BitbucketPullRequest) -> VcsPullRequest {
         updated_at: pr.updated_on,
         is_draft: false,
         merged_at: None,
+        body: pr.description,
+        author: pr.author.map(|a| a.display_name),
+        labels: vec![],
+        reviewers: pr.reviewers.unwrap_or_default().into_iter().map(|r| r.display_name).collect(),
     }
 }
 
@@ -253,6 +257,16 @@ struct BitbucketPrLinks {
 }
 
 #[derive(Debug, Deserialize)]
+struct BitbucketPrAuthor {
+    display_name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct BitbucketPrReviewer {
+    display_name: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct BitbucketPullRequest {
     id: u64,
     title: String,
@@ -261,4 +275,7 @@ struct BitbucketPullRequest {
     destination: BitbucketPrEndpoint,
     updated_on: String,
     links: Option<BitbucketPrLinks>,
+    description: Option<String>,
+    author: Option<BitbucketPrAuthor>,
+    reviewers: Option<Vec<BitbucketPrReviewer>>,
 }

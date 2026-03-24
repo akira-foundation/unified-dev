@@ -182,6 +182,10 @@ impl VcsProvider for GitHubDriver {
                 updated_at: pr.updated_at,
                 is_draft: pr.draft.unwrap_or(false),
                 merged_at: pr.merged_at,
+                body: pr.body,
+                author: pr.user.map(|u| u.login),
+                labels: pr.labels.unwrap_or_default().into_iter().map(|l| l.name).collect(),
+                reviewers: pr.requested_reviewers.unwrap_or_default().into_iter().map(|u| u.login).collect(),
             })
             .collect())
     }
@@ -233,6 +237,16 @@ struct GitHubPullReference {
 }
 
 #[derive(Debug, Deserialize)]
+struct GitHubPullUser {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubPullLabel {
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
 struct GitHubPullRequest {
     id: u64,
     number: u64,
@@ -244,4 +258,8 @@ struct GitHubPullRequest {
     draft: Option<bool>,
     head: GitHubPullReference,
     base: GitHubPullReference,
+    body: Option<String>,
+    user: Option<GitHubPullUser>,
+    labels: Option<Vec<GitHubPullLabel>>,
+    requested_reviewers: Option<Vec<GitHubPullUser>>,
 }
