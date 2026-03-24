@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, Columns2, FileCode, WrapText } from "lucide-react";
 import {
   Collapsible,
@@ -12,26 +12,55 @@ import { PatchViewer } from "../shared/patch-viewer";
 import { useViewedFilesStore } from "../../stores/useViewedFilesStore";
 import type { PrFileDto } from "../../types/organization";
 
+function useIntersected(rootMargin = "200px") {
+  const ref = useRef<HTMLDivElement>(null);
+  const [intersected, setIntersected] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIntersected(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [rootMargin]);
+
+  return { ref, intersected };
+}
+
 function FileDiffCard({
   file,
   splitView,
-  defaultOpen = false,
   viewed,
   onViewedChange,
 }: {
   file: PrFileDto;
   splitView: boolean;
-  defaultOpen?: boolean;
   viewed: boolean;
   onViewedChange: (viewed: boolean) => void;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(defaultOpen);
-  const [everOpened, setEverOpened] = useState(defaultOpen);
+  const [open, setOpen] = useState(true);
+  const { ref: sentinelRef, intersected } = useIntersected("300px");
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
-    if (next) setEverOpened(true);
+  };
+
+  const handleViewed = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const next = !viewed;
+    onViewedChange(next);
+    if (next) setOpen(false);
   };
 
   return (
@@ -57,7 +86,7 @@ function FileDiffCard({
                 </span>
               )}
               <button
-                onClick={(e) => { e.stopPropagation(); onViewedChange(!viewed); }}
+                onClick={handleViewed}
                 className={`h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
                   viewed
                     ? "bg-emerald-500 border-emerald-500 text-white"
@@ -74,7 +103,9 @@ function FileDiffCard({
         </CollapsibleTrigger>
         <CollapsibleContent>
           <CardContent className="px-0 py-0 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
-            {everOpened && (
+            {/* Sentinel triggers lazy mount when card scrolls into view */}
+            <div ref={sentinelRef} />
+            {intersected && (
               file.patch ? (
                 <PatchViewer patch={file.patch} splitView={splitView} filename={file.filename} />
               ) : (
@@ -172,12 +203,11 @@ export function PrDiffView({
       </div>
 
       {/* File cards */}
-      {files.map((file, index) => (
+      {files.map((file) => (
         <FileDiffCard
           key={file.filename}
           file={file}
           splitView={splitView}
-          defaultOpen={index === 0}
           viewed={isViewed(storeKey, file.filename)}
           onViewedChange={(v) => setViewed(storeKey, file.filename, v)}
         />

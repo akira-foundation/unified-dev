@@ -19,6 +19,7 @@ interface NavigationState {
   history: AppPage[];
   canGoBack: boolean;
   isAgentMode: boolean;
+  dashboardTab: string;
   setCurrentPage: (page: AppPage) => void;
   navigateTo: (page: AppPage) => void;
   setIsAgentMode: (enabled: boolean) => void;
@@ -27,6 +28,7 @@ interface NavigationState {
   setActiveOrganizationId: (organizationId: string | null) => void;
   setActiveRepo: (repo: ActiveRepo | null) => void;
   setActivePr: (pr: PullRequestDto | null) => void;
+  setDashboardTab: (tab: string) => void;
 }
 
 export const useNavigationStore = create<NavigationState>()(
@@ -40,6 +42,7 @@ export const useNavigationStore = create<NavigationState>()(
       history: [],
       canGoBack: false,
       isAgentMode: false,
+      dashboardTab: "overview",
       setCurrentPage: (page) => set({ currentPage: page }),
       navigateTo: (page) => {
         const { currentPage, history } = get();
@@ -79,6 +82,7 @@ export const useNavigationStore = create<NavigationState>()(
       setActiveOrganizationId: (organizationId) => set({ activeOrganizationId: organizationId }),
       setActiveRepo: (repo) => set({ activeRepo: repo }),
       setActivePr: (pr) => set({ activePr: pr }),
+      setDashboardTab: (tab) => set({ dashboardTab: tab }),
     }),
     {
       name: "unified_dev_navigation",
@@ -90,6 +94,7 @@ export const useNavigationStore = create<NavigationState>()(
         activeRepo: state.activeRepo,
         history: state.history,
         isAgentMode: state.isAgentMode,
+        dashboardTab: state.dashboardTab,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
