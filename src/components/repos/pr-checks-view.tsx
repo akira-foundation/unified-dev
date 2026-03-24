@@ -24,25 +24,46 @@ function formatDuration(startedAt: string | null, completedAt: string | null): s
 
 function parseLogsByStep(raw: string, steps: CiCheckStepDto[]): Map<number, string[]> {
   const map = new Map<number, string[]>();
-  const lines = raw.split("\n");
   const tsRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) /;
 
-  for (const step of steps) {
-    if (!step.started_at) continue;
-    const start = new Date(step.started_at).getTime();
-    const end = step.completed_at ? new Date(step.completed_at).getTime() : Infinity;
+  const sorted = [...steps]
+    .filter((s) => s.started_at)
+    .sort((a, b) => a.number - b.number);
 
-    const stepLines = lines
-      .filter((line) => {
-        const match = line.match(tsRegex);
-        if (!match) return false;
-        const ts = new Date(match[1]).getTime();
-        return ts >= start && ts <= end;
-      })
-      .map((line) => line.replace(tsRegex, ""))
-      .filter((line) => !line.startsWith("##["));
+  for (const step of sorted) map.set(step.number, []);
 
-    map.set(step.number, stepLines);
+  const parsedLines = raw.split("\n").map((line) => {
+    const match = line.match(tsRegex);
+    if (!match) return null;
+    return { ts: new Date(match[1]).getTime(), text: line.replace(tsRegex, "") };
+  }).filter((l): l is { ts: number; text: string } => l !== null);
+
+  // Each step owns lines from its started_at up to (next step with a different
+  // started_at second - 1ms). When multiple steps share the same second-precision
+  // started_at, only the first one in the group will have a start boundary that
+  // matches those lines — later co-second steps get 0 lines. This is a known
+  // limitation of the GitHub API which only exposes second-precision timestamps.
+  const intervals = sorted.map((s, i) => {
+    const start = new Date(s.started_at!).getTime();
+    const nextDifferent = sorted.slice(i + 1).find(
+      (n) => new Date(n.started_at!).getTime() > start
+    );
+    const end = nextDifferent
+      ? new Date(nextDifferent.started_at!).getTime() - 1
+      : Infinity;
+    return { number: s.number, start, end };
+  });
+
+  // Assign each line to the first interval that contains its timestamp.
+  for (const l of parsedLines) {
+    if (l.text.startsWith("##[")) continue;
+    if (!l.text.trim()) continue;
+    for (const iv of intervals) {
+      if (l.ts >= iv.start && l.ts <= iv.end) {
+        map.get(iv.number)!.push(l.text);
+        break;
+      }
+    }
   }
 
   return map;
@@ -111,14 +132,19 @@ function StepRow({
             <Skeleton className="h-3 w-3/4 rounded" />
           </div>
         ) : logLines && logLines.length > 0 ? (
-          <div className="px-4 py-3 border-b border-zinc-100/60 dark:border-zinc-800/60 bg-zinc-950/60 dark:bg-zinc-950/80 overflow-x-auto font-mono">
+          <div className="border-b border-zinc-100/60 dark:border-zinc-800/60 overflow-x-auto font-mono text-[11px] leading-5 py-2">
             {logLines.map((line, i) => (
-              <div key={i} className="text-[11px] leading-5 whitespace-pre">
-                {highlightLine(line).map((seg, j) => (
-                  <span key={j} className={seg.className || "text-zinc-300 dark:text-zinc-400"} style={seg.style}>
-                    {seg.text}
-                  </span>
-                ))}
+              <div key={i} className="flex px-4 py-px hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 rounded">
+                <span className="select-none w-8 shrink-0 pr-3 text-right text-zinc-400 dark:text-zinc-600 tabular-nums">
+                  {i + 1}
+                </span>
+                <span className="whitespace-pre text-zinc-600 dark:text-zinc-400 flex-1">
+                  {highlightLine(line).map((seg, j) => (
+                    <span key={j} className={seg.className || ""} style={seg.style}>
+                      {seg.text}
+                    </span>
+                  ))}
+                </span>
               </div>
             ))}
           </div>
