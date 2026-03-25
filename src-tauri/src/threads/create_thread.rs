@@ -1,7 +1,7 @@
 use std::path::Path;
 use uuid::Uuid;
 use crate::error::AppResult;
-use crate::repositories::git_utils;
+use crate::workspaces::git;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -47,19 +47,19 @@ pub async fn create_initial_thread(
     let title = generate_thread_name(thread_uuid.as_u64_pair().0);
     let workspace_path = workspace_root.join(&thread_id);
 
-    git_utils::clone_repository(base_repo_path, &workspace_path)?;
+    git::clone_repository(base_repo_path, &workspace_path)?;
 
     // Propagate the real GitHub remote to the workspace so that `git push origin`
     // reaches GitHub rather than the local base clone.
     let github_url = remote_url_override
-        .or_else(|| git_utils::get_remote_url(source_path, "origin"));
+        .or_else(|| git::get_remote_url(source_path, "origin"));
     if let Some(url) = github_url {
-        if git_utils::is_github_url(&url) {
-            let _ = git_utils::set_remote_url(&workspace_path, "origin", &url);
+        if git::is_github_url(&url) {
+            let _ = git::set_remote_url(&workspace_path, "origin", &url);
         }
     }
 
-    git_utils::create_branch(&workspace_path, &thread_branch)?;
+    git::create_branch(&workspace_path, &thread_branch)?;
 
     let thread = ThreadConfig {
         id: thread_id.clone(),

@@ -9,7 +9,7 @@ mod security;
 mod services;
 mod state;
 mod terminal;
-mod repositories;
+mod workspaces;
 mod threads;
 
 use std::sync::Arc;

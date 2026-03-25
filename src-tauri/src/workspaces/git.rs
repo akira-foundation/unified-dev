@@ -1,6 +1,7 @@
-use crate::error::{AppError, AppResult};
 use std::path::Path;
 use std::process::Command;
+
+use crate::error::{AppError, AppResult};
 
 pub fn is_git_repository(path: &Path) -> bool {
     path.join(".git").exists()
@@ -11,7 +12,7 @@ pub fn get_repository_name(path: &Path) -> AppResult<String> {
         .current_dir(path)
         .args(["rev-parse", "--show-toplevel"])
         .output()
-        .map_err(|e| AppError::Io(e))?;
+        .map_err(AppError::Io)?;
 
     if !output.status.success() {
         return Err(AppError::Internal(
@@ -34,7 +35,7 @@ pub fn get_default_branch(path: &Path) -> AppResult<String> {
         .current_dir(path)
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .output()
-        .map_err(|e| AppError::Io(e))?;
+        .map_err(AppError::Io)?;
 
     if !output.status.success() {
         return Err(AppError::Internal(
@@ -53,31 +54,28 @@ pub fn clone_repository(source: &Path, destination: &Path) -> AppResult<()> {
             &destination.to_string_lossy(),
         ])
         .output()
-        .map_err(|e| AppError::Io(e))?;
+        .map_err(AppError::Io)?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         return Err(AppError::Internal(format!(
-            "Failed to clone repository: {}",
-            err
+            "Failed to clone repository: {err}"
         )));
     }
 
     Ok(())
 }
 
-pub fn checkout_branch(path: &Path, branch: &str) -> AppResult<()> {
+pub fn clone_from_url(url: &str, destination: &Path) -> AppResult<()> {
     let output = Command::new("git")
-        .current_dir(path)
-        .args(["checkout", branch])
+        .args(["clone", url, &destination.to_string_lossy()])
         .output()
-        .map_err(|e| AppError::Io(e))?;
+        .map_err(AppError::Io)?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         return Err(AppError::Internal(format!(
-            "Failed to checkout branch: {}",
-            err
+            "Failed to clone repository: {err}"
         )));
     }
 
@@ -89,13 +87,12 @@ pub fn create_branch(path: &Path, branch: &str) -> AppResult<()> {
         .current_dir(path)
         .args(["checkout", "-b", branch])
         .output()
-        .map_err(|e| AppError::Io(e))?;
+        .map_err(AppError::Io)?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         return Err(AppError::Internal(format!(
-            "Failed to create branch: {}",
-            err
+            "Failed to create branch: {err}"
         )));
     }
 
@@ -122,33 +119,15 @@ pub fn get_remote_url(path: &Path, remote: &str) -> Option<String> {
     }
 }
 
-/// Returns true if the URL looks like a real GitHub remote (SSH or HTTPS).
+/// Returns true if the URL looks like a GitHub remote (SSH or HTTPS).
 pub fn is_github_url(url: &str) -> bool {
     url.contains("github.com")
 }
 
-/// Clone a repository from a remote URL string.
-pub fn clone_from_url(url: &str, destination: &Path) -> AppResult<()> {
-    let output = Command::new("git")
-        .args(["clone", url, &destination.to_string_lossy()])
-        .output()
-        .map_err(|e| AppError::Io(e))?;
-
-    if !output.status.success() {
-        let err = String::from_utf8_lossy(&output.stderr);
-        return Err(AppError::Internal(format!(
-            "Failed to clone repository: {}",
-            err
-        )));
-    }
-
-    Ok(())
-}
-
 /// Parse the repository name from an SSH or HTTPS git URL.
 ///
-/// "git@github.com:owner/repo.git"     → Some("repo")
-/// "https://github.com/owner/repo.git" → Some("repo")
+/// `"git@github.com:owner/repo.git"` → `Some("repo")`
+/// `"https://github.com/owner/repo.git"` → `Some("repo")`
 pub fn repo_name_from_url(url: &str) -> Option<String> {
     let last = url.trim_end_matches('/').split('/').last()?;
     let name = last.trim_end_matches(".git");
@@ -159,19 +138,17 @@ pub fn repo_name_from_url(url: &str) -> Option<String> {
     }
 }
 
-/// Replaces the URL of `remote` in `path` with `url`.
 pub fn set_remote_url(path: &Path, remote: &str, url: &str) -> AppResult<()> {
     let output = Command::new("git")
         .current_dir(path)
         .args(["remote", "set-url", remote, url])
         .output()
-        .map_err(|e| AppError::Io(e))?;
+        .map_err(AppError::Io)?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         return Err(AppError::Internal(format!(
-            "Failed to set remote URL: {}",
-            err
+            "Failed to set remote URL: {err}"
         )));
     }
 
