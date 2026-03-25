@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, MoreVertical, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toast } from "sonner";
@@ -36,6 +36,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useNavigationStore } from "../stores/navigation-store";
@@ -553,31 +560,38 @@ export function RepositoryDetailPage() {
                       <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
                         {branch.sha.slice(0, 7)}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                        onClick={() =>
-                          void handleOpenUrl(
-                            `https://github.com/${activeRepo.owner}/${activeRepo.name}/tree/${branch.name}`,
-                          )
-                        }
-                        title={t("pages.repositoryBranches.openInBrowser")}
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </Button>
-                      {!branch.is_default && !branch.is_protected && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
-                          disabled={deleteBranchMutation.isPending}
-                          onClick={() => setBranchToDelete(branch.name)}
-                          title={t("pages.repositoryBranches.deleteBranch")}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onSelect={() =>
+                              void handleOpenUrl(
+                                `https://github.com/${activeRepo.owner}/${activeRepo.name}/tree/${branch.name}`,
+                              )
+                            }
+                          >
+                            <ExternalLink className="mr-2 h-4 w-4" />
+                            {t("pages.repositoryBranches.openInBrowser")}
+                          </DropdownMenuItem>
+                          {!branch.is_default && !branch.is_protected && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onSelect={() => setBranchToDelete(branch.name)}
+                                disabled={deleteBranchMutation.isPending}
+                                className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                {t("pages.repositoryBranches.deleteBranch")}
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))}

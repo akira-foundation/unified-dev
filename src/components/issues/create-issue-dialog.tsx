@@ -1,10 +1,19 @@
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Tag, UserCircle2, X, Check, Maximize2, Minimize2 } from "lucide-react";
+import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import { Markdown } from "tiptap-markdown";
+import tippy, { type Instance as TippyInstance } from "tippy.js";
+import { SlashCommandExtension, SLASH_COMMANDS } from "./slash-command-extension";
+import { SlashCommandMenu, type SlashCommandMenuRef } from "./slash-command-menu";
 
 import {
   Dialog,
@@ -60,7 +69,6 @@ export function CreateIssueDialog({
 }: CreateIssueDialogProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [repoOpen, setRepoOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [assigneesOpen, setAssigneesOpen] = useState(false);
@@ -110,11 +118,6 @@ export function CreateIssueDialog({
     return Array.from(set).sort();
   }, [issues]);
 
-  const autoGrow = (el: HTMLTextAreaElement) => {
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  };
-
   const createMutation = useMutationWithToast<IssueDto, FormValues>({
     mutationFn: (values) => {
       const repo = repos.find((r) => r.repo_name === values.repoName);
@@ -149,6 +152,108 @@ export function CreateIssueDialog({
     createMutation.mutate(values);
   });
 
+  const bodyPlaceholder = t("issues.create.bodyPlaceholderWithCommands");
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({ placeholder: bodyPlaceholder }),
+      TaskList.configure({
+        HTMLAttributes: {
+          class: "issue-task-list",
+        },
+      }),
+      TaskItem.configure({
+        nested: true,
+        HTMLAttributes: {
+          class: "issue-task-item",
+        },
+      }),
+      Markdown.configure({ transformPastedText: true }),
+      SlashCommandExtension.configure({
+        suggestion: {
+          items: ({ query }: { query: string }) =>
+            SLASH_COMMANDS.filter((item) =>
+              item.title.toLowerCase().includes(query.toLowerCase()),
+            ),
+          render() {
+            let renderer: ReactRenderer<any>;
+            let popup: TippyInstance | null = null;
+
+            return {
+              onStart(props: any) {
+                renderer = new ReactRenderer(SlashCommandMenu, {
+                  props,
+                  editor: props.editor,
+                });
+
+                if (!props.clientRect) {
+                  return;
+                }
+
+                popup = tippy(document.body, {
+                  getReferenceClientRect: () => props.clientRect?.() ?? new DOMRect(),
+                  appendTo: () => document.body,
+                  content: renderer.element,
+                  showOnCreate: true,
+                  interactive: true,
+                  trigger: "manual",
+                  placement: "bottom-start",
+                  offset: [0, 8],
+                  maxWidth: 224,
+                });
+              },
+
+              onUpdate(props: any) {
+                renderer.updateProps(props);
+
+                if (!props.clientRect) {
+                  return;
+                }
+
+                popup?.setProps({
+                  getReferenceClientRect: () => props.clientRect?.() ?? new DOMRect(),
+                });
+              },
+
+              onKeyDown(props: { event: KeyboardEvent }) {
+                if (props.event.key === "Escape") {
+                  popup?.hide();
+                  return true;
+                }
+
+                return ((renderer.ref as SlashCommandMenuRef | null)?.onKeyDown(props.event)) ?? false;
+              },
+
+              onExit() {
+                popup?.destroy();
+                popup = null;
+                renderer.destroy();
+              },
+            };
+          },
+        },
+      }),
+    ],
+    editorProps: {
+      attributes: {
+        class: "outline-none",
+      },
+    },
+    onUpdate({ editor: e }) {
+      // @ts-expect-error - tiptap-markdown adds getMarkdown to editor storage
+      const md: string = e.storage.markdown?.getMarkdown?.() ?? e.getText();
+      form.setValue("body", md, { shouldValidate: false });
+    },
+  });
+
+  // Reset editor content when dialog closes
+  useEffect(() => {
+    if (!open && editor) {
+      editor.commands.clearContent();
+    }
+  }, [open, editor]);
+
   const repoNames = repos.map((r) => r.repo_name);
   const watchedLabels = form.watch("labels") ?? [];
   const watchedAssignees = form.watch("assignees") ?? [];
@@ -171,112 +276,117 @@ export function CreateIssueDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60"
+          onClick={() => onOpenChange(false)}
+        />
+      )}
       <DialogContent
         className={
           expanded
-            ? "p-0 gap-0 overflow-visible sm:max-w-none w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] flex flex-col"
-            : "p-0 gap-0 overflow-visible sm:max-w-none w-[720px] max-w-[calc(100vw-2rem)]"
+            ? "p-0 gap-0 overflow-hidden sm:max-w-none w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] flex flex-col shadow-2xl"
+            : "p-0 gap-0 overflow-hidden sm:max-w-none w-[720px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] flex flex-col shadow-2xl"
         }
         showCloseButton={false}
       >
         <Form {...form}>
-          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col">
 
-            {/* Header breadcrumb — repo picker lives here */}
-            <div className="flex items-center gap-1 px-5 pt-4 pb-1 text-xs text-muted-foreground select-none">
+            <div className="shrink-0 bg-background">
+              <div className="flex items-center gap-1 px-5 pt-4 pb-1 text-xs text-muted-foreground select-none">
+                <FormField
+                  control={form.control}
+                  name="repoName"
+                  render={({ field }) => (
+                    <Popover open={repoOpen} onOpenChange={setRepoOpen}>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                          {field.value || t("issues.create.repoPlaceholder")}
+                          <ChevronDown className="size-3 opacity-50" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-56 p-1" align="start" side="bottom">
+                        <div className="max-h-64 overflow-y-auto">
+                          {repoNames.map((name) => (
+                            <button
+                              key={name}
+                              type="button"
+                              onClick={() => { field.onChange(name); setRepoOpen(false); }}
+                              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors"
+                            >
+                              <span className="flex-1 truncate text-left">{name}</span>
+                              {field.value === name && <Check className="size-3.5 shrink-0 text-muted-foreground" />}
+                            </button>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                />
+                <span className="text-muted-foreground/40">›</span>
+                <span>{t("issues.create.title")}</span>
+                <div className="ml-auto flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setExpanded((v) => !v)}
+                    className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  >
+                    {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenChange(false)}
+                    className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+
               <FormField
                 control={form.control}
-                name="repoName"
+                name="title"
                 render={({ field }) => (
-                  <Popover open={repoOpen} onOpenChange={setRepoOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 rounded px-1 py-0.5 font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                      >
-                        {field.value || t("issues.create.repoPlaceholder")}
-                        <ChevronDown className="size-3 opacity-50" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56 p-1" align="start" side="bottom">
-                      <div className="max-h-64 overflow-y-auto">
-                        {repoNames.map((name) => (
-                          <button
-                            key={name}
-                            type="button"
-                            onClick={() => { field.onChange(name); setRepoOpen(false); }}
-                            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors"
-                          >
-                            <span className="flex-1 text-left truncate">{name}</span>
-                            {field.value === name && <Check className="size-3.5 text-muted-foreground shrink-0" />}
-                          </button>
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <input
+                    {...field}
+                    autoFocus
+                    placeholder={t("issues.create.titlePlaceholder")}
+                    className="w-full bg-transparent px-5 py-3 font-sans text-[2rem] font-[620] tracking-[-0.03em] text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
+                  />
                 )}
               />
-              <span className="text-muted-foreground/40">›</span>
-              <span>{t("issues.create.title")}</span>
-              <div className="ml-auto flex items-center gap-0.5">
-                <button
-                  type="button"
-                  onClick={() => setExpanded((v) => !v)}
-                  className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                >
-                  {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenChange(false)}
-                  className="rounded-sm p-0.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                >
-                  <X className="size-3.5" />
-                </button>
-              </div>
             </div>
 
-            {/* Title */}
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <input
-                  {...field}
-                  autoFocus
-                  placeholder={t("issues.create.titlePlaceholder")}
-                  className="w-full bg-transparent px-5 py-3 text-xl font-semibold placeholder:text-muted-foreground/30 focus:outline-none"
-                />
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              <FormField
+                control={form.control}
+                name="body"
+                render={() => (
+                  <div
+                    className="w-full px-5 pt-2 pb-6 font-sans text-[15px] leading-7 text-foreground/85"
+                    onClick={() => editor?.commands.focus()}
+                  >
+                    <EditorContent
+                      editor={editor}
+                      className="issue-editor [&_.ProseMirror]:min-h-[280px] [&_.ProseMirror]:max-w-none [&_.ProseMirror]:outline-none [&_.ProseMirror_h1]:mt-8 [&_.ProseMirror_h1]:mb-2 [&_.ProseMirror_h1]:text-[2rem] [&_.ProseMirror_h1]:font-[650] [&_.ProseMirror_h1]:tracking-[-0.03em] [&_.ProseMirror_h1]:text-foreground [&_.ProseMirror_h2]:mt-7 [&_.ProseMirror_h2]:mb-2 [&_.ProseMirror_h2]:text-[1.5rem] [&_.ProseMirror_h2]:font-[620] [&_.ProseMirror_h2]:tracking-[-0.025em] [&_.ProseMirror_h2]:text-foreground [&_.ProseMirror_h3]:mt-6 [&_.ProseMirror_h3]:mb-2 [&_.ProseMirror_h3]:text-[1.125rem] [&_.ProseMirror_h3]:font-[620] [&_.ProseMirror_h3]:tracking-[-0.02em] [&_.ProseMirror_h3]:text-foreground [&_.ProseMirror_p]:my-0 [&_.ProseMirror_p]:leading-7 [&_.ProseMirror_ul]:my-2 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6 [&_.ProseMirror_ol]:my-2 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_li]:my-1 [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0 [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-[15px] [&_.ProseMirror_p.is-editor-empty:first-child::before]:leading-7 [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground/35 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]"
+                    />
+                  </div>
+                )}
+              />
+
+              {form.formState.errors.root?.message && (
+                <p className="mx-5 mb-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {form.formState.errors.root.message}
+                </p>
               )}
-            />
+            </div>
 
-            {/* Description — auto-growing textarea */}
-            <FormField
-              control={form.control}
-              name="body"
-              render={({ field }) => (
-                <textarea
-                  {...field}
-                  ref={(el) => {
-                    textareaRef.current = el;
-                    if (typeof field.ref === "function") field.ref(el);
-                  }}
-                  placeholder={t("issues.create.bodyPlaceholder")}
-                  rows={5}
-                  onInput={(e) => { if (!expanded) autoGrow(e.currentTarget); }}
-                  className={`w-full resize-none bg-transparent px-5 py-1 pb-6 text-sm text-foreground/80 placeholder:text-muted-foreground/30 focus:outline-none ${expanded ? "flex-1 overflow-y-auto" : "min-h-[160px] overflow-hidden"}`}
-                />
-              )}
-            />
-
-            {form.formState.errors.root?.message && (
-              <p className="mx-5 mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {form.formState.errors.root.message}
-              </p>
-            )}
-
-            {/* Footer toolbar */}
-            <div className="flex items-center gap-1 border-t border-border px-3 py-2">
+            <div className="shrink-0 border-t border-border bg-background">
+              <div className="flex items-center gap-1 px-3 py-2">
 
               {/* Labels picker */}
               <Popover open={labelsOpen} onOpenChange={setLabelsOpen}>
@@ -347,13 +457,13 @@ export function CreateIssueDialog({
                     <UserCircle2 className="size-3.5 shrink-0" />
                     {watchedAssignees.length > 0
                       ? watchedAssignees.join(", ")
-                      : t("issues.create.assigneesLabel") || "Assignees"}
+                      : t("issues.create.assigneesLabel")}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-56 p-0" align="start" side="top">
                   <div className="px-3 py-2 border-b border-border">
                     <p className="text-xs font-medium text-muted-foreground">
-                      {t("issues.create.assigneesLabel") || "Assignees"}
+                      {t("issues.create.assigneesLabel")}
                     </p>
                   </div>
                   {availableAssignees.length === 0 ? (
@@ -379,14 +489,15 @@ export function CreateIssueDialog({
                 </PopoverContent>
               </Popover>
 
-              <div className="ml-auto flex items-center gap-2">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={!form.formState.isValid || createMutation.isPending}
-                >
-                  {createMutation.isPending ? t("issues.create.submitting") : t("issues.create.submit")}
-                </Button>
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!form.formState.isValid || createMutation.isPending}
+                  >
+                    {createMutation.isPending ? t("issues.create.submitting") : t("issues.create.submit")}
+                  </Button>
+                </div>
               </div>
             </div>
 

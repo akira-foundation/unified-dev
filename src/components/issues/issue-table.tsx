@@ -7,7 +7,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,6 +18,13 @@ import { Card, CardContent } from "../ui/card";
 import { Switch } from "../ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import {
   Combobox,
   ComboboxChips,
@@ -277,29 +284,39 @@ export function IssueTable({
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <div className="flex items-center gap-1 justify-end">
-            {onOpenUrl && row.original.url && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                onClick={(e) => { e.stopPropagation(); onOpenUrl(row.original.url); }}
-                title={t("issues.table.openInBrowser")}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-              </Button>
-            )}
-            {onDelete && row.original.status === "open" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
-                onClick={(e) => { e.stopPropagation(); setIssueToDelete(row.original); }}
-                title={t("issues.table.deleteIssue")}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
+          <div className="flex justify-end">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {onOpenUrl && row.original.url && (
+                  <DropdownMenuItem onSelect={() => onOpenUrl(row.original.url)}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    {t("issues.table.openInBrowser")}
+                  </DropdownMenuItem>
+                )}
+                {onDelete && row.original.status === "open" && (
+                  <>
+                    {onOpenUrl && row.original.url && <DropdownMenuSeparator />}
+                    <DropdownMenuItem
+                      onSelect={() => setIssueToDelete(row.original)}
+                      className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t("issues.table.deleteIssue")}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ),
       },

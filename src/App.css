@@ -68,6 +68,67 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
+.issue-editor .ProseMirror .issue-task-list,
+.issue-editor .ProseMirror ul[data-type='taskList'] {
+    margin: 0.75rem 0;
+    padding-left: 0;
+    list-style: none;
+}
+
+.issue-editor .ProseMirror .issue-task-item,
+.issue-editor .ProseMirror li[data-type='taskItem'] {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 0.625rem !important;
+    margin: 0.5rem 0 !important;
+    list-style: none !important;
+}
+
+.issue-editor .ProseMirror .issue-task-item > label,
+.issue-editor .ProseMirror li[data-type='taskItem'] > label {
+    margin-top: 0.35rem;
+    display: flex !important;
+    flex: 0 0 auto !important;
+    align-items: center !important;
+    cursor: pointer;
+}
+
+.issue-editor .ProseMirror .issue-task-item > label > input,
+.issue-editor .ProseMirror li[data-type='taskItem'] > label > input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.issue-editor .ProseMirror .issue-task-item > label > span,
+.issue-editor .ProseMirror li[data-type='taskItem'] > label > span {
+    display: block;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid rgb(82 82 91 / 0.8);
+    border-radius: 4px;
+    background: transparent;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.issue-editor .ProseMirror .issue-task-item[data-checked='true'] > label > span,
+.issue-editor .ProseMirror li[data-type='taskItem'][data-checked='true'] > label > span {
+    border-color: rgb(74 222 128 / 0.8);
+    background: rgb(74 222 128 / 0.15);
+}
+
+.issue-editor .ProseMirror .issue-task-item > div,
+.issue-editor .ProseMirror li[data-type='taskItem'] > div {
+    display: block !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+.issue-editor .ProseMirror .issue-task-item > div > p,
+.issue-editor .ProseMirror li[data-type='taskItem'] > div > p {
+    margin: 0 !important;
+}
+
 :root {
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
