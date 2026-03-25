@@ -7,7 +7,7 @@ use crate::db::models::{
     CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
     UpdateOrganizationInput,
 };
-use crate::core::provider::types::{CiCheckDto, PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
+use crate::core::provider::types::{BranchDto, CiCheckDto, PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -511,4 +511,67 @@ pub async fn get_job_logs(
         .get_job_logs(&owner, &repo_name, job_id)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn list_repo_branches(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+) -> Result<Vec<BranchDto>, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let branches = provider
+        .list_branches(&owner, &repo_name)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(branches.into_iter().map(BranchDto::from).collect())
+}
+
+#[tauri::command]
+pub async fn create_repo_branch(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+    branch_name: String,
+    from_sha: String,
+) -> Result<BranchDto, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let branch = provider
+        .create_branch(&owner, &repo_name, &branch_name, &from_sha)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(BranchDto::from(branch))
+}
+
+#[tauri::command]
+pub async fn delete_repo_branch(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+    branch_name: String,
+) -> Result<(), String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    provider
+        .delete_branch(&owner, &repo_name, &branch_name)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn sync_pull_requests(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+    _owner: Option<String>,
+) -> Result<Vec<PullRequestDto>, String> {
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let prs = provider
+        .list_pull_requests(&owner, &repo_name)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(prs
+        .into_iter()
+        .filter(|pr| matches!(pr.state, PullRequestState::Open))
+        .map(PullRequestDto::from)
+        .collect())
 }

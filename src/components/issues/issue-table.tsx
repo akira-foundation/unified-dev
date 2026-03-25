@@ -7,12 +7,23 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import { useI18n } from "../../i18n/i18n";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -33,6 +44,8 @@ interface IssueTableProps {
   onSync?: () => void;
   isSyncing?: boolean;
   disableSync?: boolean;
+  onOpenUrl?: (url: string) => void;
+  onDelete?: (issue: IssueDto) => Promise<void>;
 }
 
 function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
@@ -49,10 +62,14 @@ export function IssueTable({
   onSync,
   isSyncing,
   disableSync,
+  onOpenUrl,
+  onDelete,
 }: IssueTableProps) {
   const { t } = useI18n();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  const [issueToDelete, setIssueToDelete] = useState<IssueDto | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const columns = useMemo<ColumnDef<IssueDto>[]>(
     () => [
@@ -194,8 +211,38 @@ export function IssueTable({
           </span>
         ),
       },
+      {
+        id: "actions",
+        header: "",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1 justify-end">
+            {onOpenUrl && row.original.url && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                onClick={(e) => { e.stopPropagation(); onOpenUrl(row.original.url); }}
+                title={t("issues.table.openInBrowser")}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            {onDelete && row.original.status === "open" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
+                onClick={(e) => { e.stopPropagation(); setIssueToDelete(row.original); }}
+                title={t("issues.table.deleteIssue")}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+          </div>
+        ),
+      },
     ],
-    [t, onSelect, onNavigateToPrs, onNavigateToRepo],
+    [t, onSelect, onNavigateToPrs, onNavigateToRepo, onOpenUrl, onDelete],
   );
 
   const table = useReactTable({
@@ -209,71 +256,119 @@ export function IssueTable({
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  return (
-    <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
-      <div className="flex flex-row items-center justify-between px-6 py-6">
-        <div className="flex flex-row items-center gap-4">
-          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
-            <CircleDot size={22} strokeWidth={2} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">
-              {t("issues.page.title")}
-            </span>
-            <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
-              {table.getFilteredRowModel().rows.length} {t("issues.page.total")}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {onSync && (
-            <Button variant="outline" onClick={onSync} disabled={isSyncing || disableSync}>
-              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-              {t("common.sync")}
-            </Button>
-          )}
-        </div>
-      </div>
+  const handleConfirmDelete = async () => {
+    if (!issueToDelete || !onDelete) return;
+    const issue = issueToDelete;
+    setIssueToDelete(null);
+    setIsDeleting(true);
+    const id = toast.loading(t("issues.table.toast.deleting"));
+    try {
+      await onDelete(issue);
+      toast.success(t("issues.table.toast.deleted"), { id });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error), { id });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
-      <CardContent className="p-0 px-0 border-t border-zinc-100 dark:border-zinc-800/50">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="py-10 text-center text-sm text-gray-500 dark:text-zinc-600 italic"
-                >
-                  {t("issues.table.empty")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+  return (
+    <>
+      <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+        <div className="flex flex-row items-center justify-between px-6 py-6">
+          <div className="flex flex-row items-center gap-4">
+            <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+              <CircleDot size={22} strokeWidth={2} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">
+                {t("issues.page.title")}
+              </span>
+              <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
+                {table.getFilteredRowModel().rows.length} {t("issues.page.total")}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {onSync && (
+              <Button variant="outline" onClick={onSync} disabled={isSyncing || disableSync}>
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                {t("issues.table.syncIssues")}
+              </Button>
             )}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+          </div>
+        </div>
+
+        <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50 px-0">
+          <div className="overflow-hidden rounded-xl">
+            <Table>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="py-10 text-center text-sm text-gray-500 dark:text-zinc-600 italic"
+                    >
+                      {t("issues.table.empty")}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow key={row.id}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={!!issueToDelete} onOpenChange={(open) => { if (!open) setIssueToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("issues.table.confirm.title")}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <p className="mb-2">{t("issues.table.confirm.description").replace("{title}", issueToDelete?.title ?? "")}</p>
+                <ul className="list-disc pl-4 space-y-1 text-sm">
+                  <li>{t("issues.table.confirm.bullet1")}</li>
+                  <li>{t("issues.table.confirm.bullet2")}</li>
+                  <li>{t("issues.table.confirm.bullet3")}</li>
+                </ul>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={() => void handleConfirmDelete()}
+            >
+              {t("issues.table.confirm.action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

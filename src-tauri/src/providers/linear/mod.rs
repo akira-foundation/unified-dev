@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue,
+    PrReviewEvent, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue,
 };
 use crate::error::{AppError, AppResult};
 
@@ -199,5 +199,41 @@ impl VcsProvider for LinearDriver {
         _reason: Option<&str>,
     ) -> AppResult<()> {
         Err(AppError::Provider("Linear issues: not yet implemented".to_string()))
+    }
+
+    async fn delete_issue(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _issue_number: u64,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("Linear issues: not yet implemented".to_string()))
+    }
+
+    async fn list_branches(
+        &self,
+        _owner: &str,
+        _repository: &str,
+    ) -> AppResult<Vec<VcsBranch>> {
+        Err(AppError::Provider("Branches not supported for Linear".to_string()))
+    }
+
+    async fn create_branch(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _branch_name: &str,
+        _sha: &str,
+    ) -> AppResult<VcsBranch> {
+        Err(AppError::Provider("Create branch not supported for Linear".to_string()))
+    }
+
+    async fn delete_branch(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _branch_name: &str,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("Delete branch not supported for Linear".to_string()))
     }
 }

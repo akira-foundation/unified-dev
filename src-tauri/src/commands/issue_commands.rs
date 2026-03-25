@@ -317,6 +317,43 @@ pub async fn update_issue(
         .ok_or_else(|| "Issue not found after update".to_string())
 }
 
+/// Delete an issue remotely via the provider and remove it from the local database.
+#[tauri::command]
+pub async fn delete_issue(
+    state: State<'_, AppState>,
+    org_id: String,
+    repo_name: String,
+    number: i64,
+) -> Result<(), String> {
+    let provider = get_provider(&state, &org_id).await?;
+
+    let owner = sqlx::query_scalar::<_, String>(
+        "SELECT owner FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
+    )
+    .bind(&org_id)
+    .bind(&repo_name)
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    provider
+        .delete_issue(&owner, &repo_name, number as u64)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        "DELETE FROM issues WHERE org_id = ? AND repo_name = ? AND number = ?",
+    )
+    .bind(&org_id)
+    .bind(&repo_name)
+    .bind(number)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 /// Close an issue via the provider and update the local cache.
 #[tauri::command]
 pub async fn close_issue(

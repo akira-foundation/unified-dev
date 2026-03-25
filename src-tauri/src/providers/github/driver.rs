@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsCiCheck, VcsCiCheckStep, VcsPrComment, VcsPrFile, VcsPullRequest,
+    PrReviewEvent, PullRequestState, VcsBranch, VcsCiCheck, VcsCiCheckStep, VcsPrComment, VcsPrFile, VcsPullRequest,
     VcsIssue,
 };
 use crate::error::{AppError, AppResult};
@@ -175,6 +175,46 @@ impl GitHubDriver {
         }
 
         Ok(())
+    }
+
+    async fn graphql<T: DeserializeOwned>(&self, query: &str, variables: serde_json::Value) -> AppResult<T> {
+        #[derive(Serialize)]
+        struct GraphQlRequest<'a> {
+            query: &'a str,
+            variables: serde_json::Value,
+        }
+        #[derive(Deserialize)]
+        struct GraphQlResponse<T> {
+            data: Option<T>,
+            errors: Option<Vec<serde_json::Value>>,
+        }
+
+        let response = self
+            .client
+            .post("https://api.github.com/graphql")
+            .bearer_auth(&self.token)
+            .json(&GraphQlRequest { query, variables })
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
+        }
+
+        let result: GraphQlResponse<T> = response.json().await?;
+
+        if let Some(errors) = result.errors {
+            if !errors.is_empty() {
+                return Err(AppError::Provider(format!(
+                    "GitHub GraphQL errors: {}",
+                    serde_json::to_string(&errors).unwrap_or_default()
+                )));
+            }
+        }
+
+        result.data.ok_or_else(|| AppError::Provider("GitHub GraphQL: no data returned".to_string()))
     }
 
     async fn fetch_paginated<T: DeserializeOwned>(
@@ -636,6 +676,106 @@ impl VcsProvider for GitHubDriver {
         let _: GitHubIssue = self.patch_json(url, &payload).await?;
         Ok(())
     }
+
+    async fn delete_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
+    ) -> AppResult<()> {
+        // Fetch the node_id via REST API (required for GraphQL deleteIssue mutation)
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
+        let issue: serde_json::Value = self.get_json(url).await?;
+        let node_id = issue["node_id"]
+            .as_str()
+            .ok_or_else(|| AppError::Provider("Issue node_id not found".to_string()))?
+            .to_string();
+
+        #[derive(Deserialize)]
+        struct DeleteIssueData {
+            #[serde(rename = "deleteIssue")]
+            delete_issue: serde_json::Value,
+        }
+
+        let _: DeleteIssueData = self
+            .graphql(
+                "mutation DeleteIssue($id: ID!) { deleteIssue(input: { issueId: $id }) { clientMutationId } }",
+                serde_json::json!({ "id": node_id }),
+            )
+            .await?;
+
+        Ok(())
+    }
+
+    async fn list_branches(
+        &self,
+        owner: &str,
+        repository: &str,
+    ) -> AppResult<Vec<VcsBranch>> {
+        let repo_url = format!("{GITHUB_API}/repos/{owner}/{repository}");
+        let repo_info: serde_json::Value = self.get_json(repo_url).await?;
+        let default_branch = repo_info["default_branch"].as_str().unwrap_or("").to_string();
+
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/branches");
+        let branches: Vec<GitHubBranch> = self.fetch_paginated(url).await?;
+
+        Ok(branches
+            .into_iter()
+            .map(|b| VcsBranch {
+                is_default: b.name == default_branch,
+                is_protected: b.protected,
+                sha: b.commit.sha,
+                name: b.name,
+            })
+            .collect())
+    }
+
+    async fn create_branch(
+        &self,
+        owner: &str,
+        repository: &str,
+        branch_name: &str,
+        sha: &str,
+    ) -> AppResult<VcsBranch> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/git/refs");
+        let payload = serde_json::json!({
+            "ref": format!("refs/heads/{branch_name}"),
+            "sha": sha,
+        });
+        let result: GitHubRef = self.post_json(url, &payload).await?;
+        Ok(VcsBranch {
+            name: result.r#ref.trim_start_matches("refs/heads/").to_string(),
+            sha: result.object.sha,
+            is_default: false,
+            is_protected: false,
+        })
+    }
+
+    async fn delete_branch(
+        &self,
+        owner: &str,
+        repository: &str,
+        branch_name: &str,
+    ) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/git/refs/heads/{branch_name}");
+        let response = self
+            .client
+            .delete(&url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!(
+                "GitHub API error: {status} {body}"
+            )));
+        }
+
+        Ok(())
+    }
 }
 
 fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
@@ -818,4 +958,27 @@ fn github_issue_to_vcs(issue: GitHubIssue) -> VcsIssue {
         created_at: issue.created_at,
         updated_at: issue.updated_at,
     }
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubBranchCommit {
+    sha: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubBranch {
+    name: String,
+    commit: GitHubBranchCommit,
+    protected: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubRefObject {
+    sha: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubRef {
+    r#ref: String,
+    object: GitHubRefObject,
 }

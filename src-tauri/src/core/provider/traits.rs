@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy, VcsIssue};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy, VcsIssue};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -30,6 +30,27 @@ pub trait VcsProvider: Send + Sync {
         owner: &str,
         repository: &str,
     ) -> AppResult<Vec<VcsPullRequest>>;
+
+    async fn list_branches(
+        &self,
+        owner: &str,
+        repository: &str,
+    ) -> AppResult<Vec<VcsBranch>>;
+
+    async fn create_branch(
+        &self,
+        owner: &str,
+        repository: &str,
+        branch_name: &str,
+        sha: &str,
+    ) -> AppResult<VcsBranch>;
+
+    async fn delete_branch(
+        &self,
+        owner: &str,
+        repository: &str,
+        branch_name: &str,
+    ) -> AppResult<()>;
 
     async fn get_pull_request_comments(
         &self,
@@ -128,5 +149,12 @@ pub trait VcsProvider: Send + Sync {
         repository: &str,
         issue_number: u64,
         reason: Option<&str>,
+    ) -> AppResult<()>;
+
+    async fn delete_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
     ) -> AppResult<()>;
 }

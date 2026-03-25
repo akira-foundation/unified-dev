@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   Dialog,
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import { useI18n } from "@/i18n/i18n";
 import { queryKeys } from "@/lib/query-keys";
+import { useMutationWithToast } from "@/hooks/use-mutation-with-toast";
 import type { IssueDto } from "@/types/issue";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
 
@@ -87,8 +88,8 @@ export function CreateIssueDialog({
     }
   }, [open, form, orgId, repoName, repos]);
 
-  const createMutation = useMutation({
-    mutationFn: (values: FormValues) => {
+  const createMutation = useMutationWithToast<IssueDto, FormValues>({
+    mutationFn: (values) => {
       const [rOrgId, rRepoName] = values.repoKey.split("::");
       const labels = (values.labelsRaw ?? "")
         .split(",")
@@ -105,12 +106,14 @@ export function CreateIssueDialog({
         },
       });
     },
+    loadingMessage: t("issues.create.toast.creating"),
+    successMessage: t("issues.create.toast.created"),
     onSuccess: (_, values) => {
       const [rOrgId, rRepoName] = values.repoKey.split("::");
       queryClient.invalidateQueries({ queryKey: queryKeys.issues(rOrgId, rRepoName) });
       onOpenChange(false);
     },
-    onError: (err: unknown) => {
+    onError: (err) => {
       form.setError("root", {
         message: err instanceof Error ? err.message : String(err),
       });

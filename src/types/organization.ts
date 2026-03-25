@@ -116,3 +116,10 @@ export interface PrFileDto {
   deletions: number;
   patch: string | null;
 }
+
+export interface BranchDto {
+  name: string;
+  sha: string;
+  is_default: boolean;
+  is_protected: boolean;
+}

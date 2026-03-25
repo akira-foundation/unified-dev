@@ -5,7 +5,7 @@ use serde::Deserialize;
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest,
+    PrReviewEvent, PullRequestState, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest,
     VcsIssue,
 };
 use crate::error::{AppError, AppResult};
@@ -274,6 +274,41 @@ impl VcsProvider for BitbucketDriver {
         _reason: Option<&str>,
     ) -> AppResult<()> {
         Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn delete_issue(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _issue_number: u64,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
+    }
+    async fn list_branches(
+        &self,
+        _owner: &str,
+        _repository: &str,
+    ) -> AppResult<Vec<VcsBranch>> {
+        Err(AppError::Provider("Branches not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn create_branch(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _branch_name: &str,
+        _sha: &str,
+    ) -> AppResult<VcsBranch> {
+        Err(AppError::Provider("Create branch not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn delete_branch(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _branch_name: &str,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("Delete branch not yet supported for Bitbucket".to_string()))
     }
 }
 

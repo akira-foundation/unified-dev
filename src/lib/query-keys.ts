@@ -19,4 +19,5 @@ export const queryKeys = {
   issues: (orgId: string, repo: string) => ["issues", orgId, repo] as const,
   issueDetail: (orgId: string, repo: string, number: number) =>
     ["issue-detail", orgId, repo, number] as const,
+  branches: (orgId: string, repo: string) => ["branches", orgId, repo] as const,
 };

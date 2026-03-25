@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CircleDot, FileDiff, GitBranch, GitPullRequest, Plus, RefreshCw } from "lucide-react";
+import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { toast } from "sonner";
 
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
@@ -23,6 +25,17 @@ import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
 import { IssueTable } from "../components/issues/issue-table";
 import { IssueDetailSheet } from "../components/issues/issue-detail-sheet";
 import { CreateIssueDialog } from "../components/issues/create-issue-dialog";
+import { CreateBranchDialog } from "../components/repos/create-branch-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useNavigationStore } from "../stores/navigation-store";
@@ -30,7 +43,7 @@ import { repositorySelectionService } from "../services/repositorySelectionServi
 import { queryKeys } from "../lib/query-keys";
 import { cache } from "../config/cache";
 import { cn } from "../lib/utils";
-import type { PullRequestDto } from "../types/organization";
+import type { BranchDto, PullRequestDto } from "../types/organization";
 import type { IssueDto } from "../types/issue";
 
 export function RepositoryDetailPage() {
@@ -63,11 +76,13 @@ export function RepositoryDetailPage() {
     [allRepos, activeRepo],
   );
 
-  const [tab, setTab] = useState<"prs" | "issues">("prs");
+  const [tab, setTab] = useState<"prs" | "issues" | "branches">("prs");
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [prSheetOpen, setPrSheetOpen] = useState(false);
   const [issueSheetOpen, setIssueSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createBranchOpen, setCreateBranchOpen] = useState(false);
+  const [branchToDelete, setBranchToDelete] = useState<string | null>(null);
 
   // ── PRs ──────────────────────────────────────────────────────────────────
   const { data: prs = [], isLoading: prsLoading } = useQuery({
@@ -82,12 +97,19 @@ export function RepositoryDetailPage() {
   });
 
   const syncPrsMutation = useMutation({
-    mutationFn: () =>
-      invoke("sync_pull_requests", {
-        organizationId: activeRepo!.organizationId,
-        owner: activeRepo!.owner,
-        repoName: activeRepo!.name,
-      }),
+    mutationFn: async () => {
+      const id = toast.loading(t("pages.repositoryDetail.toast.syncingPrs"));
+      try {
+        await invoke("sync_pull_requests", {
+          organizationId: activeRepo!.organizationId,
+          repoName: activeRepo!.name,
+        });
+        toast.success(t("pages.repositoryDetail.toast.syncedPrs"), { id });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error), { id });
+        throw error;
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.pullRequests(activeRepo!.organizationId, activeRepo!.name),
@@ -119,12 +141,34 @@ export function RepositoryDetailPage() {
   });
 
   const syncIssuesMutation = useMutation({
-    mutationFn: () =>
-      invoke("sync_issues", {
+    mutationFn: async () => {
+      const id = toast.loading(t("pages.repositoryIssues.toast.syncingIssues"));
+      try {
+        await invoke("sync_issues", {
+          orgId: activeRepo!.organizationId,
+          owner: activeRepo!.owner,
+          repoName: activeRepo!.name,
+          stateFilter: "all",
+        });
+        toast.success(t("pages.repositoryIssues.toast.syncedIssues"), { id });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error), { id });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.issues(activeRepo!.organizationId, activeRepo!.name),
+      });
+    },
+  });
+
+  const deleteIssueMutation = useMutation({
+    mutationFn: (issue: IssueDto) =>
+      invoke("delete_issue", {
         orgId: activeRepo!.organizationId,
-        owner: activeRepo!.owner,
         repoName: activeRepo!.name,
-        stateFilter: "all",
+        number: issue.number,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -132,6 +176,86 @@ export function RepositoryDetailPage() {
       });
     },
   });
+
+  // ── Branches ──────────────────────────────────────────────────────────────
+  const { data: branches = [], isLoading: branchesLoading } = useQuery({
+    queryKey: queryKeys.branches(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
+    queryFn: () =>
+      invoke<BranchDto[]>("list_repo_branches", {
+        organizationId: activeRepo!.organizationId,
+        repoName: activeRepo!.name,
+      }),
+    enabled: !!activeRepo,
+    staleTime: cache.staleTime.short,
+  });
+
+  const syncBranchesMutation = useMutation({
+    mutationFn: async () => {
+      const id = toast.loading(t("pages.repositoryBranches.toast.syncing"));
+      try {
+        await invoke<void>("list_repo_branches", {
+          organizationId: activeRepo!.organizationId,
+          repoName: activeRepo!.name,
+        });
+        toast.success(t("pages.repositoryBranches.toast.synced"), { id });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error), { id });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.branches(activeRepo!.organizationId, activeRepo!.name),
+      });
+    },
+  });
+
+  const deleteBranchMutation = useMutation({
+    mutationFn: async (branchName: string) => {
+      const id = toast.loading(t("pages.repositoryBranches.toast.deleting"));
+      try {
+        await invoke("delete_repo_branch", {
+          organizationId: activeRepo!.organizationId,
+          repoName: activeRepo!.name,
+          branchName,
+        });
+        toast.success(
+          t("pages.repositoryBranches.toast.deleted").replace("{name}", branchName),
+          { id },
+        );
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error), { id });
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.branches(activeRepo!.organizationId, activeRepo!.name),
+      });
+    },
+  });
+
+  const handleCreateBranch = async (branchName: string, fromSha: string) => {
+    const loadingId = toast.loading(t("pages.repositoryBranches.dialog.creating"));
+    try {
+      await invoke("create_repo_branch", {
+        organizationId: activeRepo!.organizationId,
+        repoName: activeRepo!.name,
+        branchName,
+        fromSha,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.branches(activeRepo!.organizationId, activeRepo!.name),
+      });
+      toast.success(
+        t("pages.repositoryBranches.dialog.created").replace("{name}", branchName),
+        { id: loadingId },
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error), { id: loadingId });
+      throw error;
+    }
+  };
 
   const handleMerged = () => {
     queryClient.invalidateQueries({
@@ -193,6 +317,12 @@ export function RepositoryDetailPage() {
             <Button onClick={() => setCreateOpen(true)}>
               <Plus size={18} />
               {t("pages.repositoryIssues.newIssue")}
+            </Button>
+          )}
+          {tab === "branches" && (
+            <Button onClick={() => setCreateBranchOpen(true)}>
+              <Plus size={18} />
+              {t("pages.repositoryBranches.newBranch")}
             </Button>
           )}
         </PageHeaderActions>
@@ -271,7 +401,7 @@ export function RepositoryDetailPage() {
         </Card>
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as "prs" | "issues")}>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as "prs" | "issues" | "branches")}>
         <TabsList>
           <TabsTrigger value="prs">
             <GitPullRequest className="h-4 w-4" />
@@ -288,6 +418,15 @@ export function RepositoryDetailPage() {
             {openIssuesCount > 0 && (
               <span className="ml-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-bold leading-none">
                 {openIssuesCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="branches">
+            <GitBranch className="h-4 w-4" />
+            {t("pages.repositoryBranches.title")}
+            {branches.length > 0 && (
+              <span className="ml-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-bold leading-none">
+                {branches.length}
               </span>
             )}
           </TabsTrigger>
@@ -372,7 +511,109 @@ export function RepositoryDetailPage() {
               }}
               onSync={() => syncIssuesMutation.mutate()}
               isSyncing={syncIssuesMutation.isPending}
+              onOpenUrl={handleOpenUrl}
+              onDelete={(issue) => deleteIssueMutation.mutateAsync(issue).then(() => undefined)}
             />
+          )}
+        </TabsContent>
+        {/* Branches tab */}
+        <TabsContent value="branches">
+          {branchesLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+            </div>
+          ) : branches.length === 0 ? (
+            <EmptyState
+              title={t("pages.repositoryBranches.empty.title")}
+              description={t("pages.repositoryBranches.empty.description")}
+            />
+          ) : (
+            <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+              <div className="flex flex-row items-center justify-between px-6 py-6">
+                <div className="flex flex-row items-center gap-4">
+                  <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 border border-blue-500/10 shrink-0">
+                    <GitBranch size={22} strokeWidth={2} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">
+                      {t("pages.repositoryBranches.title")}
+                    </span>
+                    <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
+                      {branches.length === 1
+                        ? t("pages.repositoryBranches.count").replace("{count}", String(branches.length))
+                        : t("pages.repositoryBranches.countPlural").replace("{count}", String(branches.length))}
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => syncBranchesMutation.mutate()}
+                  disabled={syncBranchesMutation.isPending}
+                >
+                  <RefreshCw className={cn("h-4 w-4", syncBranchesMutation.isPending && "animate-spin")} />
+                  {t("pages.repositoryBranches.syncBranches")}
+                </Button>
+              </div>
+              <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50">
+                {branches.map((branch) => (
+                  <div
+                    key={branch.name}
+                    className="flex items-center justify-between px-6 py-3 border-b border-zinc-100 dark:border-zinc-800/50 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <GitBranch className="h-4 w-4 shrink-0 text-zinc-400" />
+                      <span className="font-mono text-sm font-medium text-zinc-900 dark:text-white truncate">
+                        {branch.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {branch.is_default && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {t("pages.repositoryBranches.default")}
+                        </Badge>
+                      )}
+                      {branch.is_protected && (
+                        <Badge variant="warning" className="text-[10px] px-1.5 py-0">
+                          {t("pages.repositoryBranches.protected")}
+                        </Badge>
+                      )}
+                      <span className="font-mono text-[11px] text-zinc-400 dark:text-zinc-500">
+                        {branch.sha.slice(0, 7)}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                        onClick={() =>
+                          void handleOpenUrl(
+                            `https://github.com/${activeRepo.owner}/${activeRepo.name}/tree/${branch.name}`,
+                          )
+                        }
+                        title={t("pages.repositoryBranches.openInBrowser")}
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </Button>
+                      {!branch.is_default && !branch.is_protected && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-zinc-400 hover:text-red-500 hover:bg-red-500/10"
+                          disabled={deleteBranchMutation.isPending}
+                          onClick={() => setBranchToDelete(branch.name)}
+                          title={t("pages.repositoryBranches.deleteBranch")}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
@@ -400,6 +641,37 @@ export function RepositoryDetailPage() {
         orgId={activeRepo.organizationId}
         repoName={activeRepo.name}
       />
+
+      <CreateBranchDialog
+        open={createBranchOpen}
+        onOpenChange={setCreateBranchOpen}
+        branches={branches}
+        defaultBranch={defaultBranch}
+        onSubmit={handleCreateBranch}
+      />
+
+      <AlertDialog open={!!branchToDelete} onOpenChange={(open) => { if (!open) setBranchToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("pages.repositoryBranches.confirm.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("pages.repositoryBranches.confirm.description").replace("{name}", branchToDelete ?? "")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (branchToDelete) deleteBranchMutation.mutate(branchToDelete);
+                setBranchToDelete(null);
+              }}
+            >
+              {t("pages.repositoryBranches.confirm.action")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 }
