@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, Circle, CircleDot, CheckCircle2, XCircle } from "lucide-react";
+import { Calendar, Circle, CircleDot, CheckCircle2, Filter } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
@@ -19,15 +19,36 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n/i18n";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "@/components/ui/combobox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useFiltersStore } from "@/stores/filters-store";
 import { useKanbanStore } from "@/stores/useKanbanStore";
 import { queryKeys } from "@/lib/query-keys";
 import { cache } from "@/config/cache";
 import type { OrganizationRepoWithOrg, PullRequestDto } from "@/types/organization";
+
+const KANBAN_FILTER_NS = "kanban-prs";
+
+function toggleItem(arr: string[], item: string): string[] {
+  return arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
+}
 
 type ColumnId = "todo" | "review" | "inprogress" | "done";
 
@@ -62,6 +83,193 @@ function mapPrToColumn(pr: PullRequestDto): ColumnId {
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("pt-PT", { day: "2-digit", month: "short" });
+}
+
+export function KanbanFilterPopover() {
+  const { t } = useI18n();
+  const setFilter = useFiltersStore((s) => s.setFilter);
+  const clearFilters = useFiltersStore((s) => s.clearFilters);
+  const storeFilters = useFiltersStore((s) => s.filters[KANBAN_FILTER_NS]);
+
+  const filters = useMemo(
+    () => ({
+      state: storeFilters?.state ?? [],
+      isDraft: storeFilters?.isDraft ?? [],
+      author: storeFilters?.author ?? [],
+      labels: storeFilters?.labels ?? [],
+      ciStatus: storeFilters?.ciStatus ?? [],
+      reviewers: storeFilters?.reviewers ?? [],
+    }),
+    [storeFilters],
+  );
+
+  const showDraftsOnly = filters.isDraft.includes("true");
+
+  const activeFilterCount =
+    filters.state.length +
+    filters.isDraft.length +
+    filters.author.length +
+    filters.labels.length +
+    filters.ciStatus.length +
+    filters.reviewers.length;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="icon" className="relative">
+          <Filter className="h-4 w-4" />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-purple-500 text-[10px] font-bold text-white flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <span className="text-sm font-semibold">{t("prs.filter")}</span>
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={() => clearFilters(KANBAN_FILTER_NS)}
+              className="text-xs text-zinc-400 hover:text-zinc-200"
+            >
+              {t("prs.filter.clear")}
+            </button>
+          )}
+        </div>
+        <div className="border-t border-border" />
+
+        {/* State */}
+        <div className="px-3 py-2 space-y-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            {t("prs.filter.state")}
+          </p>
+          {(["open", "merged"] as const).map((s) => (
+            <div key={s} className="flex items-center justify-between">
+              <span className="text-sm capitalize">{t(`prs.filter.${s}`)}</span>
+              <Switch
+                checked={filters.state.includes(s)}
+                onCheckedChange={() =>
+                  setFilter(KANBAN_FILTER_NS, "state", toggleItem(filters.state, s))
+                }
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Drafts */}
+        <div className="border-t border-border" />
+        <div className="px-3 py-2 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm">{t("prs.filter.isDraft")}</span>
+            <Switch
+              checked={showDraftsOnly}
+              onCheckedChange={(checked) =>
+                setFilter(KANBAN_FILTER_NS, "isDraft", checked ? ["true"] : [])
+              }
+            />
+          </div>
+        </div>
+
+        {/* Author */}
+        <div className="border-t border-border" />
+        <div className="px-3 py-2 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            {t("prs.filter.author")}
+          </p>
+          <Combobox items={[]} multiple value={filters.author} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "author", v as string[])}>
+            <ComboboxChips className="min-h-8 text-xs">
+              <ComboboxValue>
+                {filters.author.map((item) => (
+                  <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                ))}
+              </ComboboxValue>
+              <ComboboxChipsInput placeholder={t("prs.filter.authorSearch")} className="text-xs" />
+            </ComboboxChips>
+            <ComboboxContent>
+              <ComboboxEmpty>No results.</ComboboxEmpty>
+              <ComboboxList>
+                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
+
+        {/* Labels */}
+        <div className="border-t border-border" />
+        <div className="px-3 py-2 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            {t("prs.filter.labels")}
+          </p>
+          <Combobox items={[]} multiple value={filters.labels} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "labels", v as string[])}>
+            <ComboboxChips className="min-h-8 text-xs">
+              <ComboboxValue>
+                {filters.labels.map((item) => (
+                  <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                ))}
+              </ComboboxValue>
+              <ComboboxChipsInput placeholder={t("prs.filter.labelSearch")} className="text-xs" />
+            </ComboboxChips>
+            <ComboboxContent>
+              <ComboboxEmpty>No results.</ComboboxEmpty>
+              <ComboboxList>
+                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
+
+        {/* CI Status */}
+        <div className="border-t border-border" />
+        <div className="px-3 py-2 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            {t("prs.filter.ciStatus")}
+          </p>
+          <Combobox items={[]} multiple value={filters.ciStatus} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "ciStatus", v as string[])}>
+            <ComboboxChips className="min-h-8 text-xs">
+              <ComboboxValue>
+                {filters.ciStatus.map((item) => (
+                  <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                ))}
+              </ComboboxValue>
+              <ComboboxChipsInput placeholder={t("prs.filter.ciStatusSearch")} className="text-xs" />
+            </ComboboxChips>
+            <ComboboxContent>
+              <ComboboxEmpty>No results.</ComboboxEmpty>
+              <ComboboxList>
+                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
+
+        {/* Reviewers */}
+        <div className="border-t border-border" />
+        <div className="px-3 py-2 space-y-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+            {t("prs.filter.reviewers")}
+          </p>
+          <Combobox items={[]} multiple value={filters.reviewers} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "reviewers", v as string[])}>
+            <ComboboxChips className="min-h-8 text-xs">
+              <ComboboxValue>
+                {filters.reviewers.map((item) => (
+                  <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                ))}
+              </ComboboxValue>
+              <ComboboxChipsInput placeholder={t("prs.filter.reviewerSearch")} className="text-xs" />
+            </ComboboxChips>
+            <ComboboxContent>
+              <ComboboxEmpty>No results.</ComboboxEmpty>
+              <ComboboxList>
+                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export function KanbanBoard({ compact = false }: { compact?: boolean }) {
@@ -117,14 +325,47 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
     });
   }, [allRepos, prQueries]);
 
+  // --- Filters ---
+  const storeFilters = useFiltersStore((s) => s.filters[KANBAN_FILTER_NS]);
+
+  const kanbanFilters = useMemo(
+    () => ({
+      state: storeFilters?.state ?? [],
+      isDraft: storeFilters?.isDraft ?? [],
+      author: storeFilters?.author ?? [],
+      labels: storeFilters?.labels ?? [],
+      ciStatus: storeFilters?.ciStatus ?? [],
+      reviewers: storeFilters?.reviewers ?? [],
+    }),
+    [storeFilters],
+  );
+
+  const showDraftsOnly = kanbanFilters.isDraft.includes("true");
+
+  const filteredCards = useMemo<KanbanCardType[]>(() => {
+    return allCards.filter((card) => {
+      if (kanbanFilters.state.length > 0) {
+        const prState = card.pr.merged_at ? "merged" : card.pr.state;
+        if (!kanbanFilters.state.includes(prState)) return false;
+      }
+      if (showDraftsOnly && !card.pr.is_draft) return false;
+      if (kanbanFilters.author.length > 0 && (!card.author || !kanbanFilters.author.includes(card.author))) return false;
+      if (kanbanFilters.labels.length > 0 && !kanbanFilters.labels.some((l) => card.pr.labels.includes(l))) return false;
+      if (kanbanFilters.ciStatus.length > 0 && (!card.pr.ci_status || !kanbanFilters.ciStatus.includes(card.pr.ci_status))) return false;
+      if (kanbanFilters.reviewers.length > 0 && !kanbanFilters.reviewers.some((r) => card.pr.reviewers.includes(r))) return false;
+      return true;
+    });
+  }, [allCards, kanbanFilters, showDraftsOnly]);
+  // --- End Filters ---
+
   const { overrides, setOverride } = useKanbanStore();
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const items = useMemo<KanbanCardType[]>(() => {
-    return allCards.map((card) =>
+    return filteredCards.map((card) =>
       overrides[card.id] ? { ...card, columnId: overrides[card.id] } : card,
     );
-  }, [allCards, overrides]);
+  }, [filteredCards, overrides]);
 
   const columnsIds = COLUMN_IDS;
 

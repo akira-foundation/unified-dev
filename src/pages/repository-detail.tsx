@@ -20,8 +20,8 @@ import {
   PageHeaderTitle,
 } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
-import { PrItem } from "../components/repos/pr-item";
 import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
+import { PrListCard } from "../components/repos/pr-list-card";
 import { IssueTable } from "../components/issues/issue-table";
 import { IssueDetailSheet } from "../components/issues/issue-detail-sheet";
 import { CreateIssueDialog } from "../components/issues/create-issue-dialog";
@@ -53,10 +53,8 @@ export function RepositoryDetailPage() {
     activeRepo,
     activeIssue,
     setActiveIssue,
-    setActivePr,
     targetPrNumber,
     setTargetPrNumber,
-    navigateTo,
   } = useNavigationStore();
   const queryClient = useQueryClient();
 
@@ -446,45 +444,15 @@ export function RepositoryDetailPage() {
               description={t("pages.repositoryPrs.empty.description")}
             />
           ) : (
-            <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
-              <div className="flex flex-row items-center justify-between px-6 py-6">
-                <div className="flex flex-row items-center gap-4">
-                  <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
-                    <GitPullRequest size={22} strokeWidth={2} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">
-                      {t("pages.repositoryPrs.title")}
-                    </span>
-                    <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
-                      {prs.length === 1
-                        ? t("pages.repositoryPrs.openCount").replace("{count}", String(prs.length))
-                        : t("pages.repositoryPrs.openCountPlural").replace("{count}", String(prs.length))}
-                    </span>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => syncPrsMutation.mutate()}
-                  disabled={syncPrsMutation.isPending}
-                >
-                  <RefreshCw className={cn("h-4 w-4", syncPrsMutation.isPending && "animate-spin")} />
-                  {t("pages.repositoryDetail.syncPrs")}
-                </Button>
-              </div>
-              <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50">
-                {prs.map((pr) => (
-                  <PrItem
-                    key={pr.id}
-                    pr={pr}
-                    onOpen={handleOpenUrl}
-                    onViewDetail={(pr) => { setSelectedPr(pr); setPrSheetOpen(true); }}
-                    onReview={(pr) => { setActivePr(pr); navigateTo("pr-review"); }}
-                  />
-                ))}
-              </CardContent>
-            </Card>
+            <PrListCard
+              prs={prs}
+              filterNamespace="repo-prs"
+              organizationId={activeRepo!.organizationId}
+              repoName={activeRepo!.name}
+              isSyncing={syncPrsMutation.isPending}
+              onSync={() => syncPrsMutation.mutate()}
+              onMerged={() => queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(activeRepo!.organizationId, activeRepo!.name) })}
+            />
           )}
         </TabsContent>
 

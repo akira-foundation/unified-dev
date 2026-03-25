@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KanbanBoard } from "@/components/kanban-board";
+import { KanbanBoard, KanbanFilterPopover } from "@/components/kanban-board";
 import { AgendaView } from "@/components/agenda-view";
 import { AddOrganizationDialog } from "@/components/organizations/add-organization-dialog";
 import { useI18n } from "@/i18n/i18n";
@@ -91,18 +91,21 @@ export function DashboardPage() {
             </TabsList>
 
             {dashboardTab === "prs" && (
-              <button
-                onClick={() => setKanbanCompact((v) => !v)}
-                className={cn(
-                  "cursor-pointer flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
-                  kanbanCompact
-                    ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-                    : "border-zinc-200 bg-zinc-100/50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-500 hover:border-zinc-600 hover:text-zinc-300",
-                )}
-              >
-                <FileText size={13} />
-                Compact
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setKanbanCompact((v) => !v)}
+                  className={cn(
+                    "cursor-pointer flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                    kanbanCompact
+                      ? "border-zinc-600 bg-zinc-800 text-zinc-200"
+                      : "border-zinc-200 bg-zinc-100/50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-500 hover:border-zinc-600 hover:text-zinc-300",
+                  )}
+                >
+                  <FileText size={13} />
+                  Compact
+                </button>
+                <KanbanFilterPopover />
+              </div>
             )}
           </div>
 

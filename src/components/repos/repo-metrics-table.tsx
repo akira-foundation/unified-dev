@@ -8,20 +8,36 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { ArrowUpDown, ChevronDown, ChevronUp, Eye, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useRepoActions } from "../../hooks/useRepoActions";
+import { useFiltersStore } from "../../stores/filters-store";
 
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Switch } from "../ui/switch";
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "../ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 interface RepoMetricsTableProps {
   repos: OrganizationRepoWithOrg[];
   title?: string;
+  filterNamespace?: string;
   onCreate?: () => void;
   onSync?: () => void;
   onSyncRepo?: (repo: OrganizationRepoWithOrg) => void;
@@ -37,10 +53,69 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
   return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-40" />;
 }
 
-export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSync, onSyncRepo, onOrganizationClick, isSyncing, syncingRepoId, hideOrganization }: RepoMetricsTableProps) {
+function toggleItem(arr: string[], item: string): string[] {
+  return arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
+}
+
+export function RepoMetricsTable({
+  repos,
+  title = "Repositories",
+  filterNamespace = "repos",
+  onCreate,
+  onSync,
+  onSyncRepo,
+  onOrganizationClick,
+  isSyncing,
+  syncingRepoId,
+  hideOrganization,
+}: RepoMetricsTableProps) {
   const { t } = useI18n();
   const { handleViewRepo, handleViewPrs, handleNewTask } = useRepoActions();
   const [sorting, setSorting] = useState<SortingState>([]);
+
+  const setFilter = useFiltersStore((s) => s.setFilter);
+  const clearFilters = useFiltersStore((s) => s.clearFilters);
+  const storeFilters = useFiltersStore((s) => s.filters[filterNamespace]);
+
+  const filters = useMemo(
+    () => ({
+      visibility: storeFilters?.visibility ?? [],
+      organizations: storeFilters?.organizations ?? [],
+      hasOpenPrs: storeFilters?.hasOpenPrs ?? [],
+      defaultBranch: storeFilters?.defaultBranch ?? [],
+    }),
+    [storeFilters],
+  );
+
+  const allOrganizations = useMemo(() => {
+    const set = new Set<string>();
+    repos.forEach((r) => set.add(r.organization_name));
+    return Array.from(set).sort();
+  }, [repos]);
+
+  const allBranches = useMemo(() => {
+    const set = new Set<string>();
+    repos.forEach((r) => set.add(r.default_branch));
+    return Array.from(set).sort();
+  }, [repos]);
+
+  const showHasOpenPrsFilter = filters.hasOpenPrs.includes("true");
+
+  const activeFilterCount =
+    filters.visibility.length +
+    filters.organizations.length +
+    filters.hasOpenPrs.length +
+    filters.defaultBranch.length;
+
+  const filteredRepos = useMemo(() => {
+    return repos.filter((repo) => {
+      if (filters.visibility.length > 0 && !filters.visibility.includes(repo.visibility)) return false;
+      if (filters.organizations.length > 0 && !filters.organizations.includes(repo.organization_name)) return false;
+      if (showHasOpenPrsFilter && repo.open_prs_count === 0) return false;
+      if (filters.defaultBranch.length > 0 && !filters.defaultBranch.includes(repo.default_branch)) return false;
+      return true;
+    });
+  }, [repos, filters, showHasOpenPrsFilter]);
 
   const columns = useMemo<ColumnDef<OrganizationRepoWithOrg>[]>(() => {
     const cols: ColumnDef<OrganizationRepoWithOrg>[] = [
@@ -188,7 +263,7 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
   }, [t, hideOrganization, onOrganizationClick, onSyncRepo, syncingRepoId, handleViewRepo, handleViewPrs, handleNewTask]);
 
   const table = useReactTable({
-    data: repos,
+    data: filteredRepos,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
@@ -212,10 +287,14 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
         </div>
         <div className="flex items-center gap-2">
           {onSync && (
-            <Button variant="outline" onClick={onSync} disabled={isSyncing}>
-              <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-              {t("common.syncAll")}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="icon" onClick={onSync} disabled={isSyncing}>
+                  <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t("common.syncAll")}</TooltipContent>
+            </Tooltip>
           )}
           {onCreate && (
             <Button onClick={onCreate}>
@@ -223,6 +302,122 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
               {t("common.newRepository")}
             </Button>
           )}
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="icon" className="relative">
+                <Filter className="h-4 w-4" />
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-purple-500 text-[10px] font-bold text-white flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-0">
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-sm font-semibold">{t("repos.table.filter")}</span>
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => clearFilters(filterNamespace)}
+                    className="text-xs text-zinc-400 hover:text-zinc-200"
+                  >
+                    {t("repos.table.filter.clear")}
+                  </button>
+                )}
+              </div>
+              <div className="border-t border-border" />
+
+              {/* Visibility */}
+              <div className="px-3 py-2 space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                  {t("repos.table.filter.visibility")}
+                </p>
+                {(["public", "private"] as const).map((v) => (
+                  <div key={v} className="flex items-center justify-between">
+                    <span className="text-sm capitalize">{t(`repos.table.filter.${v}`)}</span>
+                    <Switch
+                      checked={filters.visibility.includes(v)}
+                      onCheckedChange={() =>
+                        setFilter(filterNamespace, "visibility", toggleItem(filters.visibility, v))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Has open PRs */}
+              <div className="border-t border-border" />
+              <div className="px-3 py-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">{t("repos.table.filter.hasOpenPrs")}</span>
+                  <Switch
+                    checked={showHasOpenPrsFilter}
+                    onCheckedChange={(checked) =>
+                      setFilter(filterNamespace, "hasOpenPrs", checked ? ["true"] : [])
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Organization (only when not hidden and there are multiple orgs) */}
+              {!hideOrganization && allOrganizations.length > 1 && (
+                <>
+                  <div className="border-t border-border" />
+                  <div className="px-3 py-2 space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      {t("repos.table.filter.organization")}
+                    </p>
+                    <Combobox items={allOrganizations} multiple value={filters.organizations} onValueChange={(v) => setFilter(filterNamespace, "organizations", v as string[])}>
+                      <ComboboxChips className="min-h-8 text-xs">
+                        <ComboboxValue>
+                          {filters.organizations.map((item) => (
+                            <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                          ))}
+                        </ComboboxValue>
+                        <ComboboxChipsInput placeholder={t("repos.table.filter.orgSearch")} className="text-xs" />
+                      </ComboboxChips>
+                      <ComboboxContent>
+                        <ComboboxEmpty>No results.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
+                  </div>
+                </>
+              )}
+
+              {/* Default branch */}
+              {allBranches.length > 1 && (
+                <>
+                  <div className="border-t border-border" />
+                  <div className="px-3 py-2 space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                      {t("repos.table.filter.defaultBranch")}
+                    </p>
+                    <Combobox items={allBranches} multiple value={filters.defaultBranch} onValueChange={(v) => setFilter(filterNamespace, "defaultBranch", v as string[])}>
+                      <ComboboxChips className="min-h-8 text-xs">
+                        <ComboboxValue>
+                          {filters.defaultBranch.map((item) => (
+                            <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                          ))}
+                        </ComboboxValue>
+                        <ComboboxChipsInput placeholder={t("repos.table.filter.branchSearch")} className="text-xs" />
+                      </ComboboxChips>
+                      <ComboboxContent>
+                        <ComboboxEmpty>No results.</ComboboxEmpty>
+                        <ComboboxList>
+                          {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
+                  </div>
+                </>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50 px-0">
@@ -270,5 +465,3 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
     </Card>
   );
 }
-
-

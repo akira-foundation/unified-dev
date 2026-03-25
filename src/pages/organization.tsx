@@ -175,6 +175,7 @@ export function OrganizationPage() {
             {!isLoadingRepos && reposWithOrg.length > 0 && (
               <RepoMetricsTable
                 repos={reposWithOrg}
+                filterNamespace="org-repos"
                 onSync={() => syncAll.mutate()}
                 isSyncing={syncAll.isPending}
                 onSyncRepo={(repo) => syncRepo.mutate(repo)}
