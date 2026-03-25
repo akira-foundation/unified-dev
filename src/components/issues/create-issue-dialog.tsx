@@ -200,7 +200,7 @@ export function CreateIssueDialog({
                   trigger: "manual",
                   placement: "bottom-start",
                   offset: [0, 8],
-                  maxWidth: 224,
+                  maxWidth: 280,
                 });
               },
 
