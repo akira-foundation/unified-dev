@@ -42,23 +42,18 @@ interface CreateIssueDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   repos: OrganizationRepoWithOrg[];
-  /** Pre-select a specific repo (e.g. when opened from repository-detail) */
   orgId?: string;
   repoName?: string;
 }
 
 const schema = z.object({
-  repoKey: z.string().min(1, "Repository is required"),
+  repoName: z.string().min(1, "Repository is required"),
   title: z.string().trim().min(1, "Title is required"),
   body: z.string().optional(),
   labelsRaw: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
-
-function repoKey(repo: OrganizationRepoWithOrg) {
-  return `${repo.organization_id}::${repo.repo_name}`;
-}
 
 export function CreateIssueDialog({
   open,
@@ -70,24 +65,20 @@ export function CreateIssueDialog({
   const { t } = useI18n();
   const queryClient = useQueryClient();
 
-  const defaultKey =
-    orgId && repoName
-      ? `${orgId}::${repoName}`
-      : repos.length > 0
-        ? repoKey(repos[0])
-        : "";
+  const defaultRepoName =
+    orgId && repoName ? repoName : repos.length > 0 ? repos[0].repo_name : "";
 
   const form = useForm<FormValues>({
     // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(schema),
     mode: "onChange",
-    defaultValues: { repoKey: defaultKey, title: "", body: "", labelsRaw: "" },
+    defaultValues: { repoName: defaultRepoName, title: "", body: "", labelsRaw: "" },
   });
 
   useEffect(() => {
     if (!open) {
       form.reset({
-        repoKey: orgId && repoName ? `${orgId}::${repoName}` : repos.length > 0 ? repoKey(repos[0]) : "",
+        repoName: orgId && repoName ? repoName : repos.length > 0 ? repos[0].repo_name : "",
         title: "",
         body: "",
         labelsRaw: "",
@@ -97,15 +88,15 @@ export function CreateIssueDialog({
 
   const createMutation = useMutationWithToast<IssueDto, FormValues>({
     mutationFn: (values) => {
-      const [rOrgId, rRepoName] = values.repoKey.split("::");
+      const repo = repos.find((r) => r.repo_name === values.repoName);
       const labels = (values.labelsRaw ?? "")
         .split(",")
         .map((l) => l.trim())
         .filter(Boolean);
       return invoke<IssueDto>("create_issue", {
         input: {
-          org_id: rOrgId,
-          repo_name: rRepoName,
+          org_id: repo?.organization_id ?? orgId ?? "",
+          repo_name: values.repoName,
           title: values.title,
           body: values.body || null,
           labels,
@@ -116,8 +107,10 @@ export function CreateIssueDialog({
     loadingMessage: t("issues.create.toast.creating"),
     successMessage: t("issues.create.toast.created"),
     onSuccess: (_, values) => {
-      const [rOrgId, rRepoName] = values.repoKey.split("::");
-      queryClient.invalidateQueries({ queryKey: queryKeys.issues(rOrgId, rRepoName) });
+      const repo = repos.find((r) => r.repo_name === values.repoName);
+      if (repo) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.issues(repo.organization_id, repo.repo_name) });
+      }
       onOpenChange(false);
     },
     onError: (err) => {
@@ -131,8 +124,10 @@ export function CreateIssueDialog({
     createMutation.mutate(values);
   });
 
+  const repoNames = repos.map((r) => r.repo_name);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("issues.create.title")}</DialogTitle>
@@ -143,30 +138,27 @@ export function CreateIssueDialog({
           <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit}>
             <FormField
               control={form.control}
-              name="repoKey"
+              name="repoName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t("issues.create.repoLabel")}</FormLabel>
-                  <FormControl>
-                    <Combobox
-                      items={repos.map((repo) => repoKey(repo))}
-                      itemToStringValue={(item) => repos.find((r) => repoKey(r) === item)?.repo_name ?? item}
-                      value={field.value}
-                      onValueChange={(v) => field.onChange(v)}
-                    >
-                      <ComboboxInput placeholder={t("issues.create.repoPlaceholder")} className="w-full" />
-                      <ComboboxContent>
-                        <ComboboxEmpty>{t("issues.create.repoPlaceholder")}</ComboboxEmpty>
-                        <ComboboxList>
-                          {repos.map((repo) => (
-                            <ComboboxItem key={repoKey(repo)} value={repoKey(repo)}>
-                              {repo.repo_name}
-                            </ComboboxItem>
-                          ))}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </Combobox>
-                  </FormControl>
+                  <Combobox
+                    items={repoNames}
+                    value={field.value}
+                    onValueChange={(v) => field.onChange(v ?? "")}
+                  >
+                    <ComboboxInput placeholder={t("issues.create.repoPlaceholder")} className="w-full" />
+                    <ComboboxContent>
+                      <ComboboxEmpty>{t("issues.create.repoPlaceholder")}</ComboboxEmpty>
+                      <ComboboxList>
+                        {(item: string) => (
+                          <ComboboxItem key={item} value={item}>
+                            {item}
+                          </ComboboxItem>
+                        )}
+                      </ComboboxList>
+                    </ComboboxContent>
+                  </Combobox>
                   <FormMessage />
                 </FormItem>
               )}
