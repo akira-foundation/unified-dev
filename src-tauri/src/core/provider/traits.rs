@@ -105,8 +105,6 @@ pub trait VcsProvider: Send + Sync {
         job_id: u64,
     ) -> AppResult<String>;
 
-    // Issue tracker methods
-
     async fn list_issues(
         &self,
         owner: &str,

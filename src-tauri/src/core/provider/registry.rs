@@ -30,8 +30,4 @@ impl ProviderFactory {
 
         factory.create(auth).await
     }
-
-    pub fn list(&self) -> Vec<ProviderKind> {
-        self.factories.keys().cloned().collect()
-    }
 }
