@@ -53,6 +53,7 @@ import type { IssueDto } from "../../types/issue";
 
 interface IssueTableProps {
   issues: IssueDto[];
+  filterNamespace?: string;
   onSelect?: (issue: IssueDto) => void;
   onNavigateToPrs?: (repoName: string, orgId: string, prNumber?: number) => void;
   onNavigateToRepo?: (repoName: string, orgId: string) => void;
@@ -75,6 +76,7 @@ function toggleItem(arr: string[], item: string): string[] {
 
 export function IssueTable({
   issues,
+  filterNamespace = "issues",
   onSelect,
   onNavigateToPrs,
   onNavigateToRepo,
@@ -91,7 +93,7 @@ export function IssueTable({
 
   const setFilter = useFiltersStore((s) => s.setFilter);
   const clearFilters = useFiltersStore((s) => s.clearFilters);
-  const storeFilters = useFiltersStore((s) => s.filters["issues"]);
+  const storeFilters = useFiltersStore((s) => s.filters[filterNamespace]);
 
   const filters = useMemo(
     () => ({
@@ -377,7 +379,7 @@ export function IssueTable({
                   {activeFilterCount > 0 && (
                     <button
                       type="button"
-                      onClick={() => clearFilters("issues")}
+                      onClick={() => clearFilters(filterNamespace)}
                       className="text-xs text-zinc-400 hover:text-zinc-200"
                     >
                       {t("issues.table.filter.clear")}
@@ -397,7 +399,7 @@ export function IssueTable({
                       <Switch
                         checked={filters.statuses.includes(status)}
                         onCheckedChange={() =>
-                          setFilter("issues", "statuses", toggleItem(filters.statuses, status))
+                          setFilter(filterNamespace, "statuses", toggleItem(filters.statuses, status))
                         }
                       />
                     </div>
@@ -412,7 +414,7 @@ export function IssueTable({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                         {t("issues.table.filter.repositories")}
                       </p>
-                      <Combobox items={allRepos} multiple value={filters.repos} onValueChange={(v) => setFilter("issues", "repos", v as string[])}>
+                      <Combobox items={allRepos} multiple value={filters.repos} onValueChange={(v) => setFilter(filterNamespace, "repos", v as string[])}>
                         <ComboboxChips className="min-h-8 text-xs">
                           <ComboboxValue>
                             {filters.repos.map((item) => (
@@ -440,7 +442,7 @@ export function IssueTable({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                         {t("issues.table.filter.labels")}
                       </p>
-                      <Combobox items={allLabels} multiple value={filters.labels} onValueChange={(v) => setFilter("issues", "labels", v as string[])}>
+                      <Combobox items={allLabels} multiple value={filters.labels} onValueChange={(v) => setFilter(filterNamespace, "labels", v as string[])}>
                         <ComboboxChips className="min-h-8 text-xs">
                           <ComboboxValue>
                             {filters.labels.map((item) => (
@@ -468,7 +470,7 @@ export function IssueTable({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                         {t("issues.table.filter.assignees")}
                       </p>
-                      <Combobox items={allAssignees} multiple value={filters.assignees} onValueChange={(v) => setFilter("issues", "assignees", v as string[])}>
+                      <Combobox items={allAssignees} multiple value={filters.assignees} onValueChange={(v) => setFilter(filterNamespace, "assignees", v as string[])}>
                         <ComboboxChips className="min-h-8 text-xs">
                           <ComboboxValue>
                             {filters.assignees.map((item) => (

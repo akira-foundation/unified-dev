@@ -502,9 +502,10 @@ export function RepositoryDetailPage() {
               description={t("pages.repositoryIssues.empty.description")}
             />
           ) : (
-            <IssueTable
-              issues={issues}
-              onSelect={(issue) => { setActiveIssue(issue); setIssueSheetOpen(true); }}
+             <IssueTable
+               issues={issues}
+               filterNamespace="repo-issues"
+               onSelect={(issue) => { setActiveIssue(issue); setIssueSheetOpen(true); }}
               onNavigateToPrs={(_, __, prNumber) => {
                 if (prNumber !== undefined) setTargetPrNumber(prNumber);
                 setTab("prs");
