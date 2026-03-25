@@ -48,6 +48,7 @@ interface CreateIssueDialogProps {
   issues?: IssueDto[];
   orgId?: string;
   repoName?: string;
+  providerName?: string;
 }
 
 const schema = z.object({
@@ -67,6 +68,7 @@ export function CreateIssueDialog({
   issues = [],
   orgId,
   repoName,
+  providerName,
 }: CreateIssueDialogProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -74,6 +76,7 @@ export function CreateIssueDialog({
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [assigneesOpen, setAssigneesOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [syncWithProvider, setSyncWithProvider] = useState(true);
   const [createMore, setCreateMore] = useState(false);
 
   const defaultRepoName =
@@ -88,6 +91,8 @@ export function CreateIssueDialog({
 
   useEffect(() => {
     if (!open) {
+      setSyncWithProvider(true);
+      setCreateMore(false);
       form.reset({
         repoName: orgId && repoName ? repoName : repos.length > 0 ? repos[0].repo_name : "",
         title: "",
@@ -269,6 +274,9 @@ export function CreateIssueDialog({
   }, [open, editor]);
 
   const repoNames = repos.map((r) => r.repo_name);
+  const syncLabel = providerName
+    ? t("issues.create.syncWithNamedProvider").replace("{provider}", providerName)
+    : t("issues.create.syncWithProvider");
   const watchedLabels = form.watch("labels") ?? [];
   const watchedAssignees = form.watch("assignees") ?? [];
 
@@ -375,7 +383,7 @@ export function CreateIssueDialog({
                     {...field}
                     autoFocus
                     placeholder={t("issues.create.titlePlaceholder")}
-                    className="w-full bg-transparent px-5 py-3 font-sans text-[2rem] font-[620] tracking-[-0.03em] text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
+                    className="block h-[52px] w-full bg-transparent px-5 py-2 font-sans text-[2rem] leading-[1.05] font-[620] tracking-[-0.03em] text-foreground placeholder:text-muted-foreground/30 focus:outline-none"
                   />
                 )}
               />
@@ -526,8 +534,12 @@ export function CreateIssueDialog({
                   <Paperclip className="size-4" />
                 </button>
 
-                <div className="ml-auto flex items-center gap-3">
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="ml-auto flex items-center gap-2.5">
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Switch checked={syncWithProvider} onCheckedChange={setSyncWithProvider} />
+                    <span>{syncLabel}</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Switch checked={createMore} onCheckedChange={setCreateMore} />
                     <span>{t("issues.create.createMore")}</span>
                   </label>
