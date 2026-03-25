@@ -28,6 +28,7 @@ import { useDateLabel } from "../hooks/use-date-label";
 import { useNavigationStore } from "../stores/navigation-store";
 import { repositorySelectionService } from "../services/repositorySelectionService";
 import { queryKeys } from "../lib/query-keys";
+import { cache } from "../config/cache";
 import { cn } from "../lib/utils";
 import type { PullRequestDto } from "../types/organization";
 import type { IssueDto } from "../types/issue";
@@ -49,7 +50,7 @@ export function RepositoryDetailPage() {
   const { data: allRepos = [] } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: 60_000,
+    staleTime: cache.staleTime.short,
   });
 
   const currentRepo = useMemo(
@@ -77,7 +78,7 @@ export function RepositoryDetailPage() {
         repoName: activeRepo!.name,
       }),
     enabled: !!activeRepo,
-    staleTime: 0,
+    staleTime: cache.staleTime.live,
   });
 
   const syncPrsMutation = useMutation({
@@ -114,7 +115,7 @@ export function RepositoryDetailPage() {
         repoName: activeRepo!.name,
       }),
     enabled: !!activeRepo,
-    staleTime: 0,
+    staleTime: cache.staleTime.live,
   });
 
   const syncIssuesMutation = useMutation({

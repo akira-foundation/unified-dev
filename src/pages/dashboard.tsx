@@ -23,6 +23,7 @@ import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { queryKeys } from "@/lib/query-keys";
+import { cache } from "@/config/cache";
 import { cn } from "@/lib/utils";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
 
@@ -38,7 +39,7 @@ export function DashboardPage() {
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: 60_000,
+    staleTime: cache.staleTime.short,
   });
 
   const totalOpenPrs = allRepos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
@@ -93,7 +94,7 @@ export function DashboardPage() {
               <button
                 onClick={() => setKanbanCompact((v) => !v)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                  "cursor-pointer flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
                   kanbanCompact
                     ? "border-zinc-600 bg-zinc-800 text-zinc-200"
                     : "border-zinc-200 bg-zinc-100/50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-500 hover:border-zinc-600 hover:text-zinc-300",
@@ -206,7 +207,7 @@ export function DashboardPage() {
                           <button
                             key={`${repo.organization_id}:${repo.repo_name}`}
                             onClick={() => handleRepoClick(repo)}
-                            className="w-full flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 text-left"
+                            className="w-full flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 text-left cursor-pointer"
                           >
                             <div className="flex items-center gap-4">
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
@@ -274,7 +275,7 @@ export function DashboardPage() {
                         <button
                           key={action.label}
                           onClick={action.onClick}
-                          className="group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
+                          className="cursor-pointer group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
                         >
                           <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-transform group-hover:scale-110", action.bg, action.color)}>
                             <action.icon size={20} />

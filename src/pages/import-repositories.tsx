@@ -7,7 +7,8 @@ import { PageLayout } from "../components/layout/page-layout";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Building2, ExternalLink, TriangleAlert } from "lucide-react";
+import { Building2, ExternalLink, RefreshCw, RotateCw, TriangleAlert } from "lucide-react";
+import { cache } from "../config/cache";
 import { Skeleton } from "../components/ui/skeleton";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "../hooks/useOrganizations";
@@ -36,6 +37,8 @@ export function ImportRepositoriesPage() {
 
   const [selectedOrg, setSelectedOrg] = useState<ProviderOrg | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [syncingOrgId, setSyncingOrgId] = useState<string | null>(null);
 
   // Query 1: imported repos (to filter out already-imported ones)
   const { data: importedRepos = [] } = useQuery({
@@ -87,6 +90,8 @@ export function ImportRepositoriesPage() {
         organizationLogin: orgLogin,
       }),
     enabled: !!organization?.provider_id && !!selectedOrg,
+    staleTime: cache.staleTime.long,
+    gcTime: cache.gcTime.long,
   });
 
   // Strip already-imported repos before passing to the table
@@ -94,6 +99,43 @@ export function ImportRepositoriesPage() {
     () => repos.filter((repo) => !importedRepoKeys.has(repoKey(repo))),
     [repos, importedRepoKeys],
   );
+
+  const handleRefreshRepos = async () => {
+    if (!organization?.provider_id) return;
+    setIsRefreshing(true);
+    const loadingToast = toast.loading(t("agents.sidebar.toast.syncingAll"));
+    try {
+      await queryClient.invalidateQueries({
+        queryKey: ["provider-repos", organization.provider_id],
+        refetchType: "all",
+      });
+      toast.success(t("agents.sidebar.toast.syncAllDone"), { id: loadingToast });
+    } catch {
+      toast.error(t("pages.importRepos.importFailed"), { id: loadingToast });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleSyncOrg = async (org: ProviderOrg) => {
+    if (!organization?.provider_id) return;
+    setSyncingOrgId(org.id);
+    const orgScope = org.kind === "personal" ? "personal" : "organization";
+    const orgLogin = org.kind === "organization" ? org.login : undefined;
+    const orgName = org.kind === "personal" ? t("pages.importRepos.personal") : org.login;
+    const loadingToast = toast.loading(t("pages.importRepos.syncingOrg").replace("{name}", orgName));
+    try {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.providerRepositories(organization.provider_id, orgScope, orgLogin),
+        refetchType: "all",
+      });
+      toast.success(t("pages.importRepos.syncedOrg").replace("{name}", orgName), { id: loadingToast });
+    } catch {
+      toast.error(t("pages.importRepos.importFailed"), { id: loadingToast });
+    } finally {
+      setSyncingOrgId(null);
+    }
+  };
 
   const importMutation = useMutation({
     mutationFn: (payload: Parameters<typeof repositorySelectionService.saveSelectedRepositories>[1]) =>
@@ -169,11 +211,19 @@ export function ImportRepositoriesPage() {
       {organization && (
         <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
           <Card className="h-[calc(100vh-20rem)]">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 {t("pages.importRepos.githubOrgs")}
               </CardTitle>
+              <button
+                onClick={handleRefreshRepos}
+                disabled={isRefreshing || isLoadingOrgs}
+                className="p-1 rounded text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                title={t("pages.importRepos.refresh")}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+              </button>
             </CardHeader>
             <CardContent className="flex flex-col p-2 gap-2 overflow-y-hidden custom-scrollbar h-[calc(100vh-20rem)]">
               {isLoadingOrgs && (
@@ -219,27 +269,39 @@ export function ImportRepositoriesPage() {
               )}
               {!isLoadingOrgs && !orgsErrorMessage &&
                 providerOrgs.map((org) => (
-                  <Button
+                  <div
                     key={org.id}
-                    variant={selectedOrg?.id === org.id ? "secondary" : "ghost"}
-                    className="justify-start gap-2"
-                    onClick={() => { setSelectedOrg(org); setSelectedKeys(new Set()); }}
+                    className="group/org relative"
                   >
-                    <span className="truncate">
-                      {org.kind === "personal" ? t("pages.importRepos.personal") : org.login}
-                    </span>
-                    {selectedOrg?.id === org.id ? (
-                      repos.length > 0 ? (
+                    <Button
+                      variant={selectedOrg?.id === org.id ? "secondary" : "ghost"}
+                      className="w-full justify-start gap-2 pr-8"
+                      onClick={() => { setSelectedOrg(org); setSelectedKeys(new Set()); }}
+                    >
+                      <span className="truncate">
+                        {org.kind === "personal" ? t("pages.importRepos.personal") : org.login}
+                      </span>
+                      {selectedOrg?.id === org.id ? (
+                        repos.length > 0 ? (
+                          <Badge variant="secondary" className="ml-auto text-[10px] uppercase">
+                            {repos.length} {t("pages.importRepos.reposCount")}
+                          </Badge>
+                        ) : null
+                      ) : (
                         <Badge variant="secondary" className="ml-auto text-[10px] uppercase">
-                          {repos.length} {t("pages.importRepos.reposCount")}
+                          {org.kind === "personal" ? t("pages.importRepos.scopeYou") : t("pages.importRepos.scopeOrg")}
                         </Badge>
-                      ) : null
-                    ) : (
-                      <Badge variant="secondary" className="ml-auto text-[10px] uppercase">
-                        {org.kind === "personal" ? t("pages.importRepos.scopeYou") : t("pages.importRepos.scopeOrg")}
-                      </Badge>
-                    )}
-                  </Button>
+                      )}
+                    </Button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); void handleSyncOrg(org); }}
+                      disabled={syncingOrgId === org.id}
+                      className="hidden group-hover/org:flex absolute right-1.5 top-1/2 -translate-y-1/2 items-center justify-center p-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                      title={t("common.sync")}
+                    >
+                      <RotateCw className={`h-3 w-3 ${syncingOrgId === org.id ? "animate-spin" : ""}`} />
+                    </button>
+                  </div>
                 ))}
             </CardContent>
           </Card>

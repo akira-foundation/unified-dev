@@ -49,7 +49,7 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
         accessorFn: (row) => row.repo_name,
         header: ({ column }) => (
           <button
-            className="flex items-center"
+            className="flex items-center cursor-pointer"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             {t("tables.header.name")}
@@ -95,7 +95,7 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
         header: ({ column }) => (
           <div className="flex justify-center">
             <button
-              className="flex items-center"
+              className="flex items-center cursor-pointer"
               onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             >
               {t("tables.header.prs")}
@@ -131,7 +131,7 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
         header: ({ column }) => (
           <div className="flex justify-end">
             <button
-              className="flex items-center"
+              className="flex items-center cursor-pointer"
               onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             >
               {t("tables.header.visibility")}

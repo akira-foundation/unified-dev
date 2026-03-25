@@ -19,6 +19,7 @@ import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useNavigationStore } from "../stores/navigation-store";
 import { queryKeys } from "../lib/query-keys";
+import { cache } from "../config/cache";
 import type { PullRequestDto } from "../types/organization";
 
 export function RepositoryPRsPage() {
@@ -37,7 +38,7 @@ export function RepositoryPRsPage() {
         repoName: activeRepo!.name,
       }),
     enabled: !!activeRepo,
-    staleTime: 0,
+    staleTime: cache.staleTime.live,
   });
 
   useEffect(() => {

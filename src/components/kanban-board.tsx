@@ -26,6 +26,7 @@ import { repositorySelectionService } from "@/services/repositorySelectionServic
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useKanbanStore } from "@/stores/useKanbanStore";
 import { queryKeys } from "@/lib/query-keys";
+import { cache } from "@/config/cache";
 import type { OrganizationRepoWithOrg, PullRequestDto } from "@/types/organization";
 
 type ColumnId = "todo" | "review" | "inprogress" | "done";
@@ -77,7 +78,7 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: 60_000,
+    staleTime: cache.staleTime.short,
   });
 
   const prQueries = useQueries({
@@ -88,7 +89,7 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
           organizationId: repo.organization_id,
           repoName: repo.repo_name,
         }),
-      staleTime: 30_000,
+      staleTime: cache.staleTime.realtime,
     })),
   });
 

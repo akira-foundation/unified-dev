@@ -60,7 +60,7 @@ export function IssueTable({
         accessorKey: "title",
         header: ({ column }) => (
           <button
-            className="flex items-center"
+            className="flex items-center cursor-pointer"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             {t("tables.header.issue")}
@@ -92,7 +92,7 @@ export function IssueTable({
         accessorKey: "number",
         header: ({ column }) => (
           <button
-            className="flex items-center"
+            className="flex items-center cursor-pointer"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             PR
@@ -124,7 +124,7 @@ export function IssueTable({
         accessorKey: "repoName",
         header: ({ column }) => (
           <button
-            className="flex items-center"
+            className="flex items-center cursor-pointer"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             {t("tables.header.repository")}
@@ -155,7 +155,7 @@ export function IssueTable({
         accessorKey: "status",
         header: ({ column }) => (
           <button
-            className="flex items-center"
+            className="flex items-center cursor-pointer"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             {t("tables.header.status")}
@@ -181,7 +181,7 @@ export function IssueTable({
         accessorKey: "updatedAt",
         header: ({ column }) => (
           <button
-            className="flex items-center"
+            className="flex items-center cursor-pointer"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
             {t("tables.header.updated")}

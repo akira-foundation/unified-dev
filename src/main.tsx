@@ -5,6 +5,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import App from "./App";
 import { initializeTheme } from "./hooks/use-appearance";
 import { I18nProvider } from "./i18n/i18n";
+import { cache } from "./config/cache";
 import "./App.css";
 import "highlight.js/styles/github-dark-dimmed.css";
 
@@ -13,8 +14,8 @@ initializeTheme();
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 15 * 60 * 1000,
+      staleTime: cache.staleTime.default,
+      gcTime: cache.gcTime.default,
       retry: 1,
     },
   },

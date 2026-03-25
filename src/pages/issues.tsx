@@ -21,6 +21,7 @@ import { useDateLabel } from "@/hooks/use-date-label";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { queryKeys } from "@/lib/query-keys";
+import { cache } from "@/config/cache";
 import type { IssueDto } from "@/types/issue";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
 
@@ -39,7 +40,7 @@ export function IssuesPage() {
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: 60_000,
+    staleTime: cache.staleTime.short,
   });
 
   const issueQueries = useQueries({
@@ -50,7 +51,7 @@ export function IssuesPage() {
           orgId: repo.organization_id,
           repoName: repo.repo_name,
         }),
-      staleTime: 60_000,
+      staleTime: cache.staleTime.short,
     })),
   });
 

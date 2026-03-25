@@ -193,7 +193,16 @@ export function DiffViewer({ files }: DiffViewerProps) {
                     </div>
 
                     <div
-                      onClick={(e) => { e.stopPropagation(); if (storeKey) toggleViewedFile(storeKey, file.filename); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (storeKey) {
+                          const wasViewed = isViewed(storeKey, file.filename);
+                          toggleViewedFile(storeKey, file.filename);
+                          if (!wasViewed && selectedIssueId) {
+                            setFileCollapsed(selectedIssueId, file.filename, true);
+                          }
+                        }
+                      }}
                       className={cn(
                         "h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer shrink-0",
                         storeKey && isViewed(storeKey, file.filename)

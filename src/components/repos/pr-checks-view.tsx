@@ -7,6 +7,7 @@ import { Skeleton } from "../ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { useI18n } from "../../i18n/i18n";
 import { queryKeys } from "../../lib/query-keys";
+import { cache } from "../../config/cache";
 import { highlightLine } from "../../lib/ansi-highlight";
 import type { CiCheckDto, CiCheckStepDto } from "../../types/organization";
 
@@ -183,7 +184,7 @@ function CheckItem({
       return logs;
     },
     enabled: open && hasSteps && check.status === "completed",
-    staleTime: 5 * 60 * 1000,
+    staleTime: cache.staleTime.default,
   });
 
   const logsByStep = rawLogs ? parseLogsByStep(rawLogs, check.steps) : undefined;
