@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::db::models::{OrganizationRecord, OrganizationSummary, UpdateOrganizationInput};
+use crate::db::inputs::UpdateOrganizationInput;
+use crate::db::models::{OrganizationRecord, OrganizationSummary};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -11,7 +12,6 @@ pub trait OrganizationRepository: Send + Sync {
     async fn delete(&self, organization_id: &str) -> AppResult<()>;
     async fn list(&self) -> AppResult<Vec<OrganizationSummary>>;
     async fn list_by_provider(&self, provider_id: &str) -> AppResult<Vec<OrganizationSummary>>;
-    async fn count_by_provider(&self, provider_id: &str) -> AppResult<i64>;
 }
 
 pub struct SqliteOrganizationRepository {
@@ -92,16 +92,5 @@ impl OrganizationRepository for SqliteOrganizationRepository {
         .await?;
 
         Ok(organizations)
-    }
-
-    async fn count_by_provider(&self, provider_id: &str) -> AppResult<i64> {
-        let count = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(1) FROM organizations WHERE provider_id = ?",
-        )
-        .bind(provider_id)
-        .fetch_one(&self.pool)
-        .await?;
-
-        Ok(count)
     }
 }

@@ -1,7 +1,8 @@
 use tauri::State;
 
 use crate::providers::shared::types::IssueDto;
-use crate::db::models::{CreateIssueInput, IssueRecord, UpdateIssueInput};
+use crate::db::inputs::{CreateIssueInput, UpdateIssueInput};
+use crate::db::models::IssueRecord;
 use crate::state::AppState;
 
 async fn get_provider(

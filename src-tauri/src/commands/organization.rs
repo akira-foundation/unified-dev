@@ -3,10 +3,8 @@ use std::sync::Arc;
 use futures_util::future::join_all;
 use tauri::State;
 
-use crate::db::models::{
-    CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
-    UpdateOrganizationInput,
-};
+use crate::db::inputs::{CreateOrganizationInput, SelectedRepositoryInput, UpdateOrganizationInput};
+use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary};
 use crate::providers::shared::types::{BranchDto, CiCheckDto, PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
 use crate::state::AppState;
 

@@ -3,7 +3,8 @@ use std::sync::Arc;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 
-use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg, SelectedRepositoryInput};
+use crate::db::inputs::SelectedRepositoryInput;
+use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg};
 use crate::db::organization_repo_repository::OrganizationRepoRepository;
 use crate::error::AppResult;
 

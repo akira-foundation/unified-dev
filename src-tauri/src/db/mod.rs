@@ -6,10 +6,22 @@ use tauri::Manager;
 
 use crate::error::AppResult;
 
+pub mod inputs;
 pub mod models;
-pub mod organization_repository;
-pub mod organization_repo_repository;
-pub mod provider_repository;
+pub mod providers;
+pub mod organizations;
+pub mod organization_repos;
+
+// Path aliases — keep old module paths working for existing callers
+pub mod provider_repository {
+    pub use super::providers::*;
+}
+pub mod organization_repository {
+    pub use super::organizations::*;
+}
+pub mod organization_repo_repository {
+    pub use super::organization_repos::*;
+}
 
 fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;

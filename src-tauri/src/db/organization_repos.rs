@@ -1,7 +1,8 @@
 use async_trait::async_trait;
 use sqlx::SqlitePool;
 
-use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg, SelectedRepositoryInput};
+use crate::db::inputs::SelectedRepositoryInput;
+use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg};
 use crate::error::AppResult;
 
 #[async_trait]

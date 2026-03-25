@@ -4,7 +4,8 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::db::models::{CreateOrganizationInput, OrganizationRecord, OrganizationSummary, UpdateOrganizationInput};
+use crate::db::inputs::{CreateOrganizationInput, UpdateOrganizationInput};
+use crate::db::models::{OrganizationRecord, OrganizationSummary};
 use crate::db::organization_repository::OrganizationRepository;
 use crate::db::provider_repository::ProviderRepository;
 use crate::error::{AppError, AppResult};
