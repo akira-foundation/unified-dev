@@ -10,7 +10,7 @@ use crate::ai::tools::{execute_tool, tool_definitions_anthropic, tool_label};
 use crate::chat::stream::{emit_tool_call, StreamToolCallPayload};
 use crate::error::{AppError, AppResult};
 
-pub struct AnthropicAdapter;
+pub struct AnthropicProvider;
 
 fn resolve_model_id(model: &str) -> &str {
     match model {
@@ -21,12 +21,8 @@ fn resolve_model_id(model: &str) -> &str {
     }
 }
 
-impl AnthropicAdapter {
-    async fn run(
-        &self,
-        request: &AiRequest,
-        app: &AppHandle,
-    ) -> AppResult<String> {
+impl AnthropicProvider {
+    async fn run(&self, request: &AiRequest, app: &AppHandle) -> AppResult<String> {
         let api_key = resolve_env_key("ANTHROPIC_API_KEY").ok_or_else(|| {
             AppError::Internal(
                 "ANTHROPIC_API_KEY is not set. Add it to your shell config (e.g. ~/.zshrc) or environment.".to_string(),
@@ -134,7 +130,7 @@ impl AnthropicAdapter {
 }
 
 #[async_trait]
-impl AiProvider for AnthropicAdapter {
+impl AiProvider for AnthropicProvider {
     fn id(&self) -> &str {
         "anthropic"
     }

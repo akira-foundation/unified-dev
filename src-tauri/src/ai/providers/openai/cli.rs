@@ -6,7 +6,7 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::chat::stream::{emit_token, emit_tool_call, StreamToolCallPayload};
 use crate::error::{AppError, AppResult};
 
-pub struct CodexCliAdapter;
+pub struct OpenAiCliProvider;
 
 fn find_codex_cli() -> Option<std::path::PathBuf> {
     let home = dirs::home_dir();
@@ -25,7 +25,7 @@ fn find_codex_cli() -> Option<std::path::PathBuf> {
     candidates.into_iter().find(|p| p.exists())
 }
 
-impl CodexCliAdapter {
+impl OpenAiCliProvider {
     async fn run(&self, request: &AiRequest, app: &AppHandle) -> AppResult<String> {
         let codex_bin = find_codex_cli().ok_or_else(|| {
             AppError::Internal(
@@ -33,7 +33,6 @@ impl CodexCliAdapter {
             )
         })?;
 
-        // FIX: prepend system prompt to stdin so the CLI has the workspace context.
         let mut prompt_parts: Vec<String> =
             vec![format!("System: {}", request.system_prompt)];
         for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
@@ -173,9 +172,9 @@ impl CodexCliAdapter {
 }
 
 #[async_trait]
-impl AiProvider for CodexCliAdapter {
+impl AiProvider for OpenAiCliProvider {
     fn id(&self) -> &str {
-        "codex_cli"
+        "openai_cli"
     }
 
     fn supports_model(&self, _model: &str) -> bool {

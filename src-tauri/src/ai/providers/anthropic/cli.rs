@@ -6,9 +6,9 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::chat::stream::emit_token;
 use crate::error::{AppError, AppResult};
 
-pub struct ClaudeCliAdapter;
+pub struct AnthropicCliProvider;
 
-fn find_claude_cli() -> Option<std::path::PathBuf> {
+pub fn find_claude_cli() -> Option<std::path::PathBuf> {
     let home = dirs::home_dir();
     let mut candidates: Vec<std::path::PathBuf> = vec![
         std::path::PathBuf::from("/usr/local/bin/claude"),
@@ -34,7 +34,7 @@ fn resolve_cli_model(model: &str) -> &str {
     }
 }
 
-impl ClaudeCliAdapter {
+impl AnthropicCliProvider {
     async fn run(&self, request: &AiRequest, app: &AppHandle) -> AppResult<String> {
         let claude_bin = find_claude_cli().ok_or_else(|| {
             AppError::Internal(
@@ -185,9 +185,9 @@ impl ClaudeCliAdapter {
 }
 
 #[async_trait]
-impl AiProvider for ClaudeCliAdapter {
+impl AiProvider for AnthropicCliProvider {
     fn id(&self) -> &str {
-        "claude_cli"
+        "anthropic_cli"
     }
 
     fn supports_model(&self, _model: &str) -> bool {

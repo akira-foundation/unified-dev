@@ -11,11 +11,9 @@ use crate::chat::stream::{emit_tool_call, StreamToolCallPayload};
 use crate::error::{AppError, AppResult};
 
 /// Calls the OpenAI Responses API directly using the Codex CLI's stored token.
-/// FIX: previously used stream_openai_sse_with_tools (chat completions parser)
-///      but the endpoint is /v1/responses — now correctly uses stream_responses_sse.
-pub struct CodexAdapter;
+pub struct OpenAiProvider;
 
-impl CodexAdapter {
+impl OpenAiProvider {
     async fn run(&self, request: &AiRequest, app: &AppHandle) -> AppResult<String> {
         let access_token = read_codex_access_token().ok_or_else(|| {
             AppError::Internal(
@@ -58,7 +56,7 @@ impl CodexAdapter {
             if !response.status().is_success() {
                 let status = response.status();
                 let text = response.text().await.unwrap_or_default();
-                return Err(AppError::Internal(format!("Codex API error {status}: {text}")));
+                return Err(AppError::Internal(format!("OpenAI API error {status}: {text}")));
             }
 
             let (text_in_turn, tool_calls) =
@@ -113,13 +111,13 @@ impl CodexAdapter {
 }
 
 #[async_trait]
-impl AiProvider for CodexAdapter {
+impl AiProvider for OpenAiProvider {
     fn id(&self) -> &str {
-        "codex"
+        "openai"
     }
 
     fn supports_model(&self, _model: &str) -> bool {
-        // Only used as a direct fallback; never selected by the registry.
+        // Only used as a direct fallback in the Anthropic chain; never selected by the registry.
         false
     }
 

@@ -2,7 +2,7 @@ use sqlx::SqlitePool;
 use tauri::AppHandle;
 
 use crate::ai::provider::AiRequest;
-use crate::ai::registry::dispatch;
+use crate::ai::providers::default_registry;
 use crate::ai::system_prompt::{build_action_system_prompt, build_system_prompt};
 use crate::chat::messages::{get_messages, save_message};
 use crate::chat::stream::{emit_done, emit_error};
@@ -89,7 +89,7 @@ pub async fn send_message(
         workspace_path: thread_ctx.workspace_path,
     };
 
-    match dispatch(request, &app).await {
+    match default_registry().dispatch(request, &app).await {
         Ok(response_text) => {
             // Silent actions are automation — only save a brief summary to the chat
             // so the user can see what happened (e.g. the PR URL), not the full
