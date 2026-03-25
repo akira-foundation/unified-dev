@@ -607,6 +607,7 @@ export function RepositoryDetailPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         repos={allRepos}
+        issues={issues}
         orgId={activeRepo.organizationId}
         repoName={activeRepo.name}
       />

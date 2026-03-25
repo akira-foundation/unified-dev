@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -112,6 +113,32 @@ export function IssuesPage() {
     setCreateOpen(true);
   }
 
+  const deleteIssueMutation = useMutation({
+    mutationFn: (issue: IssueDto) => {
+      const repo = allRepos.find(
+        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
+      );
+      return invoke("delete_issue", {
+        orgId: repo?.organization_id ?? issue.orgId,
+        repoName: issue.repoName,
+        number: issue.number,
+      });
+    },
+    onSuccess: (_, issue) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.issues(issue.orgId, issue.repoName),
+      });
+    },
+  });
+
+  async function handleOpenUrl(url: string) {
+    try {
+      await openUrl(url);
+    } catch {
+      window.open(url, "_blank");
+    }
+  }
+
   return (
     <PageLayout>
       <PageHeader>
@@ -164,6 +191,8 @@ export function IssuesPage() {
             onSync={() => syncMutation.mutate()}
             isSyncing={syncMutation.isPending}
             disableSync={allRepos.length === 0}
+            onOpenUrl={handleOpenUrl}
+            onDelete={(issue) => deleteIssueMutation.mutateAsync(issue).then(() => undefined)}
           />
         ) : (
           <IssueKanban issues={allIssues} onSelect={handleSelectIssue} />
@@ -180,6 +209,7 @@ export function IssuesPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         repos={allRepos}
+        issues={allIssues}
       />
     </PageLayout>
   );
