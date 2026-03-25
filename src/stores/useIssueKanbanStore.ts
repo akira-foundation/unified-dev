@@ -23,7 +23,7 @@ export const useIssueKanbanStore = create<IssueKanbanState>()(
         }),
     }),
     {
-      name: "akira_issue_kanban_overrides",
+      name: "unified_dev_issue_kanban_overrides",
       storage: createJSONStorage(() => localStorage),
     },
   ),

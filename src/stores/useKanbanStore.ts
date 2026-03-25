@@ -26,7 +26,7 @@ export const useKanbanStore = create<KanbanState>()(
         }),
     }),
     {
-      name: "akira_kanban_overrides",
+      name: "unified_dev_kanban_overrides",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ overrides: state.overrides }),
     },

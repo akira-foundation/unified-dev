@@ -35,7 +35,7 @@ export const useViewedFilesStore = create<ViewedFilesState>()(
       },
     }),
     {
-      name: "akira_viewed_files",
+      name: "unified_dev_viewed_files",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ viewedByKey: state.viewedByKey }),
     },

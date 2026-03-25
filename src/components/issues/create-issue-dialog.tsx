@@ -16,7 +16,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Combobox } from "@/components/ui/combobox";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import {
   Form,
   FormControl,
@@ -142,13 +149,23 @@ export function CreateIssueDialog({
                   <FormLabel>{t("issues.create.repoLabel")}</FormLabel>
                   <FormControl>
                     <Combobox
-                      options={repos.map((repo) => ({ value: repoKey(repo), label: repo.repo_name }))}
+                      items={repos.map((repo) => repoKey(repo))}
+                      itemToStringValue={(item) => repos.find((r) => repoKey(r) === item)?.repo_name ?? item}
                       value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder={t("issues.create.repoPlaceholder")}
-                      searchPlaceholder={t("issues.create.repoPlaceholder")}
-                      className="w-full"
-                    />
+                      onValueChange={(v) => field.onChange(v)}
+                    >
+                      <ComboboxInput placeholder={t("issues.create.repoPlaceholder")} className="w-full" />
+                      <ComboboxContent>
+                        <ComboboxEmpty>{t("issues.create.repoPlaceholder")}</ComboboxEmpty>
+                        <ComboboxList>
+                          {repos.map((repo) => (
+                            <ComboboxItem key={repoKey(repo)} value={repoKey(repo)}>
+                              {repo.repo_name}
+                            </ComboboxItem>
+                          ))}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

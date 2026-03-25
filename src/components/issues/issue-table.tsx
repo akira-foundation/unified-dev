@@ -7,13 +7,28 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { useFiltersStore } from "../../stores/filters-store";
 import { useI18n } from "../../i18n/i18n";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
+import { Switch } from "../ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import {
+  Combobox,
+  ComboboxChips,
+  ComboboxChip,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from "../ui/combobox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +69,10 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
   return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-40" />;
 }
 
+function toggleItem(arr: string[], item: string): string[] {
+  return arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
+}
+
 export function IssueTable({
   issues,
   onSelect,
@@ -67,9 +86,53 @@ export function IssueTable({
 }: IssueTableProps) {
   const { t } = useI18n();
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
   const [issueToDelete, setIssueToDelete] = useState<IssueDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const setFilter = useFiltersStore((s) => s.setFilter);
+  const clearFilters = useFiltersStore((s) => s.clearFilters);
+  const storeFilters = useFiltersStore((s) => s.filters["issues"]);
+
+  const filters = useMemo(
+    () => ({
+      statuses: storeFilters?.statuses ?? [],
+      labels: storeFilters?.labels ?? [],
+      assignees: storeFilters?.assignees ?? [],
+      repos: storeFilters?.repos ?? [],
+    }),
+    [storeFilters],
+  );
+
+  const allLabels = useMemo(() => {
+    const set = new Set<string>();
+    issues.forEach((i) => i.labels.forEach((l) => set.add(l)));
+    return Array.from(set).sort();
+  }, [issues]);
+
+  const allAssignees = useMemo(() => {
+    const set = new Set<string>();
+    issues.forEach((i) => i.assignees.forEach((a) => set.add(a)));
+    return Array.from(set).sort();
+  }, [issues]);
+
+  const allRepos = useMemo(() => {
+    const set = new Set<string>();
+    issues.forEach((i) => set.add(i.repoName));
+    return Array.from(set).sort();
+  }, [issues]);
+
+  const activeFilterCount =
+    filters.statuses.length + filters.labels.length + filters.assignees.length + filters.repos.length;
+
+  const filteredIssues = useMemo(() => {
+    return issues.filter((issue) => {
+      if (filters.statuses.length > 0 && !filters.statuses.includes(issue.status)) return false;
+      if (filters.labels.length > 0 && !filters.labels.some((l) => issue.labels.includes(l))) return false;
+      if (filters.assignees.length > 0 && !filters.assignees.some((a) => issue.assignees.includes(a))) return false;
+      if (filters.repos.length > 0 && !filters.repos.includes(issue.repoName)) return false;
+      return true;
+    });
+  }, [issues, filters]);
 
   const columns = useMemo<ColumnDef<IssueDto>[]>(
     () => [
@@ -95,10 +158,7 @@ export function IssueTable({
             {row.original.labels.length > 0 && (
               <div className="flex items-center gap-1 flex-wrap">
                 {row.original.labels.slice(0, 3).map((label) => (
-                  <LabelBadge
-                    key={label}
-                    name={label}
-                  />
+                  <LabelBadge key={label} name={label} />
                 ))}
               </div>
             )}
@@ -246,11 +306,10 @@ export function IssueTable({
   );
 
   const table = useReactTable({
-    data: issues,
+    data: filteredIssues,
     columns,
-    state: { sorting, globalFilter },
+    state: { sorting },
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -285,17 +344,151 @@ export function IssueTable({
                 {t("issues.page.title")}
               </span>
               <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
-                {table.getFilteredRowModel().rows.length} {t("issues.page.total")}
+                {filteredIssues.length} {t("issues.page.total")}
               </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {onSync && (
-              <Button variant="outline" onClick={onSync} disabled={isSyncing || disableSync}>
-                <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-                {t("issues.table.syncIssues")}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" onClick={onSync} disabled={isSyncing || disableSync}>
+                    <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("issues.table.syncIssues")}</TooltipContent>
+              </Tooltip>
             )}
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="icon" className="relative">
+                  <Filter className="h-4 w-4" />
+                  {activeFilterCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-purple-500 text-[10px] font-bold text-white flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-0">
+                <div className="flex items-center justify-between px-3 py-2">
+                  <span className="text-sm font-semibold">{t("issues.table.filter")}</span>
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => clearFilters("issues")}
+                      className="text-xs text-zinc-400 hover:text-zinc-200"
+                    >
+                      {t("issues.table.filter.clear")}
+                    </button>
+                  )}
+                </div>
+                <div className="border-t border-border" />
+
+                {/* Status */}
+                <div className="px-3 py-2 space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                    {t("issues.table.filter.status")}
+                  </p>
+                  {(["open", "closed"] as const).map((status) => (
+                    <div key={status} className="flex items-center justify-between">
+                      <span className="text-sm capitalize">{t(`issues.table.filter.${status}`)}</span>
+                      <Switch
+                        checked={filters.statuses.includes(status)}
+                        onCheckedChange={() =>
+                          setFilter("issues", "statuses", toggleItem(filters.statuses, status))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Repositories */}
+                {allRepos.length > 1 && (
+                  <>
+                    <div className="border-t border-border" />
+                    <div className="px-3 py-2 space-y-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        {t("issues.table.filter.repositories")}
+                      </p>
+                      <Combobox items={allRepos} multiple value={filters.repos} onValueChange={(v) => setFilter("issues", "repos", v as string[])}>
+                        <ComboboxChips className="min-h-8 text-xs">
+                          <ComboboxValue>
+                            {filters.repos.map((item) => (
+                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                            ))}
+                          </ComboboxValue>
+                          <ComboboxChipsInput placeholder={t("issues.table.filter.repoSearch")} className="text-xs" />
+                        </ComboboxChips>
+                        <ComboboxContent>
+                          <ComboboxEmpty>No results.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
+                    </div>
+                  </>
+                )}
+
+                {/* Labels */}
+                {allLabels.length > 0 && (
+                  <>
+                    <div className="border-t border-border" />
+                    <div className="px-3 py-2 space-y-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        {t("issues.table.filter.labels")}
+                      </p>
+                      <Combobox items={allLabels} multiple value={filters.labels} onValueChange={(v) => setFilter("issues", "labels", v as string[])}>
+                        <ComboboxChips className="min-h-8 text-xs">
+                          <ComboboxValue>
+                            {filters.labels.map((item) => (
+                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                            ))}
+                          </ComboboxValue>
+                          <ComboboxChipsInput placeholder={t("issues.table.filter.labelSearch")} className="text-xs" />
+                        </ComboboxChips>
+                        <ComboboxContent>
+                          <ComboboxEmpty>No results.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
+                    </div>
+                  </>
+                )}
+
+                {/* Assignees */}
+                {allAssignees.length > 0 && (
+                  <>
+                    <div className="border-t border-border" />
+                    <div className="px-3 py-2 space-y-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                        {t("issues.table.filter.assignees")}
+                      </p>
+                      <Combobox items={allAssignees} multiple value={filters.assignees} onValueChange={(v) => setFilter("issues", "assignees", v as string[])}>
+                        <ComboboxChips className="min-h-8 text-xs">
+                          <ComboboxValue>
+                            {filters.assignees.map((item) => (
+                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                            ))}
+                          </ComboboxValue>
+                          <ComboboxChipsInput placeholder={t("issues.table.filter.assigneeSearch")} className="text-xs" />
+                        </ComboboxChips>
+                        <ComboboxContent>
+                          <ComboboxEmpty>No results.</ComboboxEmpty>
+                          <ComboboxList>
+                            {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                          </ComboboxList>
+                        </ComboboxContent>
+                      </Combobox>
+                    </div>
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
