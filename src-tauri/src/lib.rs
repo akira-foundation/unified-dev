@@ -15,8 +15,10 @@ mod threads;
 
 use std::sync::Arc;
 
-use commands::agent_commands::{agents_get_messages, agents_send_message, check_pr_url, create_draft_pr, discard_file_changes, get_available_models, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
-use commands::organization_commands::{
+use commands::agent::{agents_get_messages, agents_send_message, get_available_models};
+use commands::workspace::{check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
+use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue};
+use commands::organization::{
     create_organization, delete_organization, get_job_logs, get_pr_checks, get_pr_comments, get_pr_files,
     list_all_selected_repositories, list_organizations, list_organizations_by_provider,
     list_selected_repositories, list_repo_pull_requests, list_repo_branches, create_repo_branch,
@@ -24,17 +26,16 @@ use commands::organization_commands::{
     save_selected_repositories, submit_pr_review, sync_repository_stats, sync_single_repo_stats,
     update_organization,
 };
-use commands::provider_commands::{
+use commands::provider::{
     connect_github, create_provider, delete_provider, list_provider_organizations, list_provider_repositories,
     list_providers, test_provider_connection, update_provider_auth,
 };
-use commands::terminal_commands::{
+use commands::terminal::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
 };
-use commands::repository_commands::{add_local_repository, add_remote_repository, delete_local_repository, create_thread, delete_thread, list_repositories, set_thread_pr_url};
-use commands::prompt_commands::{get_prompts, save_prompt, reset_prompt};
-use commands::skill_commands::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
-use commands::issue_commands::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue};
+use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository, create_thread, delete_thread, list_repositories, set_thread_pr_url};
+use commands::prompt::{get_prompts, save_prompt, reset_prompt};
+use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
 use db::organization_repo_repository::SqliteOrganizationRepoRepository;
 use db::organization_repository::SqliteOrganizationRepository;
 use db::provider_repository::SqliteProviderRepository;

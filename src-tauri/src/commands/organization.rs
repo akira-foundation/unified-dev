@@ -140,7 +140,6 @@ pub async fn sync_repository_stats(
         Err(_) => return Ok(()),
     };
 
-    // Fetch fresh repo metadata (default_branch, visibility) for all unique owners
     let unique_owners: Vec<String> = {
         let mut seen = std::collections::HashSet::new();
         repos.iter().filter_map(|r| seen.insert(r.owner.clone()).then(|| r.owner.clone())).collect()
@@ -363,7 +362,6 @@ pub async fn list_repo_pull_requests(
         .collect())
 }
 
-/// Shared helper: resolve owner + provider for a given org + repo_name
 async fn resolve_pr_provider(
     state: &crate::state::AppState,
     organization_id: &str,

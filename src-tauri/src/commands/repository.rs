@@ -84,7 +84,6 @@ pub async fn set_thread_pr_url(
     .execute(&state.db_pool)
     .await?;
 
-    // Increment open_prs_count for the matching organization_repo
     let repo_name: Option<String> = sqlx::query_scalar(
         "SELECT lr.name FROM threads t JOIN local_repositories lr ON lr.id = t.repo_id WHERE t.id = ?",
     )

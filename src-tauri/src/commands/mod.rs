@@ -1,8 +1,9 @@
-pub mod agent_commands;
-pub mod issue_commands;
-pub mod organization_commands;
-pub mod prompt_commands;
-pub mod provider_commands;
-pub mod repository_commands;
-pub mod skill_commands;
-pub mod terminal_commands;
+pub mod agent;
+pub mod issue;
+pub mod organization;
+pub mod prompt;
+pub mod provider;
+pub mod repository;
+pub mod skill;
+pub mod terminal;
+pub mod workspace;

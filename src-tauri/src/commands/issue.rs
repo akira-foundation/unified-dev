@@ -4,8 +4,6 @@ use crate::core::provider::types::IssueDto;
 use crate::db::models::{CreateIssueInput, IssueRecord, UpdateIssueInput};
 use crate::state::AppState;
 
-// ── helpers ─────────────────────────────────────────────────────────────────
-
 async fn get_provider(
     state: &AppState,
     org_id: &str,
@@ -60,8 +58,6 @@ fn record_to_dto(r: IssueRecord) -> IssueDto {
         synced_at: r.synced_at,
     }
 }
-
-// ── commands ────────────────────────────────────────────────────────────────
 
 /// Fetch issues from the provider and upsert them into the local DB,
 /// then return the cached records.
