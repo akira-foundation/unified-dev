@@ -6,8 +6,8 @@ use uuid::Uuid;
 
 use crate::db::inputs::{CreateOrganizationInput, UpdateOrganizationInput};
 use crate::db::models::{OrganizationRecord, OrganizationSummary};
-use crate::db::organization_repository::OrganizationRepository;
-use crate::db::provider_repository::ProviderRepository;
+use crate::db::organizations::OrganizationRepository;
+use crate::db::providers::ProviderRepository;
 use crate::error::{AppError, AppResult};
 
 pub struct OrganizationService {

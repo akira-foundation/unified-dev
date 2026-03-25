@@ -10,8 +10,8 @@ use crate::db::inputs::{
     UpdateProviderAuthInput,
 };
 use crate::db::models::{ProviderRecord, ProviderSummary};
-use crate::db::organization_repository::OrganizationRepository;
-use crate::db::provider_repository::ProviderRepository;
+use crate::db::organizations::OrganizationRepository;
+use crate::db::providers::ProviderRepository;
 use crate::error::{AppError, AppResult};
 use crate::security::TokenCipher;
 

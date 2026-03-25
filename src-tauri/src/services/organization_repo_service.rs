@@ -5,7 +5,7 @@ use time::OffsetDateTime;
 
 use crate::db::inputs::SelectedRepositoryInput;
 use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg};
-use crate::db::organization_repo_repository::OrganizationRepoRepository;
+use crate::db::organization_repos::OrganizationRepoRepository;
 use crate::error::AppResult;
 
 pub struct OrganizationRepoService {

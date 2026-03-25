@@ -35,9 +35,9 @@ use commands::terminal::{
 use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository, create_thread, delete_thread, list_repositories, set_thread_pr_url};
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
-use db::organization_repo_repository::SqliteOrganizationRepoRepository;
-use db::organization_repository::SqliteOrganizationRepository;
-use db::provider_repository::SqliteProviderRepository;
+use db::organization_repos::SqliteOrganizationRepoRepository;
+use db::organizations::SqliteOrganizationRepository;
+use db::providers::SqliteProviderRepository;
 use providers::default_registry;
 use security::{KeyStore, TokenCipher};
 use services::organization_repo_service::OrganizationRepoService;
