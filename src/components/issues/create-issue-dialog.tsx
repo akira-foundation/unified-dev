@@ -4,7 +4,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Tag, UserCircle2, X, Check, Maximize2, Minimize2 } from "lucide-react";
+import { ChevronDown, Tag, UserCircle2, X, Check, Maximize2, Minimize2, MoreHorizontal, Paperclip } from "lucide-react";
 import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -20,6 +20,7 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
   Popover,
   PopoverContent,
@@ -73,6 +74,7 @@ export function CreateIssueDialog({
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [assigneesOpen, setAssigneesOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [createMore, setCreateMore] = useState(false);
 
   const defaultRepoName =
     orgId && repoName ? repoName : repos.length > 0 ? repos[0].repo_name : "";
@@ -139,6 +141,18 @@ export function CreateIssueDialog({
       if (repo) {
         queryClient.invalidateQueries({ queryKey: queryKeys.issues(repo.organization_id, repo.repo_name) });
       }
+      if (createMore) {
+        form.reset({
+          repoName: values.repoName,
+          title: "",
+          body: "",
+          labels: [],
+          assignees: [],
+        });
+        editor?.commands.clearContent();
+        return;
+      }
+
       onOpenChange(false);
     },
     onError: (err) => {
@@ -245,7 +259,7 @@ export function CreateIssueDialog({
       const md: string = e.storage.markdown?.getMarkdown?.() ?? e.getText();
       form.setValue("body", md, { shouldValidate: false });
     },
-  });
+  }, [createMore]);
 
   // Reset editor content when dialog closes
   useEffect(() => {
@@ -329,7 +343,13 @@ export function CreateIssueDialog({
                 />
                 <span className="text-muted-foreground/40">›</span>
                 <span>{t("issues.create.title")}</span>
-                <div className="ml-auto flex items-center gap-0.5">
+                <div className="ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full bg-muted px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    {t("issues.create.saveDraft")}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setExpanded((v) => !v)}
@@ -489,7 +509,28 @@ export function CreateIssueDialog({
                 </PopoverContent>
               </Popover>
 
-                <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <MoreHorizontal className="size-3.5 shrink-0" />
+              </button>
+
+              </div>
+
+              <div className="flex items-center justify-between px-3 pb-3 pt-1">
+                <button
+                  type="button"
+                  className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <Paperclip className="size-4" />
+                </button>
+
+                <div className="ml-auto flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Switch checked={createMore} onCheckedChange={setCreateMore} />
+                    <span>{t("issues.create.createMore")}</span>
+                  </label>
                   <Button
                     type="submit"
                     size="sm"
