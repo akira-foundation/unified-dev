@@ -1,4 +1,4 @@
-use crate::agents::providers::registry;
+use crate::agents::registry;
 use crate::chat::messages::{get_messages, Message};
 use crate::chat::send_message::send_message as send_message_logic;
 use crate::chat::stream::emit_error;

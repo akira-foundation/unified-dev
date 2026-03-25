@@ -1,7 +1,3 @@
-pub mod detector;
-pub mod discovery;
-pub mod registry;
-
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
