@@ -1,243 +1,21 @@
 use async_trait::async_trait;
 use futures_util::future::join_all;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
-    PrReviewEvent, PullRequestState, VcsBranch, VcsCiCheck, VcsCiCheckStep, VcsPrComment, VcsPrFile, VcsPullRequest,
-    VcsIssue,
+    PrReviewEvent, PullRequestState, VcsBranch, VcsCiCheck, VcsCiCheckStep, VcsPrComment,
+    VcsPrFile, VcsPullRequest, VcsIssue,
 };
 use crate::error::{AppError, AppResult};
 
-const GITHUB_API: &str = "https://api.github.com";
-
-pub struct GitHubDriver {
-    client: reqwest::Client,
-    token: String,
-}
-
-impl GitHubDriver {
-    pub fn new(token: String) -> AppResult<Self> {
-        let client = reqwest::Client::builder()
-            .user_agent("UnifiedDev/1.0")
-            .build()?;
-
-        Ok(Self { client, token })
-    }
-
-    async fn get_json<T: DeserializeOwned>(&self, url: String) -> AppResult<T> {
-        let response = self
-            .client
-            .get(url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
-        }
-
-        Ok(response.json::<T>().await?)
-    }
-
-    async fn get_text(&self, url: String) -> AppResult<String> {
-        let response = self
-            .client
-            .get(url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
-        }
-
-        Ok(response.text().await?)
-    }
-
-    async fn get_redirect_url(&self, url: String) -> AppResult<String> {
-        // Build a client that does NOT follow redirects so we can get the Location header.
-        let no_redirect = reqwest::Client::builder()
-            .user_agent("UnifiedDev/1.0")
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
-
-        let response = no_redirect
-            .get(&url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .send()
-            .await?;
-
-        let status = response.status();
-        if status.is_redirection() {
-            let location = response
-                .headers()
-                .get("location")
-                .and_then(|v| v.to_str().ok())
-                .ok_or_else(|| AppError::Provider("Missing Location header in redirect".to_string()))?
-                .to_string();
-            return Ok(location);
-        }
-
-        // Not a redirect — treat the body as the content URL (or error)
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!("GitHub API error: {status} {body}")));
-        }
-
-        // Already text — return the body as-is (unexpected but handle gracefully)
-        Ok(response.text().await?)
-    }
-
-    async fn post_json<B: Serialize + Send + Sync, T: DeserializeOwned>(
-        &self,
-        url: String,
-        payload: &B,
-    ) -> AppResult<T> {
-        let response = self
-            .client
-            .post(url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .json(payload)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
-        }
-
-        Ok(response.json::<T>().await?)
-    }
-
-    async fn patch_json<B: Serialize + Send + Sync, T: DeserializeOwned>(
-        &self,
-        url: String,
-        payload: &B,
-    ) -> AppResult<T> {
-        let response = self
-            .client
-            .patch(url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .json(payload)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
-        }
-
-        Ok(response.json::<T>().await?)
-    }
-
-    async fn put_json<B: Serialize + Send + Sync>(
-        &self,
-        url: String,
-        payload: &B,
-    ) -> AppResult<()> {
-        let response = self
-            .client
-            .put(url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .json(payload)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
-        }
-
-        Ok(())
-    }
-
-    async fn graphql<T: DeserializeOwned>(&self, query: &str, variables: serde_json::Value) -> AppResult<T> {
-        #[derive(Serialize)]
-        struct GraphQlRequest<'a> {
-            query: &'a str,
-            variables: serde_json::Value,
-        }
-        #[derive(Deserialize)]
-        struct GraphQlResponse<T> {
-            data: Option<T>,
-            errors: Option<Vec<serde_json::Value>>,
-        }
-
-        let response = self
-            .client
-            .post("https://api.github.com/graphql")
-            .bearer_auth(&self.token)
-            .json(&GraphQlRequest { query, variables })
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
-        }
-
-        let result: GraphQlResponse<T> = response.json().await?;
-
-        if let Some(errors) = result.errors {
-            if !errors.is_empty() {
-                return Err(AppError::Provider(format!(
-                    "GitHub GraphQL errors: {}",
-                    serde_json::to_string(&errors).unwrap_or_default()
-                )));
-            }
-        }
-
-        result.data.ok_or_else(|| AppError::Provider("GitHub GraphQL: no data returned".to_string()))
-    }
-
-    async fn fetch_paginated<T: DeserializeOwned>(
-        &self,
-        url: String,
-    ) -> AppResult<Vec<T>> {
-        let mut page = 1;
-        let mut results = Vec::new();
-
-        loop {
-            let separator = if url.contains('?') { '&' } else { '?' };
-            let paged_url = format!("{url}{separator}per_page=100&page={page}");
-            let chunk: Vec<T> = self.get_json(paged_url).await?;
-            if chunk.is_empty() {
-                break;
-            }
-            results.extend(chunk);
-            page += 1;
-        }
-
-        Ok(results)
-    }
-}
+use super::client::{GitHubDriver, GITHUB_API};
+use super::types::{
+    github_issue_to_vcs, repo_to_provider, GitHubBranch, GitHubCheckRunsResponse,
+    GitHubIssue, GitHubIssueComment, GitHubJobResponse, GitHubOrg, GitHubPrFile,
+    GitHubPullRequest, GitHubRef, GitHubUser,
+};
 
 pub struct GitHubFactory;
 
@@ -271,7 +49,6 @@ impl ProviderDriverFactory for GitHubFactory {
         Ok(std::sync::Arc::new(GitHubDriver::new(token)?))
     }
 }
-
 
 #[async_trait]
 impl VcsProvider for GitHubDriver {
@@ -311,7 +88,7 @@ impl VcsProvider for GitHubDriver {
 
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>> {
         let url = format!("{GITHUB_API}/user/repos?type=all");
-        let repositories: Vec<GitHubRepo> = self.fetch_paginated(url).await?;
+        let repositories: Vec<super::types::GitHubRepo> = self.fetch_paginated(url).await?;
 
         Ok(repositories
             .into_iter()
@@ -321,7 +98,7 @@ impl VcsProvider for GitHubDriver {
 
     async fn list_organization_repositories(&self, organization: &str) -> AppResult<Vec<ProviderRepo>> {
         let url = format!("{GITHUB_API}/orgs/{organization}/repos?type=all");
-        let repositories: Vec<GitHubRepo> = self.fetch_paginated(url).await?;
+        let repositories: Vec<super::types::GitHubRepo> = self.fetch_paginated(url).await?;
 
         Ok(repositories
             .into_iter()
@@ -776,209 +553,4 @@ impl VcsProvider for GitHubDriver {
 
         Ok(())
     }
-}
-
-fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
-    ProviderRepo {
-        id: repo.id.to_string(),
-        owner: repo.owner.login,
-        name: repo.name,
-        visibility: if repo.private { "private".to_string() } else { "public".to_string() },
-        is_private: repo.private,
-        default_branch: repo.default_branch,
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubRepoOwner {
-    login: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubUser {
-    id: u64,
-    login: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubOrg {
-    id: u64,
-    login: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubRepo {
-    id: u64,
-    name: String,
-    #[allow(dead_code)]
-    full_name: String,
-    owner: GitHubRepoOwner,
-    default_branch: String,
-    private: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubPullReference {
-    #[serde(rename = "ref")]
-    reference: String,
-    sha: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubPullUser {
-    login: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubPullLabel {
-    name: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubPullRequest {
-    id: u64,
-    number: u64,
-    title: String,
-    state: String,
-    html_url: String,
-    updated_at: String,
-    merged_at: Option<String>,
-    draft: Option<bool>,
-    head: GitHubPullReference,
-    base: GitHubPullReference,
-    body: Option<String>,
-    user: Option<GitHubPullUser>,
-    labels: Option<Vec<GitHubPullLabel>>,
-    requested_reviewers: Option<Vec<GitHubPullUser>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubCheckRunsResponse {
-    total_count: u64,
-    check_runs: Vec<GitHubCheckRun>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubCheckRun {
-    id: u64,
-    name: String,
-    status: String,
-    conclusion: Option<String>,
-    started_at: Option<String>,
-    completed_at: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubJobResponse {
-    steps: Option<Vec<GitHubJobStep>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubJobStep {
-    number: u64,
-    name: String,
-    status: String,
-    conclusion: Option<String>,
-    started_at: Option<String>,
-    completed_at: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubCommentUser {
-    login: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubIssueComment {
-    id: u64,
-    user: Option<GitHubCommentUser>,
-    body: Option<String>,
-    created_at: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubPrFile {
-    filename: String,
-    status: String,
-    additions: u64,
-    deletions: u64,
-    patch: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubIssueUser {
-    login: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubIssueLabel {
-    name: String,
-    color: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubIssue {
-    number: u64,
-    title: String,
-    body: Option<String>,
-    state: String,
-    state_reason: Option<String>,
-    html_url: String,
-    user: Option<GitHubIssueUser>,
-    labels: Option<Vec<GitHubIssueLabel>>,
-    assignees: Option<Vec<GitHubIssueUser>>,
-    created_at: String,
-    updated_at: String,
-    // Present when the issue is actually a PR
-    pull_request: Option<serde_json::Value>,
-}
-
-fn github_issue_to_vcs(issue: GitHubIssue) -> VcsIssue {
-    let labels_vec = issue.labels.unwrap_or_default();
-    let label_colors: Vec<String> = labels_vec.iter().map(|l| l.color.clone().unwrap_or_default()).collect();
-    let labels: Vec<String> = labels_vec.into_iter().map(|l| l.name).collect();
-
-    VcsIssue {
-        external_id: issue.number.to_string(),
-        number: issue.number,
-        title: issue.title,
-        body: issue.body,
-        status: issue.state,
-        state_reason: issue.state_reason,
-        labels,
-        label_colors,
-        assignees: issue
-            .assignees
-            .unwrap_or_default()
-            .into_iter()
-            .map(|u| u.login)
-            .collect(),
-        author: issue.user.map(|u| u.login),
-        url: issue.html_url,
-        created_at: issue.created_at,
-        updated_at: issue.updated_at,
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubBranchCommit {
-    sha: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubBranch {
-    name: String,
-    commit: GitHubBranchCommit,
-    protected: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubRefObject {
-    sha: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct GitHubRef {
-    r#ref: String,
-    object: GitHubRefObject,
 }
