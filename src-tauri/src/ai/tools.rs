@@ -22,7 +22,6 @@ fn shell_split(cmd: &str) -> Vec<String> {
                 }
             }
             '\\' if in_double => {
-                // handle escape sequences inside double quotes
                 if let Some(next) = chars.next() {
                     current.push(next);
                 }
@@ -34,8 +33,6 @@ fn shell_split(cmd: &str) -> Vec<String> {
         tokens.push(current);
     }
 
-    // Strip shell redirection tokens and their targets so they are not
-    // passed as literal arguments to the subprocess (e.g. "2>&1", ">file").
     let mut filtered = Vec::new();
     let mut skip_next = false;
     for token in tokens {
@@ -43,12 +40,10 @@ fn shell_split(cmd: &str) -> Vec<String> {
             skip_next = false;
             continue;
         }
-        // Redirection operators that consume the following token as a target.
         if token == ">" || token == ">>" || token == "2>" || token == "&>" || token == "&>>" {
             skip_next = true;
             continue;
         }
-        // Self-contained redirections: 2>&1, >/dev/null, 2>/dev/null, etc.
         if token.starts_with("2>&")
             || token.starts_with(">&")
             || (token.starts_with('>') && token.len() > 1)
@@ -60,10 +55,6 @@ fn shell_split(cmd: &str) -> Vec<String> {
     }
     filtered
 }
-
-
-// Tool definitions (three wire-format variants)
-
 
 /// Anthropic tool definitions (uses `input_schema`).
 pub fn tool_definitions_anthropic() -> Value {
@@ -289,10 +280,6 @@ pub fn tool_definitions_responses() -> Value {
     ])
 }
 
-
-// Tool executor
-
-
 /// Execute a tool call and return the result string.
 pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
     let root = std::path::Path::new(workspace_path);
@@ -373,7 +360,6 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 return "Error: missing 'command' argument".to_string();
             };
 
-            // Security allowlist — git + gh operations needed for PR workflow.
             let allowed_prefixes = [
                 "git status",
                 "git diff",
@@ -521,7 +507,6 @@ pub fn tool_label(name: &str, args: &Value) -> String {
             if trimmed.starts_with("git add") {
                 "Staging changes".to_string()
             } else if trimmed.starts_with("git commit") {
-                // Extract commit message if present
                 if let Some(msg_start) = trimmed.find("-m \"").or_else(|| trimmed.find("-m '")) {
                     let rest = &trimmed[msg_start + 4..];
                     let msg = rest.trim_end_matches('"').trim_end_matches('\'');
@@ -600,7 +585,6 @@ pub fn tool_label(name: &str, args: &Value) -> String {
             } else if trimmed.starts_with("grep ") || trimmed.starts_with("rg ") {
                 "Searching code".to_string()
             } else {
-                // For anything else, show the first ~60 chars so the user knows what's running
                 let short = if trimmed.len() > 60 {
                     &trimmed[..60]
                 } else {

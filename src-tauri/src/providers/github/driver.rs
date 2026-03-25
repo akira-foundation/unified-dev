@@ -340,7 +340,6 @@ impl VcsProvider for GitHubDriver {
     ) -> AppResult<String> {
         let url = format!("{GITHUB_API}/repos/{owner}/{repository}/actions/jobs/{job_id}/logs");
         let blob_url = self.get_redirect_url(url).await?;
-        // Fetch the presigned S3 URL without auth headers (S3 rejects Bearer token on presigned URLs)
         let response = reqwest::Client::builder()
             .user_agent("UnifiedDev/1.0")
             .build()?
@@ -365,7 +364,6 @@ impl VcsProvider for GitHubDriver {
         let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues?state={state_param}&filter=all");
         let issues: Vec<GitHubIssue> = self.fetch_paginated(url).await?;
 
-        // GitHub returns PRs in the issues endpoint — filter them out
         Ok(issues
             .into_iter()
             .filter(|i| i.pull_request.is_none())
@@ -460,7 +458,6 @@ impl VcsProvider for GitHubDriver {
         repository: &str,
         issue_number: u64,
     ) -> AppResult<()> {
-        // Fetch the node_id via REST API (required for GraphQL deleteIssue mutation)
         let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
         let issue: serde_json::Value = self.get_json(url).await?;
         let node_id = issue["node_id"]

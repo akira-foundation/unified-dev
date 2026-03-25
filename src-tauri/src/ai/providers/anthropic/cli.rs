@@ -191,7 +191,6 @@ impl AiProvider for AnthropicCliProvider {
     }
 
     fn supports_model(&self, _model: &str) -> bool {
-        // Used as a fallback inside the Anthropic routing chain; not directly selected.
         false
     }
 

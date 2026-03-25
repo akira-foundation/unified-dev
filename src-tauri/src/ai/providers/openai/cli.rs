@@ -178,7 +178,6 @@ impl AiProvider for OpenAiCliProvider {
     }
 
     fn supports_model(&self, _model: &str) -> bool {
-        // Used as a fallback; not directly selected by the registry.
         false
     }
 

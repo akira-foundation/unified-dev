@@ -117,7 +117,6 @@ impl AiProvider for OpenAiProvider {
     }
 
     fn supports_model(&self, _model: &str) -> bool {
-        // Only used as a direct fallback in the Anthropic chain; never selected by the registry.
         false
     }
 

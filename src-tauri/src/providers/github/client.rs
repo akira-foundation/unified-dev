@@ -60,7 +60,6 @@ impl GitHubDriver {
     }
 
     pub async fn get_redirect_url(&self, url: String) -> AppResult<String> {
-        // Build a client that does NOT follow redirects so we can get the Location header.
         let no_redirect = reqwest::Client::builder()
             .user_agent("UnifiedDev/1.0")
             .redirect(reqwest::redirect::Policy::none())
@@ -84,13 +83,11 @@ impl GitHubDriver {
             return Ok(location);
         }
 
-        // Not a redirect — treat the body as the content URL (or error)
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
             return Err(AppError::Provider(format!("GitHub API error: {status} {body}")));
         }
 
-        // Already text — return the body as-is (unexpected but handle gracefully)
         Ok(response.text().await?)
     }
 

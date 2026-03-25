@@ -117,7 +117,6 @@ pub async fn sync_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledS
             let source_path = path.to_string_lossy().to_string();
             let now = Utc::now().to_rfc3339();
 
-            // INSERT OR IGNORE — preserves existing enabled/icon_path
             sqlx::query(
                 "INSERT OR IGNORE INTO skills (id, name, description, enabled, icon_path, installed_at, source_path)
                  VALUES (?, ?, ?, 1, NULL, ?, ?)",
@@ -130,7 +129,6 @@ pub async fn sync_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledS
             .execute(&state.db_pool)
             .await?;
 
-            // Always update name, description and source_path to stay in sync with disk
             sqlx::query(
                 "UPDATE skills SET name = ?, description = ?, source_path = ? WHERE id = ?",
             )
@@ -223,11 +221,9 @@ pub async fn install_skill(
     repo_url: String,
     state: State<'_, AppState>,
 ) -> AppResult<InstalledSkill> {
-    // Build the zip download URL for the default branch
     let repo_url = repo_url.trim_end_matches('/').to_string();
     let zip_url = format!("{}/archive/refs/heads/main.zip", repo_url);
 
-    // Download zip
     let bytes = reqwest::get(&zip_url)
         .await
         .map_err(|e| crate::error::AppError::Internal(e.to_string()))?
@@ -235,18 +231,16 @@ pub async fn install_skill(
         .await
         .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
 
-    // Extract to a temp dir first, then copy skill folder to each target dir
-    let dirs = skill_dirs();
-    let mut name = String::new();
-    let mut description = String::new();
-    let mut installed_source = String::new();
-    let now = Utc::now().to_rfc3339();
-
     let cursor = std::io::Cursor::new(bytes.as_ref());
     let mut archive = zip::ZipArchive::new(cursor)
         .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
 
-    // Collect all files belonging to this skill (in any subfolder matching skill_id)
+    let mut name = String::new();
+    let mut description = String::new();
+    let mut installed_source = String::new();
+    let now = Utc::now().to_rfc3339();
+    let dirs = skill_dirs();
+
     let mut skill_files: Vec<(String, Vec<u8>)> = Vec::new();
     let mut strip_prefix = String::new();
 
@@ -255,8 +249,6 @@ pub async fn install_skill(
             .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
         let raw_name = file.name().to_string();
 
-        // GitHub zips have a top-level folder like "repo-main/"
-        // Find files under a subfolder named skill_id
         let needle = format!("/{}/", skill_id);
         if let Some(pos) = raw_name.find(&needle) {
             if strip_prefix.is_empty() {
@@ -288,7 +280,6 @@ pub async fn install_skill(
         )));
     }
 
-    // Write to each target dir (overwrite)
     for target_dir in &dirs {
         let skill_dir = target_dir.join(&skill_id);
         if let Err(e) = std::fs::create_dir_all(&skill_dir) {
@@ -311,7 +302,6 @@ pub async fn install_skill(
         name = title_case(&skill_id);
     }
 
-    // Upsert in DB
     sqlx::query(
         "INSERT INTO skills (id, name, description, enabled, icon_path, installed_at, source_path)
          VALUES (?, ?, ?, 1, NULL, ?, ?)
@@ -346,7 +336,6 @@ pub async fn uninstall_skill(
     id: String,
     state: State<'_, AppState>,
 ) -> AppResult<()> {
-    // Remove from all skill dirs
     for dir in skill_dirs() {
         let skill_dir = dir.join(&id);
         if skill_dir.is_dir() {
@@ -354,7 +343,6 @@ pub async fn uninstall_skill(
         }
     }
 
-    // Remove icon if any
     if let Some(icons) = icons_dir() {
         for ext in &["png", "jpg", "jpeg", "webp", "svg"] {
             let icon = icons.join(format!("{}.{}", id, ext));

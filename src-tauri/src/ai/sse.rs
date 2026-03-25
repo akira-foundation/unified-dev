@@ -6,10 +6,6 @@ use tauri::AppHandle;
 use crate::chat::stream::emit_token;
 use crate::error::{AppError, AppResult};
 
-
-// Shared types
-
-
 /// An accumulated tool call from Chat Completions streaming deltas.
 #[derive(Default, Clone)]
 pub struct PendingToolCall {
@@ -25,10 +21,6 @@ pub struct ResponsesToolCall {
     pub name: String,
     pub arguments: String,
 }
-
-
-// OpenAI Chat Completions SSE deserialization types
-
 
 #[derive(Debug, Deserialize)]
 pub struct OpenAiChunk {
@@ -59,10 +51,6 @@ pub struct OpenAiFunctionDelta {
     pub name: Option<String>,
     pub arguments: Option<String>,
 }
-
-
-// Chat Completions SSE parser
-
 
 /// Drives an OpenAI Chat Completions SSE stream.
 /// Returns (full_text, tool_calls).
@@ -130,10 +118,6 @@ pub async fn stream_openai_sse_with_tools(
 
     Ok((full_response, tool_calls))
 }
-
-
-// Responses API SSE parser
-
 
 /// Drives a Responses API SSE stream (named events).
 /// Returns (full_text, tool_calls).
@@ -237,10 +221,6 @@ pub async fn stream_responses_sse(
 
     Ok((full_text, calls))
 }
-
-
-// Anthropic SSE parser
-
 
 #[derive(Debug)]
 pub struct AnthropicToolUseBlock {

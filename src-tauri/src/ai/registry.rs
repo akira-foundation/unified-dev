@@ -28,7 +28,6 @@ impl AiRegistry {
     pub async fn dispatch(&self, request: AiRequest, app: &AppHandle) -> AppResult<String> {
         let model = request.model.clone();
 
-        // Claude family: Anthropic API → Claude CLI → Copilot Chat → OpenAI direct
         if model.starts_with("claude-") {
             if resolve_env_key("ANTHROPIC_API_KEY").is_some() {
                 return self.find("anthropic").unwrap().complete(request, app).await;
@@ -50,7 +49,6 @@ impl AiRegistry {
             ));
         }
 
-        // gpt-5.x / codex-*: Copilot Responses API → Codex CLI
         if model.starts_with("gpt-5") || model.starts_with("codex-") {
             if read_copilot_oauth_token().is_some() {
                 return self.find("copilot_responses").unwrap().complete(request, app).await;
@@ -59,7 +57,6 @@ impl AiRegistry {
             return self.find("openai_cli").unwrap().complete(request, app).await;
         }
 
-        // Everything else (gpt-4*, o1/o3/o4, gemini-*, grok-*, copilot-*): Copilot Chat
         if let Some(provider) = self.providers.iter().find(|p| p.supports_model(&model)) {
             if read_copilot_oauth_token().is_some() {
                 return provider.complete(request, app).await;

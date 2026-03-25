@@ -17,7 +17,6 @@ pub async fn build_model_registry() -> ModelRegistry {
 
     let mut provider_groups: Vec<AiProviderGroup> = Vec::new();
 
-    // Only show Codex (OpenAi) and Claude — Copilot and Ollama are suppressed from the picker.
     for kind in detected.iter().filter(|k| matches!(k, AiProviderKind::OpenAi | AiProviderKind::Claude)) {
         let models = match kind {
             AiProviderKind::OpenAi => {

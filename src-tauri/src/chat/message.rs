@@ -29,7 +29,6 @@ pub async fn get_messages(thread_id: &str, pool: &SqlitePool) -> AppResult<Vec<M
     .fetch_all(pool)
     .await?;
 
-    // Reverse so the slice is oldest-first for the model context window.
     messages.reverse();
 
     Ok(messages)
