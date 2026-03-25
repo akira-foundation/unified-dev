@@ -5,8 +5,36 @@ use tauri::State;
 
 use crate::db::inputs::{CreateOrganizationInput, SelectedRepositoryInput, UpdateOrganizationInput};
 use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary};
+use crate::providers::shared::traits::VcsProvider;
 use crate::providers::shared::types::{BranchDto, CiCheckDto, PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
 use crate::state::AppState;
+
+async fn resolve_provider_for_org(
+    state: &AppState,
+    organization_id: &str,
+) -> Result<Arc<dyn VcsProvider>, String> {
+    let provider_id = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT provider_id FROM organizations WHERE id = ?",
+    )
+    .bind(organization_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .ok()
+    .flatten()
+    .ok_or_else(|| "no provider linked to organization".to_string())?;
+
+    let credentials = state
+        .provider_service
+        .credentials(&provider_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    state
+        .provider_factory
+        .create(&credentials.kind, credentials.auth)
+        .await
+        .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
 pub async fn create_organization(
@@ -115,25 +143,7 @@ pub async fn sync_repository_stats(
         return Ok(());
     }
 
-    let provider_id = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT provider_id FROM organizations WHERE id = ?",
-    )
-    .bind(&organization_id)
-    .fetch_one(&state.db_pool)
-    .await
-    .ok()
-    .flatten();
-
-    let Some(provider_id) = provider_id else {
-        return Ok(());
-    };
-
-    let credentials = match state.provider_service.credentials(&provider_id).await {
-        Ok(c) => c,
-        Err(_) => return Ok(()),
-    };
-
-    let provider = match state.provider_factory.create(&credentials.kind, credentials.auth).await {
+    let provider = match resolve_provider_for_org(&state, &organization_id).await {
         Ok(p) => p,
         Err(_) => return Ok(()),
     };
@@ -204,25 +214,7 @@ pub async fn sync_single_repo_stats(
     let current_default_branch = repo.default_branch.clone();
     let current_visibility = repo.visibility.clone();
 
-    let provider_id = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT provider_id FROM organizations WHERE id = ?",
-    )
-    .bind(&organization_id)
-    .fetch_one(&state.db_pool)
-    .await
-    .ok()
-    .flatten();
-
-    let Some(provider_id) = provider_id else {
-        return Ok(());
-    };
-
-    let credentials = match state.provider_service.credentials(&provider_id).await {
-        Ok(c) => c,
-        Err(_) => return Ok(()),
-    };
-
-    let provider = match state.provider_factory.create(&credentials.kind, credentials.auth).await {
+    let provider = match resolve_provider_for_org(&state, &organization_id).await {
         Ok(p) => p,
         Err(_) => return Ok(()),
     };
@@ -254,25 +246,7 @@ async fn enrich_repos_with_pr_counts(
     organization_id: &str,
     mut repos: Vec<SelectedRepositoryInput>,
 ) -> Vec<SelectedRepositoryInput> {
-    let provider_id = match sqlx::query_scalar::<_, Option<String>>(
-        "SELECT provider_id FROM organizations WHERE id = ?",
-    )
-    .bind(organization_id)
-    .fetch_one(&state.db_pool)
-    .await
-    .ok()
-    .flatten()
-    {
-        Some(id) => id,
-        None => return repos,
-    };
-
-    let credentials = match state.provider_service.credentials(&provider_id).await {
-        Ok(c) => c,
-        Err(_) => return repos,
-    };
-
-    let provider = match state.provider_factory.create(&credentials.kind, credentials.auth).await {
+    let provider = match resolve_provider_for_org(state, organization_id).await {
         Ok(p) => p,
         Err(_) => return repos,
     };
@@ -311,42 +285,7 @@ pub async fn list_repo_pull_requests(
     organization_id: String,
     repo_name: String,
 ) -> Result<Vec<PullRequestDto>, String> {
-    let repos = state
-        .organization_repo_service
-        .list_selected_repositories(&organization_id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let Some(repo) = repos.iter().find(|r| r.repo_name == repo_name) else {
-        return Ok(vec![]);
-    };
-
-    let owner = repo.owner.clone();
-
-    let provider_id = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT provider_id FROM organizations WHERE id = ?",
-    )
-    .bind(&organization_id)
-    .fetch_one(&state.db_pool)
-    .await
-    .ok()
-    .flatten();
-
-    let Some(provider_id) = provider_id else {
-        return Ok(vec![]);
-    };
-
-    let credentials = state
-        .provider_service
-        .credentials(&provider_id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let provider = state
-        .provider_factory
-        .create(&credentials.kind, credentials.auth)
-        .await
-        .map_err(|e| e.to_string())?;
+    let (owner, provider) = resolve_pr_provider(&state, &organization_id, &repo_name).await?;
 
     let prs = provider
         .list_pull_requests(&owner, &repo_name)
@@ -377,28 +316,7 @@ async fn resolve_pr_provider(
         .ok_or_else(|| format!("repository '{}' not found", repo_name))?;
 
     let owner = repo.owner.clone();
-
-    let provider_id = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT provider_id FROM organizations WHERE id = ?",
-    )
-    .bind(organization_id)
-    .fetch_one(&state.db_pool)
-    .await
-    .ok()
-    .flatten()
-    .ok_or_else(|| "no provider linked to organization".to_string())?;
-
-    let credentials = state
-        .provider_service
-        .credentials(&provider_id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let provider = state
-        .provider_factory
-        .create(&credentials.kind, credentials.auth)
-        .await
-        .map_err(|e| e.to_string())?;
+    let provider = resolve_provider_for_org(state, organization_id).await?;
 
     Ok((owner, provider))
 }

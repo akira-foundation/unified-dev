@@ -31,6 +31,27 @@ async fn get_provider(
         .map_err(|e| e.to_string())
 }
 
+async fn resolve_owner(state: &AppState, org_id: &str, repo_name: &str) -> Result<String, String> {
+    sqlx::query_scalar::<_, String>(
+        "SELECT owner FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
+    )
+    .bind(org_id)
+    .bind(repo_name)
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())
+}
+
+async fn resolve_provider_and_owner(
+    state: &AppState,
+    org_id: &str,
+    repo_name: &str,
+) -> Result<(std::sync::Arc<dyn crate::providers::shared::traits::VcsProvider>, String), String> {
+    let provider = get_provider(state, org_id).await?;
+    let owner = resolve_owner(state, org_id, repo_name).await?;
+    Ok((provider, owner))
+}
+
 fn record_to_dto(r: IssueRecord) -> IssueDto {
     let labels: Vec<String> = serde_json::from_str(&r.labels).unwrap_or_default();
     let label_colors: Vec<String> = serde_json::from_str(&r.label_colors).unwrap_or_default();
@@ -60,8 +81,6 @@ fn record_to_dto(r: IssueRecord) -> IssueDto {
     }
 }
 
-/// Fetch issues from the provider and upsert them into the local DB,
-/// then return the cached records.
 #[tauri::command]
 pub async fn sync_issues(
     state: State<'_, AppState>,
@@ -134,7 +153,6 @@ pub async fn sync_issues(
     list_issues(state, org_id, repo_name).await
 }
 
-/// Return locally cached issues for a repo (does NOT call the provider).
 #[tauri::command]
 pub async fn list_issues(
     state: State<'_, AppState>,
@@ -153,7 +171,6 @@ pub async fn list_issues(
     Ok(records.into_iter().map(record_to_dto).collect())
 }
 
-/// Return a single issue from the local cache.
 #[tauri::command]
 pub async fn get_issue(
     state: State<'_, AppState>,
@@ -174,23 +191,13 @@ pub async fn get_issue(
     Ok(record.map(record_to_dto))
 }
 
-/// Create an issue via the provider and persist it locally.
 #[tauri::command]
 pub async fn create_issue(
     state: State<'_, AppState>,
     input: CreateIssueInput,
 ) -> Result<IssueDto, String> {
-    let provider = get_provider(&state, &input.org_id).await?;
+    let (provider, owner) = resolve_provider_and_owner(&state, &input.org_id, &input.repo_name).await?;
     let provider_kind = provider.kind().to_string();
-
-    let owner = sqlx::query_scalar::<_, String>(
-        "SELECT owner FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
-    )
-    .bind(&input.org_id)
-    .bind(&input.repo_name)
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
 
     let issue = provider
         .create_issue(
@@ -246,7 +253,6 @@ pub async fn create_issue(
         .ok_or_else(|| "Issue was created but not found in DB".to_string())
 }
 
-/// Update an issue via the provider and refresh the local cache.
 #[tauri::command]
 pub async fn update_issue(
     state: State<'_, AppState>,
@@ -255,16 +261,7 @@ pub async fn update_issue(
     number: i64,
     input: UpdateIssueInput,
 ) -> Result<IssueDto, String> {
-    let provider = get_provider(&state, &org_id).await?;
-
-    let owner = sqlx::query_scalar::<_, String>(
-        "SELECT owner FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
-    )
-    .bind(&org_id)
-    .bind(&repo_name)
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let (provider, owner) = resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
 
     let issue = provider
         .update_issue(
@@ -314,7 +311,6 @@ pub async fn update_issue(
         .ok_or_else(|| "Issue not found after update".to_string())
 }
 
-/// Delete an issue remotely via the provider and remove it from the local database.
 #[tauri::command]
 pub async fn delete_issue(
     state: State<'_, AppState>,
@@ -322,16 +318,7 @@ pub async fn delete_issue(
     repo_name: String,
     number: i64,
 ) -> Result<(), String> {
-    let provider = get_provider(&state, &org_id).await?;
-
-    let owner = sqlx::query_scalar::<_, String>(
-        "SELECT owner FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
-    )
-    .bind(&org_id)
-    .bind(&repo_name)
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let (provider, owner) = resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
 
     provider
         .delete_issue(&owner, &repo_name, number as u64)
@@ -351,7 +338,6 @@ pub async fn delete_issue(
     Ok(())
 }
 
-/// Close an issue via the provider and update the local cache.
 #[tauri::command]
 pub async fn close_issue(
     state: State<'_, AppState>,
@@ -360,16 +346,7 @@ pub async fn close_issue(
     number: i64,
     reason: Option<String>,
 ) -> Result<(), String> {
-    let provider = get_provider(&state, &org_id).await?;
-
-    let owner = sqlx::query_scalar::<_, String>(
-        "SELECT owner FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
-    )
-    .bind(&org_id)
-    .bind(&repo_name)
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let (provider, owner) = resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
 
     provider
         .close_issue(&owner, &repo_name, number as u64, reason.as_deref())

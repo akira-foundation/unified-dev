@@ -6,4 +6,5 @@ pub mod provider;
 pub mod repository;
 pub mod skill;
 pub mod terminal;
+pub mod thread;
 pub mod workspace;

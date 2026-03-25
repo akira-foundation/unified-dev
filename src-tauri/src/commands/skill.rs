@@ -20,7 +20,6 @@ pub struct InstalledSkill {
     pub source_path: String,
 }
 
-/// Directories to scan for installed skills, in priority order.
 fn skill_dirs() -> Vec<PathBuf> {
     let home = match dirs::home_dir() {
         Some(h) => h,
@@ -34,12 +33,10 @@ fn skill_dirs() -> Vec<PathBuf> {
     ]
 }
 
-/// Icon storage directory.
 fn icons_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".agents").join("skills").join(".icons"))
 }
 
-/// Parse `name` and `description` from YAML frontmatter in a SKILL.md.
 fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
     let mut name: Option<String> = None;
     let mut description: Option<String> = None;
@@ -74,9 +71,6 @@ fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-/// Scan filesystem for skills and upsert into the DB.
-/// Skills already in the DB keep their `enabled` and `icon_path`.
-/// Returns the full list from the DB after sync.
 #[tauri::command]
 pub async fn sync_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledSkill>> {
     let mut seen: HashSet<String> = HashSet::new();
@@ -146,7 +140,6 @@ pub async fn sync_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledS
     get_skills(state).await
 }
 
-/// Read the full skill list from the DB.
 #[tauri::command]
 pub async fn get_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledSkill>> {
     let rows = sqlx::query_as::<_, (String, String, String, bool, Option<String>, String, String)>(
@@ -164,7 +157,6 @@ pub async fn get_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledSk
         .collect())
 }
 
-/// Persist the enabled/disabled toggle for a skill.
 #[tauri::command]
 pub async fn set_skill_enabled(
     id: String,
@@ -179,10 +171,6 @@ pub async fn set_skill_enabled(
     Ok(())
 }
 
-/// Save a custom icon image for a skill.
-/// Copies the image bytes to ~/.agents/skills/.icons/{id}.{ext}
-/// and persists the absolute path in the DB.
-/// Returns the absolute path to the saved icon.
 #[tauri::command]
 pub async fn set_skill_icon(
     id: String,
@@ -210,11 +198,6 @@ pub async fn set_skill_icon(
     Ok(path_str)
 }
 
-/// Download and install a skill from a GitHub repo URL into all 4 skill dirs.
-/// Expects a GitHub repo URL like https://github.com/org/repo
-/// The repo must contain a SKILL.md at the root (single-skill repos)
-/// or this installs the matching subfolder by skill_id.
-/// Overwrites existing installations. Registers in DB.
 #[tauri::command]
 pub async fn install_skill(
     skill_id: String,
@@ -330,7 +313,6 @@ pub async fn install_skill(
     })
 }
 
-/// Uninstall a skill: removes its directory from all skill dirs and deletes from DB.
 #[tauri::command]
 pub async fn uninstall_skill(
     id: String,

@@ -16,7 +16,6 @@ pub struct PrInfo {
     pub is_draft: bool,
 }
 
-/// Returns the list of files changed in the workspace (relative to HEAD) along with their diffs.
 #[tauri::command]
 pub async fn get_workspace_changes(workspace_path: String) -> Result<Vec<FileChange>, String> {
     let workspace = Path::new(&workspace_path);
@@ -113,11 +112,6 @@ pub async fn get_workspace_changes(workspace_path: String) -> Result<Vec<FileCha
     Ok(changes)
 }
 
-/// Creates a draft pull request on GitHub for the given branch and returns the PR URL.
-/// Steps:
-///   1. git add -A && git commit (if there are uncommitted changes)
-///   2. git push -u origin <branch>
-///   3. gh pr create --draft
 #[tauri::command]
 pub async fn create_draft_pr(
     workspace_path: String,
@@ -166,8 +160,6 @@ pub async fn create_draft_pr(
     Ok(pr_url.trim().to_string())
 }
 
-/// Discards all uncommitted changes to a specific file by running `git checkout HEAD -- <file>`.
-/// For untracked (added) files, removes the file entirely.
 #[tauri::command]
 pub async fn discard_file_changes(workspace_path: String, filename: String) -> Result<(), String> {
     let workspace = Path::new(&workspace_path);
@@ -211,8 +203,6 @@ pub async fn discard_file_changes(workspace_path: String, filename: String) -> R
     Ok(())
 }
 
-/// Checks whether a GitHub PR exists for the current branch in the given workspace.
-/// Returns `{ url, is_draft }` if a PR exists, or `{ url: "", is_draft: false }` if not.
 #[tauri::command]
 pub async fn check_pr_url(workspace_path: String) -> Result<PrInfo, String> {
     let workspace = Path::new(&workspace_path);
@@ -241,7 +231,6 @@ pub async fn check_pr_url(workspace_path: String) -> Result<PrInfo, String> {
     }
 }
 
-/// Run a shell command inside the given workspace directory and return its stdout+stderr output.
 /// Only a safe allow-list of base commands is accepted.
 #[tauri::command]
 pub async fn run_workspace_command(workspace_path: String, command: String) -> Result<String, String> {

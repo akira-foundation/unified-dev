@@ -1,3 +1,7 @@
-pub mod create_thread;
-pub mod add_thread;
-pub mod delete_thread;
+pub mod create;
+pub mod delete;
+pub mod set_pr_url;
+
+pub use create::{create_thread, create_with_paths, ThreadConfig};
+pub use delete::delete_thread;
+pub use set_pr_url::set_pr_url;

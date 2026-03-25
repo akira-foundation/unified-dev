@@ -3,7 +3,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::error::{AppError, AppResult};
-use crate::threads::create_thread::create_initial_thread;
+use crate::threads::create_with_paths;
 use crate::workspaces::git;
 use crate::workspaces::local::{AddLocalRepositoryResponse, LocalRepository};
 
@@ -64,7 +64,7 @@ pub async fn add_remote_repository(
     .execute(pool)
     .await?;
 
-    let thread = create_initial_thread(
+    let thread = create_with_paths(
         repo_id,
         &base_repo_path,
         &workspace_root,

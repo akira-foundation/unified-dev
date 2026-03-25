@@ -32,7 +32,8 @@ use commands::provider::{
 use commands::terminal::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
 };
-use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository, create_thread, delete_thread, list_repositories, set_thread_pr_url};
+use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository};
+use commands::thread::{create_thread, delete_thread, list_repositories, set_thread_pr_url};
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
 use db::organization_repos::SqliteOrganizationRepoRepository;
