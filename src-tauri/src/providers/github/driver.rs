@@ -7,6 +7,7 @@ use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, PullRequestState, VcsCiCheck, VcsCiCheckStep, VcsPrComment, VcsPrFile, VcsPullRequest,
+    VcsIssue,
 };
 use crate::error::{AppError, AppResult};
 
@@ -109,6 +110,31 @@ impl GitHubDriver {
         let response = self
             .client
             .post(url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .json(payload)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!(
+                "GitHub API error: {status} {body}"
+            )));
+        }
+
+        Ok(response.json::<T>().await?)
+    }
+
+    async fn patch_json<B: Serialize + Send + Sync, T: DeserializeOwned>(
+        &self,
+        url: String,
+        payload: &B,
+    ) -> AppResult<T> {
+        let response = self
+            .client
+            .patch(url)
             .bearer_auth(&self.token)
             .header("Accept", "application/vnd.github+json")
             .json(payload)
@@ -511,6 +537,105 @@ impl VcsProvider for GitHubDriver {
         }
         Ok(response.text().await?)
     }
+
+    async fn list_issues(
+        &self,
+        owner: &str,
+        repository: &str,
+        state: Option<&str>,
+    ) -> AppResult<Vec<VcsIssue>> {
+        let state_param = state.unwrap_or("open");
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues?state={state_param}&filter=all");
+        let issues: Vec<GitHubIssue> = self.fetch_paginated(url).await?;
+
+        // GitHub returns PRs in the issues endpoint — filter them out
+        Ok(issues
+            .into_iter()
+            .filter(|i| i.pull_request.is_none())
+            .map(github_issue_to_vcs)
+            .collect())
+    }
+
+    async fn get_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
+    ) -> AppResult<VcsIssue> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
+        let issue: GitHubIssue = self.get_json(url).await?;
+        Ok(github_issue_to_vcs(issue))
+    }
+
+    async fn create_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        title: &str,
+        body: Option<&str>,
+        labels: Vec<String>,
+        assignees: Vec<String>,
+    ) -> AppResult<VcsIssue> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues");
+        let mut payload = serde_json::json!({
+            "title": title,
+            "labels": labels,
+            "assignees": assignees,
+        });
+        if let Some(b) = body {
+            payload["body"] = serde_json::Value::String(b.to_string());
+        }
+        let issue: GitHubIssue = self.post_json(url, &payload).await?;
+        Ok(github_issue_to_vcs(issue))
+    }
+
+    async fn update_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
+        title: Option<&str>,
+        body: Option<&str>,
+        state: Option<&str>,
+        labels: Option<Vec<String>>,
+        assignees: Option<Vec<String>>,
+    ) -> AppResult<VcsIssue> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
+        let mut payload = serde_json::json!({});
+        if let Some(t) = title {
+            payload["title"] = serde_json::Value::String(t.to_string());
+        }
+        if let Some(b) = body {
+            payload["body"] = serde_json::Value::String(b.to_string());
+        }
+        if let Some(s) = state {
+            payload["state"] = serde_json::Value::String(s.to_string());
+        }
+        if let Some(l) = labels {
+            payload["labels"] = serde_json::json!(l);
+        }
+        if let Some(a) = assignees {
+            payload["assignees"] = serde_json::json!(a);
+        }
+        let issue: GitHubIssue = self.patch_json(url, &payload).await?;
+        Ok(github_issue_to_vcs(issue))
+    }
+
+    async fn close_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
+        reason: Option<&str>,
+    ) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
+        let mut payload = serde_json::json!({ "state": "closed" });
+        if let Some(r) = reason {
+            payload["state_reason"] = serde_json::Value::String(r.to_string());
+        }
+        let _: GitHubIssue = self.patch_json(url, &payload).await?;
+        Ok(())
+    }
 }
 
 fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
@@ -638,4 +763,59 @@ struct GitHubPrFile {
     additions: u64,
     deletions: u64,
     patch: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubIssueUser {
+    login: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubIssueLabel {
+    name: String,
+    color: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GitHubIssue {
+    number: u64,
+    title: String,
+    body: Option<String>,
+    state: String,
+    state_reason: Option<String>,
+    html_url: String,
+    user: Option<GitHubIssueUser>,
+    labels: Option<Vec<GitHubIssueLabel>>,
+    assignees: Option<Vec<GitHubIssueUser>>,
+    created_at: String,
+    updated_at: String,
+    // Present when the issue is actually a PR
+    pull_request: Option<serde_json::Value>,
+}
+
+fn github_issue_to_vcs(issue: GitHubIssue) -> VcsIssue {
+    let labels_vec = issue.labels.unwrap_or_default();
+    let label_colors: Vec<String> = labels_vec.iter().map(|l| l.color.clone().unwrap_or_default()).collect();
+    let labels: Vec<String> = labels_vec.into_iter().map(|l| l.name).collect();
+
+    VcsIssue {
+        external_id: issue.number.to_string(),
+        number: issue.number,
+        title: issue.title,
+        body: issue.body,
+        status: issue.state,
+        state_reason: issue.state_reason,
+        labels,
+        label_colors,
+        assignees: issue
+            .assignees
+            .unwrap_or_default()
+            .into_iter()
+            .map(|u| u.login)
+            .collect(),
+        author: issue.user.map(|u| u.login),
+        url: issue.html_url,
+        created_at: issue.created_at,
+        updated_at: issue.updated_at,
+    }
 }

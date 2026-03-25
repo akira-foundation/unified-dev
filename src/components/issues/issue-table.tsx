@@ -1,21 +1,38 @@
 import {
-  type ColumnDef,
-  type SortingState,
+  flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
-  flexRender,
+  type ColumnDef,
+  type SortingState,
 } from "@tanstack/react-table";
+import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { IssueSummary } from "../../types/issue";
-import { ArrowUpDown, ChevronDown, ChevronUp, Search } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
-import { Input } from "../ui/input";
+
 import { useI18n } from "../../i18n/i18n";
+import { Button } from "../ui/button";
+import { Card, CardContent } from "../ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
+import { formatRelativeDate } from "../repos/pr-item";
+import { LabelBadge } from "./label-badge";
+import type { IssueDto } from "../../types/issue";
 
 interface IssueTableProps {
-  issues: IssueSummary[];
+  issues: IssueDto[];
+  onSelect?: (issue: IssueDto) => void;
+  onNavigateToPrs?: (repoName: string, orgId: string, prNumber?: number) => void;
+  onNavigateToRepo?: (repoName: string, orgId: string) => void;
+  onSync?: () => void;
+  isSyncing?: boolean;
+  disableSync?: boolean;
 }
 
 function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
@@ -24,15 +41,22 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
   return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-40" />;
 }
 
-export function IssueTable({ issues }: IssueTableProps) {
+export function IssueTable({
+  issues,
+  onSelect,
+  onNavigateToPrs,
+  onNavigateToRepo,
+  onSync,
+  isSyncing,
+  disableSync,
+}: IssueTableProps) {
   const { t } = useI18n();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
-  const columns = useMemo<ColumnDef<IssueSummary>[]>(
+  const columns = useMemo<ColumnDef<IssueDto>[]>(
     () => [
       {
-        id: "title",
         accessorKey: "title",
         header: ({ column }) => (
           <button
@@ -44,25 +68,90 @@ export function IssueTable({ issues }: IssueTableProps) {
           </button>
         ),
         cell: ({ row }) => (
-          <span className="font-medium text-white">{row.original.title}</span>
+          <div
+            className="flex flex-col gap-0.5 min-w-0 cursor-pointer"
+            onClick={() => onSelect?.(row.original)}
+          >
+            <span className="text-sm font-semibold text-gray-900 dark:text-white leading-snug hover:underline">
+              {row.original.title}
+            </span>
+            {row.original.labels.length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap">
+                {row.original.labels.slice(0, 3).map((label) => (
+                  <LabelBadge
+                    key={label}
+                    name={label}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         ),
       },
       {
-        id: "repository",
-        accessorKey: "repository",
+        accessorKey: "number",
         header: ({ column }) => (
           <button
             className="flex items-center"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            {t("tables.header.organization")}
+            PR
             <SortIcon sorted={column.getIsSorted()} />
           </button>
         ),
-        cell: ({ row }) => row.original.repository,
+        cell: ({ row }) => {
+          const prNumber = row.original.linkedPrNumbers[0];
+          if (prNumber === undefined) {
+            return <span className="text-sm text-zinc-500 font-medium">—</span>;
+          }
+          return (
+            <span
+              className="text-sm text-purple-500 hover:underline cursor-pointer font-medium"
+              onClick={() =>
+                onNavigateToPrs?.(
+                  row.original.repoName,
+                  row.original.orgId,
+                  prNumber,
+                )
+              }
+            >
+              #{prNumber}
+            </span>
+          );
+        },
       },
       {
-        id: "status",
+        accessorKey: "repoName",
+        header: ({ column }) => (
+          <button
+            className="flex items-center"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            {t("tables.header.repository")}
+            <SortIcon sorted={column.getIsSorted()} />
+          </button>
+        ),
+        cell: ({ row }) => (
+          <span
+            className="text-sm text-zinc-400 hover:text-zinc-200 hover:underline cursor-pointer transition-colors"
+            onClick={() => onNavigateToRepo?.(row.original.repoName, row.original.orgId)}
+          >
+            {row.original.repoName}
+          </span>
+        ),
+      },
+      {
+        id: "assignees",
+        accessorFn: (row) => row.assignees.join(", "),
+        header: t("issues.table.assignees"),
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {row.original.assignees.length > 0 ? row.original.assignees.join(", ") : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "statusBadge",
         accessorKey: "status",
         header: ({ column }) => (
           <button
@@ -73,10 +162,22 @@ export function IssueTable({ issues }: IssueTableProps) {
             <SortIcon sorted={column.getIsSorted()} />
           </button>
         ),
-        cell: ({ row }) => row.original.status,
+        cell: ({ row }) => {
+          const isOpen = row.original.status === "open";
+          return (
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                isOpen
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
+                  : "bg-zinc-500/10 border-zinc-500/30 text-zinc-500 dark:text-zinc-400"
+              }`}
+            >
+              {row.original.status}
+            </span>
+          );
+        },
       },
       {
-        id: "updatedAt",
         accessorKey: "updatedAt",
         header: ({ column }) => (
           <button
@@ -87,10 +188,14 @@ export function IssueTable({ issues }: IssueTableProps) {
             <SortIcon sorted={column.getIsSorted()} />
           </button>
         ),
-        cell: ({ row }) => row.original.updatedAt,
+        cell: ({ row }) => (
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {formatRelativeDate(row.original.updatedAt)}
+          </span>
+        ),
       },
     ],
-    [t],
+    [t, onSelect, onNavigateToPrs, onNavigateToRepo],
   );
 
   const table = useReactTable({
@@ -105,44 +210,70 @@ export function IssueTable({ issues }: IssueTableProps) {
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-      <div className="p-4 border-b border-gray-100 dark:border-gray-800">
-        <div className="relative max-w-xs">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            placeholder={t("app.search")}
-            className="pl-8"
-          />
+    <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+      <div className="flex flex-row items-center justify-between px-6 py-6">
+        <div className="flex flex-row items-center gap-4">
+          <div className="h-11 w-11 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+            <CircleDot size={22} strokeWidth={2} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white/95 leading-none">
+              {t("issues.page.title")}
+            </span>
+            <span className="text-[13px] font-medium text-zinc-500/80 leading-none">
+              {table.getFilteredRowModel().rows.length} {t("issues.page.total")}
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {onSync && (
+            <Button variant="outline" onClick={onSync} disabled={isSyncing || disableSync}>
+              <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              {t("common.sync")}
+            </Button>
+          )}
         </div>
       </div>
-      <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder
-                    ? null
-                    : flexRender(header.column.columnDef.header, header.getContext())}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow key={row.id}>
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+
+      <CardContent className="p-0 px-0 border-t border-zinc-100 dark:border-zinc-800/50">
+        <Table>
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id}>
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="py-10 text-center text-sm text-gray-500 dark:text-zinc-600 italic"
+                >
+                  {t("issues.table.empty")}
                 </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+              </TableRow>
+            ) : (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

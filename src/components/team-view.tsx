@@ -1,5 +1,13 @@
-import { useState } from "react";
+import {
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  useReactTable,
+  type ColumnDef,
+} from "@tanstack/react-table";
 import { Mail, MoreVertical, Plus, Settings, Trash2, Search } from "lucide-react";
+import { useMemo, useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +38,17 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const TEAM_MEMBERS = [
+type TeamMember = {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  roleColor: string;
+  status: string;
+  initials: string;
+};
+
+const TEAM_MEMBERS: TeamMember[] = [
   {
     id: 1,
     name: "Unified Dev",
@@ -69,20 +87,151 @@ const TEAM_MEMBERS = [
   },
 ];
 
-export function TeamView() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const itemsPerPage = 5;
+function RoleBadge({ role, roleColor }: { role: string; roleColor: string }) {
+  const colorClass =
+    roleColor === "purple"
+      ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20"
+      : roleColor === "blue"
+        ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"
+        : roleColor === "emerald"
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+          : "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700";
 
-  const filteredMembers = TEAM_MEMBERS.filter(
-    (member) =>
-      member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.email.toLowerCase().includes(searchTerm.toLowerCase()),
+  return (
+    <Badge variant="outline" className={`font-medium rounded-full px-2.5 py-0.5 border ${colorClass}`}>
+      {role}
+    </Badge>
+  );
+}
+
+function StatusCell({ status }: { status: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="relative flex h-2.5 w-2.5">
+        <span
+          className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+            status === "online"
+              ? "bg-emerald-400"
+              : status === "busy"
+                ? "bg-amber-400"
+                : "bg-zinc-400 hidden"
+          }`}
+        />
+        <span
+          className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+            status === "online"
+              ? "bg-emerald-500"
+              : status === "busy"
+                ? "bg-amber-500"
+                : "bg-zinc-400"
+          }`}
+        />
+      </span>
+      <span className="text-sm text-zinc-600 dark:text-zinc-400 capitalize">
+        {status === "online" ? "Online" : status === "busy" ? "Ocupado" : "Offline"}
+      </span>
+    </div>
+  );
+}
+
+export function TeamView() {
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const columns = useMemo<ColumnDef<TeamMember>[]>(
+    () => [
+      {
+        id: "member",
+        accessorFn: (row) => `${row.name} ${row.email}`,
+        header: () => (
+          <span className="pl-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Membro
+          </span>
+        ),
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3 pl-4 py-1">
+            <Avatar className="h-9 w-9 border border-zinc-200 dark:border-zinc-700">
+              <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-medium text-zinc-900 dark:text-zinc-300">
+                {row.original.initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-foreground">{row.original.name}</span>
+              <span className="text-xs text-muted-foreground">{row.original.email}</span>
+            </div>
+          </div>
+        ),
+      },
+      {
+        id: "role",
+        accessorKey: "role",
+        header: () => (
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Função
+          </span>
+        ),
+        cell: ({ row }) => (
+          <RoleBadge role={row.original.role} roleColor={row.original.roleColor} />
+        ),
+      },
+      {
+        id: "status",
+        accessorKey: "status",
+        header: () => (
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Estado
+          </span>
+        ),
+        cell: ({ row }) => <StatusCell status={row.original.status} />,
+      },
+      {
+        id: "actions",
+        header: () => (
+          <span className="pr-4 text-xs font-bold uppercase tracking-wider text-muted-foreground text-right block">
+            Ações
+          </span>
+        ),
+        cell: () => (
+          <div className="flex justify-end pr-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                  <MoreVertical size={16} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[160px]">
+                <DropdownMenuItem className="gap-2">
+                  <Settings size={14} /> Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2">
+                  <Mail size={14} /> Enviar Email
+                </DropdownMenuItem>
+                <DropdownMenuItem className="gap-2 text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
+                  <Trash2 size={14} /> Remover
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ),
+        enableSorting: false,
+      },
+    ],
+    [],
   );
 
-  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
-  const currentData = filteredMembers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const table = useReactTable({
+    data: TEAM_MEMBERS,
+    columns,
+    state: { globalFilter },
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: { pagination: { pageSize: 5 } },
+  });
+
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const totalPages = table.getPageCount();
 
   return (
     <div className="space-y-6">
@@ -92,8 +241,8 @@ export function TeamView() {
           <Input
             placeholder="Pesquisar membros da equipa..."
             className="pl-10 h-10 bg-white dark:bg-zinc-900/50 border-zinc-200 dark:border-zinc-800 rounded-xl focus-visible:ring-1 focus-visible:ring-purple-500/20"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
           />
         </div>
       </div>
@@ -154,84 +303,37 @@ export function TeamView() {
             </DialogContent>
           </Dialog>
         </CardHeader>
+
         <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-zinc-50/50 hover:bg-zinc-50/50 dark:bg-transparent dark:hover:bg-transparent border-zinc-100 dark:border-zinc-800">
-                  <TableHead className="pl-6 w-[300px] text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Membro
-                  </TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Função</TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Estado</TableHead>
-                  <TableHead className="pr-6 text-right text-xs font-bold uppercase tracking-wider text-muted-foreground">Ações</TableHead>
-                </TableRow>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow
+                    key={headerGroup.id}
+                    className="bg-zinc-50/50 hover:bg-zinc-50/50 dark:bg-transparent dark:hover:bg-transparent border-zinc-100 dark:border-zinc-800"
+                  >
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                ))}
               </TableHeader>
               <TableBody>
-                {currentData.map((member) => (
-                  <TableRow key={member.id} className="border-zinc-100 hover:bg-zinc-50/50 dark:border-zinc-800 dark:hover:bg-zinc-800/50">
-                    <TableCell className="pl-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border border-zinc-200 dark:border-zinc-700">
-                          <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-xs font-medium text-zinc-900 dark:text-zinc-300">
-                            {member.initials}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold text-foreground">{member.name}</span>
-                          <span className="text-xs text-muted-foreground">{member.email}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={`font-medium rounded-full px-2.5 py-0.5 border ${member.roleColor === "purple"
-                          ? "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/10 dark:text-purple-400 dark:border-purple-500/20"
-                          : member.roleColor === "blue"
-                            ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"
-                            : member.roleColor === "emerald"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
-                              : "bg-zinc-100 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700"}`}
-                      >
-                        {member.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="relative flex h-2.5 w-2.5">
-                          <span
-                            className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${member.status === "online" ? "bg-emerald-400" : member.status === "busy" ? "bg-amber-400" : "bg-zinc-400 hidden"}`}
-                          />
-                          <span
-                            className={`relative inline-flex rounded-full h-2.5 w-2.5 ${member.status === "online" ? "bg-emerald-500" : member.status === "busy" ? "bg-amber-500" : "bg-zinc-400"}`}
-                          />
-                        </span>
-                        <span className="text-sm text-zinc-600 dark:text-zinc-400 capitalize">
-                          {member.status === "online" ? "Online" : member.status === "busy" ? "Ocupado" : "Offline"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="pr-6 text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                            <MoreVertical size={16} />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-[160px]">
-                          <DropdownMenuItem className="gap-2">
-                            <Settings size={14} /> Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <Mail size={14} /> Enviar Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
-                            <Trash2 size={14} /> Remover
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
+                {table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    className="border-zinc-100 hover:bg-zinc-50/50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-4">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))}
               </TableBody>
@@ -244,22 +346,22 @@ export function TeamView() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(currentPage - 1)}
-              disabled={currentPage === 1}
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
               className="h-9 px-4 rounded-xl border-zinc-200 bg-white text-[11px] font-bold uppercase tracking-widest text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-all active:scale-95"
             >
               Anterior
             </Button>
 
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              Página {currentPage} de {totalPages}
+              Página {pageIndex + 1} de {totalPages}
             </span>
 
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={currentPage === totalPages}
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
               className="h-9 px-4 rounded-xl border-zinc-200 bg-white text-[11px] font-bold uppercase tracking-widest text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-all active:scale-95"
             >
               Seguinte

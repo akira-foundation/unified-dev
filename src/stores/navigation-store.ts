@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import type { AppPage } from "../types/navigation";
 import type { PullRequestDto } from "../types/organization";
+import type { IssueDto } from "../types/issue";
 
 export interface ActiveRepo {
   name: string;
@@ -16,6 +17,8 @@ interface NavigationState {
   activeOrganizationId: string | null;
   activeRepo: ActiveRepo | null;
   activePr: PullRequestDto | null;
+  activeIssue: IssueDto | null;
+  targetPrNumber: number | null;
   history: AppPage[];
   canGoBack: boolean;
   isAgentMode: boolean;
@@ -28,6 +31,8 @@ interface NavigationState {
   setActiveOrganizationId: (organizationId: string | null) => void;
   setActiveRepo: (repo: ActiveRepo | null) => void;
   setActivePr: (pr: PullRequestDto | null) => void;
+  setActiveIssue: (issue: IssueDto | null) => void;
+  setTargetPrNumber: (n: number | null) => void;
   setDashboardTab: (tab: string) => void;
 }
 
@@ -39,6 +44,8 @@ export const useNavigationStore = create<NavigationState>()(
       activeOrganizationId: null,
       activeRepo: null,
       activePr: null,
+      activeIssue: null,
+      targetPrNumber: null,
       history: [],
       canGoBack: false,
       isAgentMode: false,
@@ -82,6 +89,8 @@ export const useNavigationStore = create<NavigationState>()(
       setActiveOrganizationId: (organizationId) => set({ activeOrganizationId: organizationId }),
       setActiveRepo: (repo) => set({ activeRepo: repo }),
       setActivePr: (pr) => set({ activePr: pr }),
+      setActiveIssue: (issue) => set({ activeIssue: issue }),
+      setTargetPrNumber: (n) => set({ targetPrNumber: n }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
     }),
     {

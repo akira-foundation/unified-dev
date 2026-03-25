@@ -136,3 +136,45 @@ pub struct AppPasswordAuthPayload {
     pub username: String,
     pub password_enc: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct IssueRecord {
+    pub id: String,
+    pub external_id: String,
+    pub provider: String,
+    pub org_id: String,
+    pub repo_name: String,
+    pub number: i64,
+    pub title: String,
+    pub body: Option<String>,
+    pub status: String,
+    pub state_reason: Option<String>,
+    pub labels: String,
+    pub label_colors: String,
+    pub assignees: String,
+    pub author: Option<String>,
+    pub url: String,
+    pub linked_pr_numbers: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub synced_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateIssueInput {
+    pub org_id: String,
+    pub repo_name: String,
+    pub title: String,
+    pub body: Option<String>,
+    pub labels: Vec<String>,
+    pub assignees: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateIssueInput {
+    pub title: Option<String>,
+    pub body: Option<String>,
+    pub status: Option<String>,
+    pub labels: Option<Vec<String>>,
+    pub assignees: Option<Vec<String>>,
+}

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy};
+use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy, VcsIssue};
 use crate::error::AppResult;
 
 #[async_trait]
@@ -83,4 +83,50 @@ pub trait VcsProvider: Send + Sync {
         repository: &str,
         job_id: u64,
     ) -> AppResult<String>;
+
+    // Issue tracker methods
+
+    async fn list_issues(
+        &self,
+        owner: &str,
+        repository: &str,
+        state: Option<&str>,
+    ) -> AppResult<Vec<VcsIssue>>;
+
+    async fn get_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
+    ) -> AppResult<VcsIssue>;
+
+    async fn create_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        title: &str,
+        body: Option<&str>,
+        labels: Vec<String>,
+        assignees: Vec<String>,
+    ) -> AppResult<VcsIssue>;
+
+    async fn update_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
+        title: Option<&str>,
+        body: Option<&str>,
+        state: Option<&str>,
+        labels: Option<Vec<String>>,
+        assignees: Option<Vec<String>>,
+    ) -> AppResult<VcsIssue>;
+
+    async fn close_issue(
+        &self,
+        owner: &str,
+        repository: &str,
+        issue_number: u64,
+        reason: Option<&str>,
+    ) -> AppResult<()>;
 }

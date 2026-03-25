@@ -1,6 +1,7 @@
 pub mod bitbucket;
 pub mod github;
 pub mod gitlab;
+pub mod linear;
 
 use std::sync::Arc;
 
@@ -13,6 +14,7 @@ pub fn default_registry() -> AppResult<ProviderFactory> {
     registry.register(Arc::new(github::GitHubFactory::new()));
     registry.register(Arc::new(gitlab::GitLabFactory::new()));
     registry.register(Arc::new(bitbucket::BitbucketFactory::new()));
+    registry.register(Arc::new(linear::LinearFactory::new()));
 
     Ok(registry)
 }

@@ -15,6 +15,11 @@ export function useRepoActions() {
   const { repositoryGroups, addThread, addRepository, setSelectedIssueId } = useAgentsStore();
   const { navigateTo, setActiveRepo } = useNavigationStore();
 
+  const handleViewRepo = (repo: OrganizationRepoWithOrg) => {
+    setActiveRepo({ name: repo.repo_name, owner: repo.owner, organizationId: repo.organization_id });
+    navigateTo("repository-detail");
+  };
+
   const handleViewPrs = (repo: OrganizationRepoWithOrg) => {
     setActiveRepo({ name: repo.repo_name, owner: repo.owner, organizationId: repo.organization_id });
     navigateTo("repository-prs");
@@ -57,5 +62,5 @@ export function useRepoActions() {
     }
   };
 
-  return { handleViewPrs, handleNewTask };
+  return { handleViewRepo, handleViewPrs, handleNewTask };
 }

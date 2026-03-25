@@ -16,4 +16,7 @@ export const queryKeys = {
     ["job-logs", orgId, repo, jobId] as const,
   skills: () => ["skills"] as const,
   allRepositories: () => ["all-repositories"] as const,
+  issues: (orgId: string, repo: string) => ["issues", orgId, repo] as const,
+  issueDetail: (orgId: string, repo: string, number: number) =>
+    ["issue-detail", orgId, repo, number] as const,
 };

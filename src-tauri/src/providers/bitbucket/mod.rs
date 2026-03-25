@@ -6,6 +6,7 @@ use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
 use crate::core::provider::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, PullRequestState, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest,
+    VcsIssue,
 };
 use crate::error::{AppError, AppResult};
 
@@ -219,6 +220,60 @@ impl VcsProvider for BitbucketDriver {
         _job_id: u64,
     ) -> AppResult<String> {
         Ok(String::new())
+    }
+
+    async fn list_issues(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _state: Option<&str>,
+    ) -> AppResult<Vec<VcsIssue>> {
+        Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn get_issue(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _issue_number: u64,
+    ) -> AppResult<VcsIssue> {
+        Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn create_issue(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _title: &str,
+        _body: Option<&str>,
+        _labels: Vec<String>,
+        _assignees: Vec<String>,
+    ) -> AppResult<VcsIssue> {
+        Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn update_issue(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _issue_number: u64,
+        _title: Option<&str>,
+        _body: Option<&str>,
+        _state: Option<&str>,
+        _labels: Option<Vec<String>>,
+        _assignees: Option<Vec<String>>,
+    ) -> AppResult<VcsIssue> {
+        Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
+    }
+
+    async fn close_issue(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _issue_number: u64,
+        _reason: Option<&str>,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
     }
 }
 

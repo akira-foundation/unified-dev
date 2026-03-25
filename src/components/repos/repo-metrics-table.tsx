@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { ArrowUpDown, ChevronDown, ChevronUp, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Eye, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useRepoActions } from "../../hooks/useRepoActions";
@@ -39,7 +39,7 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
 
 export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSync, onSyncRepo, onOrganizationClick, isSyncing, syncingRepoId, hideOrganization }: RepoMetricsTableProps) {
   const { t } = useI18n();
-  const { handleViewPrs, handleNewTask } = useRepoActions();
+  const { handleViewRepo, handleViewPrs, handleNewTask } = useRepoActions();
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const columns = useMemo<ColumnDef<OrganizationRepoWithOrg>[]>(() => {
@@ -58,9 +58,12 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
         ),
         cell: ({ row }) => (
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+            <button
+              className="text-sm font-semibold text-gray-900 dark:text-white text-left hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+              onClick={() => handleViewRepo(row.original)}
+            >
               {row.original.repo_name}
-            </span>
+            </button>
             <span className="text-xs text-gray-500 dark:text-gray-400">{row.original.owner}</span>
           </div>
         ),
@@ -157,6 +160,10 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
                 <Plus className="mr-2 h-4 w-4" />
                 {t("common.newTask")}
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleViewRepo(row.original)}>
+                <Eye className="mr-2 h-4 w-4" />
+                {t("common.viewRepo")}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => handleViewPrs(row.original)}>
                 <GitPullRequest className="mr-2 h-4 w-4" />
                 {t("tables.header.prs")}
@@ -178,7 +185,7 @@ export function RepoMetricsTable({ repos, title = "Repositories", onCreate, onSy
     );
 
     return cols;
-  }, [t, hideOrganization, onOrganizationClick, onSyncRepo, syncingRepoId, handleViewPrs, handleNewTask]);
+  }, [t, hideOrganization, onOrganizationClick, onSyncRepo, syncingRepoId, handleViewRepo, handleViewPrs, handleNewTask]);
 
   const table = useReactTable({
     data: repos,

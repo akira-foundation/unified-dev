@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { GitPullRequest } from "lucide-react";
@@ -24,7 +24,7 @@ import type { PullRequestDto } from "../types/organization";
 export function RepositoryPRsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { activeRepo, navigateTo, setActivePr } = useNavigationStore();
+  const { activeRepo, navigateTo, setActivePr, targetPrNumber, setTargetPrNumber } = useNavigationStore();
   const queryClient = useQueryClient();
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -39,6 +39,16 @@ export function RepositoryPRsPage() {
     enabled: !!activeRepo,
     staleTime: 0,
   });
+
+  useEffect(() => {
+    if (!targetPrNumber || prs.length === 0) return;
+    const match = prs.find((pr) => pr.number === targetPrNumber);
+    if (match) {
+      setSelectedPr(match);
+      setSheetOpen(true);
+      setTargetPrNumber(null);
+    }
+  }, [targetPrNumber, prs, setTargetPrNumber]);
 
   const handleOpenUrl = async (url: string) => {
     try {

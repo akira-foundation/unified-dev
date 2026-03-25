@@ -1,0 +1,1 @@
+ALTER TABLE issues ADD COLUMN label_colors TEXT NOT NULL DEFAULT '[]';

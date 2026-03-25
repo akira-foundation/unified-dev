@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar } from "lucide-react";
+import { Calendar, Circle, CircleDot, CheckCircle2, XCircle } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
@@ -43,6 +43,14 @@ interface KanbanCardType {
 
 const COLUMN_IDS: ColumnId[] = ["todo", "inprogress", "review", "done"];
 
+function ColumnIcon({ id }: { id: ColumnId }) {
+  const cls = "h-3.5 w-3.5";
+  if (id === "todo")       return <Circle        className={cn(cls, "text-zinc-400")} />;
+  if (id === "inprogress") return <CircleDot     className={cn(cls, "text-blue-400")} />;
+  if (id === "review")     return <CircleDot     className={cn(cls, "text-amber-400")} />;
+  return                          <CheckCircle2  className={cn(cls, "text-emerald-400")} />;
+}
+
 function mapPrToColumn(pr: PullRequestDto): ColumnId {
   if (pr.merged_at !== null) return "done";
   if (pr.ci_status === "success" && pr.reviewers.length > 0) return "review";
@@ -59,11 +67,11 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   const { setActiveRepo, setActivePr, navigateTo, setDashboardTab } = useNavigationStore();
 
-  const COLUMNS: { id: ColumnId; title: string; color: string }[] = [
-    { id: "todo",       title: t("kanban.columns.open"),   color: "border-t-zinc-500" },
-    { id: "inprogress", title: t("kanban.columns.build"),  color: "border-t-blue-500" },
-    { id: "review",     title: t("kanban.columns.ready"),  color: "border-t-amber-500" },
-    { id: "done",       title: t("kanban.columns.merge"),  color: "border-t-emerald-500" },
+  const COLUMNS: { id: ColumnId; title: string; borderColor: string }[] = [
+    { id: "todo",        title: t("kanban.columns.open"),  borderColor: "border-t-zinc-500"    },
+    { id: "inprogress",  title: t("kanban.columns.build"), borderColor: "border-t-blue-500"    },
+    { id: "review",      title: t("kanban.columns.ready"), borderColor: "border-t-amber-500"   },
+    { id: "done",        title: t("kanban.columns.merge"), borderColor: "border-t-emerald-500" },
   ];
 
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
@@ -169,8 +177,11 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
     return (
       <div className="flex h-full w-full gap-6 p-1">
         {COLUMNS.map((col) => (
-          <div key={col.id} className="flex w-80 flex-col gap-4">
-            <Skeleton className="h-10 w-full rounded-xl" />
+          <div key={col.id} className="flex w-72 flex-col gap-3">
+            <div className={cn("flex items-center gap-1.5 border-t-2 pt-2", col.borderColor)}>
+              <Skeleton className="h-3.5 w-3.5 rounded-full" />
+              <Skeleton className="h-3 w-24 rounded" />
+            </div>
             <Skeleton className="h-24 w-full rounded-xl" />
             <Skeleton className="h-24 w-full rounded-xl" />
           </div>
@@ -182,16 +193,17 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="flex h-full w-full flex-col overflow-x-auto pb-4">
-        <div className="flex h-full w-full gap-6 p-1">
+        <div className="flex h-full w-full gap-4 p-1">
           {COLUMNS.map((column) => {
             const columnCards = items.filter((item) => item.columnId === column.id);
             return (
-              <div key={column.id} className="flex w-80 flex-col gap-4">
-                <div className="flex items-center justify-between rounded-xl bg-[#1f1f22] px-4 py-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-300">{column.title}</h3>
-                  <span className="flex h-5 w-5 items-center justify-center rounded bg-zinc-800 text-[10px] font-bold text-zinc-400">
-                    {columnCards.length}
+              <div key={column.id} className="flex min-w-[220px] flex-1 flex-col gap-2">
+                <div className={cn("flex items-center gap-1.5 border-t-2 pt-2", column.borderColor)}>
+                  <ColumnIcon id={column.id} />
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                    {column.title}
                   </span>
+                  <span className="ml-auto text-[10px] text-zinc-600">{columnCards.length}</span>
                 </div>
 
                 <SortableContext items={columnCards.map((item) => item.id)}>
@@ -203,8 +215,6 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
                     </ColumnDroppable>
                   </div>
                 </SortableContext>
-
-                <div className="h-10" />
               </div>
             );
           })}
