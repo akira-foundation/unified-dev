@@ -1,6 +1,6 @@
 use crate::agents::registry;
-use crate::chat::messages::{get_messages, Message};
-use crate::chat::send_message::send_message as send_message_logic;
+use crate::chat::message::{get_messages, Message};
+use crate::chat::session;
 use crate::chat::stream::emit_error;
 use crate::error::AppResult;
 use crate::state::AppState;
@@ -172,7 +172,7 @@ pub async fn agents_send_message(
     let silent = silent.unwrap_or(false);
 
     tokio::spawn(async move {
-        if let Err(e) = send_message_logic(thread_id, message, model, silent, pool, app.clone()).await {
+        if let Err(e) = session::run(thread_id, message, model, silent, pool, app.clone()).await {
             emit_error(&app, &thread_id_err, &e.to_string());
         }
     });

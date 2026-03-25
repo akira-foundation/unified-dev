@@ -15,7 +15,6 @@ pub struct Message {
     pub created_at: String,
 }
 
-/// Returns the last 40 messages for a thread, ordered oldest-first.
 pub async fn get_messages(thread_id: &str, pool: &SqlitePool) -> AppResult<Vec<Message>> {
     let mut messages = sqlx::query_as::<_, Message>(
         r#"
@@ -36,7 +35,6 @@ pub async fn get_messages(thread_id: &str, pool: &SqlitePool) -> AppResult<Vec<M
     Ok(messages)
 }
 
-/// Persists a single message and returns the saved record.
 pub async fn save_message(
     thread_id: &str,
     role: &str,

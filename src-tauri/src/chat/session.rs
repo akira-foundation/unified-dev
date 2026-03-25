@@ -4,7 +4,7 @@ use tauri::AppHandle;
 use crate::ai::provider::AiRequest;
 use crate::ai::providers::default_registry;
 use crate::ai::system_prompt::{build_action_system_prompt, build_system_prompt};
-use crate::chat::messages::{get_messages, save_message};
+use crate::chat::message::{get_messages, save_message};
 use crate::chat::stream::{emit_done, emit_error};
 use crate::error::{AppError, AppResult};
 
@@ -48,10 +48,15 @@ async fn load_repo_context(repo_id: &str, pool: &SqlitePool) -> AppResult<RepoCo
     Ok(RepoContext { name })
 }
 
-/// Saves the user message, runs the agentic loop (with tool-use), then saves the
-/// assistant message. Takes ownership of `pool` and `app` so they can be
-/// moved into a `tokio::spawn` closure by the calling command.
-pub async fn send_message(
+/// Runs a full chat session turn: saves the user message, dispatches to the AI
+/// registry (agentic loop with tool-use), then saves the assistant response.
+///
+/// Silent sessions (draft PR, merge, etc.) run in isolation — no chat history
+/// is passed so the model cannot be confused by the ongoing conversation.
+///
+/// Takes ownership of `pool` and `app` so they can be moved into a
+/// `tokio::spawn` closure by the calling command.
+pub async fn run(
     thread_id: String,
     content: String,
     model: String,
@@ -66,8 +71,6 @@ pub async fn send_message(
     let thread_ctx = load_thread_context(&thread_id, &pool).await?;
     let repo_ctx = load_repo_context(&thread_ctx.repo_id, &pool).await?;
 
-    // Silent actions (draft PR, merge, etc.) run in isolation — no chat history is
-    // passed so the model cannot be confused by the ongoing conversation.
     let history = if silent {
         vec![]
     } else {
@@ -91,9 +94,6 @@ pub async fn send_message(
 
     match default_registry().dispatch(request, &app).await {
         Ok(response_text) => {
-            // Silent actions are automation — only save a brief summary to the chat
-            // so the user can see what happened (e.g. the PR URL), not the full
-            // internal monologue of the agent.
             if !silent || !response_text.trim().is_empty() {
                 save_message(&thread_id, "assistant", &response_text, Some(&model), None, &pool).await?;
             }
