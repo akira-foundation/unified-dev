@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::core::provider::registry::ProviderFactory;
+use crate::providers::shared::registry::ProviderFactory;
 use crate::services::organization_repo_service::OrganizationRepoService;
 use crate::services::organization_service::OrganizationService;
 use crate::services::provider_service::ProviderService;

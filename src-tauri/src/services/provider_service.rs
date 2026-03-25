@@ -4,7 +4,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind};
+use crate::providers::shared::types::{ProviderAuth, ProviderKind};
 use crate::db::models::{
     AppPasswordAuthPayload, CreateProviderInput, GitHubOAuthPayload, ProviderAuthPayload, ProviderRecord,
     ProviderSummary, UpdateProviderAuthInput,

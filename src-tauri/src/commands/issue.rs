@@ -1,13 +1,13 @@
 use tauri::State;
 
-use crate::core::provider::types::IssueDto;
+use crate::providers::shared::types::IssueDto;
 use crate::db::models::{CreateIssueInput, IssueRecord, UpdateIssueInput};
 use crate::state::AppState;
 
 async fn get_provider(
     state: &AppState,
     org_id: &str,
-) -> Result<std::sync::Arc<dyn crate::core::provider::traits::VcsProvider>, String> {
+) -> Result<std::sync::Arc<dyn crate::providers::shared::traits::VcsProvider>, String> {
     let provider_id = sqlx::query_scalar::<_, Option<String>>(
         "SELECT provider_id FROM organizations WHERE id = ?",
     )

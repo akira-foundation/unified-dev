@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::core::provider::types::{ProviderRepo, PullRequestState, VcsPullRequest};
+use crate::providers::shared::types::{ProviderRepo, PullRequestState, VcsPullRequest};
 
 pub fn repo_to_provider(repo: BitbucketRepo) -> ProviderRepo {
     let owner = repo

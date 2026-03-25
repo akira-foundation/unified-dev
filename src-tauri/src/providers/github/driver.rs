@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use futures_util::future::join_all;
 use serde::Deserialize;
 
-use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
-use crate::core::provider::types::{
+use crate::providers::shared::traits::{ProviderDriverFactory, VcsProvider};
+use crate::providers::shared::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, PullRequestState, VcsBranch, VcsCiCheck, VcsCiCheckStep, VcsPrComment,
     VcsPrFile, VcsPullRequest, VcsIssue,

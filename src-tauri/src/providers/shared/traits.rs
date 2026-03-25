@@ -2,8 +2,11 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, PrReviewEvent, PrMergeStrategy, VcsIssue};
 use crate::error::AppResult;
+use crate::providers::shared::types::{
+    ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, PrMergeStrategy, PrReviewEvent,
+    VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue,
+};
 
 #[async_trait]
 pub trait ProviderDriverFactory: Send + Sync {

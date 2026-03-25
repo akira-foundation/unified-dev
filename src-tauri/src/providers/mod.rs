@@ -2,10 +2,11 @@ pub mod bitbucket;
 pub mod github;
 pub mod gitlab;
 pub mod linear;
+pub mod shared;
 
 use std::sync::Arc;
 
-use crate::core::provider::registry::ProviderFactory;
+use crate::providers::shared::registry::ProviderFactory;
 use crate::error::AppResult;
 
 pub fn default_registry() -> AppResult<ProviderFactory> {

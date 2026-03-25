@@ -7,7 +7,7 @@ use crate::db::models::{
     CreateOrganizationInput, OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary, SelectedRepositoryInput,
     UpdateOrganizationInput,
 };
-use crate::core::provider::types::{BranchDto, CiCheckDto, PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
+use crate::providers::shared::types::{BranchDto, CiCheckDto, PrCommentDto, PrFileDto, PrMergeStrategy, PrReviewEvent, PullRequestDto, PullRequestState};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -366,7 +366,7 @@ async fn resolve_pr_provider(
     state: &crate::state::AppState,
     organization_id: &str,
     repo_name: &str,
-) -> Result<(String, Arc<dyn crate::core::provider::traits::VcsProvider>), String> {
+) -> Result<(String, Arc<dyn crate::providers::shared::traits::VcsProvider>), String> {
     let repos = state
         .organization_repo_service
         .list_selected_repositories(organization_id)

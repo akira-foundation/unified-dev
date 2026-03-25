@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::core::provider::types::ProviderAuth;
+use crate::providers::shared::types::ProviderAuth;
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct ProviderRecord {

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
-use crate::core::provider::traits::{ProviderDriverFactory, VcsProvider};
-use crate::core::provider::types::{
+use crate::providers::shared::traits::{ProviderDriverFactory, VcsProvider};
+use crate::providers::shared::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue,
 };

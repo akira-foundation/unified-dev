@@ -2,7 +2,7 @@ use tauri::State;
 
 use serde::Deserialize;
 
-use crate::core::provider::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo};
+use crate::providers::shared::types::{ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo};
 use crate::db::models::{CreateProviderInput, ProviderSummary, TestProviderInput, UpdateProviderAuthInput};
 use crate::providers::github::oauth;
 use crate::state::AppState;
