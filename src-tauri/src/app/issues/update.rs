@@ -4,7 +4,7 @@ use crate::db::inputs::UpdateIssueInput;
 use crate::providers::types::IssueDto;
 use crate::state::AppState;
 
-pub async fn update_issue(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64, input: UpdateIssueInput) -> Result<IssueDto, String> {
+pub async fn update(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64, input: UpdateIssueInput) -> Result<IssueDto, String> {
     let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
 
     let issue = provider
@@ -50,7 +50,7 @@ pub async fn update_issue(state: State<'_, AppState>, org_id: String, repo_name:
     .await
     .map_err(|e| e.to_string())?;
 
-    super::get::get_issue(state, org_id, repo_name, number)
+    super::get::get(state, org_id, repo_name, number)
         .await?
         .ok_or_else(|| "Issue not found after update".to_string())
 }

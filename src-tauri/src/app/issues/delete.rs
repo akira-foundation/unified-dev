@@ -2,7 +2,7 @@ use tauri::State;
 
 use crate::state::AppState;
 
-pub async fn delete_issue(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64) -> Result<(), String> {
+pub async fn delete(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64) -> Result<(), String> {
     let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
 
     provider

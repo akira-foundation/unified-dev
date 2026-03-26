@@ -4,7 +4,7 @@ use crate::db::inputs::SelectedRepositoryInput;
 use crate::providers::types::PullRequestState;
 use crate::state::AppState;
 
-pub async fn save_selected_repositories(state: State<'_, AppState>, organization_id: String, repo_list: Vec<SelectedRepositoryInput>) -> Result<(), String> {
+pub async fn save_selected(state: State<'_, AppState>, organization_id: String, repo_list: Vec<SelectedRepositoryInput>) -> Result<(), String> {
     let provider = match crate::app::organizations::resolve_provider::resolve_provider_for_org(&state, &organization_id).await {
         Ok(p) => p,
         Err(_) => {

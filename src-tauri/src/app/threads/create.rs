@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::support::error::{AppError, AppResult};
-use crate::app::workspaces::git;
+use crate::app::repositories::git;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ThreadConfig {
@@ -18,7 +18,7 @@ pub struct ThreadConfig {
 }
 
 /// Entry point used by the Tauri command — looks up repo paths from the DB.
-pub async fn create_thread(repo_id: String, pool: &sqlx::SqlitePool) -> AppResult<ThreadConfig> {
+pub async fn create(repo_id: String, pool: &sqlx::SqlitePool) -> AppResult<ThreadConfig> {
     let row = sqlx::query_as::<_, (String, String, String)>(
         "SELECT workspace_root, name, source_path FROM local_repositories WHERE id = ?",
     )

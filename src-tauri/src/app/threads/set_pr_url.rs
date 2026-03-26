@@ -1,6 +1,6 @@
 use crate::support::error::AppResult;
 
-pub async fn set_pr_url(
+pub async fn set(
     thread_id: &str,
     pr_url: &str,
     pr_is_draft: bool,

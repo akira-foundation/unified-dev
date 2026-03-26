@@ -22,7 +22,7 @@ pub struct RepositoryRow {
     pub threads: Vec<ThreadRow>,
 }
 
-pub async fn list_repositories(state: tauri::State<'_, AppState>) -> AppResult<Vec<RepositoryRow>> {
+pub async fn list(state: tauri::State<'_, AppState>) -> AppResult<Vec<RepositoryRow>> {
     let repos = sqlx::query_as::<_, (String, String)>(
         "SELECT id, name FROM local_repositories ORDER BY created_at DESC",
     )

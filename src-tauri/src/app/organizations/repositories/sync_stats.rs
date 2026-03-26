@@ -3,7 +3,7 @@ use tauri::State;
 use crate::providers::types::PullRequestState;
 use crate::state::AppState;
 
-pub async fn sync_repository_stats(state: State<'_, AppState>, organization_id: String) -> Result<(), String> {
+pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> Result<(), String> {
     let repos = state
         .organization_repos
         .list_selected_by_org(&organization_id)

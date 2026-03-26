@@ -5,7 +5,7 @@ use crate::db::models::OrganizationSummary;
 use crate::support::error::AppError;
 use crate::state::AppState;
 
-pub async fn update_organization(state: State<'_, AppState>, input: UpdateOrganizationInput) -> Result<OrganizationSummary, String> {
+pub async fn update(state: State<'_, AppState>, input: UpdateOrganizationInput) -> Result<OrganizationSummary, String> {
     if let Some(ref provider_id) = input.provider_id {
         let provider_exists = sqlx::query_scalar::<_, i64>(
             "SELECT COUNT(1) FROM providers WHERE id = ?",

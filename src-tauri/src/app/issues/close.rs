@@ -2,7 +2,7 @@ use tauri::State;
 
 use crate::state::AppState;
 
-pub async fn close_issue(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64, reason: Option<String>) -> Result<(), String> {
+pub async fn close(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64, reason: Option<String>) -> Result<(), String> {
     let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
 
     provider

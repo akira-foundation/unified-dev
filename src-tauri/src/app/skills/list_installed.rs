@@ -1,3 +1,3 @@
-pub fn list_installed_skills() -> Vec<serde_json::Value> {
+pub fn list_installed() -> Vec<serde_json::Value> {
     vec![]
 }

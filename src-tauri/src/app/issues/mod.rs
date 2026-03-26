@@ -9,10 +9,10 @@ pub mod list;
 pub mod sync;
 pub mod update;
 
-pub use close::close_issue;
-pub use create::create_issue;
-pub use delete::delete_issue;
-pub use get::get_issue;
-pub use list::list_issues;
-pub use sync::sync_issues;
-pub use update::update_issue;
+pub use close::close;
+pub use create::create;
+pub use delete::delete;
+pub use get::get;
+pub use list::list;
+pub use sync::sync;
+pub use update::update;

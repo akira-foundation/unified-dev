@@ -1,4 +1,5 @@
 pub mod chat;
+pub mod filesystem;
 pub mod issues;
 pub mod organizations;
 pub mod prompts;
@@ -7,4 +8,3 @@ pub mod repositories;
 pub mod skills;
 pub mod terminal;
 pub mod threads;
-pub mod workspaces;

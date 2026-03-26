@@ -8,7 +8,7 @@ fn icons_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".agents").join("skills").join(".icons"))
 }
 
-pub async fn set_skill_icon(id: String, data: Vec<u8>, extension: String, state: State<'_, AppState>) -> AppResult<String> {
+pub async fn set_icon(id: String, data: Vec<u8>, extension: String, state: State<'_, AppState>) -> AppResult<String> {
     let icons = match icons_dir() {
         Some(d) => d,
         None => return Err(crate::support::error::AppError::Internal("Cannot resolve home dir".into())),

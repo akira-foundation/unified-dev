@@ -9,20 +9,20 @@ pub use crate::app::threads::RepositoryRow;
 
 #[tauri::command]
 pub async fn create_thread(repo_id: String, state: State<'_, AppState>) -> AppResult<ThreadConfig> {
-    threads::create_thread(repo_id, state).await
+    threads::create(repo_id, state).await
 }
 
 #[tauri::command]
 pub async fn delete_thread(thread_id: String, state: State<'_, AppState>) -> AppResult<()> {
-    threads::delete_thread(thread_id, state).await
+    threads::delete(thread_id, state).await
 }
 
 #[tauri::command]
 pub async fn set_thread_pr_url(thread_id: String, pr_url: String, pr_is_draft: bool, state: State<'_, AppState>) -> AppResult<()> {
-    threads::set_thread_pr_url(thread_id, pr_url, pr_is_draft, state).await
+    threads::set_pr_url(thread_id, pr_url, pr_is_draft, state).await
 }
 
 #[tauri::command]
 pub async fn list_repositories(state: State<'_, AppState>) -> AppResult<Vec<RepositoryRow>> {
-    threads::list_repositories::list_repositories(state).await
+    threads::list_repositories::list(state).await
 }

@@ -21,7 +21,7 @@ fn icons_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".agents").join("skills").join(".icons"))
 }
 
-pub async fn uninstall_skill(id: String, state: State<'_, AppState>) -> AppResult<()> {
+pub async fn uninstall(id: String, state: State<'_, AppState>) -> AppResult<()> {
     for dir in skill_dirs() {
         let skill_dir = dir.join(&id);
         if skill_dir.is_dir() {

@@ -3,7 +3,7 @@ use tauri::State;
 use crate::providers::types::IssueDto;
 use crate::state::AppState;
 
-pub async fn sync_issues(state: State<'_, AppState>, org_id: String, owner: String, repo_name: String, state_filter: Option<String>) -> Result<Vec<IssueDto>, String> {
+pub async fn sync(state: State<'_, AppState>, org_id: String, owner: String, repo_name: String, state_filter: Option<String>) -> Result<Vec<IssueDto>, String> {
     let provider = super::resolve_provider::get_provider(&state, &org_id).await?;
     let provider_kind = provider.kind().to_string();
     let state_param = state_filter.as_deref();
@@ -65,5 +65,5 @@ pub async fn sync_issues(state: State<'_, AppState>, org_id: String, owner: Stri
         .map_err(|e| e.to_string())?;
     }
 
-    super::list::list_issues(state, org_id, repo_name).await
+    super::list::list(state, org_id, repo_name).await
 }

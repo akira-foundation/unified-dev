@@ -4,7 +4,7 @@ use crate::db::inputs::CreateIssueInput;
 use crate::providers::types::IssueDto;
 use crate::state::AppState;
 
-pub async fn create_issue(state: State<'_, AppState>, input: CreateIssueInput) -> Result<IssueDto, String> {
+pub async fn create(state: State<'_, AppState>, input: CreateIssueInput) -> Result<IssueDto, String> {
     let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &input.org_id, &input.repo_name).await?;
     let provider_kind = provider.kind().to_string();
 
@@ -57,7 +57,7 @@ pub async fn create_issue(state: State<'_, AppState>, input: CreateIssueInput) -
     .await
     .map_err(|e| e.to_string())?;
 
-    super::get::get_issue(state, input.org_id, input.repo_name, issue.number as i64)
+    super::get::get(state, input.org_id, input.repo_name, issue.number as i64)
         .await?
         .ok_or_else(|| "Issue was created but not found in DB".to_string())
 }

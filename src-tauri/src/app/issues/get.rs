@@ -4,7 +4,7 @@ use crate::db::models::IssueRecord;
 use crate::providers::types::IssueDto;
 use crate::state::AppState;
 
-pub async fn get_issue(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64) -> Result<Option<IssueDto>, String> {
+pub async fn get(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64) -> Result<Option<IssueDto>, String> {
     let record = sqlx::query_as::<_, IssueRecord>(
         "SELECT * FROM issues WHERE org_id = ? AND repo_name = ? AND number = ?",
     )

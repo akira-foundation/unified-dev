@@ -55,7 +55,7 @@ fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-pub async fn install_skill(skill_id: String, repo_url: String, state: State<'_, AppState>) -> AppResult<InstalledSkill> {
+pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppState>) -> AppResult<InstalledSkill> {
     let repo_url = repo_url.trim_end_matches('/').to_string();
     let zip_url = format!("{}/archive/refs/heads/main.zip", repo_url);
 

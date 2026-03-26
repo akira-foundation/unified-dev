@@ -55,7 +55,7 @@ fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-pub async fn sync_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledSkill>> {
+pub async fn sync(state: State<'_, AppState>) -> AppResult<Vec<InstalledSkill>> {
     let mut seen: HashSet<String> = HashSet::new();
 
     for dir in skill_dirs() {
@@ -114,5 +114,5 @@ pub async fn sync_skills(state: State<'_, AppState>) -> AppResult<Vec<InstalledS
         }
     }
 
-    super::get::get_skills(state).await
+    super::get::get(state).await
 }

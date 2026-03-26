@@ -4,7 +4,7 @@ use crate::providers::types::PullRequestState;
 use crate::providers::types::PullRequestDto;
 use crate::state::AppState;
 
-pub async fn sync_pull_requests(state: State<'_, AppState>, organization_id: String, repo_name: String, owner: Option<String>) -> Result<Vec<PullRequestDto>, String> {
+pub async fn sync(state: State<'_, AppState>, organization_id: String, repo_name: String, owner: Option<String>) -> Result<Vec<PullRequestDto>, String> {
     let _ = owner;
     let (owner, provider) = super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
     let prs = provider

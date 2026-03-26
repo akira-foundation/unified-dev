@@ -2,7 +2,7 @@ use tauri::State;
 
 use crate::state::AppState;
 
-pub async fn delete_organization(state: State<'_, AppState>, organization_id: String) -> Result<(), String> {
+pub async fn delete(state: State<'_, AppState>, organization_id: String) -> Result<(), String> {
     sqlx::query("DELETE FROM organizations WHERE id = ?")
         .bind(&organization_id)
         .execute(&state.db_pool)
