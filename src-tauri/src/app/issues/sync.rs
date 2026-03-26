@@ -1,4 +1,5 @@
 use tauri::State;
+use std::collections::HashSet;
 
 use crate::providers::dto::IssueDto;
 use crate::state::AppState;
@@ -13,6 +14,31 @@ pub async fn sync(state: State<'_, AppState>, org_id: String, owner: String, rep
         .await
         .map_err(|e| e.to_string())?;
 
+    if state_filter.is_none() {
+        let remote_numbers: HashSet<i64> = issues.iter().map(|issue| issue.number as i64).collect();
+
+        let local_numbers: Vec<i64> = sqlx::query_scalar::<_, i64>(
+            "SELECT number FROM issues WHERE org_id = ? AND repo_name = ? AND sync_with_provider = 1",
+        )
+        .bind(&org_id)
+        .bind(&repo_name)
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
+
+        for local_number in local_numbers {
+            if !remote_numbers.contains(&local_number) {
+                sqlx::query("DELETE FROM issues WHERE org_id = ? AND repo_name = ? AND number = ?")
+                    .bind(&org_id)
+                    .bind(&repo_name)
+                    .bind(local_number)
+                    .execute(&state.db_pool)
+                    .await
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+    }
+
     let now = chrono::Utc::now().to_rfc3339();
 
     for issue in &issues {
@@ -26,8 +52,8 @@ pub async fn sync(state: State<'_, AppState>, org_id: String, owner: String, rep
             INSERT INTO issues
                 (id, external_id, provider, org_id, repo_name, number, title, body,
                  status, state_reason, labels, label_colors, assignees, author, url,
-                 linked_pr_numbers, created_at, updated_at, synced_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?)
+                 linked_pr_numbers, created_at, updated_at, synced_at, sync_with_provider)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, 1)
             ON CONFLICT(id) DO UPDATE SET
                 title        = excluded.title,
                 body         = excluded.body,
@@ -39,7 +65,8 @@ pub async fn sync(state: State<'_, AppState>, org_id: String, owner: String, rep
                 author       = excluded.author,
                 url          = excluded.url,
                 updated_at   = excluded.updated_at,
-                synced_at    = excluded.synced_at
+                synced_at    = excluded.synced_at,
+                sync_with_provider = 1
             "#,
         )
         .bind(&id)

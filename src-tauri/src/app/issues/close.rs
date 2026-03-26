@@ -3,12 +3,26 @@ use tauri::State;
 use crate::state::AppState;
 
 pub async fn close(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64, reason: Option<String>) -> Result<(), String> {
-    let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
+    let sync_with_provider = sqlx::query_scalar::<_, Option<bool>>(
+        "SELECT sync_with_provider FROM issues WHERE org_id = ? AND repo_name = ? AND number = ? LIMIT 1",
+    )
+    .bind(&org_id)
+    .bind(&repo_name)
+    .bind(number)
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .flatten()
+    .unwrap_or(true);
 
-    provider
-        .close_issue(&owner, &repo_name, number as u64, reason.as_deref())
-        .await
-        .map_err(|e| e.to_string())?;
+    if sync_with_provider {
+        let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
+
+        provider
+            .close_issue(&owner, &repo_name, number as u64, reason.as_deref())
+            .await
+            .map_err(|e| e.to_string())?;
+    }
 
     let now = chrono::Utc::now().to_rfc3339();
     let state_reason = reason.unwrap_or_else(|| "completed".to_string());

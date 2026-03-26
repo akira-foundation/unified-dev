@@ -5,22 +5,56 @@ use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
 pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Result<IssueDto, String> {
-    let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &input.org_id, &input.repo_name).await?;
-    let provider_kind = provider.kind().to_string();
-
-    let issue = provider
-        .create_issue(
-            &owner,
-            &input.repo_name,
-            &input.title,
-            input.body.as_deref(),
-            input.labels.clone(),
-            input.assignees.clone(),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-
     let now = chrono::Utc::now().to_rfc3339();
+    let (provider_kind, issue) = if input.sync_with_provider {
+        let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &input.org_id, &input.repo_name).await?;
+        let provider_kind = provider.kind().to_string();
+
+        let issue = provider
+            .create_issue(
+                &owner,
+                &input.repo_name,
+                &input.title,
+                input.body.as_deref(),
+                input.labels.clone(),
+                input.assignees.clone(),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+
+        (provider_kind, issue)
+    } else {
+        let next_number = sqlx::query_scalar::<_, Option<i64>>(
+            "SELECT MAX(number) FROM issues WHERE org_id = ? AND repo_name = ?",
+        )
+        .bind(&input.org_id)
+        .bind(&input.repo_name)
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or(0)
+            + 1;
+
+        (
+            "local".to_string(),
+            crate::providers::dto::VcsIssue {
+                external_id: format!("local:{}:{}:{}", input.org_id, input.repo_name, next_number),
+                number: next_number as u64,
+                title: input.title.clone(),
+                body: input.body.clone(),
+                status: "open".to_string(),
+                state_reason: None,
+                labels: input.labels.clone(),
+                label_colors: vec!["888888".to_string(); input.labels.len()],
+                assignees: input.assignees.clone(),
+                author: None,
+                url: String::new(),
+                created_at: now.clone(),
+                updated_at: now.clone(),
+            },
+        )
+    };
+
     let id = format!("{}:{}:{}:{}", input.org_id, provider_kind, input.repo_name, issue.number);
     let labels_json = serde_json::to_string(&issue.labels).unwrap_or_else(|_| "[]".to_string());
     let label_colors_json = serde_json::to_string(&issue.label_colors).unwrap_or_else(|_| "[]".to_string());
@@ -31,8 +65,8 @@ pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Re
         INSERT INTO issues
             (id, external_id, provider, org_id, repo_name, number, title, body,
              status, state_reason, labels, label_colors, assignees, author, url,
-             linked_pr_numbers, created_at, updated_at, synced_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?)
+             linked_pr_numbers, created_at, updated_at, synced_at, sync_with_provider)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?)
         "#,
     )
     .bind(&id)
@@ -53,6 +87,7 @@ pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Re
     .bind(&issue.created_at)
     .bind(&issue.updated_at)
     .bind(&now)
+    .bind(input.sync_with_provider)
     .execute(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;

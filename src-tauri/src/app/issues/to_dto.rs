@@ -28,5 +28,6 @@ pub fn record_to_dto(r: IssueRecord) -> IssueDto {
         created_at: r.created_at,
         updated_at: r.updated_at,
         synced_at: r.synced_at,
+        sync_with_provider: r.sync_with_provider,
     }
 }

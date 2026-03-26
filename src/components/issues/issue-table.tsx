@@ -103,6 +103,7 @@ export function IssueTable({
   const filters = useMemo(
     () => ({
       statuses: storeFilters?.statuses ?? [],
+      sources: storeFilters?.sources ?? [],
       labels: storeFilters?.labels ?? [],
       assignees: storeFilters?.assignees ?? [],
       repos: storeFilters?.repos ?? [],
@@ -129,11 +130,12 @@ export function IssueTable({
   }, [issues]);
 
   const activeFilterCount =
-    filters.statuses.length + filters.labels.length + filters.assignees.length + filters.repos.length;
+    filters.statuses.length + filters.sources.length + filters.labels.length + filters.assignees.length + filters.repos.length;
 
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
       if (filters.statuses.length > 0 && !filters.statuses.includes(issue.status)) return false;
+      if (filters.sources.length > 0 && !filters.sources.includes(issue.syncWithProvider ? "synced" : "local")) return false;
       if (filters.labels.length > 0 && !filters.labels.some((l) => issue.labels.includes(l))) return false;
       if (filters.assignees.length > 0 && !filters.assignees.some((a) => issue.assignees.includes(a))) return false;
       if (filters.repos.length > 0 && !filters.repos.includes(issue.repoName)) return false;
@@ -159,9 +161,20 @@ export function IssueTable({
             className="flex flex-col gap-0.5 min-w-0 cursor-pointer"
             onClick={() => onSelect?.(row.original)}
           >
-            <span className="text-sm font-semibold text-gray-900 dark:text-white leading-snug hover:underline">
-              {row.original.title}
-            </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="truncate text-sm font-semibold text-gray-900 dark:text-white leading-snug hover:underline">
+                {row.original.title}
+              </span>
+              <span
+                className={`shrink-0 rounded-[6px] px-1.5 py-0.5 text-[10px] font-medium ${
+                  row.original.syncWithProvider
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : "bg-zinc-500/10 text-zinc-400"
+                }`}
+              >
+                {row.original.syncWithProvider ? "synced" : "local"}
+              </span>
+            </div>
             {row.original.labels.length > 0 && (
               <div className="flex items-center gap-1 flex-wrap">
                 {row.original.labels.slice(0, 3).map((label) => (
@@ -407,6 +420,28 @@ export function IssueTable({
                     onCheckedChange: () =>
                       setFilter(filterNamespace, "statuses", toggleItem(filters.statuses, status)),
                   }))}
+                />
+
+                <FilterSectionDivider />
+
+                <FilterToggleSection
+                  label="Source"
+                  options={[
+                    {
+                      key: "synced",
+                      label: "Synced",
+                      checked: filters.sources.includes("synced"),
+                      onCheckedChange: () =>
+                        setFilter(filterNamespace, "sources", toggleItem(filters.sources, "synced")),
+                    },
+                    {
+                      key: "local",
+                      label: "Local",
+                      checked: filters.sources.includes("local"),
+                      onCheckedChange: () =>
+                        setFilter(filterNamespace, "sources", toggleItem(filters.sources, "local")),
+                    },
+                  ]}
                 />
 
                 {/* Repositories */}

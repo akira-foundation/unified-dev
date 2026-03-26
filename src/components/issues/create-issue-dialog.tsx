@@ -136,6 +136,7 @@ export function CreateIssueDialog({
           body: values.body || null,
           labels: values.labels ?? [],
           assignees: values.assignees ?? [],
+          sync_with_provider: syncWithProvider,
         },
       });
     },

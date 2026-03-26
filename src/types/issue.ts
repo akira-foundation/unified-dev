@@ -18,6 +18,7 @@ export interface IssueDto {
   createdAt: string;
   updatedAt: string;
   syncedAt: string;
+  syncWithProvider: boolean;
 }
 
 /** Kanban column IDs for the issue board */

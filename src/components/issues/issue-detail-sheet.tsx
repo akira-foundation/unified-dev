@@ -91,9 +91,20 @@ export function IssueDetailSheet({ issue, open, onOpenChange }: IssueDetailSheet
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <SheetTitle className="text-base leading-snug text-left">
-                  {issue.title}
-                </SheetTitle>
+                <div className="min-w-0 flex items-center gap-2">
+                  <SheetTitle className="text-base leading-snug text-left">
+                    {issue.title}
+                  </SheetTitle>
+                  <span
+                    className={`shrink-0 rounded-[6px] px-1.5 py-0.5 text-[10px] font-medium ${
+                      issue.syncWithProvider
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : "bg-zinc-500/10 text-zinc-400"
+                    }`}
+                  >
+                    {issue.syncWithProvider ? "synced" : "local"}
+                  </span>
+                </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {issue.url && (
                     <button
@@ -151,6 +162,15 @@ export function IssueDetailSheet({ issue, open, onOpenChange }: IssueDetailSheet
                       </span>
                       <Badge variant={isOpen ? "secondary" : "outline"}>
                         {issue.status}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between px-4 py-3">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                        Source
+                      </span>
+                      <Badge variant="outline">
+                        {issue.syncWithProvider ? "Synced" : "Local"}
                       </Badge>
                     </div>
 

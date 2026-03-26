@@ -68,9 +68,20 @@ function IssueCard({
         onClick={handleClick}
       >
         <div className="mb-1.5 flex items-start justify-between gap-2">
-          <span className="text-xs font-medium text-white leading-snug line-clamp-2">
-            {card.issue.title}
-          </span>
+          <div className="flex min-w-0 items-start gap-2">
+            <span className="line-clamp-2 text-xs font-medium leading-snug text-white">
+              {card.issue.title}
+            </span>
+            <span
+              className={`shrink-0 rounded-[6px] px-1.5 py-0.5 text-[10px] font-medium ${
+                card.issue.syncWithProvider
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-zinc-500/10 text-zinc-400"
+              }`}
+            >
+              {card.issue.syncWithProvider ? "synced" : "local"}
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] text-zinc-500">

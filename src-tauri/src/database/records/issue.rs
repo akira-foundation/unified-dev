@@ -21,4 +21,5 @@ pub struct IssueRecord {
     pub created_at: String,
     pub updated_at: String,
     pub synced_at: String,
+    pub sync_with_provider: bool,
 }

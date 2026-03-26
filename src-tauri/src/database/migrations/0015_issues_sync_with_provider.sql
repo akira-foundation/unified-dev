@@ -1,0 +1,1 @@
+ALTER TABLE issues ADD COLUMN sync_with_provider INTEGER NOT NULL DEFAULT 1;
