@@ -2,7 +2,7 @@ use tauri::State;
 use std::path::PathBuf;
 
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 fn skill_dirs() -> Vec<PathBuf> {
     let home = match dirs::home_dir() {

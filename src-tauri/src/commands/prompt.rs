@@ -4,7 +4,7 @@ use tauri::State;
 
 use crate::app::prompts;
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 #[tauri::command]
 pub async fn get_prompts(state: State<'_, AppState>) -> AppResult<HashMap<String, String>> {

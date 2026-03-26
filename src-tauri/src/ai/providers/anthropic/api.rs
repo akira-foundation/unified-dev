@@ -8,7 +8,7 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_anthropic_turn;
 use crate::ai::tools::{execute_tool, tool_definitions_anthropic, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 pub struct AnthropicProvider;
 

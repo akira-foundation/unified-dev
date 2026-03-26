@@ -1,5 +1,5 @@
 use std::path::Path;
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 pub async fn delete(thread_id: String, pool: &sqlx::SqlitePool) -> AppResult<()> {
     let row = sqlx::query_as::<_, (String,)>(

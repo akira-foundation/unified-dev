@@ -1,10 +1,10 @@
 use tauri::State;
 
-use crate::db::inputs::TestProviderInput;
-use crate::providers::types::ProviderKind;
+use crate::app::providers::request::TestProviderConnectionRequest;
+use crate::providers::enums::ProviderKind;
 use crate::state::AppState;
 
-pub async fn test_connection(state: State<'_, AppState>, input: TestProviderInput) -> Result<(), String> {
+pub async fn test_connection(state: State<'_, AppState>, input: TestProviderConnectionRequest) -> Result<(), String> {
     let kind = ProviderKind::from_str(&input.kind);
     let provider = state
         .provider_factory

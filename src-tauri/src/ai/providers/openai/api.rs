@@ -8,7 +8,7 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_responses_sse;
 use crate::ai::tools::{execute_tool, tool_definitions_responses, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 /// Calls the OpenAI Responses API directly using the Codex CLI's stored token.
 pub struct OpenAiProvider;

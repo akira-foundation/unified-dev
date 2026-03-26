@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::Utc;
 
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 use super::types::InstalledSkill;
 
@@ -61,14 +61,14 @@ pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppSta
 
     let bytes = reqwest::get(&zip_url)
         .await
-        .map_err(|e| crate::support::error::AppError::Internal(e.to_string()))?
+        .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?
         .bytes()
         .await
-        .map_err(|e| crate::support::error::AppError::Internal(e.to_string()))?;
+        .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?;
 
     let cursor = std::io::Cursor::new(bytes.as_ref());
     let mut archive = zip::ZipArchive::new(cursor)
-        .map_err(|e| crate::support::error::AppError::Internal(e.to_string()))?;
+        .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?;
 
     let mut name = String::new();
     let mut description = String::new();
@@ -81,7 +81,7 @@ pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppSta
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i)
-            .map_err(|e| crate::support::error::AppError::Internal(e.to_string()))?;
+            .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?;
         let raw_name = file.name().to_string();
 
         let needle = format!("/{}/", skill_id);
@@ -95,7 +95,7 @@ pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppSta
             }
             let mut buf = Vec::new();
             file.read_to_end(&mut buf)
-                .map_err(|e| crate::support::error::AppError::Internal(e.to_string()))?;
+                .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?;
 
             if relative == "SKILL.md" {
                 let content = String::from_utf8_lossy(&buf).to_string();
@@ -109,7 +109,7 @@ pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppSta
     }
 
     if skill_files.is_empty() {
-        return Err(crate::support::error::AppError::Internal(format!(
+        return Err(crate::app::support::error::AppError::Internal(format!(
             "Skill '{}' not found in the repository zip",
             skill_id
         )));

@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::providers::types::IssueDto;
+use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
 pub async fn sync(state: State<'_, AppState>, org_id: String, owner: String, repo_name: String, state_filter: Option<String>) -> Result<Vec<IssueDto>, String> {

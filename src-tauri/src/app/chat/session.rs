@@ -6,7 +6,7 @@ use crate::ai::providers::default_registry;
 use crate::ai::system_prompt::{build_action_system_prompt, build_system_prompt};
 use crate::app::chat::message::{get_messages, save_message};
 use crate::app::chat::stream::{emit_done, emit_error};
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 struct ThreadContext {
     repo_id: String,

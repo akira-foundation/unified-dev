@@ -5,7 +5,7 @@ use tauri::AppHandle;
 use crate::ai::credentials::{read_codex_access_token, read_copilot_oauth_token, resolve_env_key};
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::providers::anthropic::find_claude_cli;
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 pub struct AiRegistry {
     providers: Vec<Arc<dyn AiProvider>>,

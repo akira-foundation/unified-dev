@@ -1,10 +1,10 @@
 use tauri::State;
 
-use crate::db::inputs::UpdateIssueInput;
-use crate::providers::types::IssueDto;
+use crate::app::issues::request::UpdateIssueRequest;
+use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
-pub async fn update(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64, input: UpdateIssueInput) -> Result<IssueDto, String> {
+pub async fn update(state: State<'_, AppState>, org_id: String, repo_name: String, number: i64, input: UpdateIssueRequest) -> Result<IssueDto, String> {
     let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
 
     let issue = provider

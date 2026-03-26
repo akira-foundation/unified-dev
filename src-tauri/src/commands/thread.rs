@@ -1,7 +1,7 @@
 use tauri::State;
 
 use crate::app::threads;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 use crate::state::AppState;
 use crate::app::threads::ThreadConfig;
 
@@ -24,5 +24,5 @@ pub async fn set_thread_pr_url(thread_id: String, pr_url: String, pr_is_draft: b
 
 #[tauri::command]
 pub async fn list_repositories(state: State<'_, AppState>) -> AppResult<Vec<RepositoryRow>> {
-    threads::list_repositories::list(state).await
+    threads::list_repos::list(state).await
 }

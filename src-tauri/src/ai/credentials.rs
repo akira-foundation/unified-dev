@@ -1,7 +1,7 @@
 use reqwest::Client;
 use serde::Deserialize;
 
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 /// Resolves an environment variable by name, falling back to scanning common
 /// shell init files. Tauri desktop apps do not inherit shell env vars set in

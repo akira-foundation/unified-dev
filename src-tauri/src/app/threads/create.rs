@@ -3,8 +3,8 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::support::error::{AppError, AppResult};
-use crate::app::repositories::git;
+use crate::app::support::error::{AppError, AppResult};
+use crate::app::repos::git;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ThreadConfig {

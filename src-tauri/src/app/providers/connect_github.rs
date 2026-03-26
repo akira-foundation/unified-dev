@@ -1,8 +1,8 @@
 use tauri::State;
 
-use crate::db::models::ProviderSummary;
-use crate::providers::github::oauth;
-use crate::providers::types::ProviderAuth;
+use crate::database::models::ProviderSummary;
+use crate::providers::drivers::github::oauth;
+use crate::providers::enums::ProviderAuth;
 use crate::state::AppState;
 
 pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<ProviderSummary, String> {
@@ -42,7 +42,7 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
 
     state
         .provider_repo
-        .create(&crate::db::models::ProviderRecord {
+        .create(&crate::database::models::ProviderRecord {
             id: uuid::Uuid::new_v4().to_string(),
             name: result.account_login.clone(),
             kind: "github".to_string(),

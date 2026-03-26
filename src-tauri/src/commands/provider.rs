@@ -3,9 +3,9 @@ use tauri::State;
 use serde::Deserialize;
 
 use crate::app::providers;
-use crate::db::inputs::{CreateProviderInput, TestProviderInput, UpdateProviderAuthInput};
-use crate::db::models::ProviderSummary;
-use crate::providers::types::{ProviderOrg, ProviderRepo};
+use crate::app::providers::request::{CreateProviderRequest, TestProviderConnectionRequest, UpdateProviderAuthRequest};
+use crate::database::models::ProviderSummary;
+use crate::providers::dto::{ProviderOrg, ProviderRepo};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -16,7 +16,7 @@ pub struct ProviderReposInput {
 }
 
 #[tauri::command]
-pub async fn create_provider(state: State<'_, AppState>, input: CreateProviderInput) -> Result<ProviderSummary, String> {
+pub async fn create_provider(state: State<'_, AppState>, input: CreateProviderRequest) -> Result<ProviderSummary, String> {
     providers::create(state, input).await
 }
 
@@ -26,7 +26,7 @@ pub async fn list_providers(state: State<'_, AppState>) -> Result<Vec<ProviderSu
 }
 
 #[tauri::command]
-pub async fn update_provider_auth(state: State<'_, AppState>, input: UpdateProviderAuthInput) -> Result<(), String> {
+pub async fn update_provider_auth(state: State<'_, AppState>, input: UpdateProviderAuthRequest) -> Result<(), String> {
     providers::update_auth(state, input).await
 }
 
@@ -36,7 +36,7 @@ pub async fn delete_provider(state: State<'_, AppState>, provider_id: String, ke
 }
 
 #[tauri::command]
-pub async fn test_provider_connection(state: State<'_, AppState>, input: TestProviderInput) -> Result<(), String> {
+pub async fn test_provider_connection(state: State<'_, AppState>, input: TestProviderConnectionRequest) -> Result<(), String> {
     providers::test_connection(state, input).await
 }
 
@@ -52,7 +52,7 @@ pub async fn list_provider_organizations(state: State<'_, AppState>, provider_id
 
 #[tauri::command]
 pub async fn list_provider_repositories(state: State<'_, AppState>, input: ProviderReposInput) -> Result<Vec<ProviderRepo>, String> {
-    providers::list_repositories(
+    providers::list_repos(
         state,
         providers::ProviderReposInput {
             provider_id: input.provider_id,

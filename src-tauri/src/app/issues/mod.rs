@@ -6,6 +6,7 @@ pub mod create;
 pub mod delete;
 pub mod get;
 pub mod list;
+pub mod request;
 pub mod sync;
 pub mod update;
 

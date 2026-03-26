@@ -1,7 +1,7 @@
 use tauri::State;
 
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 use super::types::InstalledSkill;
 

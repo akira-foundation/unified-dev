@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::providers::traits::VcsProvider;
+use crate::app::concerns::VcsProvider;
 use crate::state::AppState;
 
 pub async fn get_provider(

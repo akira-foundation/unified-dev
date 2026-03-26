@@ -4,7 +4,7 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::app::chat::stream::emit_token;
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 /// An accumulated tool call from Chat Completions streaming deltas.
 #[derive(Default, Clone)]

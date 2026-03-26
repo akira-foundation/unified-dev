@@ -1,10 +1,8 @@
 mod app;
 mod ai;
 mod commands;
-mod db;
-mod models;
+mod database;
 mod providers;
-mod support;
 mod state;
 
 use std::sync::Arc;
@@ -31,11 +29,11 @@ use commands::repository::{add_local_repository, add_remote_repository, delete_l
 use commands::thread::{create_thread, delete_thread, list_repositories, set_thread_pr_url};
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
-use db::organization_repos::SqliteOrganizationRepoRepository;
-use db::providers::SqliteProviderRepository;
+use database::queries::organization_repos::SqliteOrganizationRepoRepository;
+use database::queries::providers::SqliteProviderRepository;
 use providers::default_registry;
-use support::error::AppResult;
-use support::security::{KeyStore, TokenCipher};
+use app::support::error::AppResult;
+use app::support::security::{KeyStore, TokenCipher};
 use state::AppState;
 use app::terminal::state::TerminalState;
 use tauri::Manager;
@@ -47,7 +45,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
-                let pool = support::db::init_pool(app.handle()).await?;
+                let pool = database::init_pool(app.handle()).await?;
                 let key = KeyStore::load_or_create_key(app.handle())?;
                 let cipher = Arc::new(TokenCipher::new(key));
 

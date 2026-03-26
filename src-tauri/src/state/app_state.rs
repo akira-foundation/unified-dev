@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use crate::db::organization_repos::OrganizationRepoRepository;
-use crate::db::providers::ProviderRepository;
+use crate::app::concerns::OrganizationRepoRepository;
+use crate::app::concerns::ProviderRepository;
 use crate::providers::registry::ProviderFactory;
-use crate::support::security::TokenCipher;
+use crate::app::support::security::TokenCipher;
 
 pub struct AppState {
     pub provider_repo: Arc<dyn ProviderRepository>,

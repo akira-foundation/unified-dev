@@ -4,7 +4,7 @@ use crate::state::AppState;
 
 pub async fn delete(state: State<'_, AppState>, provider_id: String, keep_organizations: bool) -> Result<(), String> {
     if !keep_organizations {
-        let organizations = sqlx::query_as::<_, crate::db::models::OrganizationSummary>(
+        let organizations = sqlx::query_as::<_, crate::database::models::OrganizationSummary>(
             "SELECT id, name, provider_id, external_id, created_at FROM organizations WHERE provider_id = ?",
         )
         .bind(&provider_id)

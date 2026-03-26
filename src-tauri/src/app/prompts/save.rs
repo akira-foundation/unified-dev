@@ -1,7 +1,7 @@
 use tauri::State;
 
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 pub async fn save(action: String, content: String, state: State<'_, AppState>) -> AppResult<()> {
     let now = chrono::Utc::now().to_rfc3339();

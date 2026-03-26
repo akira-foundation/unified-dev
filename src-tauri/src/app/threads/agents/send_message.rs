@@ -3,7 +3,7 @@ use tauri::{AppHandle, State};
 use crate::app::chat::session;
 use crate::app::chat::stream::emit_error;
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 pub async fn send_message(
     thread_id: String,

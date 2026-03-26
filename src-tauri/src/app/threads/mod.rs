@@ -1,15 +1,15 @@
 pub mod agents;
 pub mod create;
 pub mod delete;
-pub mod list_repositories;
+pub mod list_repos;
 pub mod set_pr_url;
 
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 pub use create::{create as create_logic, create_with_paths, ThreadConfig};
 pub use delete::delete as delete_logic;
-pub use list_repositories::RepositoryRow;
+pub use list_repos::RepositoryRow;
 pub use set_pr_url::set as set_pr_url_logic;
 
 pub async fn create(repo_id: String, state: tauri::State<'_, AppState>) -> AppResult<ThreadConfig> {

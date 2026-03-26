@@ -1,7 +1,7 @@
-use crate::db::inputs::{AppPasswordAuthPayload, GitHubOAuthPayload, ProviderAuthPayload};
-use crate::providers::types::{ProviderAuth, ProviderKind};
+use crate::app::providers::auth_payload::{AppPasswordAuthPayload, GitHubOAuthPayload, ProviderAuthPayload};
+use crate::providers::enums::{ProviderAuth, ProviderKind};
 use crate::state::AppState;
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 pub struct ProviderCredentials {
     pub kind: ProviderKind,

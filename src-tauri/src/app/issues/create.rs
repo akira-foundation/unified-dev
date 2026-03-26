@@ -1,10 +1,10 @@
 use tauri::State;
 
-use crate::db::inputs::CreateIssueInput;
-use crate::providers::types::IssueDto;
+use crate::app::issues::request::CreateIssueRequest;
+use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
-pub async fn create(state: State<'_, AppState>, input: CreateIssueInput) -> Result<IssueDto, String> {
+pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Result<IssueDto, String> {
     let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &input.org_id, &input.repo_name).await?;
     let provider_kind = provider.kind().to_string();
 

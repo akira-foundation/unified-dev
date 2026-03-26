@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::providers::types::ProviderOrg;
+use crate::providers::dto::ProviderOrg;
 use crate::state::AppState;
 
 pub async fn list_organizations(state: State<'_, AppState>, provider_id: String) -> Result<Vec<ProviderOrg>, String> {

@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::support::error::{AppError, AppResult};
-use crate::providers::traits::{ProviderDriverFactory, VcsProvider};
-use crate::providers::types::{ProviderAuth, ProviderKind};
+use crate::app::support::error::{AppError, AppResult};
+use crate::app::concerns::{ProviderDriverFactory, VcsProvider};
+use crate::providers::enums::{ProviderAuth, ProviderKind};
 
 #[derive(Clone, Default)]
 pub struct ProviderFactory {

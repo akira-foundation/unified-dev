@@ -2,7 +2,7 @@ use tauri::State;
 
 use crate::app::skills;
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 pub use crate::app::skills::InstalledSkill;
 

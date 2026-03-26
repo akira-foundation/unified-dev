@@ -1,7 +1,7 @@
 use tauri::State;
 
-use crate::db::models::IssueRecord;
-use crate::providers::types::IssueDto;
+use crate::database::models::IssueRecord;
+use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
 pub async fn list(state: State<'_, AppState>, org_id: String, repo_name: String) -> Result<Vec<IssueDto>, String> {

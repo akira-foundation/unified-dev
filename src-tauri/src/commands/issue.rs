@@ -1,8 +1,8 @@
 use tauri::State;
 
 use crate::app::issues;
-use crate::db::inputs::{CreateIssueInput, UpdateIssueInput};
-use crate::providers::types::IssueDto;
+use crate::app::issues::request::{CreateIssueRequest, UpdateIssueRequest};
+use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
 #[tauri::command]
@@ -38,7 +38,7 @@ pub async fn get_issue(
 #[tauri::command]
 pub async fn create_issue(
     state: State<'_, AppState>,
-    input: CreateIssueInput,
+    input: CreateIssueRequest,
 ) -> Result<IssueDto, String> {
     issues::create(state, input).await
 }
@@ -49,7 +49,7 @@ pub async fn update_issue(
     org_id: String,
     repo_name: String,
     number: i64,
-    input: UpdateIssueInput,
+    input: UpdateIssueRequest,
 ) -> Result<IssueDto, String> {
     issues::update(state, org_id, repo_name, number, input).await
 }

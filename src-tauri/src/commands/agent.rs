@@ -3,7 +3,7 @@ use tauri::{AppHandle, State};
 use crate::app::chat::message::Message;
 use crate::app::threads;
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 #[tauri::command]
 pub async fn get_available_models() -> Result<crate::ai::agents::registry::ModelRegistry, String> {

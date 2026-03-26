@@ -1,10 +1,12 @@
 pub mod chat;
+pub mod concerns;
 pub mod filesystem;
 pub mod issues;
-pub mod organizations;
+pub mod orgs;
 pub mod prompts;
 pub mod providers;
-pub mod repositories;
+pub mod repos;
 pub mod skills;
+pub mod support;
 pub mod terminal;
 pub mod threads;

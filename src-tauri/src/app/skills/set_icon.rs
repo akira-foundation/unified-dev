@@ -2,7 +2,7 @@ use tauri::State;
 use std::path::PathBuf;
 
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 fn icons_dir() -> Option<PathBuf> {
     dirs::home_dir().map(|h| h.join(".agents").join("skills").join(".icons"))
@@ -11,7 +11,7 @@ fn icons_dir() -> Option<PathBuf> {
 pub async fn set_icon(id: String, data: Vec<u8>, extension: String, state: State<'_, AppState>) -> AppResult<String> {
     let icons = match icons_dir() {
         Some(d) => d,
-        None => return Err(crate::support::error::AppError::Internal("Cannot resolve home dir".into())),
+        None => return Err(crate::app::support::error::AppError::Internal("Cannot resolve home dir".into())),
     };
     std::fs::create_dir_all(&icons)?;
 

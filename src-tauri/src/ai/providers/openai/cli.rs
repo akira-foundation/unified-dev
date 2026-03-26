@@ -4,7 +4,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::app::chat::stream::{emit_token, emit_tool_call, StreamToolCallPayload};
-use crate::support::error::{AppError, AppResult};
+use crate::app::support::error::{AppError, AppResult};
 
 pub struct OpenAiCliProvider;
 

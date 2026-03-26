@@ -1,5 +1,5 @@
-use crate::db::models::IssueRecord;
-use crate::providers::types::IssueDto;
+use crate::database::models::IssueRecord;
+use crate::providers::dto::IssueDto;
 
 pub fn record_to_dto(r: IssueRecord) -> IssueDto {
     let labels: Vec<String> = serde_json::from_str(&r.labels).unwrap_or_default();

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tauri::State;
 
 use crate::state::AppState;
-use crate::support::error::AppResult;
+use crate::app::support::error::AppResult;
 
 pub async fn get(state: State<'_, AppState>) -> AppResult<HashMap<String, String>> {
     let rows = sqlx::query_as::<_, (String, String)>("SELECT action, content FROM prompts")
