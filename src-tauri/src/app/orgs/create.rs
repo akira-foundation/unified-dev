@@ -48,5 +48,7 @@ pub async fn create(state: State<'_, AppState>, input: CreateOrgRequest) -> Resu
         provider_id: organization.provider_id,
         external_id: organization.external_id,
         created_at: organization.created_at,
+        selected_repos_count: 0,
+        last_synced_at: None,
     })
 }

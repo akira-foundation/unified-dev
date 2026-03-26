@@ -70,6 +70,7 @@ pub fn start(app_handle: AppHandle) {
                     )
                     .await;
                     last_synced.insert(("repos", org_id.clone()), now);
+                    touch_synced_at(&state, org_id, &settings).await;
                     emit(&app_handle, "repos", org_id);
                 }
 
@@ -86,6 +87,7 @@ pub fn start(app_handle: AppHandle) {
                         .await;
                     }
                     last_synced.insert(("prs", org_id.clone()), now);
+                    touch_synced_at(&state, org_id, &settings).await;
                     emit(&app_handle, "prs", org_id);
                 }
 
@@ -103,6 +105,7 @@ pub fn start(app_handle: AppHandle) {
                         .await;
                     }
                     last_synced.insert(("issues", org_id.clone()), now);
+                    touch_synced_at(&state, org_id, &settings).await;
                     emit(&app_handle, "issues", org_id);
                 }
             }
@@ -169,6 +172,37 @@ async fn load_settings(state: &AppState, id: &str) -> SyncSettingsDto {
         sync_orgs_interval_secs: r.sync_orgs_interval_secs,
     })
     .unwrap_or_else(|| SyncSettingsDto::defaults_for(id))
+}
+
+async fn touch_synced_at(state: &AppState, id: &str, settings: &SyncSettingsDto) {
+    let scope = if id == GLOBAL_ID { "global" } else { "organization" };
+    let now = chrono::Utc::now().to_rfc3339();
+    let _ = sqlx::query(
+        "INSERT INTO sync_settings (
+            id, scope,
+            sync_issues_enabled, sync_issues_interval_secs,
+            sync_prs_enabled, sync_prs_interval_secs,
+            sync_repos_enabled, sync_repos_interval_secs,
+            sync_orgs_enabled, sync_orgs_interval_secs,
+            created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET updated_at = excluded.updated_at",
+    )
+    .bind(id)
+    .bind(scope)
+    .bind(settings.sync_issues_enabled)
+    .bind(settings.sync_issues_interval_secs)
+    .bind(settings.sync_prs_enabled)
+    .bind(settings.sync_prs_interval_secs)
+    .bind(settings.sync_repos_enabled)
+    .bind(settings.sync_repos_interval_secs)
+    .bind(settings.sync_orgs_enabled)
+    .bind(settings.sync_orgs_interval_secs)
+    .bind(&now)
+    .bind(&now)
+    .execute(&state.db_pool)
+    .await;
 }
 
 async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Result<(), String> {

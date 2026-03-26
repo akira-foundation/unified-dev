@@ -25,7 +25,7 @@ import { Skeleton } from "../components/ui/skeleton";
 export function OrganizationsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { organizations, isLoading, createOrganization, updateOrganization, removeOrganization } = useOrganizations();
+  const { organizations, isLoading, syncingIds, createOrganization, updateOrganization, removeOrganization } = useOrganizations();
   const { providers } = useProviders();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editOrganization, setEditOrganization] = useState<OrganizationSummary | null>(null);
@@ -69,6 +69,7 @@ export function OrganizationsPage() {
         ) : (
           <OrganizationList
             organizations={organizations}
+            syncingIds={syncingIds}
             onRemove={removeOrganization}
             onSelect={(organizationId) => {
               setActiveOrganizationId(organizationId);

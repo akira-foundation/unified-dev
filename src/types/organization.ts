@@ -3,6 +3,8 @@ export interface OrganizationSummary {
   name: string;
   provider_id: string | null;
   created_at: string;
+  selected_repos_count: number;
+  last_synced_at: string | null;
 }
 
 export interface CreateOrganizationInput {
