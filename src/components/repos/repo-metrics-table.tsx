@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw, X } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useRepoActions } from "../../hooks/useRepoActions";
@@ -22,14 +22,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Switch } from "../ui/switch";
 import {
   Combobox,
-  ComboboxChips,
-  ComboboxChip,
-  ComboboxChipsInput,
+  ComboboxInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxItem,
   ComboboxList,
-  ComboboxValue,
 } from "../ui/combobox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -314,7 +311,7 @@ export function RepoMetricsTable({
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-0">
+            <PopoverContent align="end" className="w-64 p-0 bg-card text-card-foreground">
               <div className="flex items-center justify-between px-3 py-2">
                 <span className="text-sm font-semibold">{t("repos.table.filter")}</span>
                 {activeFilterCount > 0 && (
@@ -370,21 +367,24 @@ export function RepoMetricsTable({
                       {t("repos.table.filter.organization")}
                     </p>
                     <Combobox items={allOrganizations} multiple value={filters.organizations} onValueChange={(v) => setFilter(filterNamespace, "organizations", v as string[])}>
-                      <ComboboxChips className="min-h-8 text-xs">
-                        <ComboboxValue>
-                          {filters.organizations.map((item) => (
-                            <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
-                          ))}
-                        </ComboboxValue>
-                        <ComboboxChipsInput placeholder={t("repos.table.filter.orgSearch")} className="text-xs" />
-                      </ComboboxChips>
-                      <ComboboxContent>
+                      <ComboboxInput placeholder={t("repos.table.filter.orgSearch")} className="w-full text-xs" showTrigger={false} />
+                      <ComboboxContent className="bg-card text-card-foreground">
                         <ComboboxEmpty>No results.</ComboboxEmpty>
                         <ComboboxList>
                           {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
                         </ComboboxList>
                       </ComboboxContent>
                     </Combobox>
+                    {filters.organizations.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {filters.organizations.map((item) => (
+                          <button key={item} type="button" onClick={() => setFilter(filterNamespace, "organizations", toggleItem(filters.organizations, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                            <span>{item}</span>
+                            <X className="h-3 w-3" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -398,21 +398,24 @@ export function RepoMetricsTable({
                       {t("repos.table.filter.defaultBranch")}
                     </p>
                     <Combobox items={allBranches} multiple value={filters.defaultBranch} onValueChange={(v) => setFilter(filterNamespace, "defaultBranch", v as string[])}>
-                      <ComboboxChips className="min-h-8 text-xs">
-                        <ComboboxValue>
-                          {filters.defaultBranch.map((item) => (
-                            <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
-                          ))}
-                        </ComboboxValue>
-                        <ComboboxChipsInput placeholder={t("repos.table.filter.branchSearch")} className="text-xs" />
-                      </ComboboxChips>
-                      <ComboboxContent>
+                      <ComboboxInput placeholder={t("repos.table.filter.branchSearch")} className="w-full text-xs" showTrigger={false} />
+                      <ComboboxContent className="bg-card text-card-foreground">
                         <ComboboxEmpty>No results.</ComboboxEmpty>
                         <ComboboxList>
                           {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
                         </ComboboxList>
                       </ComboboxContent>
                     </Combobox>
+                    {filters.defaultBranch.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {filters.defaultBranch.map((item) => (
+                          <button key={item} type="button" onClick={() => setFilter(filterNamespace, "defaultBranch", toggleItem(filters.defaultBranch, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                            <span>{item}</span>
+                            <X className="h-3 w-3" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </>
               )}

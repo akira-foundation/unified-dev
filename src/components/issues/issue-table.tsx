@@ -7,7 +7,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -27,14 +27,11 @@ import {
 } from "../ui/dropdown-menu";
 import {
   Combobox,
-  ComboboxChips,
-  ComboboxChip,
-  ComboboxChipsInput,
+  ComboboxInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxItem,
   ComboboxList,
-  ComboboxValue,
 } from "../ui/combobox";
 import {
   AlertDialog,
@@ -390,7 +387,7 @@ export function IssueTable({
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-0">
+              <PopoverContent align="end" className="w-64 p-0 bg-card text-card-foreground">
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="text-sm font-semibold">{t("issues.table.filter")}</span>
                   {activeFilterCount > 0 && (
@@ -431,22 +428,30 @@ export function IssueTable({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                         {t("issues.table.filter.repositories")}
                       </p>
-                      <Combobox items={allRepos} multiple value={filters.repos} onValueChange={(v) => setFilter(filterNamespace, "repos", v as string[])}>
-                        <ComboboxChips className="min-h-8 text-xs">
-                          <ComboboxValue>
+                        <Combobox items={allRepos} multiple value={filters.repos} onValueChange={(v) => setFilter(filterNamespace, "repos", v as string[])}>
+                          <ComboboxInput placeholder={t("issues.table.filter.repoSearch")} className="w-full text-xs" showTrigger={false} />
+                          <ComboboxContent className="bg-card text-card-foreground">
+                            <ComboboxEmpty>No results.</ComboboxEmpty>
+                            <ComboboxList>
+                              {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                            </ComboboxList>
+                          </ComboboxContent>
+                        </Combobox>
+                        {filters.repos.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
                             {filters.repos.map((item) => (
-                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                              <button
+                                key={item}
+                                type="button"
+                                onClick={() => setFilter(filterNamespace, "repos", toggleItem(filters.repos, item))}
+                                className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                <span>{item}</span>
+                                <X className="h-3 w-3" />
+                              </button>
                             ))}
-                          </ComboboxValue>
-                          <ComboboxChipsInput placeholder={t("issues.table.filter.repoSearch")} className="text-xs" />
-                        </ComboboxChips>
-                        <ComboboxContent>
-                          <ComboboxEmpty>No results.</ComboboxEmpty>
-                          <ComboboxList>
-                            {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                          </ComboboxList>
-                        </ComboboxContent>
-                      </Combobox>
+                          </div>
+                        )}
                     </div>
                   </>
                 )}
@@ -459,22 +464,30 @@ export function IssueTable({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                         {t("issues.table.filter.labels")}
                       </p>
-                      <Combobox items={allLabels} multiple value={filters.labels} onValueChange={(v) => setFilter(filterNamespace, "labels", v as string[])}>
-                        <ComboboxChips className="min-h-8 text-xs">
-                          <ComboboxValue>
+                        <Combobox items={allLabels} multiple value={filters.labels} onValueChange={(v) => setFilter(filterNamespace, "labels", v as string[])}>
+                          <ComboboxInput placeholder={t("issues.table.filter.labelSearch")} className="w-full text-xs" showTrigger={false} />
+                          <ComboboxContent className="bg-card text-card-foreground">
+                            <ComboboxEmpty>No results.</ComboboxEmpty>
+                            <ComboboxList>
+                              {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                            </ComboboxList>
+                          </ComboboxContent>
+                        </Combobox>
+                        {filters.labels.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
                             {filters.labels.map((item) => (
-                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                              <button
+                                key={item}
+                                type="button"
+                                onClick={() => setFilter(filterNamespace, "labels", toggleItem(filters.labels, item))}
+                                className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                <span>{item}</span>
+                                <X className="h-3 w-3" />
+                              </button>
                             ))}
-                          </ComboboxValue>
-                          <ComboboxChipsInput placeholder={t("issues.table.filter.labelSearch")} className="text-xs" />
-                        </ComboboxChips>
-                        <ComboboxContent>
-                          <ComboboxEmpty>No results.</ComboboxEmpty>
-                          <ComboboxList>
-                            {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                          </ComboboxList>
-                        </ComboboxContent>
-                      </Combobox>
+                          </div>
+                        )}
                     </div>
                   </>
                 )}
@@ -487,22 +500,30 @@ export function IssueTable({
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                         {t("issues.table.filter.assignees")}
                       </p>
-                      <Combobox items={allAssignees} multiple value={filters.assignees} onValueChange={(v) => setFilter(filterNamespace, "assignees", v as string[])}>
-                        <ComboboxChips className="min-h-8 text-xs">
-                          <ComboboxValue>
+                        <Combobox items={allAssignees} multiple value={filters.assignees} onValueChange={(v) => setFilter(filterNamespace, "assignees", v as string[])}>
+                          <ComboboxInput placeholder={t("issues.table.filter.assigneeSearch")} className="w-full text-xs" showTrigger={false} />
+                          <ComboboxContent className="bg-card text-card-foreground">
+                            <ComboboxEmpty>No results.</ComboboxEmpty>
+                            <ComboboxList>
+                              {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
+                            </ComboboxList>
+                          </ComboboxContent>
+                        </Combobox>
+                        {filters.assignees.length > 0 && (
+                          <div className="flex flex-wrap gap-1 pt-1">
                             {filters.assignees.map((item) => (
-                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
+                              <button
+                                key={item}
+                                type="button"
+                                onClick={() => setFilter(filterNamespace, "assignees", toggleItem(filters.assignees, item))}
+                                className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              >
+                                <span>{item}</span>
+                                <X className="h-3 w-3" />
+                              </button>
                             ))}
-                          </ComboboxValue>
-                          <ComboboxChipsInput placeholder={t("issues.table.filter.assigneeSearch")} className="text-xs" />
-                        </ComboboxChips>
-                        <ComboboxContent>
-                          <ComboboxEmpty>No results.</ComboboxEmpty>
-                          <ComboboxList>
-                            {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                          </ComboboxList>
-                        </ComboboxContent>
-                      </Combobox>
+                          </div>
+                        )}
                     </div>
                   </>
                 )}

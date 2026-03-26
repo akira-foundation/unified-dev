@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Filter, GitPullRequest, RefreshCw } from "lucide-react";
+import { Filter, GitPullRequest, RefreshCw, X } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { Card, CardContent } from "../ui/card";
@@ -9,14 +9,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   Combobox,
-  ComboboxChips,
-  ComboboxChip,
-  ComboboxChipsInput,
+  ComboboxInput,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxItem,
   ComboboxList,
-  ComboboxValue,
 } from "../ui/combobox";
 import { PrItem } from "./pr-item";
 import { PrDetailSheet } from "./pr-detail-sheet";
@@ -181,7 +178,7 @@ export function PrListCard({
                   )}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-0">
+              <PopoverContent align="end" className="w-64 p-0 bg-card text-card-foreground">
                 <div className="flex items-center justify-between px-3 py-2">
                   <span className="text-sm font-semibold">{t("prs.filter")}</span>
                   {activeFilterCount > 0 && (
@@ -237,21 +234,24 @@ export function PrListCard({
                         {t("prs.filter.author")}
                       </p>
                       <Combobox items={allAuthors} multiple value={filters.author} onValueChange={(v) => setFilter(filterNamespace, "author", v as string[])}>
-                        <ComboboxChips className="min-h-8 text-xs">
-                          <ComboboxValue>
-                            {filters.author.map((item) => (
-                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
-                            ))}
-                          </ComboboxValue>
-                          <ComboboxChipsInput placeholder={t("prs.filter.authorSearch")} className="text-xs" />
-                        </ComboboxChips>
-                        <ComboboxContent>
+                        <ComboboxInput placeholder={t("prs.filter.authorSearch")} className="w-full text-xs" showTrigger={false} />
+                        <ComboboxContent className="bg-card text-card-foreground">
                           <ComboboxEmpty>No results.</ComboboxEmpty>
                           <ComboboxList>
                             {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
                           </ComboboxList>
                         </ComboboxContent>
                       </Combobox>
+                      {filters.author.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {filters.author.map((item) => (
+                            <button key={item} type="button" onClick={() => setFilter(filterNamespace, "author", toggleItem(filters.author, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                              <span>{item}</span>
+                              <X className="h-3 w-3" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -265,21 +265,24 @@ export function PrListCard({
                         {t("prs.filter.labels")}
                       </p>
                       <Combobox items={allLabels} multiple value={filters.labels} onValueChange={(v) => setFilter(filterNamespace, "labels", v as string[])}>
-                        <ComboboxChips className="min-h-8 text-xs">
-                          <ComboboxValue>
-                            {filters.labels.map((item) => (
-                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
-                            ))}
-                          </ComboboxValue>
-                          <ComboboxChipsInput placeholder={t("prs.filter.labelSearch")} className="text-xs" />
-                        </ComboboxChips>
-                        <ComboboxContent>
+                        <ComboboxInput placeholder={t("prs.filter.labelSearch")} className="w-full text-xs" showTrigger={false} />
+                        <ComboboxContent className="bg-card text-card-foreground">
                           <ComboboxEmpty>No results.</ComboboxEmpty>
                           <ComboboxList>
                             {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
                           </ComboboxList>
                         </ComboboxContent>
                       </Combobox>
+                      {filters.labels.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {filters.labels.map((item) => (
+                            <button key={item} type="button" onClick={() => setFilter(filterNamespace, "labels", toggleItem(filters.labels, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                              <span>{item}</span>
+                              <X className="h-3 w-3" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -293,21 +296,24 @@ export function PrListCard({
                         {t("prs.filter.ciStatus")}
                       </p>
                       <Combobox items={allCiStatuses} multiple value={filters.ciStatus} onValueChange={(v) => setFilter(filterNamespace, "ciStatus", v as string[])}>
-                        <ComboboxChips className="min-h-8 text-xs">
-                          <ComboboxValue>
-                            {filters.ciStatus.map((item) => (
-                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
-                            ))}
-                          </ComboboxValue>
-                          <ComboboxChipsInput placeholder={t("prs.filter.ciStatusSearch")} className="text-xs" />
-                        </ComboboxChips>
-                        <ComboboxContent>
+                        <ComboboxInput placeholder={t("prs.filter.ciStatusSearch")} className="w-full text-xs" showTrigger={false} />
+                        <ComboboxContent className="bg-card text-card-foreground">
                           <ComboboxEmpty>No results.</ComboboxEmpty>
                           <ComboboxList>
                             {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
                           </ComboboxList>
                         </ComboboxContent>
                       </Combobox>
+                      {filters.ciStatus.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {filters.ciStatus.map((item) => (
+                            <button key={item} type="button" onClick={() => setFilter(filterNamespace, "ciStatus", toggleItem(filters.ciStatus, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                              <span>{item}</span>
+                              <X className="h-3 w-3" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -321,21 +327,24 @@ export function PrListCard({
                         {t("prs.filter.reviewers")}
                       </p>
                       <Combobox items={allReviewers} multiple value={filters.reviewers} onValueChange={(v) => setFilter(filterNamespace, "reviewers", v as string[])}>
-                        <ComboboxChips className="min-h-8 text-xs">
-                          <ComboboxValue>
-                            {filters.reviewers.map((item) => (
-                              <ComboboxChip key={item} className="text-[11px]">{item}</ComboboxChip>
-                            ))}
-                          </ComboboxValue>
-                          <ComboboxChipsInput placeholder={t("prs.filter.reviewerSearch")} className="text-xs" />
-                        </ComboboxChips>
-                        <ComboboxContent>
+                        <ComboboxInput placeholder={t("prs.filter.reviewerSearch")} className="w-full text-xs" showTrigger={false} />
+                        <ComboboxContent className="bg-card text-card-foreground">
                           <ComboboxEmpty>No results.</ComboboxEmpty>
                           <ComboboxList>
                             {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
                           </ComboboxList>
                         </ComboboxContent>
                       </Combobox>
+                      {filters.reviewers.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {filters.reviewers.map((item) => (
+                            <button key={item} type="button" onClick={() => setFilter(filterNamespace, "reviewers", toggleItem(filters.reviewers, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
+                              <span>{item}</span>
+                              <X className="h-3 w-3" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </>
                 )}

@@ -12,7 +12,7 @@ function SelectTrigger({ className, children, ...props }: React.ComponentPropsWi
   return (
       <SelectPrimitive.Trigger
         className={cn(
-          "flex h-9 w-full items-center justify-between rounded-[10px] border border-zinc-200 bg-white px-3 py-2 font-sans text-sm shadow-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-zinc-200 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900",
+          "flex h-9 w-full items-center justify-between rounded-[10px] border border-border bg-card px-3 py-2 font-sans text-sm text-card-foreground shadow-xs placeholder:text-muted-foreground focus:outline-hidden focus:ring-1 focus:ring-border disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
       {...props}
@@ -30,7 +30,7 @@ function SelectContent({ className, children, position = "popper", ...props }: R
     <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           className={cn(
-            "relative z-50 min-w-[8rem] overflow-hidden rounded-[10px] border border-zinc-200 bg-white font-sans text-zinc-950 shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-50",
+            "relative z-50 min-w-[8rem] overflow-hidden rounded-[10px] border border-border bg-card font-sans text-card-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
             position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
             className,
         )}
