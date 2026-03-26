@@ -4,11 +4,13 @@ use crate::providers::enums::PullRequestState;
 use crate::state::AppState;
 
 pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: String, repo_name: String) -> Result<(), String> {
-    let repos = state
-        .organization_repos
-        .list_selected_by_org(&organization_id)
-        .await
-        .map_err(|e| e.to_string())?;
+    let repos = sqlx::query_as::<_, crate::database::records::OrganizationRepoSummary>(
+        "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
+    )
+    .bind(&organization_id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
 
     let Some(repo) = repos.iter().find(|r| r.repo_name == repo_name) else {
         return Ok(());
@@ -37,10 +39,16 @@ pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: Stri
         .map(|prs| prs.iter().filter(|pr| matches!(pr.state, PullRequestState::Open)).count() as i64)
         .unwrap_or(0);
 
-    let _ = state
-        .organization_repos
-        .update_repo_stats(&organization_id, &repo_name, &default_branch, &visibility, open_prs_count)
-        .await;
+    let _ = sqlx::query(
+        "UPDATE organization_repos SET default_branch = ?, visibility = ?, open_prs_count = ? WHERE organization_id = ? AND repo_name = ?",
+    )
+    .bind(&default_branch)
+    .bind(&visibility)
+    .bind(open_prs_count)
+    .bind(&organization_id)
+    .bind(&repo_name)
+    .execute(&state.db_pool)
+    .await;
 
     Ok(())
 }

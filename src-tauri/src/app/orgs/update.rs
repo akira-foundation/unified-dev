@@ -1,8 +1,8 @@
 use tauri::State;
 
 use crate::app::orgs::request::UpdateOrgRequest;
-use crate::database::records::OrganizationSummary;
 use crate::app::support::error::AppError;
+use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
 pub async fn update(state: State<'_, AppState>, input: UpdateOrgRequest) -> Result<OrganizationSummary, String> {
@@ -20,15 +20,13 @@ pub async fn update(state: State<'_, AppState>, input: UpdateOrgRequest) -> Resu
         }
     }
 
-    sqlx::query(
-        "UPDATE organizations SET name = ?, provider_id = ? WHERE id = ?",
-    )
-    .bind(&input.name)
-    .bind(&input.provider_id)
-    .bind(&input.id)
-    .execute(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    sqlx::query("UPDATE organizations SET name = ?, provider_id = ? WHERE id = ?")
+        .bind(&input.name)
+        .bind(&input.provider_id)
+        .bind(&input.id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
     sqlx::query_as::<_, OrganizationSummary>(
         r#"

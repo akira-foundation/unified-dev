@@ -4,9 +4,11 @@ use crate::database::records::OrganizationRepoSummary;
 use crate::state::AppState;
 
 pub async fn list_selected(state: State<'_, AppState>, organization_id: String) -> Result<Vec<OrganizationRepoSummary>, String> {
-    state
-        .organization_repos
-        .list_selected_by_org(&organization_id)
-        .await
-        .map_err(|error| error.to_string())
+    sqlx::query_as::<_, OrganizationRepoSummary>(
+        "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
+    )
+    .bind(&organization_id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())
 }

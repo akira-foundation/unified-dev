@@ -4,9 +4,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::app::orgs::request::CreateOrgRequest;
-use crate::database::records::OrganizationRecord;
-use crate::database::records::OrganizationSummary;
 use crate::app::support::error::AppError;
+use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
 pub async fn create(state: State<'_, AppState>, input: CreateOrgRequest) -> Result<OrganizationSummary, String> {
@@ -22,32 +21,27 @@ pub async fn create(state: State<'_, AppState>, input: CreateOrgRequest) -> Resu
         return Err(AppError::Provider("provider not found".to_string()).to_string());
     }
 
-    let organization = OrganizationRecord {
-        id: Uuid::new_v4().to_string(),
-        name: input.name,
-        provider_id: Some(input.provider_id),
-        external_id: input.external_id,
-        created_at: OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default(),
-    };
+    let id = Uuid::new_v4().to_string();
+    let created_at = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
 
     sqlx::query(
         "INSERT INTO organizations (id, name, provider_id, external_id, created_at) VALUES (?, ?, ?, ?, ?)",
     )
-    .bind(&organization.id)
-    .bind(&organization.name)
-    .bind(&organization.provider_id)
-    .bind(&organization.external_id)
-    .bind(&organization.created_at)
+    .bind(&id)
+    .bind(&input.name)
+    .bind(&input.provider_id)
+    .bind(&input.external_id)
+    .bind(&created_at)
     .execute(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;
 
     Ok(OrganizationSummary {
-        id: organization.id,
-        name: organization.name,
-        provider_id: organization.provider_id,
-        external_id: organization.external_id,
-        created_at: organization.created_at,
+        id,
+        name: input.name,
+        provider_id: Some(input.provider_id),
+        external_id: input.external_id,
+        created_at,
         selected_repos_count: 0,
         last_synced_at: None,
     })

@@ -7,7 +7,6 @@ use tauri::Manager;
 use crate::app::support::error::AppResult;
 
 pub mod records;
-pub mod queries;
 
 fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;

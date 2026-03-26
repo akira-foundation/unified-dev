@@ -30,8 +30,6 @@ use commands::thread::{create_thread, delete_thread, list_repositories, set_thre
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::settings::{get_sync_settings, upsert_sync_settings, reset_sync_settings};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
-use database::queries::organization_repos::SqliteOrganizationRepoRepository;
-use database::queries::providers::SqliteProviderRepository;
 use providers::default_registry;
 use app::support::error::AppResult;
 use app::support::security::{KeyStore, TokenCipher};
@@ -50,14 +48,9 @@ pub fn run() {
                 let key = KeyStore::load_or_create_key(app.handle())?;
                 let cipher = Arc::new(TokenCipher::new(key));
 
-                let providers = Arc::new(SqliteProviderRepository::new(pool.clone()));
-                let organization_repos = Arc::new(SqliteOrganizationRepoRepository::new(pool.clone()));
-
                 let provider_factory = Arc::new(default_registry()?);
 
                 app.manage(AppState::new(
-                    providers,
-                    organization_repos,
                     provider_factory,
                     cipher,
                     pool.clone(),

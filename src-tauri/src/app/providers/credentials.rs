@@ -9,7 +9,13 @@ pub struct ProviderCredentials {
 }
 
 pub async fn credentials(state: &AppState, provider_id: &str) -> AppResult<ProviderCredentials> {
-    let provider = state.provider_repo.find_by_id(provider_id).await?;
+    let provider = sqlx::query_as::<_, crate::database::records::ProviderRecord>(
+        "SELECT id, name, kind, auth_type, auth_payload, created_at, account_login, account_type FROM providers WHERE id = ?",
+    )
+    .bind(provider_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|_| AppError::Provider("provider not found".to_string()))?;
     let mut auth = deserialize_auth(state, &provider.auth_type, &provider.auth_payload)?;
     let kind = ProviderKind::from_str(&provider.kind);
 
@@ -80,7 +86,13 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
     };
 
     let (auth_type, auth_payload) = serialize_auth(state, &new_auth)?;
-    state.provider_repo.update_auth(provider_id, &auth_type, &auth_payload).await?;
+    sqlx::query("UPDATE providers SET auth_type = ?, auth_payload = ? WHERE id = ?")
+        .bind(&auth_type)
+        .bind(&auth_payload)
+        .bind(provider_id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| AppError::Provider(e.to_string()))?;
 
     Ok(new_auth)
 }

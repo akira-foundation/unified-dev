@@ -40,18 +40,32 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
     let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
         .map_err(|e| e.to_string())?;
 
-    state
-        .provider_repo
-        .create(&crate::database::records::ProviderRecord {
-            id: uuid::Uuid::new_v4().to_string(),
-            name: result.account_login.clone(),
-            kind: "github".to_string(),
-            auth_type,
-            auth_payload,
-            created_at: time::OffsetDateTime::now_utc().format(&time::format_description::well_known::Rfc3339).unwrap_or_default(),
-            account_login: Some(result.account_login),
-            account_type: Some(result.account_type),
-        })
-        .await
-        .map_err(|e| e.to_string())
+    let id = uuid::Uuid::new_v4().to_string();
+    let created_at = time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_default();
+
+    sqlx::query(
+        "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&result.account_login)
+    .bind("github")
+    .bind(&auth_type)
+    .bind(&auth_payload)
+    .bind(&created_at)
+    .bind(&result.account_login)
+    .bind(&result.account_type)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(crate::database::records::ProviderSummary {
+        id,
+        name: result.account_login.clone(),
+        kind: "github".to_string(),
+        created_at,
+        account_login: Some(result.account_login),
+        account_type: Some(result.account_type),
+    })
 }
