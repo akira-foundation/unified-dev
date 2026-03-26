@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::database::models::OrganizationSummary;
+use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
 pub async fn list_by_provider(state: State<'_, AppState>, provider_id: String) -> Result<Vec<OrganizationSummary>, String> {

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::app::orgs::request::SelectRepoRequest;
-use crate::database::models::{OrganizationRepoSummary, OrganizationRepoWithOrg};
+use crate::database::records::{OrganizationRepoSummary, OrganizationRepoWithOrg};
 use crate::app::support::error::AppResult;
 
 #[async_trait]

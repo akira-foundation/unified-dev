@@ -1,7 +1,7 @@
 use tauri::State;
 
 use crate::app::orgs::request::UpdateOrgRequest;
-use crate::database::models::OrganizationSummary;
+use crate::database::records::OrganizationSummary;
 use crate::app::support::error::AppError;
 use crate::state::AppState;
 

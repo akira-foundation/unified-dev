@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::app::providers;
 use crate::app::providers::request::{CreateProviderRequest, TestProviderConnectionRequest, UpdateProviderAuthRequest};
-use crate::database::models::ProviderSummary;
+use crate::database::records::ProviderSummary;
 use crate::providers::dto::{ProviderOrg, ProviderRepo};
 use crate::state::AppState;
 

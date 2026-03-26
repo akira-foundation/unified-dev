@@ -4,8 +4,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::app::providers::request::CreateProviderRequest;
-use crate::database::models::ProviderRecord;
-use crate::database::models::ProviderSummary;
+use crate::database::records::ProviderRecord;
+use crate::database::records::ProviderSummary;
 use crate::state::AppState;
 
 pub async fn create(state: State<'_, AppState>, input: CreateProviderRequest) -> Result<ProviderSummary, String> {

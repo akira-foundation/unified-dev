@@ -1,7 +1,7 @@
 use sqlx::SqlitePool;
 
 use crate::app::concerns::ProviderRepository;
-use crate::database::models::{ProviderRecord, ProviderSummary};
+use crate::database::records::{ProviderRecord, ProviderSummary};
 use crate::app::support::error::AppResult;
 
 pub struct SqliteProviderRepository {

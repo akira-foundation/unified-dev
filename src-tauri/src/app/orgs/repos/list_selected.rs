@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::database::models::OrganizationRepoSummary;
+use crate::database::records::OrganizationRepoSummary;
 use crate::state::AppState;
 
 pub async fn list_selected(state: State<'_, AppState>, organization_id: String) -> Result<Vec<OrganizationRepoSummary>, String> {

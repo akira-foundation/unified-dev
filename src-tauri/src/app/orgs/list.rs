@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::database::models::OrganizationSummary;
+use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
 pub async fn list(state: State<'_, AppState>) -> Result<Vec<OrganizationSummary>, String> {

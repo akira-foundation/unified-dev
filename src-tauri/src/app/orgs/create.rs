@@ -4,8 +4,8 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::app::orgs::request::CreateOrgRequest;
-use crate::database::models::OrganizationRecord;
-use crate::database::models::OrganizationSummary;
+use crate::database::records::OrganizationRecord;
+use crate::database::records::OrganizationSummary;
 use crate::app::support::error::AppError;
 use crate::state::AppState;
 

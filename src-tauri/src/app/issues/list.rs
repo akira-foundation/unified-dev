@@ -1,6 +1,6 @@
 use tauri::State;
 
-use crate::database::models::IssueRecord;
+use crate::database::records::IssueRecord;
 use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 

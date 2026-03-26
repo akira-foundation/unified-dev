@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::database::models::{ProviderRecord, ProviderSummary};
+use crate::database::records::{ProviderRecord, ProviderSummary};
 use crate::app::support::error::AppResult;
 
 #[async_trait]

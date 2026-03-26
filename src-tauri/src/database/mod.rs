@@ -6,7 +6,7 @@ use tauri::Manager;
 
 use crate::app::support::error::AppResult;
 
-pub mod models;
+pub mod records;
 pub mod queries;
 
 fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {

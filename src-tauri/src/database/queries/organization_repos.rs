@@ -2,7 +2,7 @@ use sqlx::SqlitePool;
 
 use crate::app::concerns::OrganizationRepoRepository;
 use crate::app::orgs::request::SelectRepoRequest;
-use crate::database::models::{OrganizationRepoSummary, OrganizationRepoWithOrg};
+use crate::database::records::{OrganizationRepoSummary, OrganizationRepoWithOrg};
 use crate::app::support::error::AppResult;
 
 pub struct SqliteOrganizationRepoRepository {

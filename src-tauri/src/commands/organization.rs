@@ -2,7 +2,7 @@ use tauri::State;
 
 use crate::app::orgs;
 use crate::app::orgs::request::{CreateOrgRequest, SelectRepoRequest, UpdateOrgRequest};
-use crate::database::models::{OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary};
+use crate::database::records::{OrganizationRepoSummary, OrganizationRepoWithOrg, OrganizationSummary};
 use crate::providers::dto::{BranchDto, CiCheckDto, PrCommentDto, PrFileDto, PullRequestDto};
 use crate::providers::enums::{PrMergeStrategy, PrReviewEvent};
 use crate::state::AppState;

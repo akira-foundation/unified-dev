@@ -1,4 +1,4 @@
-use crate::database::models::IssueRecord;
+use crate::database::records::IssueRecord;
 use crate::providers::dto::IssueDto;
 
 pub fn record_to_dto(r: IssueRecord) -> IssueDto {
