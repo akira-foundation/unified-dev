@@ -23,6 +23,7 @@ import {
   User,
   Shield,
   GitlabIcon,
+  RefreshCw,
 } from "lucide-react";
 import { useProviders } from "@/hooks/useProviders";
 import { useNavigation } from "@/hooks/useNavigation";
@@ -37,6 +38,8 @@ import { cn } from "@/lib/utils";
 import UpgradeModal from "@/components/upgrade-modal";
 import { useI18n } from "@/i18n/i18n";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useSyncSettingsStore, GLOBAL_SYNC_ID } from "@/stores/sync-settings-store";
+import { SyncSettingsTab } from "@/components/settings/sync-settings-tab";
 import { useAppearance } from "@/hooks/use-appearance";
 import { useDateLabel } from "@/hooks/use-date-label";
 import {
@@ -105,6 +108,7 @@ export function SettingsPage() {
   const { editorTheme, setEditorTheme, promptOverrides, loadPrompts, savePrompt, resetPrompt } = useSettingsStore();
   const { appearance, updateAppearance } = useAppearance();
   const dateLabel = useDateLabel(locale);
+  const { loadSettings } = useSyncSettingsStore();
   const SETTINGS_GROUPS = [
     {
       id: "application",
@@ -122,6 +126,7 @@ export function SettingsPage() {
       items: [
         { id: "integrations", label: t("settings.tabs.integrations"), icon: <Blocks className="h-4 w-4" /> },
         { id: "agents", label: t("settings.tabs.agents"), icon: <Bot className="h-4 w-4" /> },
+        { id: "sync", label: t("settings.tabs.sync"), icon: <RefreshCw className="h-4 w-4" /> },
         { id: "shortcuts", label: t("settings.tabs.shortcuts"), icon: <Keyboard className="h-4 w-4" /> },
         { id: "dictation", label: t("settings.tabs.dictation"), icon: <Mic className="h-4 w-4" /> },
       ]
@@ -164,6 +169,9 @@ export function SettingsPage() {
   useEffect(() => {
     if (activeTab === "prompts") {
       loadPrompts();
+    }
+    if (activeTab === "sync") {
+      loadSettings(GLOBAL_SYNC_ID);
     }
   }, [activeTab]);
 
@@ -763,6 +771,8 @@ AWS_PROFILE=default`}
               </SettingsSection>
             </div>
           )}
+
+          {activeTab === "sync" && <SyncSettingsTab />}
 
           {activeTab === "advanced" && (
             <div className="animate-in fade-in duration-300">

@@ -4,6 +4,7 @@ pub mod organization;
 pub mod prompt;
 pub mod provider;
 pub mod repository;
+pub mod settings;
 pub mod skill;
 pub mod terminal;
 pub mod thread;

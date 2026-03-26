@@ -6,6 +6,7 @@ pub mod orgs;
 pub mod prompts;
 pub mod providers;
 pub mod repos;
+pub mod settings;
 pub mod skills;
 pub mod support;
 pub mod terminal;

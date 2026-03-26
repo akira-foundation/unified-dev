@@ -28,6 +28,7 @@ use commands::terminal::{
 use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository};
 use commands::thread::{create_thread, delete_thread, list_repositories, set_thread_pr_url};
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
+use commands::settings::{get_sync_settings, upsert_sync_settings, reset_sync_settings};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
 use database::queries::organization_repos::SqliteOrganizationRepoRepository;
 use database::queries::providers::SqliteProviderRepository;
@@ -64,6 +65,8 @@ pub fn run() {
 
                 let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalState::new()));
                 app.manage(terminal_manager);
+
+                app::settings::poller::start(app.handle().clone());
 
                 Ok(())
             });
@@ -140,6 +143,9 @@ pub fn run() {
             update_issue,
             close_issue,
             delete_issue,
+            get_sync_settings,
+            upsert_sync_settings,
+            reset_sync_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

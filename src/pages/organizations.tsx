@@ -6,6 +6,7 @@ import type { OrganizationSummary } from "../types/organization";
 import { OrganizationList } from "../components/organizations/organization-list";
 import { AddOrganizationDialog } from "../components/organizations/add-organization-dialog";
 import { EditOrganizationDialog } from "../components/organizations/edit-organization-dialog";
+import { OrgSyncSheet } from "../components/organizations/org-sync-sheet";
 import { EmptyState } from "../components/ui/empty-state";
 import {
   PageHeader,
@@ -28,6 +29,7 @@ export function OrganizationsPage() {
   const { providers } = useProviders();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editOrganization, setEditOrganization] = useState<OrganizationSummary | null>(null);
+  const [syncOrganization, setSyncOrganization] = useState<OrganizationSummary | null>(null);
   const providerNameById = useMemo(
     () => Object.fromEntries(providers.map((provider) => [provider.id, provider.name])),
     [providers],
@@ -80,6 +82,10 @@ export function OrganizationsPage() {
               const org = organizations.find((o) => o.id === organizationId) ?? null;
               setEditOrganization(org);
             }}
+            onConfigureSync={(organizationId) => {
+              const org = organizations.find((o) => o.id === organizationId) ?? null;
+              setSyncOrganization(org);
+            }}
             providerNameById={providerNameById}
           />
         )}
@@ -96,6 +102,11 @@ export function OrganizationsPage() {
         organization={editOrganization}
         providers={providers}
         onSubmit={updateOrganization}
+      />
+      <OrgSyncSheet
+        organization={syncOrganization}
+        open={syncOrganization !== null}
+        onOpenChange={(open) => { if (!open) setSyncOrganization(null); }}
       />
     </PageLayout>
   );
