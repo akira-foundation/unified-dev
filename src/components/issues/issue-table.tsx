@@ -7,17 +7,25 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useFiltersStore } from "../../stores/filters-store";
 import { useI18n } from "../../i18n/i18n";
+import {
+  FilterPopover,
+  FilterPopoverContent,
+  FilterPopoverTrigger,
+} from "../filters/filter-popover";
+import {
+  FilterPopoverHeader,
+  FilterSectionDivider,
+  FilterToggleSection,
+} from "../filters/filter-popover-section";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { Switch } from "../ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,14 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-} from "../ui/combobox";
+import { MultiSelectFilterSection } from "../filters/multi-select-filter-section";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -376,8 +377,8 @@ export function IssueTable({
               </Tooltip>
             )}
 
-            <Popover>
-              <PopoverTrigger asChild>
+            <FilterPopover>
+              <FilterPopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="relative">
                   <Filter className="h-4 w-4" />
                   {activeFilterCount > 0 && (
@@ -386,149 +387,71 @@ export function IssueTable({
                     </span>
                   )}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="w-64 p-0 bg-card text-card-foreground">
-                <div className="flex items-center justify-between px-3 py-2">
-                  <span className="text-sm font-semibold">{t("issues.table.filter")}</span>
-                  {activeFilterCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => clearFilters(filterNamespace)}
-                      className="text-xs text-zinc-400 hover:text-zinc-200"
-                    >
-                      {t("issues.table.filter.clear")}
-                    </button>
-                  )}
-                </div>
-                <div className="border-t border-border" />
+              </FilterPopoverTrigger>
+              <FilterPopoverContent>
+                <FilterPopoverHeader
+                  title={t("issues.table.filter")}
+                  clearLabel={t("issues.table.filter.clear")}
+                  canClear={activeFilterCount > 0}
+                  onClear={() => clearFilters(filterNamespace)}
+                />
+                <FilterSectionDivider />
 
                 {/* Status */}
-                <div className="px-3 py-2 space-y-2">
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                    {t("issues.table.filter.status")}
-                  </p>
-                  {(["open", "closed"] as const).map((status) => (
-                    <div key={status} className="flex items-center justify-between">
-                      <span className="text-sm capitalize">{t(`issues.table.filter.${status}`)}</span>
-                      <Switch
-                        checked={filters.statuses.includes(status)}
-                        onCheckedChange={() =>
-                          setFilter(filterNamespace, "statuses", toggleItem(filters.statuses, status))
-                        }
-                      />
-                    </div>
-                  ))}
-                </div>
+                <FilterToggleSection
+                  label={t("issues.table.filter.status")}
+                  options={(["open", "closed"] as const).map((status) => ({
+                    key: status,
+                    label: t(`issues.table.filter.${status}`),
+                    checked: filters.statuses.includes(status),
+                    onCheckedChange: () =>
+                      setFilter(filterNamespace, "statuses", toggleItem(filters.statuses, status)),
+                  }))}
+                />
 
                 {/* Repositories */}
                 {allRepos.length > 1 && (
                   <>
-                    <div className="border-t border-border" />
-                    <div className="px-3 py-2 space-y-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                        {t("issues.table.filter.repositories")}
-                      </p>
-                        <Combobox items={allRepos} multiple value={filters.repos} onValueChange={(v) => setFilter(filterNamespace, "repos", v as string[])}>
-                          <ComboboxInput placeholder={t("issues.table.filter.repoSearch")} className="w-full text-xs" showTrigger={false} />
-                          <ComboboxContent className="bg-card text-card-foreground">
-                            <ComboboxEmpty>No results.</ComboboxEmpty>
-                            <ComboboxList>
-                              {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                            </ComboboxList>
-                          </ComboboxContent>
-                        </Combobox>
-                        {filters.repos.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {filters.repos.map((item) => (
-                              <button
-                                key={item}
-                                type="button"
-                                onClick={() => setFilter(filterNamespace, "repos", toggleItem(filters.repos, item))}
-                                className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                              >
-                                <span>{item}</span>
-                                <X className="h-3 w-3" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                    </div>
+                    <FilterSectionDivider />
+                    <MultiSelectFilterSection
+                      label={t("issues.table.filter.repositories")}
+                      placeholder={t("issues.table.filter.repoSearch")}
+                      items={allRepos}
+                      value={filters.repos}
+                      onValueChange={(value) => setFilter(filterNamespace, "repos", value)}
+                    />
                   </>
                 )}
 
                 {/* Labels */}
                 {allLabels.length > 0 && (
                   <>
-                    <div className="border-t border-border" />
-                    <div className="px-3 py-2 space-y-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                        {t("issues.table.filter.labels")}
-                      </p>
-                        <Combobox items={allLabels} multiple value={filters.labels} onValueChange={(v) => setFilter(filterNamespace, "labels", v as string[])}>
-                          <ComboboxInput placeholder={t("issues.table.filter.labelSearch")} className="w-full text-xs" showTrigger={false} />
-                          <ComboboxContent className="bg-card text-card-foreground">
-                            <ComboboxEmpty>No results.</ComboboxEmpty>
-                            <ComboboxList>
-                              {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                            </ComboboxList>
-                          </ComboboxContent>
-                        </Combobox>
-                        {filters.labels.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {filters.labels.map((item) => (
-                              <button
-                                key={item}
-                                type="button"
-                                onClick={() => setFilter(filterNamespace, "labels", toggleItem(filters.labels, item))}
-                                className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                              >
-                                <span>{item}</span>
-                                <X className="h-3 w-3" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                    </div>
+                    <FilterSectionDivider />
+                    <MultiSelectFilterSection
+                      label={t("issues.table.filter.labels")}
+                      placeholder={t("issues.table.filter.labelSearch")}
+                      items={allLabels}
+                      value={filters.labels}
+                      onValueChange={(value) => setFilter(filterNamespace, "labels", value)}
+                    />
                   </>
                 )}
 
                 {/* Assignees */}
                 {allAssignees.length > 0 && (
                   <>
-                    <div className="border-t border-border" />
-                    <div className="px-3 py-2 space-y-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                        {t("issues.table.filter.assignees")}
-                      </p>
-                        <Combobox items={allAssignees} multiple value={filters.assignees} onValueChange={(v) => setFilter(filterNamespace, "assignees", v as string[])}>
-                          <ComboboxInput placeholder={t("issues.table.filter.assigneeSearch")} className="w-full text-xs" showTrigger={false} />
-                          <ComboboxContent className="bg-card text-card-foreground">
-                            <ComboboxEmpty>No results.</ComboboxEmpty>
-                            <ComboboxList>
-                              {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                            </ComboboxList>
-                          </ComboboxContent>
-                        </Combobox>
-                        {filters.assignees.length > 0 && (
-                          <div className="flex flex-wrap gap-1 pt-1">
-                            {filters.assignees.map((item) => (
-                              <button
-                                key={item}
-                                type="button"
-                                onClick={() => setFilter(filterNamespace, "assignees", toggleItem(filters.assignees, item))}
-                                className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                              >
-                                <span>{item}</span>
-                                <X className="h-3 w-3" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                    </div>
+                    <FilterSectionDivider />
+                    <MultiSelectFilterSection
+                      label={t("issues.table.filter.assignees")}
+                      placeholder={t("issues.table.filter.assigneeSearch")}
+                      items={allAssignees}
+                      value={filters.assignees}
+                      onValueChange={(value) => setFilter(filterNamespace, "assignees", value)}
+                    />
                   </>
                 )}
-              </PopoverContent>
-            </Popover>
+              </FilterPopoverContent>
+            </FilterPopover>
           </div>
         </div>
 

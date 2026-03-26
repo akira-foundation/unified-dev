@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw, X } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useRepoActions } from "../../hooks/useRepoActions";
@@ -17,17 +17,19 @@ import { useFiltersStore } from "../../stores/filters-store";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Switch } from "../ui/switch";
 import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-} from "../ui/combobox";
+  FilterPopover,
+  FilterPopoverContent,
+  FilterPopoverTrigger,
+} from "../filters/filter-popover";
+import {
+  FilterBooleanSection,
+  FilterPopoverHeader,
+  FilterSectionDivider,
+  FilterToggleSection,
+} from "../filters/filter-popover-section";
+import { MultiSelectFilterSection } from "../filters/multi-select-filter-section";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
@@ -300,8 +302,8 @@ export function RepoMetricsTable({
             </Button>
           )}
 
-          <Popover>
-            <PopoverTrigger asChild>
+          <FilterPopover>
+            <FilterPopoverTrigger asChild>
               <Button variant="outline" size="icon" className="relative">
                 <Filter className="h-4 w-4" />
                 {activeFilterCount > 0 && (
@@ -310,117 +312,67 @@ export function RepoMetricsTable({
                   </span>
                 )}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 p-0 bg-card text-card-foreground">
-              <div className="flex items-center justify-between px-3 py-2">
-                <span className="text-sm font-semibold">{t("repos.table.filter")}</span>
-                {activeFilterCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => clearFilters(filterNamespace)}
-                    className="text-xs text-zinc-400 hover:text-zinc-200"
-                  >
-                    {t("repos.table.filter.clear")}
-                  </button>
-                )}
-              </div>
-              <div className="border-t border-border" />
+            </FilterPopoverTrigger>
+            <FilterPopoverContent>
+              <FilterPopoverHeader
+                title={t("repos.table.filter")}
+                clearLabel={t("repos.table.filter.clear")}
+                canClear={activeFilterCount > 0}
+                onClear={() => clearFilters(filterNamespace)}
+              />
+              <FilterSectionDivider />
 
               {/* Visibility */}
-              <div className="px-3 py-2 space-y-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                  {t("repos.table.filter.visibility")}
-                </p>
-                {(["public", "private"] as const).map((v) => (
-                  <div key={v} className="flex items-center justify-between">
-                    <span className="text-sm capitalize">{t(`repos.table.filter.${v}`)}</span>
-                    <Switch
-                      checked={filters.visibility.includes(v)}
-                      onCheckedChange={() =>
-                        setFilter(filterNamespace, "visibility", toggleItem(filters.visibility, v))
-                      }
-                    />
-                  </div>
-                ))}
-              </div>
+              <FilterToggleSection
+                label={t("repos.table.filter.visibility")}
+                options={(["public", "private"] as const).map((v) => ({
+                  key: v,
+                  label: t(`repos.table.filter.${v}`),
+                  checked: filters.visibility.includes(v),
+                  onCheckedChange: () =>
+                    setFilter(filterNamespace, "visibility", toggleItem(filters.visibility, v)),
+                }))}
+              />
 
               {/* Has open PRs */}
-              <div className="border-t border-border" />
-              <div className="px-3 py-2 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">{t("repos.table.filter.hasOpenPrs")}</span>
-                  <Switch
-                    checked={showHasOpenPrsFilter}
-                    onCheckedChange={(checked) =>
-                      setFilter(filterNamespace, "hasOpenPrs", checked ? ["true"] : [])
-                    }
-                  />
-                </div>
-              </div>
+              <FilterSectionDivider />
+              <FilterBooleanSection
+                label={t("repos.table.filter.hasOpenPrs")}
+                checked={showHasOpenPrsFilter}
+                onCheckedChange={(checked) =>
+                  setFilter(filterNamespace, "hasOpenPrs", checked ? ["true"] : [])
+                }
+              />
 
               {/* Organization (only when not hidden and there are multiple orgs) */}
               {!hideOrganization && allOrganizations.length > 1 && (
                 <>
-                  <div className="border-t border-border" />
-                  <div className="px-3 py-2 space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                      {t("repos.table.filter.organization")}
-                    </p>
-                    <Combobox items={allOrganizations} multiple value={filters.organizations} onValueChange={(v) => setFilter(filterNamespace, "organizations", v as string[])}>
-                      <ComboboxInput placeholder={t("repos.table.filter.orgSearch")} className="w-full text-xs" showTrigger={false} />
-                      <ComboboxContent className="bg-card text-card-foreground">
-                        <ComboboxEmpty>No results.</ComboboxEmpty>
-                        <ComboboxList>
-                          {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </Combobox>
-                    {filters.organizations.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {filters.organizations.map((item) => (
-                          <button key={item} type="button" onClick={() => setFilter(filterNamespace, "organizations", toggleItem(filters.organizations, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                            <span>{item}</span>
-                            <X className="h-3 w-3" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <FilterSectionDivider />
+                  <MultiSelectFilterSection
+                    label={t("repos.table.filter.organization")}
+                    placeholder={t("repos.table.filter.orgSearch")}
+                    items={allOrganizations}
+                    value={filters.organizations}
+                    onValueChange={(value) => setFilter(filterNamespace, "organizations", value)}
+                  />
                 </>
               )}
 
               {/* Default branch */}
               {allBranches.length > 1 && (
                 <>
-                  <div className="border-t border-border" />
-                  <div className="px-3 py-2 space-y-1.5">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                      {t("repos.table.filter.defaultBranch")}
-                    </p>
-                    <Combobox items={allBranches} multiple value={filters.defaultBranch} onValueChange={(v) => setFilter(filterNamespace, "defaultBranch", v as string[])}>
-                      <ComboboxInput placeholder={t("repos.table.filter.branchSearch")} className="w-full text-xs" showTrigger={false} />
-                      <ComboboxContent className="bg-card text-card-foreground">
-                        <ComboboxEmpty>No results.</ComboboxEmpty>
-                        <ComboboxList>
-                          {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-                        </ComboboxList>
-                      </ComboboxContent>
-                    </Combobox>
-                    {filters.defaultBranch.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {filters.defaultBranch.map((item) => (
-                          <button key={item} type="button" onClick={() => setFilter(filterNamespace, "defaultBranch", toggleItem(filters.defaultBranch, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                            <span>{item}</span>
-                            <X className="h-3 w-3" />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <FilterSectionDivider />
+                  <MultiSelectFilterSection
+                    label={t("repos.table.filter.defaultBranch")}
+                    placeholder={t("repos.table.filter.branchSearch")}
+                    items={allBranches}
+                    value={filters.defaultBranch}
+                    onValueChange={(value) => setFilter(filterNamespace, "defaultBranch", value)}
+                  />
                 </>
               )}
-            </PopoverContent>
-          </Popover>
+            </FilterPopoverContent>
+          </FilterPopover>
         </div>
       </div>
       <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50 px-0">

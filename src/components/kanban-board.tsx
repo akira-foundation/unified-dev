@@ -10,7 +10,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, Circle, CircleDot, CheckCircle2, Filter, X } from "lucide-react";
+import { Calendar, Circle, CircleDot, CheckCircle2, Filter } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
@@ -21,16 +21,18 @@ import { useI18n } from "@/i18n/i18n";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
 import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxItem,
-  ComboboxList,
-} from "@/components/ui/combobox";
+  FilterPopover,
+  FilterPopoverContent,
+  FilterPopoverTrigger,
+} from "@/components/filters/filter-popover";
+import {
+  FilterBooleanSection,
+  FilterPopoverHeader,
+  FilterSectionDivider,
+  FilterToggleSection,
+} from "@/components/filters/filter-popover-section";
+import { MultiSelectFilterSection } from "@/components/filters/multi-select-filter-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
@@ -111,8 +113,8 @@ export function KanbanFilterPopover() {
     filters.reviewers.length;
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <FilterPopover>
+      <FilterPopoverTrigger asChild>
         <Button variant="outline" size="icon" className="relative">
           <Filter className="h-4 w-4" />
           {activeFilterCount > 0 && (
@@ -121,163 +123,78 @@ export function KanbanFilterPopover() {
             </span>
           )}
         </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-0 bg-card text-card-foreground">
-        <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-sm font-semibold">{t("prs.filter")}</span>
-          {activeFilterCount > 0 && (
-            <button
-              type="button"
-              onClick={() => clearFilters(KANBAN_FILTER_NS)}
-              className="text-xs text-zinc-400 hover:text-zinc-200"
-            >
-              {t("prs.filter.clear")}
-            </button>
-          )}
-        </div>
-        <div className="border-t border-border" />
+      </FilterPopoverTrigger>
+      <FilterPopoverContent>
+        <FilterPopoverHeader
+          title={t("prs.filter")}
+          clearLabel={t("prs.filter.clear")}
+          canClear={activeFilterCount > 0}
+          onClear={() => clearFilters(KANBAN_FILTER_NS)}
+        />
+        <FilterSectionDivider />
 
         {/* State */}
-        <div className="px-3 py-2 space-y-2">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            {t("prs.filter.state")}
-          </p>
-          {(["open", "merged"] as const).map((s) => (
-            <div key={s} className="flex items-center justify-between">
-              <span className="text-sm capitalize">{t(`prs.filter.${s}`)}</span>
-              <Switch
-                checked={filters.state.includes(s)}
-                onCheckedChange={() =>
-                  setFilter(KANBAN_FILTER_NS, "state", toggleItem(filters.state, s))
-                }
-              />
-            </div>
-          ))}
-        </div>
+        <FilterToggleSection
+          label={t("prs.filter.state")}
+          options={(["open", "merged"] as const).map((s) => ({
+            key: s,
+            label: t(`prs.filter.${s}`),
+            checked: filters.state.includes(s),
+            onCheckedChange: () => setFilter(KANBAN_FILTER_NS, "state", toggleItem(filters.state, s)),
+          }))}
+        />
 
         {/* Drafts */}
-        <div className="border-t border-border" />
-        <div className="px-3 py-2 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">{t("prs.filter.isDraft")}</span>
-            <Switch
-              checked={showDraftsOnly}
-              onCheckedChange={(checked) =>
-                setFilter(KANBAN_FILTER_NS, "isDraft", checked ? ["true"] : [])
-              }
-            />
-          </div>
-        </div>
+        <FilterSectionDivider />
+        <FilterBooleanSection
+          label={t("prs.filter.isDraft")}
+          checked={showDraftsOnly}
+          onCheckedChange={(checked) =>
+            setFilter(KANBAN_FILTER_NS, "isDraft", checked ? ["true"] : [])
+          }
+        />
 
         {/* Author */}
-        <div className="border-t border-border" />
-        <div className="px-3 py-2 space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            {t("prs.filter.author")}
-          </p>
-          <Combobox items={[]} multiple value={filters.author} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "author", v as string[])}>
-            <ComboboxInput placeholder={t("prs.filter.authorSearch")} className="w-full text-xs" showTrigger={false} />
-            <ComboboxContent className="bg-card text-card-foreground">
-              <ComboboxEmpty>No results.</ComboboxEmpty>
-              <ComboboxList>
-                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-          {filters.author.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {filters.author.map((item) => (
-                <button key={item} type="button" onClick={() => setFilter(KANBAN_FILTER_NS, "author", toggleItem(filters.author, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                  <span>{item}</span>
-                  <X className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <FilterSectionDivider />
+        <MultiSelectFilterSection
+          label={t("prs.filter.author")}
+          placeholder={t("prs.filter.authorSearch")}
+          items={[]}
+          value={filters.author}
+          onValueChange={(value) => setFilter(KANBAN_FILTER_NS, "author", value)}
+        />
 
         {/* Labels */}
-        <div className="border-t border-border" />
-        <div className="px-3 py-2 space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            {t("prs.filter.labels")}
-          </p>
-          <Combobox items={[]} multiple value={filters.labels} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "labels", v as string[])}>
-            <ComboboxInput placeholder={t("prs.filter.labelSearch")} className="w-full text-xs" showTrigger={false} />
-            <ComboboxContent className="bg-card text-card-foreground">
-              <ComboboxEmpty>No results.</ComboboxEmpty>
-              <ComboboxList>
-                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-          {filters.labels.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {filters.labels.map((item) => (
-                <button key={item} type="button" onClick={() => setFilter(KANBAN_FILTER_NS, "labels", toggleItem(filters.labels, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                  <span>{item}</span>
-                  <X className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <FilterSectionDivider />
+        <MultiSelectFilterSection
+          label={t("prs.filter.labels")}
+          placeholder={t("prs.filter.labelSearch")}
+          items={[]}
+          value={filters.labels}
+          onValueChange={(value) => setFilter(KANBAN_FILTER_NS, "labels", value)}
+        />
 
         {/* CI Status */}
-        <div className="border-t border-border" />
-        <div className="px-3 py-2 space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            {t("prs.filter.ciStatus")}
-          </p>
-          <Combobox items={[]} multiple value={filters.ciStatus} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "ciStatus", v as string[])}>
-            <ComboboxInput placeholder={t("prs.filter.ciStatusSearch")} className="w-full text-xs" showTrigger={false} />
-            <ComboboxContent className="bg-card text-card-foreground">
-              <ComboboxEmpty>No results.</ComboboxEmpty>
-              <ComboboxList>
-                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-          {filters.ciStatus.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {filters.ciStatus.map((item) => (
-                <button key={item} type="button" onClick={() => setFilter(KANBAN_FILTER_NS, "ciStatus", toggleItem(filters.ciStatus, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                  <span>{item}</span>
-                  <X className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <FilterSectionDivider />
+        <MultiSelectFilterSection
+          label={t("prs.filter.ciStatus")}
+          placeholder={t("prs.filter.ciStatusSearch")}
+          items={[]}
+          value={filters.ciStatus}
+          onValueChange={(value) => setFilter(KANBAN_FILTER_NS, "ciStatus", value)}
+        />
 
         {/* Reviewers */}
-        <div className="border-t border-border" />
-        <div className="px-3 py-2 space-y-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-            {t("prs.filter.reviewers")}
-          </p>
-          <Combobox items={[]} multiple value={filters.reviewers} onValueChange={(v) => setFilter(KANBAN_FILTER_NS, "reviewers", v as string[])}>
-            <ComboboxInput placeholder={t("prs.filter.reviewerSearch")} className="w-full text-xs" showTrigger={false} />
-            <ComboboxContent className="bg-card text-card-foreground">
-              <ComboboxEmpty>No results.</ComboboxEmpty>
-              <ComboboxList>
-                {(item: string) => <ComboboxItem key={item} value={item}>{item}</ComboboxItem>}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
-          {filters.reviewers.length > 0 && (
-            <div className="flex flex-wrap gap-1 pt-1">
-              {filters.reviewers.map((item) => (
-                <button key={item} type="button" onClick={() => setFilter(KANBAN_FILTER_NS, "reviewers", toggleItem(filters.reviewers, item))} className="inline-flex items-center gap-1 rounded-[6px] bg-muted px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                  <span>{item}</span>
-                  <X className="h-3 w-3" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </PopoverContent>
-    </Popover>
+        <FilterSectionDivider />
+        <MultiSelectFilterSection
+          label={t("prs.filter.reviewers")}
+          placeholder={t("prs.filter.reviewerSearch")}
+          items={[]}
+          value={filters.reviewers}
+          onValueChange={(value) => setFilter(KANBAN_FILTER_NS, "reviewers", value)}
+        />
+      </FilterPopoverContent>
+    </FilterPopover>
   );
 }
 
