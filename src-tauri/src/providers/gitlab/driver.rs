@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 
-use crate::providers::shared::traits::{ProviderDriverFactory, VcsProvider};
-use crate::providers::shared::types::{
+use crate::providers::traits::{ProviderDriverFactory, VcsProvider};
+use crate::providers::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue,
 };
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 use super::client::{GitLabDriver, GITLAB_API};
 use super::types::{
@@ -27,10 +27,6 @@ impl ProviderDriverFactory for GitLabFactory {
         ProviderKind::GitLab
     }
 
-    fn name(&self) -> &str {
-        "GitLab"
-    }
-
     async fn create(&self, auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
         let token = match auth {
             ProviderAuth::PersonalAccessToken { token } => token,
@@ -49,10 +45,6 @@ impl ProviderDriverFactory for GitLabFactory {
 impl VcsProvider for GitLabDriver {
     fn kind(&self) -> ProviderKind {
         ProviderKind::GitLab
-    }
-
-    fn name(&self) -> &str {
-        "GitLab"
     }
 
     async fn validate_auth(&self) -> AppResult<()> {
@@ -181,15 +173,6 @@ impl VcsProvider for GitLabDriver {
         _repository: &str,
         _state: Option<&str>,
     ) -> AppResult<Vec<VcsIssue>> {
-        Err(AppError::Provider("Issues not yet supported for GitLab".to_string()))
-    }
-
-    async fn get_issue(
-        &self,
-        _owner: &str,
-        _repository: &str,
-        _issue_number: u64,
-    ) -> AppResult<VcsIssue> {
         Err(AppError::Provider("Issues not yet supported for GitLab".to_string()))
     }
 

@@ -211,7 +211,7 @@ export const useAgentsStore = create<AgentsState>()(
       },
       loadMessages: async (threadId: string) => {
         try {
-          const messages = await invoke<ChatMessage[]>("agents_get_messages", { threadId });
+          const messages = await invoke<ChatMessage[]>("get_messages", { threadId });
           set({ messages });
         } catch {
           set({ messages: [] });
@@ -474,7 +474,7 @@ export const useAgentsStore = create<AgentsState>()(
         );
 
         try {
-          await invoke("agents_send_message", { threadId, message: content, model, silent });
+          await invoke("send_message", { threadId, message: content, model, silent });
         } catch (err) {
           unlistenToken();
           unlistenDone();

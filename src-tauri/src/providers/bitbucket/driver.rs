@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 
-use crate::providers::shared::traits::{ProviderDriverFactory, VcsProvider};
-use crate::providers::shared::types::{
+use crate::providers::traits::{ProviderDriverFactory, VcsProvider};
+use crate::providers::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue,
 };
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 use super::client::{BitbucketDriver, BITBUCKET_API};
 use super::types::{
@@ -27,10 +27,6 @@ impl ProviderDriverFactory for BitbucketFactory {
         ProviderKind::Bitbucket
     }
 
-    fn name(&self) -> &str {
-        "Bitbucket"
-    }
-
     async fn create(&self, auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
         let (username, password) = match auth {
             ProviderAuth::AppPassword { username, password } => (username, password),
@@ -49,10 +45,6 @@ impl ProviderDriverFactory for BitbucketFactory {
 impl VcsProvider for BitbucketDriver {
     fn kind(&self) -> ProviderKind {
         ProviderKind::Bitbucket
-    }
-
-    fn name(&self) -> &str {
-        "Bitbucket"
     }
 
     async fn validate_auth(&self) -> AppResult<()> {
@@ -181,15 +173,6 @@ impl VcsProvider for BitbucketDriver {
         _repository: &str,
         _state: Option<&str>,
     ) -> AppResult<Vec<VcsIssue>> {
-        Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
-    }
-
-    async fn get_issue(
-        &self,
-        _owner: &str,
-        _repository: &str,
-        _issue_number: u64,
-    ) -> AppResult<VcsIssue> {
         Err(AppError::Provider("Issues not yet supported for Bitbucket".to_string()))
     }
 

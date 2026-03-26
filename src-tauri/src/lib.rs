@@ -1,20 +1,15 @@
-mod agents;
+mod app;
 mod ai;
-mod chat;
 mod commands;
 mod db;
-mod error;
+mod models;
 mod providers;
-mod security;
-mod services;
+mod support;
 mod state;
-mod terminal;
-mod workspaces;
-mod threads;
 
 use std::sync::Arc;
 
-use commands::agent::{agents_get_messages, agents_send_message, get_available_models};
+use commands::agent::{get_available_models, get_messages, send_message};
 use commands::workspace::{check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
 use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue};
 use commands::organization::{
@@ -37,15 +32,12 @@ use commands::thread::{create_thread, delete_thread, list_repositories, set_thre
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
 use db::organization_repos::SqliteOrganizationRepoRepository;
-use db::organizations::SqliteOrganizationRepository;
 use db::providers::SqliteProviderRepository;
 use providers::default_registry;
-use security::{KeyStore, TokenCipher};
-use services::organization_repo_service::OrganizationRepoService;
-use services::organization_service::OrganizationService;
-use services::provider_service::ProviderService;
+use support::error::AppResult;
+use support::security::{KeyStore, TokenCipher};
 use state::AppState;
-use terminal::manager::TerminalManager;
+use app::terminal::state::TerminalState;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -54,39 +46,25 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let setup_result: error::AppResult<()> = tauri::async_runtime::block_on(async {
-                let pool = db::init_pool(app.handle()).await?;
+            let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
+                let pool = support::db::init_pool(app.handle()).await?;
                 let key = KeyStore::load_or_create_key(app.handle())?;
-                let cipher = TokenCipher::new(key);
+                let cipher = Arc::new(TokenCipher::new(key));
 
                 let providers = Arc::new(SqliteProviderRepository::new(pool.clone()));
-                let organizations = Arc::new(SqliteOrganizationRepository::new(pool.clone()));
                 let organization_repos = Arc::new(SqliteOrganizationRepoRepository::new(pool.clone()));
-
-                let provider_service = Arc::new(ProviderService::new(
-                    providers.clone(),
-                    organizations.clone(),
-                    cipher,
-                ));
-                let organization_service = Arc::new(OrganizationService::new(
-                    organizations.clone(),
-                    providers.clone(),
-                ));
-                let organization_repo_service = Arc::new(OrganizationRepoService::new(
-                    organization_repos.clone(),
-                ));
 
                 let provider_factory = Arc::new(default_registry()?);
 
                 app.manage(AppState::new(
-                    provider_service,
-                    organization_service,
-                    organization_repo_service,
+                    providers,
+                    organization_repos,
                     provider_factory,
+                    cipher,
                     pool.clone(),
                 ));
 
-                let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalManager::new()));
+                let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalState::new()));
                 app.manage(terminal_manager);
 
                 Ok(())
@@ -140,8 +118,8 @@ pub fn run() {
             list_files,
             search_files,
             read_file,
-            agents_get_messages,
-            agents_send_message,
+            get_messages,
+            send_message,
             run_workspace_command,
             get_workspace_changes,
             create_draft_pr,

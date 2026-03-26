@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::providers::shared::types::{ProviderRepo, PullRequestState, VcsPullRequest};
+use crate::providers::types::{ProviderRepo, PullRequestState, VcsPullRequest};
 
 pub fn urlencoded(s: &str) -> String {
     s.replace('/', "%2F")

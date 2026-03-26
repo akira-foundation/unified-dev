@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use sqlx::SqlitePool;
 
 use crate::db::models::{ProviderRecord, ProviderSummary};
-use crate::error::AppResult;
+use crate::support::error::AppResult;
 
 #[async_trait]
 pub trait ProviderRepository: Send + Sync {
@@ -10,7 +10,6 @@ pub trait ProviderRepository: Send + Sync {
     async fn delete(&self, provider_id: &str) -> AppResult<()>;
     async fn list(&self) -> AppResult<Vec<ProviderSummary>>;
     async fn find_by_id(&self, provider_id: &str) -> AppResult<ProviderRecord>;
-    async fn exists(&self, provider_id: &str) -> AppResult<bool>;
     async fn update_auth(&self, provider_id: &str, auth_type: &str, auth_payload: &str) -> AppResult<()>;
 }
 
@@ -78,15 +77,6 @@ impl ProviderRepository for SqliteProviderRepository {
         .await?;
 
         Ok(provider)
-    }
-
-    async fn exists(&self, provider_id: &str) -> AppResult<bool> {
-        let exists = sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM providers WHERE id = ?")
-            .bind(provider_id)
-            .fetch_one(&self.pool)
-            .await?;
-
-        Ok(exists > 0)
     }
 
     async fn update_auth(&self, provider_id: &str, auth_type: &str, auth_payload: &str) -> AppResult<()> {

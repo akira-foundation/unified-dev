@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 pub const BITBUCKET_API: &str = "https://api.bitbucket.org/2.0";
 

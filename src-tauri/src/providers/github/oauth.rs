@@ -1,4 +1,4 @@
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 pub struct ConnectResult {
     pub access_token: String,

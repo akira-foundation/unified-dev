@@ -4,13 +4,12 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use sqlx::SqlitePool;
 use tauri::Manager;
 
-use crate::error::AppResult;
+use crate::support::error::AppResult;
 
 pub mod inputs;
 pub mod models;
-pub mod providers;
-pub mod organizations;
 pub mod organization_repos;
+pub mod providers;
 
 fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;

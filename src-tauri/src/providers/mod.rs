@@ -2,12 +2,14 @@ pub mod bitbucket;
 pub mod github;
 pub mod gitlab;
 pub mod linear;
-pub mod shared;
+pub mod registry;
+pub mod traits;
+pub mod types;
 
 use std::sync::Arc;
 
-use crate::providers::shared::registry::ProviderFactory;
-use crate::error::AppResult;
+use crate::providers::registry::ProviderFactory;
+use crate::support::error::AppResult;
 
 pub fn default_registry() -> AppResult<ProviderFactory> {
     let mut registry = ProviderFactory::new();

@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod credentials;
 pub mod provider;
 pub mod providers;

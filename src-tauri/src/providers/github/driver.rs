@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use futures_util::future::join_all;
 use serde::Deserialize;
 
-use crate::providers::shared::traits::{ProviderDriverFactory, VcsProvider};
-use crate::providers::shared::types::{
+use crate::providers::traits::{ProviderDriverFactory, VcsProvider};
+use crate::providers::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderOrgKind, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, PullRequestState, VcsBranch, VcsCiCheck, VcsCiCheckStep, VcsPrComment,
     VcsPrFile, VcsPullRequest, VcsIssue,
 };
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 use super::client::{GitHubDriver, GITHUB_API};
 use super::types::{
@@ -31,10 +31,6 @@ impl ProviderDriverFactory for GitHubFactory {
         ProviderKind::GitHub
     }
 
-    fn name(&self) -> &str {
-        "GitHub"
-    }
-
     async fn create(&self, auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
         let token = match auth {
             ProviderAuth::PersonalAccessToken { token } => token,
@@ -54,10 +50,6 @@ impl ProviderDriverFactory for GitHubFactory {
 impl VcsProvider for GitHubDriver {
     fn kind(&self) -> ProviderKind {
         ProviderKind::GitHub
-    }
-
-    fn name(&self) -> &str {
-        "GitHub"
     }
 
     async fn validate_auth(&self) -> AppResult<()> {
@@ -371,17 +363,6 @@ impl VcsProvider for GitHubDriver {
             .collect())
     }
 
-    async fn get_issue(
-        &self,
-        owner: &str,
-        repository: &str,
-        issue_number: u64,
-    ) -> AppResult<VcsIssue> {
-        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
-        let issue: GitHubIssue = self.get_json(url).await?;
-        Ok(github_issue_to_vcs(issue))
-    }
-
     async fn create_issue(
         &self,
         owner: &str,
@@ -468,7 +449,7 @@ impl VcsProvider for GitHubDriver {
         #[derive(Deserialize)]
         struct DeleteIssueData {
             #[serde(rename = "deleteIssue")]
-            delete_issue: serde_json::Value,
+            _delete_issue: serde_json::Value,
         }
 
         let _: DeleteIssueData = self

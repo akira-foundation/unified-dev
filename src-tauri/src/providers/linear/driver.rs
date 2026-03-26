@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 
-use crate::providers::shared::traits::{ProviderDriverFactory, VcsProvider};
-use crate::providers::shared::types::{
+use crate::providers::traits::{ProviderDriverFactory, VcsProvider};
+use crate::providers::types::{
     ProviderAuth, ProviderKind, ProviderOrg, ProviderRepo, PrMergeStrategy,
     PrReviewEvent, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue,
 };
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 pub struct LinearDriver {
     #[allow(dead_code)]
@@ -32,10 +32,6 @@ impl ProviderDriverFactory for LinearFactory {
         ProviderKind::Other("linear".to_string())
     }
 
-    fn name(&self) -> &str {
-        "Linear"
-    }
-
     async fn create(&self, auth: ProviderAuth) -> AppResult<std::sync::Arc<dyn VcsProvider>> {
         let token = match auth {
             ProviderAuth::PersonalAccessToken { token } => token,
@@ -54,10 +50,6 @@ impl ProviderDriverFactory for LinearFactory {
 impl VcsProvider for LinearDriver {
     fn kind(&self) -> ProviderKind {
         ProviderKind::Other("linear".to_string())
-    }
-
-    fn name(&self) -> &str {
-        "Linear"
     }
 
     async fn validate_auth(&self) -> AppResult<()> {
@@ -153,15 +145,6 @@ impl VcsProvider for LinearDriver {
         _repository: &str,
         _state: Option<&str>,
     ) -> AppResult<Vec<VcsIssue>> {
-        Err(AppError::Provider("Linear issues: not yet implemented".to_string()))
-    }
-
-    async fn get_issue(
-        &self,
-        _owner: &str,
-        _repository: &str,
-        _issue_number: u64,
-    ) -> AppResult<VcsIssue> {
         Err(AppError::Provider("Linear issues: not yet implemented".to_string()))
     }
 

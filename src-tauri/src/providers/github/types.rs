@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use crate::providers::shared::types::{ProviderRepo, VcsIssue};
+use crate::providers::types::{ProviderRepo, VcsIssue};
 
 pub fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
     ProviderRepo {

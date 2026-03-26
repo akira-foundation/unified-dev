@@ -3,7 +3,7 @@ use sqlx::SqlitePool;
 
 use crate::db::inputs::SelectedRepositoryInput;
 use crate::db::models::{OrganizationRepoSummary, OrganizationRepoWithOrg};
-use crate::error::AppResult;
+use crate::support::error::AppResult;
 
 #[async_trait]
 pub trait OrganizationRepoRepository: Send + Sync {

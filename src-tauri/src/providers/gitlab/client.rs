@@ -1,6 +1,6 @@
 use serde::de::DeserializeOwned;
 
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 pub const GITLAB_API: &str = "https://gitlab.com/api/v4";
 

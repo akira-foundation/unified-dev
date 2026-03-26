@@ -1,7 +1,7 @@
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::error::{AppError, AppResult};
+use crate::support::error::{AppError, AppResult};
 
 pub const GITHUB_API: &str = "https://api.github.com";
 
@@ -37,26 +37,6 @@ impl GitHubDriver {
         }
 
         Ok(response.json::<T>().await?)
-    }
-
-    pub async fn get_text(&self, url: String) -> AppResult<String> {
-        let response = self
-            .client
-            .get(url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
-        }
-
-        Ok(response.text().await?)
     }
 
     pub async fn get_redirect_url(&self, url: String) -> AppResult<String> {

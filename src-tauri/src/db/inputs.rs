@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::providers::shared::types::ProviderAuth;
+use crate::providers::types::ProviderAuth;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateProviderInput {

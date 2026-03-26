@@ -3,8 +3,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use tauri::AppHandle;
 
-use crate::chat::stream::emit_token;
-use crate::error::{AppError, AppResult};
+use crate::app::chat::stream::emit_token;
+use crate::support::error::{AppError, AppResult};
 
 /// An accumulated tool call from Chat Completions streaming deltas.
 #[derive(Default, Clone)]
@@ -30,7 +30,8 @@ pub struct OpenAiChunk {
 #[derive(Debug, Deserialize)]
 pub struct OpenAiChoice {
     pub delta: Option<OpenAiDelta>,
-    pub finish_reason: Option<String>,
+    #[serde(rename = "finish_reason")]
+    pub _finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

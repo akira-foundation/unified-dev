@@ -7,8 +7,8 @@ use crate::ai::credentials::{exchange_copilot_token, read_copilot_oauth_token};
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_openai_sse_with_tools;
 use crate::ai::tools::{execute_tool, tool_definitions_openai, tool_label};
-use crate::chat::stream::{emit_tool_call, StreamToolCallPayload};
-use crate::error::{AppError, AppResult};
+use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
+use crate::support::error::{AppError, AppResult};
 
 pub struct CopilotChatProvider;
 

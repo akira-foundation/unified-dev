@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use tauri::AppHandle;
 
-use crate::chat::message::Message;
-use crate::error::AppResult;
+use crate::app::chat::message::Message;
+use crate::support::error::AppResult;
 
 /// Encapsulates everything a provider needs to generate a completion.
 pub struct AiRequest {
