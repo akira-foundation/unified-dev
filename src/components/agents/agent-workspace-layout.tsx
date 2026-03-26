@@ -136,7 +136,12 @@ export function AgentWorkspaceLayout() {
   // is restored from localStorage before repositoryGroups is populated).
   useEffect(() => {
     if (selectedIssueId) {
-      loadMessages(selectedIssueId);
+      // Skip loading messages if the thread is currently streaming — the optimistic
+      // user message and live tokens are already in state, and overwriting with an
+      // empty DB result would blank the chat.
+      if (!streamingThreadIds[selectedIssueId]) {
+        loadMessages(selectedIssueId);
+      }
       const issue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
       if (issue?.workspacePath) {
         loadFileChanges(issue.workspacePath);

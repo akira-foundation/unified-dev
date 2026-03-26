@@ -57,6 +57,8 @@ interface AgentsState {
   streamingThreadIds: Record<string, boolean>;
   // Which thread is currently streaming (may differ from selectedIssueId when navigating)
   streamingThreadId: string | null;
+  // Per-thread message queue — messages sent while agent is already running.
+  messageQueueByThread: Record<string, Array<{ content: string; model: string }>>;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
@@ -133,6 +135,7 @@ export const useAgentsStore = create<AgentsState>()(
       toolCallsByThread: {},
       streamingThreadIds: {},
       streamingThreadId: null,
+      messageQueueByThread: {},
       setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
       setShowAddRepositoryDialog: (show) => set({ showAddRepositoryDialog: show }),
       setIsRightSidebarOpen: (open) => set({ isRightSidebarOpen: open }),
@@ -247,7 +250,18 @@ export const useAgentsStore = create<AgentsState>()(
         }
       },
       sendMessage: async (threadId: string, content: string, model: string, silent = false) => {
-        const { repositoryGroups } = get();
+        const { repositoryGroups, streamingThreadIds } = get();
+
+        // If this thread is already streaming, queue the message for later.
+        if (streamingThreadIds[threadId]) {
+          set((state) => ({
+            messageQueueByThread: {
+              ...state.messageQueueByThread,
+              [threadId]: [...(state.messageQueueByThread[threadId] ?? []), { content, model }],
+            },
+          }));
+          return;
+        }
 
         // Resolve workspace path for the current thread
         const allIssues = repositoryGroups.flatMap((g) => g.repositories.flatMap((r) => r.issues));
@@ -427,7 +441,7 @@ export const useAgentsStore = create<AgentsState>()(
           }
         );
 
-        const unlistenDone = await listen<{ thread_id: string }>(
+        const unlistenDone = await listen<{ thread_id: string; aborted: boolean }>(
           "agent-stream-done",
           async (event) => {
             if (event.payload.thread_id !== threadId) return;
@@ -442,14 +456,22 @@ export const useAgentsStore = create<AgentsState>()(
               streamingThreadId: null,
               toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
             }));
-            // Only reload messages into visible state if still on this thread.
-            if (get().selectedIssueId === threadId) {
-              await get().loadMessages(threadId);
-            }
-            // Refresh file changes after the agent finishes writing
-            if (workspacePath) {
-              await get().loadFileChanges(workspacePath);
-              await get().loadPrUrl(threadId, workspacePath);
+            if (!event.payload.aborted) {
+              if (get().selectedIssueId === threadId) {
+                await get().loadMessages(threadId);
+              }
+              if (workspacePath) {
+                await get().loadFileChanges(workspacePath);
+                await get().loadPrUrl(threadId, workspacePath);
+              }
+              const queue = get().messageQueueByThread[threadId] ?? [];
+              if (queue.length > 0) {
+                const [next, ...rest] = queue;
+                set((state) => ({
+                  messageQueueByThread: { ...state.messageQueueByThread, [threadId]: rest },
+                }));
+                await get().sendMessage(threadId, next.content, next.model);
+              }
             }
           }
         );
@@ -508,7 +530,7 @@ export const useAgentsStore = create<AgentsState>()(
             }]
           });
         }
-        return { repositoryGroups: newGroups, selectedIssueId: thread.id };
+        return { repositoryGroups: newGroups, selectedIssueId: thread.id, messages: [] };
       }),
       addThread: (repoId, thread) => set((state) => {
         const newGroups = state.repositoryGroups.map(group => ({
@@ -531,7 +553,7 @@ export const useAgentsStore = create<AgentsState>()(
             };
           })
         }));
-        return { repositoryGroups: newGroups, selectedIssueId: thread.id };
+        return { repositoryGroups: newGroups, selectedIssueId: thread.id, messages: [] };
       }),
       removeThread: (repoId, threadId) => set((state) => {
         const newGroups = state.repositoryGroups.map(group => ({
@@ -547,14 +569,76 @@ export const useAgentsStore = create<AgentsState>()(
 
         const nextSelectedId = state.selectedIssueId === threadId ? null : state.selectedIssueId;
 
-        return { repositoryGroups: newGroups, selectedIssueId: nextSelectedId };
+        const streamingContentByThread = { ...state.streamingContentByThread };
+        const toolCallsByThread = { ...state.toolCallsByThread };
+        const streamingThreadIds = { ...state.streamingThreadIds };
+        const messageQueueByThread = { ...state.messageQueueByThread };
+        const prUrlByThread = { ...state.prUrlByThread };
+        const selectedModelByThread = { ...state.selectedModelByThread };
+        const collapsedFilesByThread = { ...state.collapsedFilesByThread };
+        delete streamingContentByThread[threadId];
+        delete toolCallsByThread[threadId];
+        delete streamingThreadIds[threadId];
+        delete messageQueueByThread[threadId];
+        delete prUrlByThread[threadId];
+        delete selectedModelByThread[threadId];
+        delete collapsedFilesByThread[threadId];
+
+        return {
+          repositoryGroups: newGroups,
+          selectedIssueId: nextSelectedId,
+          messages: nextSelectedId === null ? [] : state.messages,
+          streamingContentByThread,
+          toolCallsByThread,
+          streamingThreadIds,
+          messageQueueByThread,
+          prUrlByThread,
+          selectedModelByThread,
+          collapsedFilesByThread,
+        };
       }),
       removeRepository: (id) => set((state) => {
         const newGroups = state.repositoryGroups.map(group => ({
           ...group,
           repositories: group.repositories.filter(r => r.id !== id)
         }));
-        return { repositoryGroups: newGroups };
+
+        const removedRepo = state.repositoryGroups
+          .flatMap(g => g.repositories)
+          .find(r => r.id === id);
+        const removedThreadIds = new Set((removedRepo?.issues ?? []).map(i => i.id));
+
+        const streamingContentByThread = { ...state.streamingContentByThread };
+        const toolCallsByThread = { ...state.toolCallsByThread };
+        const streamingThreadIds = { ...state.streamingThreadIds };
+        const messageQueueByThread = { ...state.messageQueueByThread };
+        const prUrlByThread = { ...state.prUrlByThread };
+        const selectedModelByThread = { ...state.selectedModelByThread };
+        const collapsedFilesByThread = { ...state.collapsedFilesByThread };
+        for (const tid of removedThreadIds) {
+          delete streamingContentByThread[tid];
+          delete toolCallsByThread[tid];
+          delete streamingThreadIds[tid];
+          delete messageQueueByThread[tid];
+          delete prUrlByThread[tid];
+          delete selectedModelByThread[tid];
+          delete collapsedFilesByThread[tid];
+        }
+
+        const nextSelectedId = removedThreadIds.has(state.selectedIssueId ?? "") ? null : state.selectedIssueId;
+
+        return {
+          repositoryGroups: newGroups,
+          selectedIssueId: nextSelectedId,
+          messages: nextSelectedId === null ? [] : state.messages,
+          streamingContentByThread,
+          toolCallsByThread,
+          streamingThreadIds,
+          messageQueueByThread,
+          prUrlByThread,
+          selectedModelByThread,
+          collapsedFilesByThread,
+        };
       }),
     }),
     {

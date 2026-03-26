@@ -1,5 +1,6 @@
-import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal } from "lucide-react";
+import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal, Square } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import { useAgentsStore } from "@/stores/useAgentsStore";
@@ -162,7 +163,7 @@ export function AgentChatInput() {
 
   const hasProviders = aiProviders.length > 0;
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
-  const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId && !isCurrentThreadStreaming;
+  const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId;
   // Build flat list of slash items from the current query
   const slashItems = useMemo<SlashItem[]>(() => {
     const lowerQuery = slashQuery.toLowerCase();
@@ -383,16 +384,26 @@ export function AgentChatInput() {
             </div>
 
             <button
-              onClick={handleSend}
-              disabled={!canSend}
+              onClick={
+                isCurrentThreadStreaming
+                  ? () => { invoke("abort_agent", { threadId: selectedIssueId }); }
+                  : handleSend
+              }
+              disabled={!isCurrentThreadStreaming && !canSend}
               className={cn(
                 "flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-300 shrink-0",
-                canSend
+                isCurrentThreadStreaming
+                  ? "dark:bg-white/10 bg-black/10 text-foreground dark:hover:bg-white/20 hover:bg-black/20 cursor-pointer"
+                  : canSend
                   ? "dark:bg-white/10 bg-black/10 text-foreground dark:hover:bg-white/20 hover:bg-black/20 cursor-pointer"
                   : "dark:bg-white/[0.03] bg-black/[0.03] text-zinc-400 cursor-not-allowed"
               )}
             >
-              <ArrowUp className="h-4 w-4" />
+              {isCurrentThreadStreaming ? (
+                <Square className="h-3.5 w-3.5 fill-current" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
             </button>
           </div>
 
@@ -409,7 +420,7 @@ export function AgentChatInput() {
                   ? t("agents.chatInput.placeholder.ready")
                   : t("agents.chatInput.placeholder.noProvider")
               }
-              disabled={!hasProviders || isCurrentThreadStreaming}
+              disabled={!hasProviders}
               className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-foreground/90 placeholder:text-zinc-400 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
               rows={1}
               onInput={(e) => {

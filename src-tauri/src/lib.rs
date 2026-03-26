@@ -7,9 +7,9 @@ mod state;
 
 use std::sync::Arc;
 
-use commands::agent::{get_available_models, get_messages, send_message};
+use commands::agent::{abort_agent, get_available_models, get_messages, send_message};
 use commands::workspace::{check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
-use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue};
+use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue, delegate_issue_to_agent};
 use commands::organization::{
     create_organization, delete_organization, get_job_logs, get_pr_checks, get_pr_comments, get_pr_files,
     list_all_selected_repositories, list_organizations, list_organizations_by_provider,
@@ -68,6 +68,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_available_models,
+            abort_agent,
             connect_github,
             create_provider,
             list_providers,
@@ -136,6 +137,7 @@ pub fn run() {
             update_issue,
             close_issue,
             delete_issue,
+            delegate_issue_to_agent,
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,

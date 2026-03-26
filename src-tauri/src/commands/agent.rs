@@ -11,6 +11,11 @@ pub async fn get_available_models() -> Result<crate::ai::agents::registry::Model
 }
 
 #[tauri::command]
+pub async fn abort_agent(thread_id: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<()> {
+    threads::agents::abort_agent::abort_agent(thread_id, state, app).await
+}
+
+#[tauri::command]
 pub async fn get_messages(thread_id: String, state: State<'_, AppState>) -> AppResult<Vec<Message>> {
     threads::agents::get_messages::get_messages(thread_id, state).await
 }

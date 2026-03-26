@@ -13,9 +13,6 @@ import {
   GitPullRequest,
   Monitor,
   CloudUpload,
-  MoreVertical,
-  Trash2,
-  Octagon,
   ExternalLink,
   GitCommitHorizontal,
 } from "lucide-react";
@@ -23,8 +20,6 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useSettingsStore } from "@/stores/settings-store";
-import { RemoveThreadDialog } from "./remove-thread-dialog";
-import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "@/i18n/i18n";
 
 interface AgentHeaderProps {
@@ -69,10 +64,8 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
     },
   };
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
-  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
-  const [isRemoving, setIsRemoving] = useState(false);
   const [isActioning, setIsActioning] = useState(false);
-  const { removeThread, setSelectedIssueId, fileChanges, sendMessage, selectedModelId, selectedModelByThread, prUrlByThread } = useAgentsStore();
+  const { fileChanges, sendMessage, selectedModelId, selectedModelByThread, prUrlByThread } = useAgentsStore();
   const { getPrompt } = useSettingsStore();
 
   const currentAction = ACTION_CONFIGS[selectedAction];
@@ -101,21 +94,6 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
       toast.error(`Failed to start action: ${err}`);
     } finally {
       setIsActioning(false);
-    }
-  };
-
-  const handleRemoveThread = async () => {
-    try {
-      setIsRemoving(true);
-      await invoke("delete_thread", { threadId: issue.id });
-      removeThread(issue.repoId, issue.id);
-      setSelectedIssueId(null);
-      toast.success(t("agents.header.toast.threadRemoved"));
-      setShowRemoveDialog(false);
-    } catch (error) {
-      toast.error(`Failed to remove thread: ${error}`);
-    } finally {
-      setIsRemoving(false);
     }
   };
 
@@ -212,42 +190,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           </div>
         )}
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-lg dark:hover:bg-white/5 hover:bg-black/5 text-muted-foreground/40 hover:text-foreground transition-colors border-none"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-56 bg-popover dark:border-white/[0.05] border-border p-1 shadow-2xl rounded-md backdrop-blur-3xl"
-          >
-            <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer transition-all">
-              <Octagon className="h-4 w-4 text-foreground/40" />
-              <span>{t("agents.header.stopAgent")}</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setShowRemoveDialog(true)}
-              className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer transition-all"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>{t("common.remove")}</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
-
-      <RemoveThreadDialog
-        open={showRemoveDialog}
-        onOpenChange={setShowRemoveDialog}
-        onRemove={handleRemoveThread}
-        threadTitle={issue.title}
-        isRemoving={isRemoving}
-      />
     </header>
   );
 }

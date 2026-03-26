@@ -295,13 +295,10 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             <div className={cn(
               "rounded-2xl px-4 py-3 text-[14px] min-w-0 w-full overflow-hidden",
               msg.role === "user"
-                ? "bg-purple-500/10 text-foreground/90 rounded-tr-sm whitespace-pre-wrap leading-relaxed"
+                ? "bg-purple-500/10 text-foreground/90 rounded-tr-sm"
                 : "dark:bg-white/[0.04] bg-black/[0.04] text-foreground/80 rounded-tl-sm"
             )}>
-              {msg.role === "user"
-                ? msg.content
-                : <MessageMarkdown content={msg.content} />
-              }
+              <MessageMarkdown content={msg.content} />
             </div>
             <span className="text-[10px] text-muted-foreground/30 px-1">
               {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -331,18 +328,17 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             )}
             {streamingContent && (
               <div className="rounded-2xl rounded-tl-sm px-4 py-3 text-[14px] dark:bg-white/[0.04] bg-black/[0.04] text-foreground/80 w-full overflow-hidden">
-                <pre className="whitespace-pre-wrap font-sans leading-relaxed">{streamingContent}</pre>
+                <MessageMarkdown content={streamingContent} />
               </div>
             )}
-            {!streamingContent && toolCalls.length === 0 && (
-              <span className="flex items-center gap-2 px-1 text-[12px] text-zinc-500">
-                <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
-                </span>
-                {t("agents.timeline.working")} {elapsedSeconds}s
+            {/* Working indicator — always visible while streaming */}
+            <span className="flex items-center gap-2 px-1 text-[12px] text-zinc-500">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
               </span>
-            )}
+              {t("agents.timeline.working")} {elapsedSeconds}s
+            </span>
           </div>
         </div>
       )}

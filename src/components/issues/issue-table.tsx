@@ -7,7 +7,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ArrowUpDown, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUpDown, Bot, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -54,6 +54,7 @@ import {
 } from "../ui/table";
 import { formatRelativeDate } from "../repos/pr-item";
 import { LabelBadge } from "./label-badge";
+import { useDelegateIssue } from "../../hooks/useDelegateIssue";
 import type { IssueDto } from "../../types/issue";
 
 interface IssueTableProps {
@@ -95,6 +96,7 @@ export function IssueTable({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [issueToDelete, setIssueToDelete] = useState<IssueDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { delegateIssue } = useDelegateIssue();
 
   const setFilter = useFiltersStore((s) => s.setFilter);
   const clearFilters = useFiltersStore((s) => s.clearFilters);
@@ -172,7 +174,7 @@ export function IssueTable({
                     : "bg-zinc-500/10 text-zinc-400"
                 }`}
               >
-                {row.original.syncWithProvider ? "synced" : "local"}
+                {row.original.syncWithProvider ? "sync" : "local"}
               </span>
             </div>
             {row.original.labels.length > 0 && (
@@ -314,9 +316,13 @@ export function IssueTable({
                     {t("issues.table.openInBrowser")}
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuItem onSelect={() => delegateIssue(row.original)}>
+                  <Bot className="mr-2 h-4 w-4" />
+                  {t("issues.detail.delegate")}
+                </DropdownMenuItem>
                 {onDelete && row.original.status === "open" && (
                   <>
-                    {onOpenUrl && row.original.url && <DropdownMenuSeparator />}
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onSelect={() => setIssueToDelete(row.original)}
                       className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
@@ -332,7 +338,7 @@ export function IssueTable({
         ),
       },
     ],
-    [t, onSelect, onNavigateToPrs, onNavigateToRepo, onOpenUrl, onDelete],
+    [t, onSelect, onNavigateToPrs, onNavigateToRepo, onOpenUrl, onDelete, delegateIssue],
   );
 
   const table = useReactTable({

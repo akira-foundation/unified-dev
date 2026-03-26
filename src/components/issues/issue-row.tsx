@@ -1,11 +1,14 @@
-import { CircleDot, CheckCircle2, ExternalLink, Tag } from "lucide-react";
+import { MoreHorizontal, ExternalLink } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
 import type { IssueDto } from "../../types/issue";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { formatRelativeDate } from "../repos/pr-item";
+import { useDelegateIssue } from "../../hooks/useDelegateIssue";
+import { useI18n } from "../../i18n/i18n";
 
 interface IssueRowProps {
   issue: IssueDto;
@@ -22,6 +25,8 @@ async function handleOpenUrl(url: string) {
 
 export function IssueRow({ issue, onClick }: IssueRowProps) {
   const isOpen = issue.status === "open";
+  const { t } = useI18n();
+  const { delegateIssue } = useDelegateIssue();
 
   return (
     <div className="flex items-start justify-between px-4 py-3 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 border-b border-zinc-100 dark:border-zinc-800/60 last:border-b-0">
@@ -91,6 +96,26 @@ export function IssueRow({ issue, onClick }: IssueRowProps) {
             <TooltipContent>Open on GitHub</TooltipContent>
           </Tooltip>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); delegateIssue(issue); }}
+            >
+              {t("issues.detail.delegate")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

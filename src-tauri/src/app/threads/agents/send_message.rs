@@ -16,13 +16,19 @@ pub async fn send_message(
     let pool = state.db_pool.clone();
     let app = app.clone();
     let thread_id_err = thread_id.clone();
+    let thread_id_map = thread_id.clone();
     let silent = silent.unwrap_or(false);
+    let abort_handles = state.abort_handles.clone();
 
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         if let Err(e) = session::run(thread_id, message, model, silent, pool, app.clone()).await {
             emit_error(&app, &thread_id_err, &e.to_string());
         }
     });
+
+    if let Ok(mut map) = abort_handles.lock() {
+        map.insert(thread_id_map, handle);
+    }
 
     Ok(())
 }

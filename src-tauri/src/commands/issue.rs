@@ -2,6 +2,7 @@ use tauri::State;
 
 use crate::app::issues;
 use crate::app::issues::request::{CreateIssueRequest, UpdateIssueRequest};
+use crate::app::repos::types::AddLocalRepositoryResponse;
 use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
@@ -73,4 +74,16 @@ pub async fn delete_issue(
     number: i64,
 ) -> Result<(), String> {
     issues::delete(state, org_id, repo_name, number).await
+}
+
+#[tauri::command]
+pub async fn delegate_issue_to_agent(
+    state: State<'_, AppState>,
+    org_id: String,
+    repo_name: String,
+    issue_title: String,
+) -> Result<AddLocalRepositoryResponse, String> {
+    issues::delegate(&state, org_id, repo_name, issue_title)
+        .await
+        .map_err(|e| e.to_string())
 }
