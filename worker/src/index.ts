@@ -36,13 +36,13 @@ export default {
 };
 
 const PLAN_PRICES: Record<string, Record<string, string>> = {
-  developer: {
-    monthly: "price_developer_monthly",
-    yearly: "price_developer_yearly",
+  pro: {
+    monthly: "price_pro_monthly",
+    yearly: "price_pro_yearly",
   },
-  team: {
-    monthly: "price_team_monthly",
-    yearly: "price_team_yearly",
+  ultimate: {
+    monthly: "price_ultimate_monthly",
+    yearly: "price_ultimate_yearly",
   },
 };
 
@@ -112,7 +112,7 @@ async function handleBillingActivate(request: Request, env: Env): Promise<Respon
   }
 
   const email = session.customer_details?.email ?? "";
-  const plan = session.subscription?.metadata?.plan ?? "developer";
+  const plan = session.subscription?.metadata?.plan ?? "pro";
   const cycle = session.subscription?.metadata?.cycle ?? "monthly";
   const token = crypto.randomUUID().replace(/-/g, "").toUpperCase();
 

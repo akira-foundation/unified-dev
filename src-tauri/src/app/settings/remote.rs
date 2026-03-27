@@ -49,11 +49,11 @@ fn random_code(prefix: &str, len: usize) -> String {
 }
 
 async fn ensure_settings_row(state: &AppState) -> AppResult<()> {
-    let existing = sqlx::query_scalar::<_, Option<String>>(
+    let existing = sqlx::query_scalar::<_, String>(
         "SELECT id FROM remote_settings WHERE id = ? LIMIT 1",
     )
     .bind(REMOTE_SETTINGS_ID)
-    .fetch_one(&state.db_pool)
+    .fetch_optional(&state.db_pool)
     .await?;
 
     if existing.is_some() {
