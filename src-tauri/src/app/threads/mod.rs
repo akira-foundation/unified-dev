@@ -2,6 +2,7 @@ pub mod agents;
 pub mod create;
 pub mod delete;
 pub mod list_repos;
+pub mod rename;
 pub mod set_pr_url;
 
 use crate::state::AppState;
@@ -9,7 +10,8 @@ use crate::app::support::error::AppResult;
 
 pub use create::{create as create_logic, create_with_paths, ThreadConfig};
 pub use delete::delete as delete_logic;
-pub use list_repos::RepositoryRow;
+pub use list_repos::{RepositoryRow, ThreadRow};
+pub use rename::rename as rename_logic;
 pub use set_pr_url::set as set_pr_url_logic;
 
 pub async fn create(repo_id: String, state: tauri::State<'_, AppState>) -> AppResult<ThreadConfig> {
@@ -18,6 +20,10 @@ pub async fn create(repo_id: String, state: tauri::State<'_, AppState>) -> AppRe
 
 pub async fn delete(thread_id: String, state: tauri::State<'_, AppState>) -> AppResult<()> {
     delete_logic(thread_id, &state.db_pool).await
+}
+
+pub async fn rename(thread_id: String, new_name: String, state: tauri::State<'_, AppState>) -> AppResult<ThreadRow> {
+    rename_logic(&thread_id, &new_name, &state.db_pool).await
 }
 
 pub async fn set_pr_url(

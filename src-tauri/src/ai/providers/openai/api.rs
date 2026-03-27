@@ -9,6 +9,8 @@ use crate::ai::sse::stream_responses_sse;
 use crate::ai::tools::{execute_tool, tool_definitions_responses, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
 use crate::app::support::error::{AppError, AppResult};
+use crate::state::AppState;
+use tauri::Manager;
 
 /// Calls the OpenAI Responses API directly using the Codex CLI's stored token.
 pub struct OpenAiProvider;
@@ -34,6 +36,7 @@ impl OpenAiProvider {
         input.push(json!({ "type": "message", "role": "user", "content": request.content }));
 
         let mut full_text = String::new();
+        let mut workspace_path = request.workspace_path.clone();
 
         loop {
             let body = json!({
@@ -89,7 +92,10 @@ impl OpenAiProvider {
                     output: None,
                 });
 
-                let result = execute_tool(&tc.name, &args, &request.workspace_path);
+                let (result, new_path) = execute_tool(&tc.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool).await;
+                if let Some(p) = new_path {
+                    workspace_path = p;
+                }
 
                 emit_tool_call(app, StreamToolCallPayload {
                     thread_id: request.thread_id.clone(),

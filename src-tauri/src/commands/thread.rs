@@ -18,6 +18,11 @@ pub async fn delete_thread(thread_id: String, state: State<'_, AppState>) -> App
 }
 
 #[tauri::command]
+pub async fn rename_thread(thread_id: String, new_name: String, state: State<'_, AppState>) -> AppResult<crate::app::threads::ThreadRow> {
+    threads::rename(thread_id, new_name, state).await
+}
+
+#[tauri::command]
 pub async fn set_thread_pr_url(thread_id: String, pr_url: String, pr_is_draft: bool, state: State<'_, AppState>) -> AppResult<()> {
     threads::set_pr_url(thread_id, pr_url, pr_is_draft, state).await
 }

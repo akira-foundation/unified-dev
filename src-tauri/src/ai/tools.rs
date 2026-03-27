@@ -136,6 +136,20 @@ pub fn tool_definitions_anthropic() -> Value {
                 },
                 "required": ["path", "pattern"]
             }
+        },
+        {
+            "name": "rename_workspace",
+            "description": "Rename the current workspace folder and update the thread title. Use this when the user asks to rename the workspace or thread. The name must contain only letters, digits, hyphens, and underscores.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "new_name": {
+                        "type": "string",
+                        "description": "The new name for the workspace (e.g. 'graph-inspector'). Only letters, digits, hyphens, and underscores are allowed."
+                    }
+                },
+                "required": ["new_name"]
+            }
         }
     ])
 }
@@ -214,6 +228,20 @@ pub fn tool_definitions_openai() -> Value {
                     "required": ["path", "pattern"]
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "rename_workspace",
+                "description": "Rename the current workspace folder and update the thread title.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "new_name": { "type": "string", "description": "New workspace name (letters, digits, hyphens, underscores only)." }
+                    },
+                    "required": ["new_name"]
+                }
+            }
         }
     ])
 }
@@ -276,26 +304,38 @@ pub fn tool_definitions_responses() -> Value {
                 },
                 "required": ["path", "pattern"]
             }
+        },
+        {
+            "type": "function",
+            "name": "rename_workspace",
+            "description": "Rename the current workspace folder and update the thread title.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "new_name": { "type": "string", "description": "New workspace name (letters, digits, hyphens, underscores only)." }
+                },
+                "required": ["new_name"]
+            }
         }
     ])
 }
 
 /// Execute a tool call and return the result string.
-pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
+pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread_id: &str, pool: &sqlx::SqlitePool) -> (String, Option<String>) {
     let root = std::path::Path::new(workspace_path);
 
     match name {
         "read_file" => {
             let Some(rel) = args.get("path").and_then(|v| v.as_str()) else {
-                return "Error: missing 'path' argument".to_string();
+                return ("Error: missing 'path' argument".to_string(), None);
             };
             let rel = rel.trim_start_matches('/');
             if rel.contains("..") {
-                return "Error: path traversal ('..') is not allowed".to_string();
+                return ("Error: path traversal ('..') is not allowed".to_string(), None);
             }
             let path = root.join(rel);
             eprintln!("[tool] read_file: {:?}", path);
-            match std::fs::read_to_string(&path) {
+            let result = match std::fs::read_to_string(&path) {
                 Ok(content) => content
                     .lines()
                     .enumerate()
@@ -303,7 +343,8 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                     .collect::<Vec<_>>()
                     .join("\n"),
                 Err(e) => format!("Error reading '{}': {}", path.display(), e),
-            }
+            };
+            (result, None)
         }
 
         "write_file" => {
@@ -311,22 +352,23 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 args.get("path").and_then(|v| v.as_str()),
                 args.get("content").and_then(|v| v.as_str()),
             ) else {
-                return "Error: missing 'path' or 'content' argument".to_string();
+                return ("Error: missing 'path' or 'content' argument".to_string(), None);
             };
             let rel = rel.trim_start_matches('/');
             if rel.contains("..") {
-                return "Error: path traversal ('..') is not allowed".to_string();
+                return ("Error: path traversal ('..') is not allowed".to_string(), None);
             }
             let path = root.join(rel);
             if let Some(parent) = path.parent() {
                 if let Err(e) = std::fs::create_dir_all(parent) {
-                    return format!("Error creating directories for {rel}: {e}");
+                    return (format!("Error creating directories for {rel}: {e}"), None);
                 }
             }
-            match std::fs::write(&path, content) {
+            let result = match std::fs::write(&path, content) {
                 Ok(_) => format!("Successfully wrote {} bytes to {rel}", content.len()),
                 Err(e) => format!("Error writing {rel}: {e}"),
-            }
+            };
+            (result, None)
         }
 
         "list_files" => {
@@ -334,7 +376,7 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
             let rel = rel.trim_start_matches('/');
             let path = root.join(rel);
             eprintln!("[tool] list_files: {:?}", path);
-            match std::fs::read_dir(&path) {
+            let result = match std::fs::read_dir(&path) {
                 Ok(entries) => {
                     let mut items: Vec<String> = entries
                         .filter_map(|e| {
@@ -352,12 +394,13 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                     }
                 }
                 Err(e) => format!("Error listing '{}': {}", path.display(), e),
-            }
+            };
+            (result, None)
         }
 
         "run_command" => {
             let Some(cmd_str) = args.get("command").and_then(|v| v.as_str()) else {
-                return "Error: missing 'command' argument".to_string();
+                return ("Error: missing 'command' argument".to_string(), None);
             };
 
             let allowed_prefixes = [
@@ -391,18 +434,19 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 .iter()
                 .any(|p| cmd_str.trim_start().starts_with(p))
             {
-                return format!(
-                    "Error: command not allowed. Permitted: git (status/diff/log/branch/show/rev-parse/add/commit/push/fetch/pull/checkout/stash) and gh pr/repo commands."
+                return (
+                    "Error: command not allowed. Permitted: git (status/diff/log/branch/show/rev-parse/add/commit/push/fetch/pull/checkout/stash) and gh pr/repo commands.".to_string(),
+                    None,
                 );
             }
 
             let parts = shell_split(cmd_str);
             let (prog, rest) = match parts.split_first() {
                 Some(s) => s,
-                None => return "Error: empty command".to_string(),
+                None => return ("Error: empty command".to_string(), None),
             };
 
-            match std::process::Command::new(prog)
+            let git_output = match std::process::Command::new(prog)
                 .args(rest)
                 .current_dir(root)
                 .output()
@@ -419,7 +463,30 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                     }
                 }
                 Err(e) => format!("Error running command: {e}"),
+            };
+
+            let trimmed = cmd_str.trim_start();
+            if trimmed.starts_with("git branch -m") && !git_output.starts_with("Error") && !git_output.starts_with("Exit") {
+                if let Some(new_name) = parts.last() {
+                    let new_name = new_name.trim_matches('/').trim_matches('\\');
+                    match crate::app::threads::rename_logic(thread_id, new_name, pool).await {
+                        Ok(row) => {
+                            return (
+                                format!("{git_output}\nWorkspace renamed to '{new_name}'."),
+                                Some(row.workspace_path),
+                            );
+                        }
+                        Err(e) => {
+                            return (
+                                format!("{git_output}\nWarning: branch renamed but workspace folder rename failed: {e}"),
+                                None,
+                            );
+                        }
+                    }
+                }
             }
+
+            (git_output, None)
         }
 
         "search_in_file" => {
@@ -427,12 +494,12 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 args.get("path").and_then(|v| v.as_str()),
                 args.get("pattern").and_then(|v| v.as_str()),
             ) else {
-                return "Error: missing 'path' or 'pattern' argument".to_string();
+                return ("Error: missing 'path' or 'pattern' argument".to_string(), None);
             };
             let path = root.join(rel);
             let content = match std::fs::read_to_string(&path) {
                 Ok(c) => c,
-                Err(e) => return format!("Error reading {rel}: {e}"),
+                Err(e) => return (format!("Error reading {rel}: {e}"), None),
             };
 
             let re = match regex::Regex::new(pattern) {
@@ -445,9 +512,9 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                         .map(|(i, line)| format!("{:>4}: {}", i + 1, line))
                         .collect();
                     if matches.is_empty() {
-                        return format!("No matches for '{pattern}' in {rel}");
+                        return (format!("No matches for '{pattern}' in {rel}"), None);
                     }
-                    return matches.join("\n");
+                    return (matches.join("\n"), None);
                 }
             };
 
@@ -458,14 +525,31 @@ pub fn execute_tool(name: &str, args: &Value, workspace_path: &str) -> String {
                 .map(|(i, line)| format!("{:>4}: {}", i + 1, line))
                 .collect();
 
-            if matches.is_empty() {
+            let result = if matches.is_empty() {
                 format!("No matches for '{pattern}' in {rel}")
             } else {
                 matches.join("\n")
+            };
+            (result, None)
+        }
+
+        "rename_workspace" => {
+            let Some(new_name) = args.get("new_name").and_then(|v| v.as_str()) else {
+                return ("Error: missing 'new_name' argument".to_string(), None);
+            };
+            match crate::app::threads::rename_logic(thread_id, new_name, pool).await {
+                Ok(row) => {
+                    let new_path = row.workspace_path.clone();
+                    (
+                        format!("Workspace renamed to '{}'. New path: {}", row.title, row.workspace_path),
+                        Some(new_path),
+                    )
+                }
+                Err(e) => (format!("Error: {}", e), None),
             }
         }
 
-        other => format!("Error: unknown tool '{other}'"),
+        other => (format!("Error: unknown tool '{other}'"), None),
     }
 }
 
@@ -592,6 +676,10 @@ pub fn tool_label(name: &str, args: &Value) -> String {
                 };
                 format!("run: {short}")
             }
+        }
+        "rename_workspace" => {
+            let name = args.get("new_name").and_then(|v| v.as_str()).unwrap_or("?");
+            format!("Renaming workspace to '{name}'")
         }
         other => other.to_string(),
     }

@@ -425,6 +425,9 @@ export const useAgentsStore = create<AgentsState>()(
                 // Update existing running entry to done/error
                 const updated = [...current];
                 updated[existingIdx] = { ...updated[existingIdx], status: status as "running" | "done" | "error", output };
+                if (status === "done" && label.startsWith("Renaming workspace")) {
+                  get().loadRepositories();
+                }
                 return { toolCallsByThread: { ...state.toolCallsByThread, [threadId]: updated } };
               }
               // Add new entry

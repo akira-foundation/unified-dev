@@ -9,6 +9,8 @@ use crate::ai::sse::stream_anthropic_turn;
 use crate::ai::tools::{execute_tool, tool_definitions_anthropic, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
 use crate::app::support::error::{AppError, AppResult};
+use crate::state::AppState;
+use tauri::Manager;
 
 pub struct AnthropicProvider;
 
@@ -44,6 +46,7 @@ impl AnthropicProvider {
         messages.push(json!({ "role": "user", "content": request.content }));
 
         let mut full_text = String::new();
+        let mut workspace_path = request.workspace_path.clone();
 
         loop {
             let body = json!({
@@ -106,7 +109,10 @@ impl AnthropicProvider {
                     output: None,
                 });
 
-                let result = execute_tool(&block.name, &args, &request.workspace_path);
+                let (result, new_path) = execute_tool(&block.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool).await;
+                if let Some(p) = new_path {
+                    workspace_path = p;
+                }
 
                 emit_tool_call(app, StreamToolCallPayload {
                     thread_id: request.thread_id.clone(),

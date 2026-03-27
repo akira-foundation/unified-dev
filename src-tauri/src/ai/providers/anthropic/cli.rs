@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use tauri::AppHandle;
+use tauri::Manager;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use crate::ai::provider::{AiProvider, AiRequest};
-use crate::app::chat::stream::emit_token;
+use crate::app::chat::stream::{emit_token, emit_tool_call, StreamToolCallPayload};
 use crate::app::support::error::{AppError, AppResult};
+use crate::state::AppState;
 
 pub struct AnthropicCliProvider;
 
@@ -180,7 +182,54 @@ impl AnthropicCliProvider {
             ));
         }
 
-        Ok(full_response)
+        let pool = app.state::<AppState>().db_pool.clone();
+        let mut renamed_to: Option<String> = None;
+        for line in full_response.lines() {
+            let trimmed = line.trim();
+            if let Some(new_name) = trimmed.strip_prefix("RENAME_WORKSPACE:") {
+                let new_name = new_name.trim();
+                if !new_name.is_empty() {
+                    if crate::app::threads::rename_logic(&request.thread_id, new_name, &pool).await.is_ok() {
+                        renamed_to = Some(new_name.to_string());
+                    }
+                }
+                break;
+            }
+        }
+
+        if let Some(ref new_name) = renamed_to {
+            let label = format!("Renaming workspace to '{new_name}'");
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: request.thread_id.clone(),
+                label: label.clone(),
+                status: "running".to_string(),
+                output: None,
+            });
+            emit_tool_call(app, StreamToolCallPayload {
+                thread_id: request.thread_id.clone(),
+                label,
+                status: "done".to_string(),
+                output: None,
+            });
+        }
+
+        let cleaned: String = full_response
+            .lines()
+            .filter(|l| !l.trim().starts_with("RENAME_WORKSPACE:"))
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let final_response = if cleaned.trim().is_empty() {
+            if let Some(ref name) = renamed_to {
+                format!("Workspace renamed to '{name}'.")
+            } else {
+                cleaned
+            }
+        } else {
+            cleaned
+        };
+
+        Ok(final_response)
     }
 }
 

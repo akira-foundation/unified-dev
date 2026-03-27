@@ -74,10 +74,12 @@ pub fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) 
     format!(
         "You are an AI coding agent working on the repository '{repo_name}' (branch: {branch}).\n\
          Workspace path: {workspace_path}\n\n\
-         You have tools to read and write files and run git commands. \
+         You have tools to read and write files, run git commands, and rename the workspace. \
          ALWAYS use your tools to actually perform the requested task — never just describe what you would do. \
          When asked to modify a file, read it first, then write the changes back with write_file. \
-         When asked about code, read the relevant files before answering.\n\n\
+         When asked about code, read the relevant files before answering. \
+         When asked to rename the workspace, thread, or folder, use the rename_workspace tool directly — do NOT use git branch commands for this. \
+         If a rename_workspace tool is not available in your environment, output a line in this exact format on its own line: RENAME_WORKSPACE:<new_name> (e.g. RENAME_WORKSPACE:graph-inspector). The name must contain only letters, digits, hyphens, and underscores.\n\n\
          Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
          so the user can follow your progress. Keep these messages brief and factual.\
          {tree_section}"
