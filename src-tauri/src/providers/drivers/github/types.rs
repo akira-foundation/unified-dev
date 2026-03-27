@@ -1,21 +1,6 @@
 use serde::Deserialize;
 
-use crate::providers::dto::{ProviderRepo, VcsIssue};
-
-pub fn repo_to_provider(repo: GitHubRepo) -> ProviderRepo {
-    ProviderRepo {
-        id: repo.id.to_string(),
-        owner: repo.owner.login,
-        name: repo.name,
-        visibility: if repo.private {
-            "private".to_string()
-        } else {
-            "public".to_string()
-        },
-        is_private: repo.private,
-        default_branch: repo.default_branch,
-    }
-}
+use crate::providers::dto::VcsIssue;
 
 pub fn github_issue_to_vcs(issue: GitHubIssue) -> VcsIssue {
     let labels_vec = issue.labels.unwrap_or_default();
@@ -45,69 +30,6 @@ pub fn github_issue_to_vcs(issue: GitHubIssue) -> VcsIssue {
         created_at: issue.created_at,
         updated_at: issue.updated_at,
     }
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubRepoOwner {
-    pub login: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubUser {
-    pub id: u64,
-    pub login: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubOrg {
-    pub id: u64,
-    pub login: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubRepo {
-    pub id: u64,
-    pub name: String,
-    #[allow(dead_code)]
-    pub full_name: String,
-    pub owner: GitHubRepoOwner,
-    pub default_branch: String,
-    pub private: bool,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubPullReference {
-    #[serde(rename = "ref")]
-    pub reference: String,
-    pub sha: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubPullUser {
-    pub login: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubPullLabel {
-    pub name: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubPullRequest {
-    pub id: u64,
-    pub number: u64,
-    pub title: String,
-    pub state: String,
-    pub html_url: String,
-    pub updated_at: String,
-    pub merged_at: Option<String>,
-    pub draft: Option<bool>,
-    pub head: GitHubPullReference,
-    pub base: GitHubPullReference,
-    pub body: Option<String>,
-    pub user: Option<GitHubPullUser>,
-    pub labels: Option<Vec<GitHubPullLabel>>,
-    pub requested_reviewers: Option<Vec<GitHubPullUser>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -187,20 +109,7 @@ pub struct GitHubIssue {
     pub assignees: Option<Vec<GitHubIssueUser>>,
     pub created_at: String,
     pub updated_at: String,
-    // Present when the issue is actually a PR
     pub pull_request: Option<serde_json::Value>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubBranchCommit {
-    pub sha: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct GitHubBranch {
-    pub name: String,
-    pub commit: GitHubBranchCommit,
-    pub protected: bool,
 }
 
 #[derive(Debug, Deserialize)]

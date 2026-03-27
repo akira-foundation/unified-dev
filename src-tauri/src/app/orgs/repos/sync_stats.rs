@@ -1,6 +1,5 @@
 use tauri::State;
 
-use crate::providers::enums::PullRequestState;
 use crate::state::AppState;
 
 pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> Result<(), String> {
@@ -35,30 +34,21 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
         }
     }
 
-    let futures: Vec<_> = repos
-        .iter()
-        .map(|repo| {
-            let provider = provider.clone();
-            let owner = repo.owner.clone();
-            let repo_name = repo.repo_name.clone();
-            let (default_branch, visibility) = repo_meta
-                .get(&repo_name)
-                .cloned()
-                .unwrap_or_else(|| (repo.default_branch.clone(), repo.visibility.clone()));
-            async move {
-                let open_prs_count = provider
-                    .list_pull_requests(&owner, &repo_name)
-                    .await
-                    .map(|prs| prs.iter().filter(|pr| matches!(pr.state, PullRequestState::Open)).count() as i64)
-                    .unwrap_or(0);
-                (repo_name, default_branch, visibility, open_prs_count)
-            }
-        })
-        .collect();
+    for repo in &repos {
+        let (default_branch, visibility) = repo_meta
+            .get(&repo.repo_name)
+            .cloned()
+            .unwrap_or_else(|| (repo.default_branch.clone(), repo.visibility.clone()));
 
-    let results = futures_util::future::join_all(futures).await;
+        let open_prs_count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
+        )
+        .bind(&organization_id)
+        .bind(&repo.repo_name)
+        .fetch_one(&state.db_pool)
+        .await
+        .unwrap_or(0);
 
-    for (repo_name, default_branch, visibility, open_prs_count) in results {
         let _ = sqlx::query(
             "UPDATE organization_repos SET default_branch = ?, visibility = ?, open_prs_count = ? WHERE organization_id = ? AND repo_name = ?",
         )
@@ -66,7 +56,7 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
         .bind(&visibility)
         .bind(open_prs_count)
         .bind(&organization_id)
-        .bind(&repo_name)
+        .bind(&repo.repo_name)
         .execute(&state.db_pool)
         .await;
     }

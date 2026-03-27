@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Filter, GitPullRequest } from "lucide-react";
+import { Filter, GitPullRequest, RefreshCw } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent } from "../components/ui/card";
@@ -56,6 +56,7 @@ export function RepositoryPRsPage() {
   const queryClient = useQueryClient();
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const currentLogin = activeRepo ? resolveCurrentLogin(activeRepo.organizationId, organizations, providers) : null;
   const prScope = targetPrScope ?? (activeRepo ? resolvePrScope(activeRepo.organizationId, activeRepo.name) : "mine_or_review_requested");
 
@@ -177,6 +178,25 @@ export function RepositoryPRsPage() {
     });
   };
 
+  const handleSync = async () => {
+    if (!activeRepo || isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await invoke("sync_pull_requests", {
+        organizationId: activeRepo.organizationId,
+        repoName: activeRepo.name,
+        owner: activeRepo.owner,
+        scope: prScope,
+        currentLogin,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.pullRequests(activeRepo.organizationId, activeRepo.name),
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   if (!activeRepo) return null;
 
   return (
@@ -227,7 +247,18 @@ export function RepositoryPRsPage() {
                 </div>
               </div>
 
-              <FilterPopover>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  title="Sync pull requests"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                </Button>
+
+                <FilterPopover>
                 <FilterPopoverTrigger asChild>
                   <Button variant="outline" size="icon" className="relative">
                     <Filter className="h-4 w-4" />
@@ -326,6 +357,7 @@ export function RepositoryPRsPage() {
                   )}
                 </FilterPopoverContent>
               </FilterPopover>
+              </div>
             </div>
             <CardContent className="">
               {filteredPrs.map((pr) => (

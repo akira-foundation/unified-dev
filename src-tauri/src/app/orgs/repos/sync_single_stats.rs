@@ -1,6 +1,5 @@
 use tauri::State;
 
-use crate::providers::enums::PullRequestState;
 use crate::state::AppState;
 
 pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: String, repo_name: String) -> Result<(), String> {
@@ -33,11 +32,14 @@ pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: Stri
         .map(|r| (r.default_branch, r.visibility))
         .unwrap_or((current_default_branch, current_visibility));
 
-    let open_prs_count = provider
-        .list_pull_requests(&owner, &repo_name)
-        .await
-        .map(|prs| prs.iter().filter(|pr| matches!(pr.state, PullRequestState::Open)).count() as i64)
-        .unwrap_or(0);
+    let open_prs_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
+    )
+    .bind(&organization_id)
+    .bind(&repo_name)
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
 
     let _ = sqlx::query(
         "UPDATE organization_repos SET default_branch = ?, visibility = ?, open_prs_count = ? WHERE organization_id = ? AND repo_name = ?",

@@ -72,6 +72,7 @@ export interface PullRequestDto {
   head: string;
   base: string;
   head_sha: string;
+  created_at: string;
   updated_at: string;
   is_draft: boolean;
   merged_at: string | null;

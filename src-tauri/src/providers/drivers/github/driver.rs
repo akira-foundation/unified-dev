@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use futures_util::future::join_all;
 use serde::Deserialize;
 
 use crate::app::concerns::{ProviderDriverFactory, VcsProvider};
@@ -9,9 +8,8 @@ use crate::app::support::error::{AppError, AppResult};
 
 use super::client::{GitHubDriver, GITHUB_API};
 use super::types::{
-    github_issue_to_vcs, repo_to_provider, GitHubBranch, GitHubCheckRunsResponse,
-    GitHubIssue, GitHubIssueComment, GitHubJobResponse, GitHubOrg, GitHubPrFile,
-    GitHubPullRequest, GitHubRef, GitHubUser,
+    github_issue_to_vcs, GitHubCheckRunsResponse, GitHubIssue,
+    GitHubIssueComment, GitHubJobResponse, GitHubPrFile,
 };
 
 pub struct GitHubFactory;
@@ -56,18 +54,49 @@ impl VcsProvider for GitHubDriver {
     }
 
     async fn list_organizations(&self) -> AppResult<Vec<ProviderOrg>> {
-        let user: GitHubUser = self.get_json(format!("{GITHUB_API}/user")).await?;
-        let orgs: Vec<GitHubOrg> = self.fetch_paginated(format!("{GITHUB_API}/user/orgs")).await?;
+        #[derive(Deserialize)]
+        struct Data {
+            viewer: Viewer,
+        }
+        #[derive(Deserialize)]
+        struct Viewer {
+            id: String,
+            login: String,
+            organizations: OrgConnection,
+        }
+        #[derive(Deserialize)]
+        struct OrgConnection {
+            nodes: Vec<OrgNode>,
+        }
+        #[derive(Deserialize)]
+        struct OrgNode {
+            #[serde(rename = "databaseId")]
+            database_id: u64,
+            login: String,
+        }
 
-        let mut results = Vec::with_capacity(orgs.len() + 1);
+        let query = r#"
+            query {
+                viewer {
+                    id
+                    login
+                    organizations(first: 100) {
+                        nodes { databaseId login }
+                    }
+                }
+            }
+        "#;
+
+        let data: Data = self.graphql(query, serde_json::json!({})).await?;
+
+        let mut results = Vec::new();
         results.push(ProviderOrg {
-            id: user.id.to_string(),
-            login: user.login,
+            id: data.viewer.id,
+            login: data.viewer.login,
             kind: ProviderOrgKind::Personal,
         });
-
-        results.extend(orgs.into_iter().map(|org| ProviderOrg {
-            id: org.id.to_string(),
+        results.extend(data.viewer.organizations.nodes.into_iter().map(|org| ProviderOrg {
+            id: org.database_id.to_string(),
             login: org.login,
             kind: ProviderOrgKind::Organization,
         }));
@@ -76,23 +105,159 @@ impl VcsProvider for GitHubDriver {
     }
 
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>> {
-        let url = format!("{GITHUB_API}/user/repos?type=all");
-        let repositories: Vec<super::types::GitHubRepo> = self.fetch_paginated(url).await?;
+        #[derive(Deserialize)]
+        struct Data {
+            viewer: Viewer,
+        }
+        #[derive(Deserialize)]
+        struct Viewer {
+            repositories: RepoConnection,
+        }
+        #[derive(Deserialize)]
+        struct RepoConnection {
+            nodes: Vec<RepoNode>,
+            #[serde(rename = "pageInfo")]
+            page_info: PageInfo,
+        }
+        #[derive(Deserialize)]
+        struct PageInfo {
+            #[serde(rename = "hasNextPage")]
+            has_next_page: bool,
+            #[serde(rename = "endCursor")]
+            end_cursor: Option<String>,
+        }
+        #[derive(Deserialize)]
+        struct RepoNode {
+            #[serde(rename = "databaseId")]
+            database_id: u64,
+            name: String,
+            #[serde(rename = "nameWithOwner")]
+            name_with_owner: String,
+            #[serde(rename = "isPrivate")]
+            is_private: bool,
+            #[serde(rename = "defaultBranchRef")]
+            default_branch_ref: Option<DefaultBranchRef>,
+        }
+        #[derive(Deserialize)]
+        struct DefaultBranchRef {
+            name: String,
+        }
 
-        Ok(repositories
-            .into_iter()
-            .map(repo_to_provider)
-            .collect())
+        let query = r#"
+            query($after: String) {
+                viewer {
+                    repositories(first: 100, after: $after, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
+                        nodes {
+                            databaseId name nameWithOwner isPrivate
+                            defaultBranchRef { name }
+                        }
+                        pageInfo { hasNextPage endCursor }
+                    }
+                }
+            }
+        "#;
+
+        let repos = self.graphql_paginated::<ProviderRepo, _, Data>(
+            query,
+            serde_json::json!({}),
+            |data| {
+                let conn = data.viewer.repositories;
+                let items = conn.nodes.into_iter().map(|r| {
+                    let owner = r.name_with_owner.split('/').next().unwrap_or("").to_string();
+                    ProviderRepo {
+                        id: r.database_id.to_string(),
+                        owner,
+                        name: r.name,
+                        visibility: if r.is_private { "private".to_string() } else { "public".to_string() },
+                        is_private: r.is_private,
+                        default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_else(|| "main".to_string()),
+                    }
+                }).collect();
+                (items, conn.page_info.has_next_page, conn.page_info.end_cursor)
+            },
+        ).await?;
+
+        Ok(repos)
     }
 
     async fn list_organization_repositories(&self, organization: &str) -> AppResult<Vec<ProviderRepo>> {
-        let url = format!("{GITHUB_API}/orgs/{organization}/repos?type=all");
-        let repositories: Vec<super::types::GitHubRepo> = self.fetch_paginated(url).await?;
+        #[derive(Deserialize)]
+        struct Data {
+            organization: Option<OrgData>,
+        }
+        #[derive(Deserialize)]
+        struct OrgData {
+            repositories: RepoConnection,
+        }
+        #[derive(Deserialize)]
+        struct RepoConnection {
+            nodes: Vec<RepoNode>,
+            #[serde(rename = "pageInfo")]
+            page_info: PageInfo,
+        }
+        #[derive(Deserialize)]
+        struct PageInfo {
+            #[serde(rename = "hasNextPage")]
+            has_next_page: bool,
+            #[serde(rename = "endCursor")]
+            end_cursor: Option<String>,
+        }
+        #[derive(Deserialize)]
+        struct RepoNode {
+            #[serde(rename = "databaseId")]
+            database_id: u64,
+            name: String,
+            #[serde(rename = "nameWithOwner")]
+            name_with_owner: String,
+            #[serde(rename = "isPrivate")]
+            is_private: bool,
+            #[serde(rename = "defaultBranchRef")]
+            default_branch_ref: Option<DefaultBranchRef>,
+        }
+        #[derive(Deserialize)]
+        struct DefaultBranchRef {
+            name: String,
+        }
 
-        Ok(repositories
-            .into_iter()
-            .map(repo_to_provider)
-            .collect())
+        let query = r#"
+            query($login: String!, $after: String) {
+                organization(login: $login) {
+                    repositories(first: 100, after: $after) {
+                        nodes {
+                            databaseId name nameWithOwner isPrivate
+                            defaultBranchRef { name }
+                        }
+                        pageInfo { hasNextPage endCursor }
+                    }
+                }
+            }
+        "#;
+
+        let org_login = organization.to_string();
+        let repos = self.graphql_paginated::<ProviderRepo, _, Data>(
+            query,
+            serde_json::json!({ "login": org_login }),
+            move |data| {
+                let conn = match data.organization {
+                    Some(o) => o.repositories,
+                    None => return (vec![], false, None),
+                };
+                let items = conn.nodes.into_iter().map(|r| {
+                    let owner = r.name_with_owner.split('/').next().unwrap_or("").to_string();
+                    ProviderRepo {
+                        id: r.database_id.to_string(),
+                        owner,
+                        name: r.name,
+                        visibility: if r.is_private { "private".to_string() } else { "public".to_string() },
+                        is_private: r.is_private,
+                        default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_else(|| "main".to_string()),
+                    }
+                }).collect();
+                (items, conn.page_info.has_next_page, conn.page_info.end_cursor)
+            },
+        ).await?;
+
+        Ok(repos)
     }
 
     async fn list_pull_requests(
@@ -100,77 +265,192 @@ impl VcsProvider for GitHubDriver {
         owner: &str,
         repository: &str,
     ) -> AppResult<Vec<VcsPullRequest>> {
-        let url = format!(
-            "{GITHUB_API}/repos/{owner}/{repository}/pulls?state=all"
-        );
-        let pulls: Vec<GitHubPullRequest> = self.fetch_paginated(url).await?;
+        #[derive(Deserialize)]
+        struct Data {
+            repository: Option<RepoData>,
+        }
+        #[derive(Deserialize)]
+        struct RepoData {
+            #[serde(rename = "pullRequests")]
+            pull_requests: PrConnection,
+        }
+        #[derive(Deserialize)]
+        struct PrConnection {
+            nodes: Vec<PrNode>,
+            #[serde(rename = "pageInfo")]
+            page_info: PageInfo,
+        }
+        #[derive(Deserialize)]
+        struct PageInfo {
+            #[serde(rename = "hasNextPage")]
+            has_next_page: bool,
+            #[serde(rename = "endCursor")]
+            end_cursor: Option<String>,
+        }
+        #[derive(Deserialize)]
+        struct PrNode {
+            number: u64,
+            title: String,
+            state: String,
+            url: String,
+            #[serde(rename = "isDraft")]
+            is_draft: bool,
+            #[serde(rename = "createdAt")]
+            created_at: String,
+            #[serde(rename = "updatedAt")]
+            updated_at: String,
+            #[serde(rename = "mergedAt")]
+            merged_at: Option<String>,
+            body: Option<String>,
+            author: Option<Actor>,
+            #[serde(rename = "headRefName")]
+            head_ref_name: String,
+            #[serde(rename = "baseRefName")]
+            base_ref_name: String,
+            #[serde(rename = "headRefOid")]
+            head_ref_oid: String,
+            labels: LabelConnection,
+            #[serde(rename = "reviewRequests")]
+            review_requests: ReviewRequestConnection,
+            #[serde(rename = "commits")]
+            commits: CommitConnection,
+        }
+        #[derive(Deserialize)]
+        struct Actor {
+            login: String,
+        }
+        #[derive(Deserialize)]
+        struct LabelConnection {
+            nodes: Vec<LabelNode>,
+        }
+        #[derive(Deserialize)]
+        struct LabelNode {
+            name: String,
+        }
+        #[derive(Deserialize)]
+        struct ReviewRequestConnection {
+            nodes: Vec<ReviewRequestNode>,
+        }
+        #[derive(Deserialize)]
+        struct ReviewRequestNode {
+            #[serde(rename = "requestedReviewer")]
+            requested_reviewer: Option<RequestedReviewer>,
+        }
+        #[derive(Deserialize)]
+        #[serde(tag = "__typename")]
+        enum RequestedReviewer {
+            User { login: String },
+            Team { name: String },
+            #[serde(other)]
+            Unknown,
+        }
+        #[derive(Deserialize)]
+        struct CommitConnection {
+            nodes: Vec<CommitNode>,
+        }
+        #[derive(Deserialize)]
+        struct CommitNode {
+            commit: CommitDetail,
+        }
+        #[derive(Deserialize)]
+        struct CommitDetail {
+            #[serde(rename = "statusCheckRollup")]
+            status_check_rollup: Option<StatusCheckRollup>,
+        }
+        #[derive(Deserialize)]
+        struct StatusCheckRollup {
+            state: String,
+        }
 
-        let ci_futures: Vec<_> = pulls
-            .iter()
-            .map(|pr| {
-                let sha = pr.head.sha.clone();
-                let check_url = format!(
-                    "{GITHUB_API}/repos/{owner}/{repository}/commits/{sha}/check-runs?per_page=100"
-                );
-                async move {
-                    let resp = self
-                        .get_json::<GitHubCheckRunsResponse>(check_url)
-                        .await
-                        .ok()?;
-
-                    if resp.total_count == 0 {
-                        return None;
+        let query = r#"
+            query($owner: String!, $repo: String!, $after: String) {
+                repository(owner: $owner, name: $repo) {
+                    pullRequests(first: 100, after: $after, states: [OPEN, CLOSED, MERGED], orderBy: {field: UPDATED_AT, direction: DESC}) {
+                        nodes {
+                            number title state url isDraft createdAt updatedAt mergedAt body
+                            headRefName baseRefName headRefOid
+                            author { login }
+                            labels(first: 20) { nodes { name } }
+                            reviewRequests(first: 10) {
+                                nodes {
+                                    requestedReviewer {
+                                        __typename
+                                        ... on User { login }
+                                        ... on Team { name }
+                                    }
+                                }
+                            }
+                            commits(last: 1) {
+                                nodes {
+                                    commit {
+                                        statusCheckRollup { state }
+                                    }
+                                }
+                            }
+                        }
+                        pageInfo { hasNextPage endCursor }
                     }
-
-                    let has_pending = resp.check_runs.iter().any(|r| {
-                        matches!(r.status.as_str(), "in_progress" | "queued" | "waiting")
-                    });
-                    if has_pending {
-                        return Some("pending".to_string());
-                    }
-
-                    let has_failure = resp.check_runs.iter().any(|r| {
-                        r.conclusion
-                            .as_deref()
-                            .map(|c| matches!(c, "failure" | "timed_out" | "cancelled"))
-                            .unwrap_or(false)
-                    });
-                    if has_failure {
-                        return Some("failure".to_string());
-                    }
-
-                    Some("success".to_string())
                 }
-            })
-            .collect();
+            }
+        "#;
 
-        let ci_statuses = join_all(ci_futures).await;
+        let owner_s = owner.to_string();
+        let repo_s = repository.to_string();
 
-        Ok(pulls
-            .into_iter()
-            .zip(ci_statuses)
-            .map(|(pr, ci_status)| VcsPullRequest {
-                id: pr.id.to_string(),
-                number: pr.number,
-                title: pr.title,
-                state: match pr.state.as_str() {
-                    "open" => PullRequestState::Open,
-                    _ => PullRequestState::Closed,
-                },
-                url: pr.html_url,
-                head: pr.head.reference,
-                base: pr.base.reference,
-                head_sha: pr.head.sha,
-                updated_at: pr.updated_at,
-                is_draft: pr.draft.unwrap_or(false),
-                merged_at: pr.merged_at,
-                body: pr.body,
-                author: pr.user.map(|u| u.login),
-                labels: pr.labels.unwrap_or_default().into_iter().map(|l| l.name).collect(),
-                reviewers: pr.requested_reviewers.unwrap_or_default().into_iter().map(|u| u.login).collect(),
-                ci_status,
-            })
-            .collect())
+        let prs = self.graphql_paginated::<VcsPullRequest, _, Data>(
+            query,
+            serde_json::json!({ "owner": owner_s, "repo": repo_s }),
+            |data| {
+                let conn = match data.repository {
+                    Some(r) => r.pull_requests,
+                    None => return (vec![], false, None),
+                };
+                let items = conn.nodes.into_iter().map(|pr| {
+                    let ci_status = pr.commits.nodes.into_iter().next()
+                        .and_then(|c| c.commit.status_check_rollup)
+                        .map(|s| match s.state.as_str() {
+                            "SUCCESS" => "success".to_string(),
+                            "FAILURE" | "ERROR" => "failure".to_string(),
+                            _ => "pending".to_string(),
+                        });
+
+                    let reviewers = pr.review_requests.nodes.into_iter()
+                        .filter_map(|r| r.requested_reviewer)
+                        .filter_map(|r| match r {
+                            RequestedReviewer::User { login } => Some(login),
+                            RequestedReviewer::Team { name } => Some(name),
+                            RequestedReviewer::Unknown => None,
+                        })
+                        .collect();
+
+                    VcsPullRequest {
+                        id: pr.number.to_string(),
+                        number: pr.number,
+                        title: pr.title,
+                        state: match pr.state.as_str() {
+                            "OPEN" => PullRequestState::Open,
+                            _ => PullRequestState::Closed,
+                        },
+                        url: pr.url,
+                        head: pr.head_ref_name,
+                        base: pr.base_ref_name,
+                        head_sha: pr.head_ref_oid,
+                        created_at: pr.created_at,
+                        updated_at: pr.updated_at,
+                        is_draft: pr.is_draft,
+                        merged_at: pr.merged_at,
+                        body: pr.body,
+                        author: pr.author.map(|a| a.login),
+                        labels: pr.labels.nodes.into_iter().map(|l| l.name).collect(),
+                        reviewers,
+                        ci_status,
+                    }
+                }).collect();
+                (items, conn.page_info.has_next_page, conn.page_info.end_cursor)
+            },
+        ).await?;
+
+        Ok(prs)
     }
 
     async fn get_pull_request_comments(
@@ -287,7 +567,7 @@ impl VcsProvider for GitHubDriver {
             let job_url = format!("{GITHUB_API}/repos/{owner}/{repository}/actions/jobs/{}", r.id);
             self.get_json::<GitHubJobResponse>(job_url)
         });
-        let step_results = join_all(step_futures).await;
+        let step_results = futures_util::future::join_all(step_futures).await;
 
         Ok(resp
             .check_runs
@@ -349,15 +629,119 @@ impl VcsProvider for GitHubDriver {
         repository: &str,
         state: Option<&str>,
     ) -> AppResult<Vec<VcsIssue>> {
-        let state_param = state.unwrap_or("open");
-        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues?state={state_param}&filter=all");
-        let issues: Vec<GitHubIssue> = self.fetch_paginated(url).await?;
+        #[derive(Deserialize)]
+        struct Data {
+            repository: Option<RepoData>,
+        }
+        #[derive(Deserialize)]
+        struct RepoData {
+            issues: IssueConnection,
+        }
+        #[derive(Deserialize)]
+        struct IssueConnection {
+            nodes: Vec<IssueNode>,
+            #[serde(rename = "pageInfo")]
+            page_info: PageInfo,
+        }
+        #[derive(Deserialize)]
+        struct PageInfo {
+            #[serde(rename = "hasNextPage")]
+            has_next_page: bool,
+            #[serde(rename = "endCursor")]
+            end_cursor: Option<String>,
+        }
+        #[derive(Deserialize)]
+        struct IssueNode {
+            number: u64,
+            title: String,
+            body: Option<String>,
+            state: String,
+            #[serde(rename = "stateReason")]
+            state_reason: Option<String>,
+            url: String,
+            #[serde(rename = "createdAt")]
+            created_at: String,
+            #[serde(rename = "updatedAt")]
+            updated_at: String,
+            author: Option<Actor>,
+            labels: LabelConnection,
+            assignees: AssigneeConnection,
+        }
+        #[derive(Deserialize)]
+        struct Actor {
+            login: String,
+        }
+        #[derive(Deserialize)]
+        struct LabelConnection {
+            nodes: Vec<LabelNode>,
+        }
+        #[derive(Deserialize)]
+        struct LabelNode {
+            name: String,
+            color: String,
+        }
+        #[derive(Deserialize)]
+        struct AssigneeConnection {
+            nodes: Vec<Actor>,
+        }
 
-        Ok(issues
-            .into_iter()
-            .filter(|i| i.pull_request.is_none())
-            .map(github_issue_to_vcs)
-            .collect())
+        let states_gql = match state.unwrap_or("open") {
+            "closed" => "[CLOSED]",
+            "all" => "[OPEN, CLOSED]",
+            _ => "[OPEN]",
+        };
+
+        let query = format!(r#"
+            query($owner: String!, $repo: String!, $after: String) {{
+                repository(owner: $owner, name: $repo) {{
+                    issues(first: 100, after: $after, states: {states_gql}, orderBy: {{field: UPDATED_AT, direction: DESC}}) {{
+                        nodes {{
+                            number title body state stateReason url createdAt updatedAt
+                            author {{ login }}
+                            labels(first: 20) {{ nodes {{ name color }} }}
+                            assignees(first: 10) {{ nodes {{ login }} }}
+                        }}
+                        pageInfo {{ hasNextPage endCursor }}
+                    }}
+                }}
+            }}
+        "#);
+
+        let owner_s = owner.to_string();
+        let repo_s = repository.to_string();
+
+        let issues = self.graphql_paginated::<VcsIssue, _, Data>(
+            &query,
+            serde_json::json!({ "owner": owner_s, "repo": repo_s }),
+            |data| {
+                let conn = match data.repository {
+                    Some(r) => r.issues,
+                    None => return (vec![], false, None),
+                };
+                let items = conn.nodes.into_iter().map(|i| {
+                    let label_colors = i.labels.nodes.iter().map(|l| l.color.clone()).collect();
+                    let labels = i.labels.nodes.into_iter().map(|l| l.name).collect();
+                    VcsIssue {
+                        external_id: i.number.to_string(),
+                        number: i.number,
+                        title: i.title,
+                        body: i.body,
+                        status: i.state.to_lowercase(),
+                        state_reason: i.state_reason,
+                        labels,
+                        label_colors,
+                        assignees: i.assignees.nodes.into_iter().map(|a| a.login).collect(),
+                        author: i.author.map(|a| a.login),
+                        url: i.url,
+                        created_at: i.created_at,
+                        updated_at: i.updated_at,
+                    }
+                }).collect();
+                (items, conn.page_info.has_next_page, conn.page_info.end_cursor)
+            },
+        ).await?;
+
+        Ok(issues)
     }
 
     async fn create_issue(
@@ -395,21 +779,11 @@ impl VcsProvider for GitHubDriver {
     ) -> AppResult<VcsIssue> {
         let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
         let mut payload = serde_json::json!({});
-        if let Some(t) = title {
-            payload["title"] = serde_json::Value::String(t.to_string());
-        }
-        if let Some(b) = body {
-            payload["body"] = serde_json::Value::String(b.to_string());
-        }
-        if let Some(s) = state {
-            payload["state"] = serde_json::Value::String(s.to_string());
-        }
-        if let Some(l) = labels {
-            payload["labels"] = serde_json::json!(l);
-        }
-        if let Some(a) = assignees {
-            payload["assignees"] = serde_json::json!(a);
-        }
+        if let Some(t) = title { payload["title"] = serde_json::Value::String(t.to_string()); }
+        if let Some(b) = body { payload["body"] = serde_json::Value::String(b.to_string()); }
+        if let Some(s) = state { payload["state"] = serde_json::Value::String(s.to_string()); }
+        if let Some(l) = labels { payload["labels"] = serde_json::json!(l); }
+        if let Some(a) = assignees { payload["assignees"] = serde_json::json!(a); }
         let issue: GitHubIssue = self.patch_json(url, &payload).await?;
         Ok(github_issue_to_vcs(issue))
     }
@@ -436,25 +810,48 @@ impl VcsProvider for GitHubDriver {
         repository: &str,
         issue_number: u64,
     ) -> AppResult<()> {
-        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{issue_number}");
-        let issue: serde_json::Value = self.get_json(url).await?;
-        let node_id = issue["node_id"]
-            .as_str()
-            .ok_or_else(|| AppError::Provider("Issue node_id not found".to_string()))?
-            .to_string();
+        #[derive(Deserialize)]
+        struct Data {
+            repository: Option<RepoData>,
+        }
+        #[derive(Deserialize)]
+        struct RepoData {
+            issue: Option<IssueData>,
+        }
+        #[derive(Deserialize)]
+        struct IssueData {
+            id: String,
+        }
+
+        let node_query = r#"
+            query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                    issue(number: $number) { id }
+                }
+            }
+        "#;
+
+        let data: Data = self.graphql(node_query, serde_json::json!({
+            "owner": owner,
+            "repo": repository,
+            "number": issue_number as i64,
+        })).await?;
+
+        let node_id = data.repository
+            .and_then(|r| r.issue)
+            .map(|i| i.id)
+            .ok_or_else(|| AppError::Provider("Issue node_id not found".to_string()))?;
 
         #[derive(Deserialize)]
-        struct DeleteIssueData {
+        struct DeleteData {
             #[serde(rename = "deleteIssue")]
             _delete_issue: serde_json::Value,
         }
 
-        let _: DeleteIssueData = self
-            .graphql(
-                "mutation DeleteIssue($id: ID!) { deleteIssue(input: { issueId: $id }) { clientMutationId } }",
-                serde_json::json!({ "id": node_id }),
-            )
-            .await?;
+        let _: DeleteData = self.graphql(
+            "mutation DeleteIssue($id: ID!) { deleteIssue(input: { issueId: $id }) { clientMutationId } }",
+            serde_json::json!({ "id": node_id }),
+        ).await?;
 
         Ok(())
     }
@@ -464,22 +861,101 @@ impl VcsProvider for GitHubDriver {
         owner: &str,
         repository: &str,
     ) -> AppResult<Vec<VcsBranch>> {
-        let repo_url = format!("{GITHUB_API}/repos/{owner}/{repository}");
-        let repo_info: serde_json::Value = self.get_json(repo_url).await?;
-        let default_branch = repo_info["default_branch"].as_str().unwrap_or("").to_string();
+        #[derive(Deserialize)]
+        struct Data {
+            repository: Option<RepoData>,
+        }
+        #[derive(Deserialize)]
+        struct RepoData {
+            #[serde(rename = "defaultBranchRef")]
+            default_branch_ref: Option<DefaultRef>,
+            refs: RefConnection,
+        }
+        #[derive(Deserialize)]
+        struct DefaultRef {
+            name: String,
+        }
+        #[derive(Deserialize)]
+        struct RefConnection {
+            nodes: Vec<RefNode>,
+            #[serde(rename = "pageInfo")]
+            page_info: PageInfo,
+        }
+        #[derive(Deserialize)]
+        struct PageInfo {
+            #[serde(rename = "hasNextPage")]
+            has_next_page: bool,
+            #[serde(rename = "endCursor")]
+            end_cursor: Option<String>,
+        }
+        #[derive(Deserialize)]
+        struct RefNode {
+            name: String,
+            #[serde(rename = "branchProtectionRule")]
+            branch_protection_rule: Option<serde_json::Value>,
+            target: Option<RefTarget>,
+        }
+        #[derive(Deserialize)]
+        struct RefTarget {
+            oid: String,
+        }
 
-        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/branches");
-        let branches: Vec<GitHubBranch> = self.fetch_paginated(url).await?;
+        let query = r#"
+            query($owner: String!, $repo: String!, $after: String) {
+                repository(owner: $owner, name: $repo) {
+                    defaultBranchRef { name }
+                    refs(refPrefix: "refs/heads/", first: 100, after: $after) {
+                        nodes {
+                            name
+                            branchProtectionRule { id }
+                            target { oid }
+                        }
+                        pageInfo { hasNextPage endCursor }
+                    }
+                }
+            }
+        "#;
 
-        Ok(branches
-            .into_iter()
-            .map(|b| VcsBranch {
-                is_default: b.name == default_branch,
-                is_protected: b.protected,
-                sha: b.commit.sha,
-                name: b.name,
-            })
-            .collect())
+        let owner_s = owner.to_string();
+        let repo_s = repository.to_string();
+
+        #[derive(Clone)]
+        struct DefaultBranchHolder(std::sync::Arc<std::sync::Mutex<Option<String>>>);
+
+        let default_holder = DefaultBranchHolder(std::sync::Arc::new(std::sync::Mutex::new(None)));
+        let default_holder_clone = default_holder.clone();
+
+        let branches = self.graphql_paginated::<VcsBranch, _, Data>(
+            query,
+            serde_json::json!({ "owner": owner_s, "repo": repo_s }),
+            move |data| {
+                let repo = match data.repository {
+                    Some(r) => r,
+                    None => return (vec![], false, None),
+                };
+
+                if let Ok(mut lock) = default_holder_clone.0.lock() {
+                    if lock.is_none() {
+                        *lock = repo.default_branch_ref.map(|d| d.name);
+                    }
+                }
+
+                let default_name = default_holder_clone.0.lock().ok()
+                    .and_then(|l| l.clone())
+                    .unwrap_or_default();
+
+                let items = repo.refs.nodes.into_iter().map(|r| VcsBranch {
+                    is_default: r.name == default_name,
+                    is_protected: r.branch_protection_rule.is_some(),
+                    sha: r.target.map(|t| t.oid).unwrap_or_default(),
+                    name: r.name,
+                }).collect();
+
+                (items, repo.refs.page_info.has_next_page, repo.refs.page_info.end_cursor)
+            },
+        ).await?;
+
+        Ok(branches)
     }
 
     async fn create_branch(
@@ -489,6 +965,7 @@ impl VcsProvider for GitHubDriver {
         branch_name: &str,
         sha: &str,
     ) -> AppResult<VcsBranch> {
+        use super::types::GitHubRef;
         let url = format!("{GITHUB_API}/repos/{owner}/{repository}/git/refs");
         let payload = serde_json::json!({
             "ref": format!("refs/heads/{branch_name}"),

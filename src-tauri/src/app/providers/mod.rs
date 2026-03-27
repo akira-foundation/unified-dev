@@ -14,7 +14,7 @@ pub mod update_auth;
 pub use connect_github::connect_github;
 pub use create::create;
 pub use delete::delete;
-pub use get_rate_limit::{get_rate_limit, RateLimitDto, RateLimitResource};
+pub use get_rate_limit::{get_rate_limit, RateLimitDto};
 pub use list::list;
 pub use list_organizations::list_organizations;
 pub use list_repos::{list_repos, ProviderReposInput};

@@ -1,5 +1,5 @@
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::app::support::error::{AppError, AppResult};
 
@@ -147,9 +147,7 @@ impl GitHubDriver {
     }
 
     pub async fn graphql<T: DeserializeOwned>(&self, query: &str, variables: serde_json::Value) -> AppResult<T> {
-        use serde::Deserialize;
-
-        #[derive(serde::Serialize)]
+        #[derive(Serialize)]
         struct GraphQlRequest<'a> {
             query: &'a str,
             variables: serde_json::Value,
@@ -186,6 +184,76 @@ impl GitHubDriver {
         }
 
         result.data.ok_or_else(|| AppError::Provider("GitHub GraphQL: no data returned".to_string()))
+    }
+
+    pub async fn graphql_paginated<T, F, R>(
+        &self,
+        query: &str,
+        variables: serde_json::Value,
+        extract: F,
+    ) -> AppResult<Vec<T>>
+    where
+        R: DeserializeOwned,
+        F: Fn(R) -> (Vec<T>, bool, Option<String>),
+    {
+        #[derive(Serialize)]
+        struct GraphQlRequest<'a> {
+            query: &'a str,
+            variables: serde_json::Value,
+        }
+        #[derive(Deserialize)]
+        struct GraphQlResponse<D> {
+            data: Option<D>,
+            errors: Option<Vec<serde_json::Value>>,
+        }
+
+        let mut all_items: Vec<T> = Vec::new();
+        let mut cursor: Option<String> = None;
+
+        loop {
+            let mut vars = variables.clone();
+            if let Some(c) = &cursor {
+                vars["after"] = serde_json::Value::String(c.clone());
+            } else {
+                vars["after"] = serde_json::Value::Null;
+            }
+
+            let response = self
+                .client
+                .post("https://api.github.com/graphql")
+                .bearer_auth(&self.token)
+                .json(&GraphQlRequest { query, variables: vars })
+                .send()
+                .await?;
+
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
+            }
+
+            let result: GraphQlResponse<R> = response.json().await?;
+
+            if let Some(errors) = result.errors {
+                if !errors.is_empty() {
+                    return Err(AppError::Provider(format!(
+                        "GitHub GraphQL errors: {}",
+                        serde_json::to_string(&errors).unwrap_or_default()
+                    )));
+                }
+            }
+
+            let data = result.data.ok_or_else(|| AppError::Provider("GitHub GraphQL: no data returned".to_string()))?;
+            let (items, has_next, end_cursor) = extract(data);
+            all_items.extend(items);
+
+            if !has_next {
+                break;
+            }
+            cursor = end_cursor;
+        }
+
+        Ok(all_items)
     }
 
     pub async fn fetch_paginated<T: DeserializeOwned>(

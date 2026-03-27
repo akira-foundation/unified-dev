@@ -34,17 +34,17 @@ function RateLimitRow({
   loading: boolean;
   onRefresh: () => void;
 }) {
-  if (loading) {
+  if (loading || !data) {
     return (
       <div className="flex items-center gap-3 px-4 py-3 border-t border-zinc-100 dark:border-zinc-800/50">
+        <Skeleton className="h-4 w-16 rounded" />
+        <Skeleton className="h-4 w-28 rounded" />
         <Skeleton className="h-4 w-24 rounded" />
-        <Skeleton className="h-4 w-32 rounded" />
         <Skeleton className="h-4 w-20 rounded" />
+        <Skeleton className="h-4 w-16 rounded" />
       </div>
     );
   }
-
-  if (!data) return null;
 
   const resources = [
     { label: "Core", r: data.core },
@@ -100,7 +100,6 @@ export function VcsProvidersTab() {
   const { data: rateLimits, isFetching: rateLimitsLoading, refetch: refetchRateLimits } = useQuery({
     queryKey: queryKeys.rateLimits(),
     queryFn: () => invoke<RateLimitDto[]>("get_rate_limit"),
-    enabled: false,
     staleTime: cache.staleTime.short,
     gcTime: cache.gcTime.default,
   });
