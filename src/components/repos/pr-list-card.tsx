@@ -5,6 +5,12 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import {
   FilterPopover,
   FilterPopoverContent,
   FilterPopoverTrigger,
@@ -33,6 +39,7 @@ interface PrListCardProps {
   repoName: string;
   isSyncing?: boolean;
   onSync?: () => void;
+  syncOptions?: Array<{ label: string; onSelect: () => void }>;
   onMerged?: () => void;
 }
 
@@ -47,6 +54,7 @@ export function PrListCard({
   repoName,
   isSyncing,
   onSync,
+  syncOptions,
   onMerged,
 }: PrListCardProps) {
   const { t } = useI18n();
@@ -159,14 +167,36 @@ export function PrListCard({
 
           <div className="flex items-center gap-2">
             {onSync && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={onSync} disabled={isSyncing}>
-                    <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("pages.repositoryDetail.syncPrs")}</TooltipContent>
-              </Tooltip>
+              syncOptions && syncOptions.length > 0 ? (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" disabled={isSyncing}>
+                          <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("pages.repositoryDetail.syncPrs")}</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end">
+                    {syncOptions.map((option) => (
+                      <DropdownMenuItem key={option.label} onSelect={option.onSelect}>
+                        {option.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" onClick={onSync} disabled={isSyncing}>
+                      <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("pages.repositoryDetail.syncPrs")}</TooltipContent>
+                </Tooltip>
+              )
             )}
 
             <FilterPopover>

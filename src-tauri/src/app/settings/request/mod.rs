@@ -24,11 +24,7 @@ pub struct SyncSettingsDto {
 
 impl SyncSettingsDto {
     pub fn defaults_for(id: &str) -> Self {
-        let scope = if id == GLOBAL_ID {
-            "global"
-        } else {
-            "organization"
-        };
+        let scope = scope_for_id(id);
         Self {
             id: id.to_string(),
             scope: scope.to_string(),
@@ -41,6 +37,16 @@ impl SyncSettingsDto {
             sync_orgs_enabled: true,
             sync_orgs_interval_secs: DEFAULT_ORGS_INTERVAL_SECS,
         }
+    }
+}
+
+pub fn scope_for_id(id: &str) -> &'static str {
+    if id == GLOBAL_ID {
+        "global"
+    } else if id.contains(':') {
+        "repository"
+    } else {
+        "organization"
     }
 }
 

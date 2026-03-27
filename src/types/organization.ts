@@ -28,6 +28,7 @@ export interface OrganizationRepoSummary {
   auto_sync: boolean;
   default_branch: string;
   open_prs_count: number;
+  open_issues_count?: number;
   created_at: string;
 }
 

@@ -18,6 +18,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Button } from "../ui/button";
@@ -73,6 +75,7 @@ export function OrganizationItem({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.open")}</DropdownMenuLabel>
             <DropdownMenuItem onSelect={() => onSelect?.(organization.id)}>
               <Eye className="mr-2 h-4 w-4" />
               {t("common.viewOrganization")}
@@ -81,6 +84,8 @@ export function OrganizationItem({
               <FolderDown className="mr-2 h-4 w-4" />
               {t("common.importRepositories")}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.manage")}</DropdownMenuLabel>
             <DropdownMenuItem onSelect={() => onConfigureSync?.(organization.id)}>
               <Settings2 className="mr-2 h-4 w-4" />
               {t("common.configureSync")}
@@ -89,6 +94,8 @@ export function OrganizationItem({
               <Pencil className="mr-2 h-4 w-4" />
               {t("common.editOrganization")}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.dangerZone")}</DropdownMenuLabel>
             <DropdownMenuItem onSelect={() => setIsConfirmOpen(true)} className="text-red-500">
               <Trash2 className="mr-2 h-4 w-4" />
               {t("common.removeOrganization")}

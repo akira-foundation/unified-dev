@@ -39,7 +39,11 @@ import { repositorySelectionService } from "@/services/repositorySelectionServic
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useFiltersStore } from "@/stores/filters-store";
 import { useKanbanStore } from "@/stores/useKanbanStore";
+import { useSettingsStore } from "@/stores/settings-store";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useProviders } from "@/hooks/useProviders";
 import { queryKeys } from "@/lib/query-keys";
+import { resolveCurrentLogin } from "@/lib/work-visibility";
 import { cache } from "@/config/cache";
 import type { OrganizationRepoWithOrg, PullRequestDto } from "@/types/organization";
 
@@ -201,6 +205,9 @@ export function KanbanFilterPopover() {
 export function KanbanBoard({ compact = false }: { compact?: boolean }) {
   const { t } = useI18n();
   const { setActiveRepo, setActivePr, navigateTo, setDashboardTab } = useNavigationStore();
+  const { organizations } = useOrganizations();
+  const { providers } = useProviders();
+  const { resolvePrScope } = useSettingsStore();
 
   const COLUMNS: { id: ColumnId; title: string; borderColor: string }[] = [
     { id: "todo",        title: t("kanban.columns.open"),  borderColor: "border-t-zinc-500"    },
@@ -217,11 +224,13 @@ export function KanbanBoard({ compact = false }: { compact?: boolean }) {
 
   const prQueries = useQueries({
     queries: allRepos.map((repo: OrganizationRepoWithOrg) => ({
-      queryKey: queryKeys.pullRequests(repo.organization_id, repo.repo_name),
+      queryKey: queryKeys.pullRequests(repo.organization_id, repo.repo_name, resolvePrScope(repo.organization_id, repo.repo_name)),
       queryFn: () =>
         invoke<PullRequestDto[]>("list_repo_pull_requests", {
           organizationId: repo.organization_id,
           repoName: repo.repo_name,
+          scope: resolvePrScope(repo.organization_id, repo.repo_name),
+          currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
         }),
       staleTime: cache.staleTime.realtime,
     })),

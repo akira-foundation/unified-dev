@@ -8,21 +8,31 @@ import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigationStore } from "../stores/navigation-store";
 import { useI18n } from "../i18n/i18n";
 import { repositorySelectionService } from "../services/repositorySelectionService";
-import { useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import { Activity, Download, Globe2, Lock } from "lucide-react";
+import { Activity, Download, Globe2, Lock, Settings2 } from "lucide-react";
 import type { OrganizationRepoWithOrg } from "../types/organization";
 import { EmptyState } from "../components/ui/empty-state";
 import { queryKeys } from "../lib/query-keys";
+import { OrgSyncSheet } from "@/components/organizations/org-sync-sheet";
+import { useProviders } from "@/hooks/useProviders";
+import { useSettingsStore } from "@/stores/settings-store";
+import { resolveCurrentLogin } from "@/lib/work-visibility";
+import type { PullRequestDto } from "@/types/organization";
+import type { IssueDto } from "@/types/issue";
+import { cache } from "@/config/cache";
 
 export function OrganizationPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
   const { organizations } = useOrganizations();
+  const { providers } = useProviders();
+  const { resolvePrScope, resolveIssueScope } = useSettingsStore();
   const { activeOrganizationId, navigateTo } = useNavigationStore();
   const queryClient = useQueryClient();
+  const [orgConfigOpen, setOrgConfigOpen] = useState(false);
 
   const organization = useMemo(
     () => organizations.find((item) => item.id === activeOrganizationId) ?? null,
@@ -40,13 +50,54 @@ export function OrganizationPage() {
     [repos, organization],
   );
 
+  const prQueries = useQueries({
+    queries: reposWithOrg.map((repo: OrganizationRepoWithOrg) => {
+      const scope = resolvePrScope(repo.organization_id, repo.repo_name);
+      return {
+        queryKey: queryKeys.pullRequests(repo.organization_id, repo.repo_name, scope),
+        queryFn: () => invoke<PullRequestDto[]>("list_repo_pull_requests", {
+          organizationId: repo.organization_id,
+          repoName: repo.repo_name,
+          scope,
+          currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
+        }),
+        staleTime: cache.staleTime.realtime,
+      };
+    }),
+  });
+
+  const issueQueries = useQueries({
+    queries: reposWithOrg.map((repo: OrganizationRepoWithOrg) => {
+      const scope = resolveIssueScope(repo.organization_id, repo.repo_name);
+      return {
+        queryKey: queryKeys.issues(repo.organization_id, repo.repo_name, scope),
+        queryFn: () => invoke<IssueDto[]>("list_issues", {
+          orgId: repo.organization_id,
+          repoName: repo.repo_name,
+          scope,
+          currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
+        }),
+        staleTime: cache.staleTime.realtime,
+      };
+    }),
+  });
+
+  const reposWithScopedPrs: OrganizationRepoWithOrg[] = useMemo(
+    () => reposWithOrg.map((repo, index) => ({
+      ...repo,
+      open_prs_count: prQueries[index]?.data?.length ?? 0,
+      open_issues_count: issueQueries[index]?.data?.length ?? 0,
+    })),
+    [reposWithOrg, prQueries, issueQueries],
+  );
+
   const stats = useMemo(() => {
-    const total = repos.length;
-    const publicCount = repos.filter((repo) => repo.visibility === "public").length;
-    const privateCount = repos.filter((repo) => repo.visibility === "private").length;
-    const lastImported = repos[0]?.created_at ?? null;
+    const total = reposWithScopedPrs.length;
+    const publicCount = reposWithScopedPrs.filter((repo) => repo.visibility === "public").length;
+    const privateCount = reposWithScopedPrs.filter((repo) => repo.visibility === "private").length;
+    const lastImported = reposWithScopedPrs[0]?.created_at ?? null;
     return { total, publicCount, privateCount, lastImported };
-  }, [repos]);
+  }, [reposWithScopedPrs]);
 
   const syncAll = useMutation({
     mutationFn: () => invoke("sync_repository_stats", { organizationId: organization!.id }),
@@ -92,6 +143,14 @@ export function OrganizationPage() {
             <span>{t("app.name")}</span>
             <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
             <span>{dateLabel}</span>
+            <button
+              type="button"
+              onClick={() => setOrgConfigOpen(true)}
+              className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+              title={t("common.configureSync")}
+            >
+              <Settings2 className="h-4 w-4" />
+            </button>
           </PageHeaderMeta>
         </div>
         {organization && (
@@ -174,7 +233,7 @@ export function OrganizationPage() {
             </div>
             {!isLoadingRepos && reposWithOrg.length > 0 && (
               <RepoMetricsTable
-                repos={reposWithOrg}
+                repos={reposWithScopedPrs}
                 filterNamespace="org-repos"
                 onSync={() => syncAll.mutate()}
                 isSyncing={syncAll.isPending}
@@ -186,6 +245,12 @@ export function OrganizationPage() {
           </div>
         )}
       </div>
+
+      <OrgSyncSheet
+        organization={organization}
+        open={orgConfigOpen}
+        onOpenChange={setOrgConfigOpen}
+      />
     </PageLayout>
   );
 }

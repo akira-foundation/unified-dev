@@ -5,7 +5,7 @@ import type { IssueDto } from "../../types/issue";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { formatRelativeDate } from "../repos/pr-item";
 import { useDelegateIssue } from "../../hooks/useDelegateIssue";
 import { useI18n } from "../../i18n/i18n";
@@ -108,6 +108,9 @@ export function IssueRow({ issue, onClick }: IssueRowProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+              {t("common.manage")}
+            </DropdownMenuLabel>
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={(e) => { e.stopPropagation(); delegateIssue(issue); }}

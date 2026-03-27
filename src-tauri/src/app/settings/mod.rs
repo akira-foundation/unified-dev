@@ -3,6 +3,7 @@ pub mod poller;
 pub mod request;
 pub mod reset;
 pub mod upsert;
+pub mod visibility;
 
 pub use get::get;
 pub use reset::reset;

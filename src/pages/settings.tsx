@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Settings2,
   Palette,
@@ -18,12 +18,16 @@ import {
   FolderGit2,
   FileText,
   AlertTriangle,
-  CheckCircle,
   Trash2,
   User,
   Shield,
   GitlabIcon,
   RefreshCw,
+  Smartphone,
+  ShieldCheck,
+  Wifi,
+  Copy,
+  RotateCw,
 } from "lucide-react";
 import { useProviders } from "@/hooks/useProviders";
 import { useNavigation } from "@/hooks/useNavigation";
@@ -32,6 +36,13 @@ import { AddProviderDialog } from "@/components/providers/add-provider-dialog";
 import { Badge } from "@/components/ui/badge";
 
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -42,6 +53,8 @@ import { useSyncSettingsStore, GLOBAL_SYNC_ID } from "@/stores/sync-settings-sto
 import { SyncSettingsTab } from "@/components/settings/sync-settings-tab";
 import { useAppearance } from "@/hooks/use-appearance";
 import { useDateLabel } from "@/hooks/use-date-label";
+import { issueScopeLabelKey, prScopeLabelKey } from "@/lib/work-visibility";
+import type { IssueScope, PullRequestScope } from "@/types/work-visibility";
 import {
   PageHeader,
   PageHeaderMeta,
@@ -49,6 +62,8 @@ import {
 } from "@/components/layout/page-header";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
   vscDarkPlus,
@@ -102,10 +117,43 @@ final readonly class CreateUserAction
     }
 }`;
 
+interface MockRemoteDevice {
+  id: string;
+  name: string;
+  lastSeen: string;
+  status: "connected" | "idle";
+}
+
+function PairingQrCode({ value }: { value: string }) {
+  const src = useMemo(() => {
+    const encoded = encodeURIComponent(value);
+    return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encoded}`;
+  }, [value]);
+
+  return (
+    <div className="rounded-3xl border border-zinc-200/80 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+      <img src={src} alt="Pairing QR code" className="h-[220px] w-[220px] rounded-2xl" />
+    </div>
+  );
+}
+
 
 export function SettingsPage() {
   const { t, locale, setLocale } = useI18n();
-  const { editorTheme, setEditorTheme, promptOverrides, loadPrompts, savePrompt, resetPrompt } = useSettingsStore();
+  const {
+    editorTheme,
+    setEditorTheme,
+    promptOverrides,
+    loadPrompts,
+    savePrompt,
+    resetPrompt,
+    defaultIssueScope,
+    defaultPrScope,
+    assignIssuesToSelfByDefault,
+    setDefaultIssueScope,
+    setDefaultPrScope,
+    setAssignIssuesToSelfByDefault,
+  } = useSettingsStore();
   const { appearance, updateAppearance } = useAppearance();
   const dateLabel = useDateLabel(locale);
   const { loadSettings } = useSyncSettingsStore();
@@ -126,6 +174,7 @@ export function SettingsPage() {
       items: [
         { id: "integrations", label: t("settings.tabs.integrations"), icon: <Blocks className="h-4 w-4" /> },
         { id: "agents", label: t("settings.tabs.agents"), icon: <Bot className="h-4 w-4" /> },
+        { id: "remote", label: t("settings.tabs.remote"), icon: <Smartphone className="h-4 w-4" /> },
         { id: "sync", label: t("settings.tabs.sync"), icon: <RefreshCw className="h-4 w-4" /> },
         { id: "shortcuts", label: t("settings.tabs.shortcuts"), icon: <Keyboard className="h-4 w-4" /> },
         { id: "dictation", label: t("settings.tabs.dictation"), icon: <Mic className="h-4 w-4" /> },
@@ -151,7 +200,14 @@ export function SettingsPage() {
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [remoteEnabled, setRemoteEnabled] = useState(false);
+  const [showRemotePairingModal, setShowRemotePairingModal] = useState(false);
+  const [pairingCode, setPairingCode] = useState("UNFD-48K2");
+  const [remoteDeviceToRemove, setRemoteDeviceToRemove] = useState<MockRemoteDevice | null>(null);
+  const [remoteDevices, setRemoteDevices] = useState<MockRemoteDevice[]>([
+    { id: "1", name: "iPhone 16 Pro", lastSeen: "just now", status: "connected" },
+    { id: "2", name: "iPad Air", lastSeen: "2h ago", status: "idle" },
+  ]);
 
   // Local draft edits for the Prompts tab — keyed by action.
   // A draft of "" means the user cleared the field (reverting to default behaviour).
@@ -175,10 +231,7 @@ export function SettingsPage() {
     }
   }, [activeTab]);
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
+  const showToast = (message: string) => toast.success(message);
 
   const handleClearHistory = () => {
     localStorage.removeItem("noxdireit_recent_searches");
@@ -199,6 +252,52 @@ export function SettingsPage() {
     localStorage.clear();
     showToast(t("toast.appReset"));
     setTimeout(() => window.location.reload(), 1500);
+  };
+
+  const hostName = useMemo(() => `${window.location.hostname || "unified"}.local`, []);
+  const pairingUrl = useMemo(() => `unified://pair?host=${encodeURIComponent(hostName)}&code=${encodeURIComponent(pairingCode)}`, [hostName, pairingCode]);
+
+  const regeneratePairingCode = () => {
+    const next = `UNFD-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    setPairingCode(next);
+    showToast(t("settings.remote.toast.codeRegenerated"));
+  };
+
+  const copyRemoteValue = async (value: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast(successMessage);
+    } catch {
+      showToast(t("common.copy"));
+    }
+  };
+
+  const revokeRemoteDevice = (deviceId: string) => {
+    setRemoteDevices((current) => current.filter((device) => device.id !== deviceId));
+    showToast(t("settings.remote.toast.deviceRevoked"));
+  };
+
+  const persistGlobalVisibilityPreferences = async (
+    issueScope: IssueScope,
+    prScope: PullRequestScope,
+    assignToSelf: boolean,
+  ) => {
+    await invoke("upsert_visibility_preferences", {
+      input: {
+        scopeType: "global",
+        scopeId: "global",
+        issueScope,
+        prScope,
+        assignIssuesToSelf: assignToSelf,
+      },
+    });
+  };
+
+  const handleRemoteToggle = (checked: boolean) => {
+    setRemoteEnabled(checked);
+    if (checked) {
+      setShowRemotePairingModal(true);
+    }
   };
 
   const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
@@ -300,13 +399,6 @@ export function SettingsPage() {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {toastMessage && (
-            <div className="animate-fade-in-up fixed bottom-6 right-6 z-[100] flex items-center gap-3 rounded-md border border-zinc-100 bg-white px-6 py-4 font-medium text-black shadow-2xl">
-              <CheckCircle size={20} className="text-emerald-500" />
-              {toastMessage}
-            </div>
-          )}
-
           {activeTab === "general" && (
             <div className="animate-in fade-in duration-300">
               <SettingsSection
@@ -585,6 +677,53 @@ export function SettingsPage() {
                   description={t("settings.behaviour.autoArchive.description")}
                   action={<Switch />}
                 />
+                <SettingsItem
+                  label={t("settings.behaviour.issueScope.label")}
+                  description={t("settings.behaviour.issueScope.description")}
+                  action={
+                    <Select value={defaultIssueScope} onValueChange={async (value) => {
+                      const next = value as IssueScope;
+                      setDefaultIssueScope(next);
+                      await persistGlobalVisibilityPreferences(next, defaultPrScope, assignIssuesToSelfByDefault);
+                    }}>
+                      <SelectTrigger className="w-44 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="my_queue">{t(issueScopeLabelKey("my_queue"))}</SelectItem>
+                        <SelectItem value="all_open">{t(issueScopeLabelKey("all_open"))}</SelectItem>
+                        <SelectItem value="all">{t(issueScopeLabelKey("all"))}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  }
+                />
+                <SettingsItem
+                  label={t("settings.behaviour.prScope.label")}
+                  description={t("settings.behaviour.prScope.description")}
+                  action={
+                    <Select value={defaultPrScope} onValueChange={async (value) => {
+                      const next = value as PullRequestScope;
+                      setDefaultPrScope(next);
+                      await persistGlobalVisibilityPreferences(defaultIssueScope, next, assignIssuesToSelfByDefault);
+                    }}>
+                      <SelectTrigger className="w-48 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mine_or_review_requested">{t(prScopeLabelKey("mine_or_review_requested"))}</SelectItem>
+                        <SelectItem value="all_open">{t(prScopeLabelKey("all_open"))}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  }
+                />
+                <SettingsItem
+                  label={t("settings.behaviour.assignIssueToSelf.label")}
+                  description={t("settings.behaviour.assignIssueToSelf.description")}
+                  action={<Switch checked={assignIssuesToSelfByDefault} onCheckedChange={async (checked) => {
+                    setAssignIssuesToSelfByDefault(checked);
+                    await persistGlobalVisibilityPreferences(defaultIssueScope, defaultPrScope, checked);
+                  }} />}
+                />
               </SettingsSection>
             </div>
           )}
@@ -715,6 +854,182 @@ AWS_REGION=us-east-1
 AWS_PROFILE=default`}
                 />
               </SettingsSection>
+            </div>
+          )}
+
+          {activeTab === "remote" && (
+            <div className="animate-in fade-in duration-300">
+              <SettingsSection
+                title={t("settings.remote.title")}
+                description={t("settings.remote.description")}
+                icon={Wifi}
+              >
+                <SettingsItem
+                  label={t("settings.remote.enable.label")}
+                  description={t("settings.remote.enable.description")}
+                  action={<Switch checked={remoteEnabled} onCheckedChange={handleRemoteToggle} />}
+                />
+                <SettingsItem
+                  label={t("settings.remote.network.label")}
+                  description={t("settings.remote.network.description")}
+                  action={<Badge variant="secondary" className="bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">Tailscale</Badge>}
+                />
+                <SettingsItem
+                  label={t("settings.remote.host.label")}
+                  description={t("settings.remote.host.description")}
+                  action={
+                    <Button
+                      variant="outline"
+                      className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300"
+                      onClick={() => copyRemoteValue(hostName, t("settings.remote.toast.hostCopied"))}
+                    >
+                      <Copy className="h-4 w-4" />
+                      {hostName}
+                    </Button>
+                  }
+                />
+                <SettingsItem
+                  label={t("settings.remote.pairing.entryLabel")}
+                  description={t("settings.remote.pairing.entryDescription")}
+                  action={
+                    <Button
+                      variant="outline"
+                      className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300"
+                      onClick={() => setShowRemotePairingModal(true)}
+                      disabled={!remoteEnabled}
+                    >
+                      <Smartphone className="h-4 w-4" />
+                      {t("settings.remote.pairing.open")}
+                    </Button>
+                  }
+                />
+              </SettingsSection>
+
+              <div className="flex flex-col gap-6">
+                <SettingsSection
+                  title={t("settings.remote.devices.title")}
+                  description={t("settings.remote.devices.description")}
+                  icon={ShieldCheck}
+                >
+                  {remoteDevices.length === 0 ? (
+                    <div className="px-4 py-10 text-sm text-zinc-500 dark:text-zinc-400">
+                      {t("settings.remote.devices.empty")}
+                    </div>
+                  ) : (
+                    remoteDevices.map((device) => (
+                      <SettingsItem
+                        key={device.id}
+                        label={device.name}
+                        description={t("settings.remote.devices.lastSeen").replace("{time}", device.lastSeen)}
+                        action={
+                          <div className="flex items-center gap-3">
+                            <Badge
+                              variant="secondary"
+                              className={cn(
+                                "capitalize",
+                                device.status === "connected"
+                                  ? "bg-emerald-500/10 text-emerald-500"
+                                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300",
+                              )}
+                            >
+                              {device.status === "connected" ? t("common.connected") : t("settings.remote.devices.idle")}
+                            </Badge>
+                            <button
+                              onClick={() => setRemoteDeviceToRemove(device)}
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500/10 text-red-500 transition-colors hover:bg-red-500/20"
+                              title={t("settings.remote.devices.revoke")}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        }
+                      />
+                    ))
+                  )}
+                </SettingsSection>
+              </div>
+
+              <Dialog open={showRemotePairingModal} onOpenChange={setShowRemotePairingModal}>
+                <DialogContent className="max-w-lg border-zinc-200 dark:border-white/10 bg-background">
+                  <DialogHeader>
+                    <DialogTitle>{t("settings.remote.pairing.title")}</DialogTitle>
+                    <DialogDescription>{t("settings.remote.pairing.description")}</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-6">
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-zinc-900 dark:text-white">
+                        {t("settings.remote.pairing.codeLabel")}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 font-mono text-xl font-black tracking-[0.18em] text-zinc-900 dark:border-white/10 dark:bg-zinc-950 dark:text-white">
+                          {pairingCode}
+                        </div>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => copyRemoteValue(pairingCode, t("settings.remote.toast.codeCopied"))}>
+                          <Copy className="h-4 w-4" />
+                          {t("common.copy")}
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={regeneratePairingCode}>
+                          <RotateCw className="h-4 w-4" />
+                          {t("settings.remote.pairing.regenerate")}
+                        </Button>
+                      </div>
+                      <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                        {t("settings.remote.pairing.helper")}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3 rounded-2xl border border-zinc-200 dark:border-white/10 bg-zinc-50/40 dark:bg-white/[0.02] p-5">
+                      <PairingQrCode value={pairingUrl} />
+                      <div className="text-center text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                        {t("settings.remote.pairing.qrHelper")}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium text-zinc-900 dark:text-white">
+                        {t("settings.remote.pairing.urlLabel")}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 truncate rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-300">
+                          {pairingUrl}
+                        </div>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => copyRemoteValue(pairingUrl, t("settings.remote.toast.urlCopied"))}>
+                          <Copy className="h-4 w-4" />
+                          {t("common.copy")}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={!!remoteDeviceToRemove} onOpenChange={(open) => !open && setRemoteDeviceToRemove(null)}>
+                <DialogContent className="max-w-md border-zinc-200 dark:border-white/10 bg-background">
+                  <DialogHeader>
+                    <DialogTitle>{t("settings.remote.devices.removeTitle")}</DialogTitle>
+                    <DialogDescription>
+                      {t("settings.remote.devices.removeDescription").replace("{name}", remoteDeviceToRemove?.name ?? "")}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <Button variant="ghost" onClick={() => setRemoteDeviceToRemove(null)}>
+                      {t("common.cancel")}
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => {
+                        if (!remoteDeviceToRemove) return;
+                        revokeRemoteDevice(remoteDeviceToRemove.id);
+                        setRemoteDeviceToRemove(null);
+                      }}
+                    >
+                      {t("common.remove")}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
 

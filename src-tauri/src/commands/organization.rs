@@ -58,8 +58,14 @@ pub async fn sync_single_repo_stats(state: State<'_, AppState>, organization_id:
 }
 
 #[tauri::command]
-pub async fn list_repo_pull_requests(state: State<'_, AppState>, organization_id: String, repo_name: String) -> Result<Vec<PullRequestDto>, String> {
-    orgs::list_repo_pull_requests(state, organization_id, repo_name).await
+pub async fn list_repo_pull_requests(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+    scope: Option<String>,
+    current_login: Option<String>,
+) -> Result<Vec<PullRequestDto>, String> {
+    orgs::list_repo_pull_requests(state, organization_id, repo_name, scope, current_login).await
 }
 
 #[tauri::command]
@@ -113,6 +119,13 @@ pub async fn delete_repo_branch(state: State<'_, AppState>, organization_id: Str
 }
 
 #[tauri::command]
-pub async fn sync_pull_requests(state: State<'_, AppState>, organization_id: String, repo_name: String, owner: Option<String>) -> Result<Vec<PullRequestDto>, String> {
-    orgs::sync_pull_requests(state, organization_id, repo_name, owner).await
+pub async fn sync_pull_requests(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+    owner: Option<String>,
+    scope: Option<String>,
+    current_login: Option<String>,
+) -> Result<Vec<PullRequestDto>, String> {
+    orgs::sync_pull_requests(state, organization_id, repo_name, owner, scope, current_login).await
 }

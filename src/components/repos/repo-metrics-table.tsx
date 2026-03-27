@@ -29,7 +29,7 @@ import {
   FilterToggleSection,
 } from "../filters/filter-popover-section";
 import { MultiSelectFilterSection } from "../filters/multi-select-filter-section";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
@@ -41,6 +41,7 @@ interface RepoMetricsTableProps {
   onSync?: () => void;
   onSyncRepo?: (repo: OrganizationRepoWithOrg) => void;
   onOrganizationClick?: (repo: OrganizationRepoWithOrg) => void;
+  onVisibilitySettings?: (repo: OrganizationRepoWithOrg) => void;
   isSyncing?: boolean;
   syncingRepoId?: string;
   hideOrganization?: boolean;
@@ -64,12 +65,13 @@ export function RepoMetricsTable({
   onSync,
   onSyncRepo,
   onOrganizationClick,
+  onVisibilitySettings,
   isSyncing,
   syncingRepoId,
   hideOrganization,
 }: RepoMetricsTableProps) {
   const { t } = useI18n();
-  const { handleViewRepo, handleViewPrs, handleNewTask } = useRepoActions();
+  const { handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask } = useRepoActions();
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const setFilter = useFiltersStore((s) => s.setFilter);
@@ -164,6 +166,32 @@ export function RepoMetricsTable({
 
     cols.push(
       {
+        id: "open_issues_count",
+        accessorFn: (row) => row.open_issues_count ?? 0,
+        header: ({ column }) => (
+          <div className="flex justify-center">
+            <button
+              className="flex items-center cursor-pointer"
+              onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            >
+              {t("issues.page.title")}
+              <SortIcon sorted={column.getIsSorted()} />
+            </button>
+          </div>
+        ),
+        cell: ({ row }) =>
+          (row.original.open_issues_count ?? 0) > 0 ? (
+            <button
+              onClick={() => handleViewIssues(row.original)}
+              className="font-semibold tabular-nums text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 underline-offset-2 hover:underline cursor-pointer w-full text-center block"
+            >
+              {row.original.open_issues_count}
+            </button>
+          ) : (
+            <span className="block text-center">—</span>
+          ),
+      },
+      {
         id: "open_prs_count",
         accessorFn: (row) => row.open_prs_count,
         header: ({ column }) => (
@@ -172,9 +200,9 @@ export function RepoMetricsTable({
               className="flex items-center cursor-pointer"
               onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
             >
-              {t("tables.header.prs")}
-              <SortIcon sorted={column.getIsSorted()} />
-            </button>
+               {t("pages.repository.stats.openPrs")}
+               <SortIcon sorted={column.getIsSorted()} />
+             </button>
           </div>
         ),
         cell: ({ row }) =>
@@ -230,18 +258,31 @@ export function RepoMetricsTable({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => void handleNewTask(row.original)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t("common.newTask")}
-              </DropdownMenuItem>
+              <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.open")}</DropdownMenuLabel>
               <DropdownMenuItem onSelect={() => handleViewRepo(row.original)}>
                 <Eye className="mr-2 h-4 w-4" />
                 {t("common.viewRepo")}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => handleViewPrs(row.original)}>
                 <GitPullRequest className="mr-2 h-4 w-4" />
-                {t("tables.header.prs")}
+                {t("pages.repository.stats.openPrs")}
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => void handleNewTask(row.original)}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("common.newTask")}
+              </DropdownMenuItem>
+              {(onVisibilitySettings || onSyncRepo) && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.manage")}</DropdownMenuLabel>
+                </>
+              )}
+              {onVisibilitySettings && (
+                <DropdownMenuItem onSelect={() => onVisibilitySettings(row.original)}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {t("common.configureSync")}
+                </DropdownMenuItem>
+              )}
               {onSyncRepo && (
                 <DropdownMenuItem
                   onSelect={() => onSyncRepo(row.original)}
@@ -259,7 +300,7 @@ export function RepoMetricsTable({
     );
 
     return cols;
-  }, [t, hideOrganization, onOrganizationClick, onSyncRepo, syncingRepoId, handleViewRepo, handleViewPrs, handleNewTask]);
+  }, [t, hideOrganization, onOrganizationClick, onVisibilitySettings, onSyncRepo, syncingRepoId, handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask]);
 
   const table = useReactTable({
     data: filteredRepos,

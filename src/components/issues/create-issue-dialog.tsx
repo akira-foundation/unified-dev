@@ -49,6 +49,8 @@ interface CreateIssueDialogProps {
   orgId?: string;
   repoName?: string;
   providerName?: string;
+  currentUserLoginByOrg?: Record<string, string>;
+  assignToSelfByDefault?: boolean;
 }
 
 const schema = z.object({
@@ -69,6 +71,8 @@ export function CreateIssueDialog({
   orgId,
   repoName,
   providerName,
+  currentUserLoginByOrg = {},
+  assignToSelfByDefault = true,
 }: CreateIssueDialogProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -78,6 +82,7 @@ export function CreateIssueDialog({
   const [expanded, setExpanded] = useState(false);
   const [syncWithProvider, setSyncWithProvider] = useState(true);
   const [createMore, setCreateMore] = useState(false);
+  const [assignToMyself, setAssignToMyself] = useState(assignToSelfByDefault);
 
   const defaultRepoName =
     orgId && repoName ? repoName : repos.length > 0 ? repos[0].repo_name : "";
@@ -93,6 +98,7 @@ export function CreateIssueDialog({
     if (!open) {
       setSyncWithProvider(true);
       setCreateMore(false);
+      setAssignToMyself(assignToSelfByDefault);
       form.reset({
         repoName: orgId && repoName ? repoName : repos.length > 0 ? repos[0].repo_name : "",
         title: "",
@@ -101,7 +107,7 @@ export function CreateIssueDialog({
         assignees: [],
       });
     }
-  }, [open, form, orgId, repoName, repos]);
+  }, [open, form, orgId, repoName, repos, assignToSelfByDefault]);
 
   // Derive available labels with colors from loaded issues
   const availableLabels = useMemo<LabelInfo[]>(() => {
@@ -128,6 +134,10 @@ export function CreateIssueDialog({
   const createMutation = useMutationWithToast<IssueDto, FormValues>({
     mutationFn: (values) => {
       const repo = repos.find((r) => r.repo_name === values.repoName);
+      const currentUserLogin = repo?.organization_id ? currentUserLoginByOrg[repo.organization_id] ?? null : null;
+      const assignees = assignToMyself && currentUserLogin
+        ? Array.from(new Set([...(values.assignees ?? []), currentUserLogin]))
+        : (values.assignees ?? []);
       return invoke<IssueDto>("create_issue", {
         input: {
           org_id: repo?.organization_id ?? orgId ?? "",
@@ -135,7 +145,7 @@ export function CreateIssueDialog({
           title: values.title,
           body: values.body || null,
           labels: values.labels ?? [],
-          assignees: values.assignees ?? [],
+          assignees,
           sync_with_provider: syncWithProvider,
         },
       });
@@ -280,6 +290,9 @@ export function CreateIssueDialog({
     : t("issues.create.syncWithProvider");
   const watchedLabels = form.watch("labels") ?? [];
   const watchedAssignees = form.watch("assignees") ?? [];
+  const selectedRepoName = form.watch("repoName");
+  const selectedRepo = repos.find((repo) => repo.repo_name === selectedRepoName);
+  const currentUserLogin = selectedRepo?.organization_id ? currentUserLoginByOrg[selectedRepo.organization_id] ?? null : null;
 
   const toggleLabel = (name: string) => {
     const current = form.getValues("labels") ?? [];
@@ -540,6 +553,12 @@ export function CreateIssueDialog({
                     <Switch checked={syncWithProvider} onCheckedChange={setSyncWithProvider} />
                     <span>{syncLabel}</span>
                   </label>
+                  {currentUserLogin ? (
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Switch checked={assignToMyself} onCheckedChange={setAssignToMyself} />
+                      <span>{t("issues.create.assignToMyselfLabel").replace("{login}", currentUserLogin)}</span>
+                    </label>
+                  ) : null}
                   <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Switch checked={createMore} onCheckedChange={setCreateMore} />
                     <span>{t("issues.create.createMore")}</span>

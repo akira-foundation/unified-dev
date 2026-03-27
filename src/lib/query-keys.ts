@@ -5,7 +5,7 @@ export const queryKeys = {
   providerOrganizations: (providerId: string) => ["provider-orgs", providerId] as const,
   providerRepositories: (providerId: string, scope: string, orgLogin?: string) =>
     ["provider-repos", providerId, scope, orgLogin] as const,
-  pullRequests: (orgId: string, repo: string) => ["pull-requests", orgId, repo] as const,
+  pullRequests: (orgId: string, repo: string, scope = "default") => ["pull-requests", orgId, repo, scope] as const,
   prComments: (orgId: string, repo: string, prNumber: number) =>
     ["pr-comments", orgId, repo, prNumber] as const,
   prFiles: (orgId: string, repo: string, prNumber: number) =>
@@ -16,7 +16,7 @@ export const queryKeys = {
     ["job-logs", orgId, repo, jobId] as const,
   skills: () => ["skills"] as const,
   allRepositories: () => ["all-repositories"] as const,
-  issues: (orgId: string, repo: string) => ["issues", orgId, repo] as const,
+  issues: (orgId: string, repo: string, scope = "default") => ["issues", orgId, repo, scope] as const,
   issueDetail: (orgId: string, repo: string, number: number) =>
     ["issue-detail", orgId, repo, number] as const,
   branches: (orgId: string, repo: string) => ["branches", orgId, repo] as const,

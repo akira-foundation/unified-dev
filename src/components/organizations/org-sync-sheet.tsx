@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, RefreshCw } from "lucide-react";
+import { ChevronDown, Eye, RefreshCw } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Sheet,
   SheetContent,
@@ -13,9 +14,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/i18n";
+import { issueScopeLabelKey, prScopeLabelKey } from "@/lib/work-visibility";
+import { useSettingsStore } from "@/stores/settings-store";
 import { useSyncSettingsStore, GLOBAL_SYNC_ID, INTERVAL_OPTIONS } from "@/stores/sync-settings-store";
 import type { SyncSettingsDto } from "@/stores/sync-settings-store";
 import type { OrganizationSummary } from "@/types/organization";
+import type { IssueScope, PullRequestScope } from "@/types/work-visibility";
 
 interface OrgSyncSheetProps {
   organization: OrganizationSummary | null;
@@ -42,6 +46,7 @@ export function OrgSyncSheet({ organization, open, onOpenChange }: OrgSyncSheetP
   const { t } = useI18n();
   const { loadSettings, saveSettings, resetSettings, globalSettings, orgSettings } =
     useSyncSettingsStore();
+  const { organizationIssueScopes, organizationPrScopes, setOrganizationIssueScope, setOrganizationPrScope } = useSettingsStore();
 
   const [draft, setDraft] = useState<SyncSettingsDto | null>(null);
 
@@ -73,7 +78,15 @@ export function OrgSyncSheet({ organization, open, onOpenChange }: OrgSyncSheetP
   };
 
   const handleReset = () => {
-    resetSettings(orgId).then((defaults) => setDraft(defaults));
+    resetSettings(orgId).then(async (defaults) => {
+      setDraft(defaults);
+      setOrganizationIssueScope(orgId, null);
+      setOrganizationPrScope(orgId, null);
+      await invoke("reset_visibility_preferences", {
+        scopeType: "organization",
+        scopeId: orgId,
+      });
+    });
   };
 
   const ROWS = [
@@ -201,6 +214,87 @@ export function OrgSyncSheet({ organization, open, onOpenChange }: OrgSyncSheetP
                         </div>
                       );
                     })}
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+
+            <Collapsible defaultOpen>
+              <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
+                <CollapsibleTrigger className="w-full cursor-pointer">
+                  <div className="flex flex-row items-center gap-3 px-4 py-3">
+                    <div className="h-7 w-7 flex items-center justify-center rounded-lg bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
+                      <Eye size={14} strokeWidth={2} />
+                    </div>
+                    <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-white/95 leading-none flex-1 text-left">
+                      {t("pages.organization.visibility.title")}
+                    </CardTitle>
+                    <ChevronDown className="h-3.5 w-3.5 text-zinc-400 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
+                    <div className="flex items-center justify-between px-4 py-3 gap-4">
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-zinc-900 dark:text-white">{t("pages.organization.visibility.issues")}</span>
+                      </div>
+                      <Select
+                        value={organizationIssueScopes[orgId] ?? "default"}
+                        onValueChange={async (value) => {
+                          const next = value === "default" ? null : value as IssueScope;
+                          setOrganizationIssueScope(orgId, next);
+                          await invoke("upsert_visibility_preferences", {
+                            input: {
+                              scopeType: "organization",
+                              scopeId: orgId,
+                              issueScope: next ?? "my_queue",
+                              prScope: organizationPrScopes[orgId] ?? "mine_or_review_requested",
+                              assignIssuesToSelf: true,
+                            },
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">{t("visibility.useGlobalDefault")}</SelectItem>
+                          <SelectItem value="my_queue">{t(issueScopeLabelKey("my_queue"))}</SelectItem>
+                          <SelectItem value="all_open">{t(issueScopeLabelKey("all_open"))}</SelectItem>
+                          <SelectItem value="all">{t(issueScopeLabelKey("all"))}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between px-4 py-3 gap-4">
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-zinc-900 dark:text-white">{t("pages.organization.visibility.prs")}</span>
+                      </div>
+                      <Select
+                        value={organizationPrScopes[orgId] ?? "default"}
+                        onValueChange={async (value) => {
+                          const next = value === "default" ? null : value as PullRequestScope;
+                          setOrganizationPrScope(orgId, next);
+                          await invoke("upsert_visibility_preferences", {
+                            input: {
+                              scopeType: "organization",
+                              scopeId: orgId,
+                              issueScope: organizationIssueScopes[orgId] ?? "my_queue",
+                              prScope: next ?? "mine_or_review_requested",
+                              assignIssuesToSelf: true,
+                            },
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="w-44 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="default">{t("visibility.useGlobalDefault")}</SelectItem>
+                          <SelectItem value="mine_or_review_requested">{t(prScopeLabelKey("mine_or_review_requested"))}</SelectItem>
+                          <SelectItem value="all_open">{t(prScopeLabelKey("all_open"))}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </CardContent>
                 </CollapsibleContent>
               </Card>

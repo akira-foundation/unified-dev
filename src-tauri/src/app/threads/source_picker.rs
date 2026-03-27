@@ -56,14 +56,14 @@ pub async fn resolve_context(repo_id: &str, state: &State<'_, AppState>) -> AppR
 
 pub async fn list_issues(repo_id: String, state: State<'_, AppState>) -> AppResult<Vec<IssueDto>> {
     let context = resolve_context(&repo_id, &state).await?;
-    crate::app::issues::list(state, context.organization_id, context.repo_name)
+    crate::app::issues::list(state, context.organization_id, context.repo_name, None, None)
         .await
         .map_err(AppError::Internal)
 }
 
 pub async fn list_pull_requests(repo_id: String, state: State<'_, AppState>) -> AppResult<Vec<PullRequestDto>> {
     let context = resolve_context(&repo_id, &state).await?;
-    crate::app::orgs::pull_requests::list(state, context.organization_id, context.repo_name)
+    crate::app::orgs::pull_requests::list(state, context.organization_id, context.repo_name, None, None)
         .await
         .map_err(AppError::Internal)
 }

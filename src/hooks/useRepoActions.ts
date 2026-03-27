@@ -13,16 +13,24 @@ interface AddRemoteRepositoryResponse {
 export function useRepoActions() {
   const { t } = useI18n();
   const { repositoryGroups, addThread, addRepository, setSelectedIssueId } = useAgentsStore();
-  const { navigateTo, setActiveRepo } = useNavigationStore();
+  const { navigateTo, setActiveRepo, setTargetPrScope, setTargetRepoTab } = useNavigationStore();
 
   const handleViewRepo = (repo: OrganizationRepoWithOrg) => {
     setActiveRepo({ name: repo.repo_name, owner: repo.owner, organizationId: repo.organization_id });
+    setTargetRepoTab(null);
     navigateTo("repository-detail");
   };
 
   const handleViewPrs = (repo: OrganizationRepoWithOrg) => {
     setActiveRepo({ name: repo.repo_name, owner: repo.owner, organizationId: repo.organization_id });
+    setTargetPrScope(null);
     navigateTo("repository-prs");
+  };
+
+  const handleViewIssues = (repo: OrganizationRepoWithOrg) => {
+    setActiveRepo({ name: repo.repo_name, owner: repo.owner, organizationId: repo.organization_id });
+    setTargetRepoTab("issues");
+    navigateTo("repository-detail");
   };
 
   const handleNewTask = async (repo: OrganizationRepoWithOrg) => {
@@ -62,5 +70,5 @@ export function useRepoActions() {
     }
   };
 
-  return { handleViewRepo, handleViewPrs, handleNewTask };
+  return { handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask };
 }

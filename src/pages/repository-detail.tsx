@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, MoreVertical, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, MoreVertical, Plus, RefreshCw, Settings2, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Button } from "../components/ui/button";
 import { EmptyState } from "../components/ui/empty-state";
 import { Skeleton } from "../components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/tooltip";
 import {
   PageHeader,
   PageHeaderActions,
@@ -26,6 +27,7 @@ import { IssueTable } from "../components/issues/issue-table";
 import { IssueDetailSheet } from "../components/issues/issue-detail-sheet";
 import { CreateIssueDialog } from "../components/issues/create-issue-dialog";
 import { CreateBranchDialog } from "../components/repos/create-branch-dialog";
+import { RepositoryVisibilitySheet } from "@/components/repos/repository-visibility-sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,13 +47,18 @@ import {
 } from "../components/ui/dropdown-menu";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "../stores/navigation-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { repositorySelectionService } from "../services/repositorySelectionService";
 import { queryKeys } from "../lib/query-keys";
 import { cache } from "../config/cache";
 import { cn } from "../lib/utils";
+import { issueScopeLabelKey, prScopeLabelKey, resolveCurrentLogin } from "@/lib/work-visibility";
 import type { BranchDto, PullRequestDto } from "../types/organization";
 import type { IssueDto } from "../types/issue";
+import type { IssueScope, PullRequestScope } from "@/types/work-visibility";
 
 export function RepositoryDetailPage() {
   const { t, locale } = useI18n();
@@ -62,7 +69,16 @@ export function RepositoryDetailPage() {
     setActiveIssue,
     targetPrNumber,
     setTargetPrNumber,
+    targetRepoTab,
+    setTargetRepoTab,
   } = useNavigationStore();
+  const { organizations } = useOrganizations();
+  const { providers } = useProviders();
+  const {
+    resolveIssueScope,
+    resolvePrScope,
+    assignIssuesToSelfByDefault,
+  } = useSettingsStore();
   const queryClient = useQueryClient();
 
   const { data: allRepos = [] } = useQuery({
@@ -88,26 +104,41 @@ export function RepositoryDetailPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createBranchOpen, setCreateBranchOpen] = useState(false);
   const [branchToDelete, setBranchToDelete] = useState<string | null>(null);
+  const [repoConfigOpen, setRepoConfigOpen] = useState(false);
+
+  useEffect(() => {
+    if (targetRepoTab) {
+      setTab(targetRepoTab);
+      setTargetRepoTab(null);
+    }
+  }, [targetRepoTab, setTargetRepoTab]);
+  const currentLogin = activeRepo ? resolveCurrentLogin(activeRepo.organizationId, organizations, providers) : null;
+  const issueScope = activeRepo ? resolveIssueScope(activeRepo.organizationId, activeRepo.name) : "my_queue";
+  const prScope = activeRepo ? resolvePrScope(activeRepo.organizationId, activeRepo.name) : "mine_or_review_requested";
 
   // ── PRs ──────────────────────────────────────────────────────────────────
   const { data: prs = [], isLoading: prsLoading } = useQuery({
-    queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
+    queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? "", prScope),
     queryFn: () =>
       invoke<PullRequestDto[]>("list_repo_pull_requests", {
         organizationId: activeRepo!.organizationId,
         repoName: activeRepo!.name,
+        scope: prScope,
+        currentLogin,
       }),
     enabled: !!activeRepo,
     staleTime: cache.staleTime.live,
   });
 
   const syncPrsMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (scope: PullRequestScope) => {
       const id = toast.loading(t("pages.repositoryDetail.toast.syncingPrs"));
       try {
         await invoke("sync_pull_requests", {
           organizationId: activeRepo!.organizationId,
           repoName: activeRepo!.name,
+          scope,
+          currentLogin,
         });
         toast.success(t("pages.repositoryDetail.toast.syncedPrs"), { id });
       } catch (error) {
@@ -116,9 +147,9 @@ export function RepositoryDetailPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.pullRequests(activeRepo!.organizationId, activeRepo!.name),
-      });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.pullRequests(activeRepo!.organizationId, activeRepo!.name),
+        });
     },
   });
 
@@ -135,25 +166,28 @@ export function RepositoryDetailPage() {
 
   // ── Issues ────────────────────────────────────────────────────────────────
   const { data: issues = [], isLoading: issuesLoading } = useQuery({
-    queryKey: queryKeys.issues(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
+    queryKey: queryKeys.issues(activeRepo?.organizationId ?? "", activeRepo?.name ?? "", issueScope),
     queryFn: () =>
       invoke<IssueDto[]>("list_issues", {
         orgId: activeRepo!.organizationId,
         repoName: activeRepo!.name,
+        scope: issueScope,
+        currentLogin,
       }),
     enabled: !!activeRepo,
     staleTime: cache.staleTime.live,
   });
 
   const syncIssuesMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (scope: IssueScope) => {
       const id = toast.loading(t("pages.repositoryIssues.toast.syncingIssues"));
       try {
         await invoke("sync_issues", {
           orgId: activeRepo!.organizationId,
           owner: activeRepo!.owner,
           repoName: activeRepo!.name,
-          stateFilter: "all",
+          scope,
+          currentLogin,
         });
         toast.success(t("pages.repositoryIssues.toast.syncedIssues"), { id });
       } catch (error) {
@@ -162,9 +196,9 @@ export function RepositoryDetailPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.issues(activeRepo!.organizationId, activeRepo!.name),
-      });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.issues(activeRepo!.organizationId, activeRepo!.name),
+        });
     },
   });
 
@@ -315,6 +349,14 @@ export function RepositoryDetailPage() {
                 </Badge>
               </>
             )}
+            <button
+              type="button"
+              onClick={() => setRepoConfigOpen(true)}
+              className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+              title={t("common.configureSync")}
+            >
+              <Settings2 className="h-4 w-4" />
+            </button>
           </PageHeaderMeta>
         </div>
         <PageHeaderActions>
@@ -457,7 +499,14 @@ export function RepositoryDetailPage() {
               organizationId={activeRepo!.organizationId}
               repoName={activeRepo!.name}
               isSyncing={syncPrsMutation.isPending}
-              onSync={() => syncPrsMutation.mutate()}
+              onSync={() => syncPrsMutation.mutate(prScope)}
+              syncOptions={([
+                "mine_or_review_requested",
+                "all_open",
+              ] as PullRequestScope[]).map((scope) => ({
+                label: t(prScopeLabelKey(scope)),
+                onSelect: () => syncPrsMutation.mutate(scope),
+              }))}
               onMerged={() => queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(activeRepo!.organizationId, activeRepo!.name) })}
             />
           )}
@@ -481,14 +530,22 @@ export function RepositoryDetailPage() {
                issues={issues}
                filterNamespace="repo-issues"
                onSelect={(issue) => { setActiveIssue(issue); setIssueSheetOpen(true); }}
-              onNavigateToPrs={(_, __, prNumber) => {
-                if (prNumber !== undefined) setTargetPrNumber(prNumber);
-                setTab("prs");
-              }}
-              onSync={() => syncIssuesMutation.mutate()}
-              isSyncing={syncIssuesMutation.isPending}
-              onOpenUrl={handleOpenUrl}
-              onDelete={(issue) => deleteIssueMutation.mutateAsync(issue).then(() => undefined)}
+               onNavigateToPrs={(_, __, prNumber) => {
+                 if (prNumber !== undefined) setTargetPrNumber(prNumber);
+                 setTab("prs");
+               }}
+               onSync={() => syncIssuesMutation.mutate(issueScope)}
+               syncOptions={([
+                 "my_queue",
+                 "all_open",
+                 "all",
+               ] as IssueScope[]).map((scope) => ({
+                 label: t(issueScopeLabelKey(scope)),
+                 onSelect: () => syncIssuesMutation.mutate(scope),
+               }))}
+               isSyncing={syncIssuesMutation.isPending}
+               onOpenUrl={handleOpenUrl}
+               onDelete={(issue) => deleteIssueMutation.mutateAsync(issue).then(() => undefined)}
             />
           )}
         </TabsContent>
@@ -524,15 +581,29 @@ export function RepositoryDetailPage() {
                     </span>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => syncBranchesMutation.mutate()}
-                  disabled={syncBranchesMutation.isPending}
-                >
-                  <RefreshCw className={cn("h-4 w-4", syncBranchesMutation.isPending && "animate-spin")} />
-                  {t("pages.repositoryBranches.syncBranches")}
-                </Button>
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={(event) => event.preventDefault()}
+                          disabled={syncBranchesMutation.isPending}
+                        >
+                          <RefreshCw className={cn("h-4 w-4", syncBranchesMutation.isPending && "animate-spin")} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("pages.repositoryBranches.syncBranches")}</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => syncBranchesMutation.mutate()} disabled={syncBranchesMutation.isPending}>
+                      <RefreshCw className={cn("mr-2 h-4 w-4", syncBranchesMutation.isPending && "animate-spin")} />
+                      {t("pages.repositoryBranches.syncBranches")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50">
                 {branches.map((branch) => (
@@ -622,6 +693,8 @@ export function RepositoryDetailPage() {
         onOpenChange={setCreateOpen}
         repos={allRepos}
         issues={issues}
+        currentUserLoginByOrg={currentLogin ? { [activeRepo.organizationId]: currentLogin } : {}}
+        assignToSelfByDefault={assignIssuesToSelfByDefault}
         orgId={activeRepo.organizationId}
         repoName={activeRepo.name}
       />
@@ -632,6 +705,12 @@ export function RepositoryDetailPage() {
         branches={branches}
         defaultBranch={defaultBranch}
         onSubmit={handleCreateBranch}
+      />
+
+      <RepositoryVisibilitySheet
+        repo={currentRepo}
+        open={repoConfigOpen}
+        onOpenChange={setRepoConfigOpen}
       />
 
       <AlertDialog open={!!branchToDelete} onOpenChange={(open) => { if (!open) setBranchToDelete(null); }}>

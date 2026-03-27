@@ -12,9 +12,10 @@ pub async fn sync_issues(
     org_id: String,
     owner: String,
     repo_name: String,
-    state_filter: Option<String>,
+    scope: Option<String>,
+    current_login: Option<String>,
 ) -> Result<Vec<IssueDto>, String> {
-    issues::sync(state, org_id, owner, repo_name, state_filter).await
+    issues::sync(state, org_id, owner, repo_name, scope, current_login).await
 }
 
 #[tauri::command]
@@ -22,8 +23,10 @@ pub async fn list_issues(
     state: State<'_, AppState>,
     org_id: String,
     repo_name: String,
+    scope: Option<String>,
+    current_login: Option<String>,
 ) -> Result<Vec<IssueDto>, String> {
-    issues::list(state, org_id, repo_name).await
+    issues::list(state, org_id, repo_name, scope, current_login).await
 }
 
 #[tauri::command]

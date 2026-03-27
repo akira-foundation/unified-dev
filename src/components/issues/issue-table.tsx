@@ -30,6 +30,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
@@ -64,6 +65,7 @@ interface IssueTableProps {
   onNavigateToPrs?: (repoName: string, orgId: string, prNumber?: number) => void;
   onNavigateToRepo?: (repoName: string, orgId: string) => void;
   onSync?: () => void;
+  syncOptions?: Array<{ label: string; onSelect: () => void }>;
   isSyncing?: boolean;
   disableSync?: boolean;
   onOpenUrl?: (url: string) => void;
@@ -87,6 +89,7 @@ export function IssueTable({
   onNavigateToPrs,
   onNavigateToRepo,
   onSync,
+  syncOptions,
   isSyncing,
   disableSync,
   onOpenUrl,
@@ -310,12 +313,19 @@ export function IssueTable({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+                  {t("common.open")}
+                </DropdownMenuLabel>
                 {onOpenUrl && row.original.url && (
                   <DropdownMenuItem onSelect={() => onOpenUrl(row.original.url)}>
                     <ExternalLink className="mr-2 h-4 w-4" />
                     {t("issues.table.openInBrowser")}
                   </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+                  {t("common.manage")}
+                </DropdownMenuLabel>
                 <DropdownMenuItem onSelect={() => delegateIssue(row.original)}>
                   <Bot className="mr-2 h-4 w-4" />
                   {t("issues.detail.delegate")}
@@ -323,6 +333,9 @@ export function IssueTable({
                 {onDelete && row.original.status === "open" && (
                   <>
                     <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+                      {t("common.dangerZone")}
+                    </DropdownMenuLabel>
                     <DropdownMenuItem
                       onSelect={() => setIssueToDelete(row.original)}
                       className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
@@ -386,14 +399,36 @@ export function IssueTable({
           </div>
           <div className="flex items-center gap-2">
             {onSync && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" onClick={onSync} disabled={isSyncing || disableSync}>
-                    <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{t("issues.table.syncIssues")}</TooltipContent>
-              </Tooltip>
+              syncOptions && syncOptions.length > 0 ? (
+                <DropdownMenu>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" disabled={isSyncing || disableSync}>
+                          <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>{t("issues.table.syncIssues")}</TooltipContent>
+                  </Tooltip>
+                  <DropdownMenuContent align="end">
+                    {syncOptions.map((option) => (
+                      <DropdownMenuItem key={option.label} onSelect={option.onSelect}>
+                        {option.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="outline" size="icon" onClick={onSync} disabled={isSyncing || disableSync}>
+                      <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("issues.table.syncIssues")}</TooltipContent>
+                </Tooltip>
+              )
             )}
 
             <FilterPopover>

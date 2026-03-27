@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { AppPage } from "../types/navigation";
 import type { PullRequestDto } from "../types/organization";
 import type { IssueDto } from "../types/issue";
+import type { PullRequestScope } from "@/types/work-visibility";
 
 export interface ActiveRepo {
   name: string;
@@ -19,6 +20,8 @@ interface NavigationState {
   activePr: PullRequestDto | null;
   activeIssue: IssueDto | null;
   targetPrNumber: number | null;
+  targetPrScope: PullRequestScope | null;
+  targetRepoTab: "prs" | "issues" | "branches" | null;
   history: AppPage[];
   canGoBack: boolean;
   isAgentMode: boolean;
@@ -33,6 +36,8 @@ interface NavigationState {
   setActivePr: (pr: PullRequestDto | null) => void;
   setActiveIssue: (issue: IssueDto | null) => void;
   setTargetPrNumber: (n: number | null) => void;
+  setTargetPrScope: (scope: PullRequestScope | null) => void;
+  setTargetRepoTab: (tab: "prs" | "issues" | "branches" | null) => void;
   setDashboardTab: (tab: string) => void;
 }
 
@@ -46,6 +51,8 @@ export const useNavigationStore = create<NavigationState>()(
       activePr: null,
       activeIssue: null,
       targetPrNumber: null,
+      targetPrScope: null,
+      targetRepoTab: null,
       history: [],
       canGoBack: false,
       isAgentMode: false,
@@ -91,6 +98,8 @@ export const useNavigationStore = create<NavigationState>()(
       setActivePr: (pr) => set({ activePr: pr }),
       setActiveIssue: (issue) => set({ activeIssue: issue }),
       setTargetPrNumber: (n) => set({ targetPrNumber: n }),
+      setTargetPrScope: (scope) => set({ targetPrScope: scope }),
+      setTargetRepoTab: (tab) => set({ targetRepoTab: tab }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
     }),
     {

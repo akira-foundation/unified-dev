@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LayoutGrid, List, Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -19,12 +19,17 @@ import { IssueDetailSheet } from "@/components/issues/issue-detail-sheet";
 import { CreateIssueDialog } from "@/components/issues/create-issue-dialog";
 import { useI18n } from "@/i18n/i18n";
 import { useDateLabel } from "@/hooks/use-date-label";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { queryKeys } from "@/lib/query-keys";
+import { issueScopeLabelKey, resolveCurrentLogin } from "@/lib/work-visibility";
 import { cache } from "@/config/cache";
 import type { IssueDto } from "@/types/issue";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
+import type { IssueScope } from "@/types/work-visibility";
 
 type ViewMode = "list" | "kanban";
 
@@ -33,6 +38,9 @@ export function IssuesPage() {
   const dateLabel = useDateLabel(locale);
   const queryClient = useQueryClient();
   const { activeIssue, setActiveIssue, setActiveRepo, setTargetPrNumber, navigateTo } = useNavigationStore();
+  const { organizations } = useOrganizations();
+  const { providers } = useProviders();
+  const { resolveIssueScope, assignIssuesToSelfByDefault } = useSettingsStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -44,13 +52,24 @@ export function IssuesPage() {
     staleTime: cache.staleTime.short,
   });
 
+  const currentUserLoginByOrg = useMemo(
+    () => Object.fromEntries(
+      allRepos
+        .map((repo) => [repo.organization_id, resolveCurrentLogin(repo.organization_id, organizations, providers)])
+        .filter((entry): entry is [string, string] => Boolean(entry[1])),
+    ),
+    [allRepos, organizations, providers],
+  );
+
   const issueQueries = useQueries({
     queries: allRepos.map((repo: OrganizationRepoWithOrg) => ({
-      queryKey: queryKeys.issues(repo.organization_id, repo.repo_name),
+      queryKey: queryKeys.issues(repo.organization_id, repo.repo_name, resolveIssueScope(repo.organization_id, repo.repo_name)),
       queryFn: () =>
         invoke<IssueDto[]>("list_issues", {
           orgId: repo.organization_id,
           repoName: repo.repo_name,
+          scope: resolveIssueScope(repo.organization_id, repo.repo_name),
+          currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
         }),
       staleTime: cache.staleTime.short,
     })),
@@ -60,14 +79,15 @@ export function IssuesPage() {
   const allIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []);
 
   const syncMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (scope: IssueScope) => {
       await Promise.allSettled(
         allRepos.map((repo: OrganizationRepoWithOrg) =>
           invoke("sync_issues", {
             orgId: repo.organization_id,
             owner: repo.owner,
             repoName: repo.repo_name,
-            stateFilter: "all",
+            scope,
+            currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
           }),
         ),
       );
@@ -80,6 +100,8 @@ export function IssuesPage() {
       });
     },
   });
+
+  const syncOptions: IssueScope[] = ["my_queue", "all_open", "all"];
 
   function handleSelectIssue(issue: IssueDto) {
     setActiveIssue(issue);
@@ -188,7 +210,11 @@ export function IssuesPage() {
             onSelect={handleSelectIssue}
             onNavigateToPrs={handleNavigateToPrs}
             onNavigateToRepo={handleNavigateToRepo}
-            onSync={() => syncMutation.mutate()}
+            onSync={() => syncMutation.mutate("my_queue")}
+            syncOptions={syncOptions.map((scope) => ({
+              label: t(issueScopeLabelKey(scope)),
+              onSelect: () => syncMutation.mutate(scope),
+            }))}
             isSyncing={syncMutation.isPending}
             disableSync={allRepos.length === 0}
             onOpenUrl={handleOpenUrl}
@@ -210,6 +236,8 @@ export function IssuesPage() {
         onOpenChange={setCreateOpen}
         repos={allRepos}
         issues={allIssues}
+        currentUserLoginByOrg={currentUserLoginByOrg}
+        assignToSelfByDefault={assignIssuesToSelfByDefault}
       />
     </PageLayout>
   );

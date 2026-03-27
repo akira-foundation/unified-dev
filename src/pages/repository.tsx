@@ -1,8 +1,8 @@
 import { Plus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import { useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { FolderGit2, GitPullRequest, Globe2, Lock } from "lucide-react";
 
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
@@ -23,24 +23,77 @@ import { repositorySelectionService } from "../services/repositorySelectionServi
 import { useNavigationStore } from "../stores/navigation-store";
 import { queryKeys } from "../lib/query-keys";
 import type { OrganizationRepoWithOrg } from "../types/organization";
+import { RepositoryVisibilitySheet } from "@/components/repos/repository-visibility-sheet";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useProviders } from "@/hooks/useProviders";
+import { useSettingsStore } from "@/stores/settings-store";
+import { resolveCurrentLogin } from "@/lib/work-visibility";
+import type { PullRequestDto } from "@/types/organization";
+import type { IssueDto } from "@/types/issue";
+import { cache } from "@/config/cache";
 
 export function RepositoryPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
   const { navigateTo, setActiveOrganizationId } = useNavigationStore();
+  const { organizations } = useOrganizations();
+  const { providers } = useProviders();
+  const { resolvePrScope, resolveIssueScope } = useSettingsStore();
+  const [visibilityRepo, setVisibilityRepo] = useState<OrganizationRepoWithOrg | null>(null);
 
   const { data: repos = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
   });
 
+  const prQueries = useQueries({
+    queries: repos.map((repo: OrganizationRepoWithOrg) => {
+      const scope = resolvePrScope(repo.organization_id, repo.repo_name);
+      return {
+        queryKey: queryKeys.pullRequests(repo.organization_id, repo.repo_name, scope),
+        queryFn: () => invoke<PullRequestDto[]>("list_repo_pull_requests", {
+          organizationId: repo.organization_id,
+          repoName: repo.repo_name,
+          scope,
+          currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
+        }),
+        staleTime: cache.staleTime.realtime,
+      };
+    }),
+  });
+
+  const issueQueries = useQueries({
+    queries: repos.map((repo: OrganizationRepoWithOrg) => {
+      const scope = resolveIssueScope(repo.organization_id, repo.repo_name);
+      return {
+        queryKey: queryKeys.issues(repo.organization_id, repo.repo_name, scope),
+        queryFn: () => invoke<IssueDto[]>("list_issues", {
+          orgId: repo.organization_id,
+          repoName: repo.repo_name,
+          scope,
+          currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
+        }),
+        staleTime: cache.staleTime.realtime,
+      };
+    }),
+  });
+
+  const reposWithScopedPrs = useMemo(
+    () => repos.map((repo, index) => ({
+      ...repo,
+      open_prs_count: prQueries[index]?.data?.length ?? 0,
+      open_issues_count: issueQueries[index]?.data?.length ?? 0,
+    })),
+    [repos, prQueries, issueQueries],
+  );
+
   const stats = useMemo(() => {
-    const total = repos.length;
-    const openPrs = repos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
-    const privateCount = repos.filter((r) => r.visibility === "private").length;
-    const publicCount = repos.filter((r) => r.visibility === "public").length;
+    const total = reposWithScopedPrs.length;
+    const openPrs = reposWithScopedPrs.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
+    const privateCount = reposWithScopedPrs.filter((r) => r.visibility === "private").length;
+    const publicCount = reposWithScopedPrs.filter((r) => r.visibility === "public").length;
     return { total, openPrs, privateCount, publicCount };
-  }, [repos]);
+  }, [reposWithScopedPrs]);
 
   const syncAllMutation = useMutation({
     mutationFn: async () => {
@@ -178,15 +231,22 @@ export function RepositoryPage() {
             </div>
 
             <RepoMetricsTable
-              repos={repos}
+              repos={reposWithScopedPrs}
               onSync={() => syncAllMutation.mutate()}
               isSyncing={syncAllMutation.isPending}
               onSyncRepo={(repo) => syncRepoMutation.mutate(repo)}
+              onVisibilitySettings={(repo) => setVisibilityRepo(repo)}
               syncingRepoId={syncRepoMutation.isPending ? String(syncRepoMutation.variables?.id) : undefined}
               onOrganizationClick={(repo) => {
                 setActiveOrganizationId(repo.organization_id);
                 navigateTo("organization");
               }}
+            />
+
+            <RepositoryVisibilitySheet
+              repo={visibilityRepo}
+              open={!!visibilityRepo}
+              onOpenChange={(open) => !open && setVisibilityRepo(null)}
             />
           </>
         )}

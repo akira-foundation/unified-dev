@@ -40,73 +40,67 @@ pub fn start(app_handle: AppHandle) {
             };
 
             for (org_id,) in &orgs {
-                let has_override = sqlx::query_scalar::<_, i64>(
-                    "SELECT COUNT(*) FROM sync_settings WHERE id = ?",
-                )
-                .bind(org_id)
-                .fetch_one(&state.db_pool)
-                .await
-                .unwrap_or(0)
-                    > 0;
-
-                let settings = if has_override {
-                    load_settings(&state, org_id).await
-                } else {
-                    global.clone()
-                };
-
                 let org_repos: Vec<(&String, &String)> = repos
                     .iter()
                     .filter(|(oid, _, _)| oid == org_id)
                     .map(|(_, owner, repo)| (owner, repo))
                     .collect();
 
-                if settings.sync_repos_enabled
-                    && due(&last_synced, "repos", org_id, settings.sync_repos_interval_secs, now)
-                {
-                    let _ = crate::app::orgs::repos::sync_stats::sync_stats(
-                        app_handle.state::<AppState>(),
-                        org_id.clone(),
-                    )
-                    .await;
-                    last_synced.insert(("repos", org_id.clone()), now);
-                    touch_synced_at(&state, org_id, &settings).await;
-                    emit(&app_handle, "repos", org_id);
-                }
+                for (owner, repo) in &org_repos {
+                    let repo_id = format!("{org_id}:{repo}");
+                    let repo_settings = load_settings(&state, &repo_id).await;
 
-                if settings.sync_prs_enabled
-                    && due(&last_synced, "prs", org_id, settings.sync_prs_interval_secs, now)
-                {
-                    for (owner, repo) in &org_repos {
+                    if repo_settings.sync_repos_enabled
+                        && due(&last_synced, "repos", &repo_id, repo_settings.sync_repos_interval_secs, now)
+                    {
+                        let _ = crate::app::orgs::repos::sync_single_stats::sync_single_stats(
+                            app_handle.state::<AppState>(),
+                            org_id.clone(),
+                            repo.to_string(),
+                        )
+                        .await;
+                        last_synced.insert(("repos", repo_id.clone()), now);
+                        touch_synced_at(&state, &repo_id, &repo_settings).await;
+                        emit(&app_handle, "repos", org_id);
+                    }
+
+                    if repo_settings.sync_prs_enabled
+                        && due(&last_synced, "prs", &repo_id, repo_settings.sync_prs_interval_secs, now)
+                    {
+                        let pr_scope = resolve_pr_scope(&state, org_id, repo).await;
+                        let current_login = resolve_current_login(&state, org_id).await;
                         let _ = crate::app::orgs::pull_requests::sync::sync(
                             app_handle.state::<AppState>(),
                             org_id.clone(),
                             repo.to_string(),
                             Some(owner.to_string()),
+                            Some(pr_scope),
+                            current_login,
                         )
                         .await;
+                        last_synced.insert(("prs", repo_id.clone()), now);
+                        touch_synced_at(&state, &repo_id, &repo_settings).await;
+                        emit(&app_handle, "prs", org_id);
                     }
-                    last_synced.insert(("prs", org_id.clone()), now);
-                    touch_synced_at(&state, org_id, &settings).await;
-                    emit(&app_handle, "prs", org_id);
-                }
 
-                if settings.sync_issues_enabled
-                    && due(&last_synced, "issues", org_id, settings.sync_issues_interval_secs, now)
-                {
-                    for (owner, repo) in &org_repos {
+                    if repo_settings.sync_issues_enabled
+                        && due(&last_synced, "issues", &repo_id, repo_settings.sync_issues_interval_secs, now)
+                    {
+                        let issue_scope = resolve_issue_scope(&state, org_id, repo).await;
+                        let current_login = resolve_current_login(&state, org_id).await;
                         let _ = crate::app::issues::sync::sync(
                             app_handle.state::<AppState>(),
                             org_id.clone(),
                             owner.to_string(),
                             repo.to_string(),
-                            None,
+                            Some(issue_scope),
+                            current_login,
                         )
                         .await;
+                        last_synced.insert(("issues", repo_id.clone()), now);
+                        touch_synced_at(&state, &repo_id, &repo_settings).await;
+                        emit(&app_handle, "issues", org_id);
                     }
-                    last_synced.insert(("issues", org_id.clone()), now);
-                    touch_synced_at(&state, org_id, &settings).await;
-                    emit(&app_handle, "issues", org_id);
                 }
             }
 
@@ -240,4 +234,85 @@ async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Resu
     }
 
     Ok(())
+}
+
+async fn resolve_current_login(state: &AppState, org_id: &str) -> Option<String> {
+    sqlx::query_scalar::<_, Option<String>>(
+        "SELECT p.account_login FROM organizations o LEFT JOIN providers p ON p.id = o.provider_id WHERE o.id = ? LIMIT 1",
+    )
+    .bind(org_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .ok()
+    .flatten()
+}
+
+async fn resolve_issue_scope(state: &AppState, org_id: &str, repo_name: &str) -> String {
+    let repo_key = format!("{org_id}:{repo_name}");
+
+    if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT issue_scope FROM visibility_preferences WHERE scope_type = 'repository' AND scope_id = ?",
+    )
+    .bind(&repo_key)
+    .fetch_one(&state.db_pool)
+    .await
+    {
+        return scope;
+    }
+
+    if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT issue_scope FROM visibility_preferences WHERE scope_type = 'organization' AND scope_id = ?",
+    )
+    .bind(org_id)
+    .fetch_one(&state.db_pool)
+    .await
+    {
+        return scope;
+    }
+
+    if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT issue_scope FROM visibility_preferences WHERE scope_type = 'global' AND scope_id = 'global'",
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    {
+        return scope;
+    }
+
+    "my_queue".to_string()
+}
+
+async fn resolve_pr_scope(state: &AppState, org_id: &str, repo_name: &str) -> String {
+    let repo_key = format!("{org_id}:{repo_name}");
+
+    if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT pr_scope FROM visibility_preferences WHERE scope_type = 'repository' AND scope_id = ?",
+    )
+    .bind(&repo_key)
+    .fetch_one(&state.db_pool)
+    .await
+    {
+        return scope;
+    }
+
+    if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT pr_scope FROM visibility_preferences WHERE scope_type = 'organization' AND scope_id = ?",
+    )
+    .bind(org_id)
+    .fetch_one(&state.db_pool)
+    .await
+    {
+        return scope;
+    }
+
+    if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT pr_scope FROM visibility_preferences WHERE scope_type = 'global' AND scope_id = 'global'",
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    {
+        return scope;
+    }
+
+    "mine_or_review_requested".to_string()
 }

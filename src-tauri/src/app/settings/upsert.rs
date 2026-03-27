@@ -1,11 +1,11 @@
 use tauri::State;
 
-use crate::app::settings::request::{SyncSettingsDto, UpsertSyncSettingsRequest, GLOBAL_ID};
+use crate::app::settings::request::{scope_for_id, SyncSettingsDto, UpsertSyncSettingsRequest};
 use crate::app::support::error::AppResult;
 use crate::state::AppState;
 
 pub async fn upsert(input: UpsertSyncSettingsRequest, state: State<'_, AppState>) -> AppResult<SyncSettingsDto> {
-    let scope = if input.id == GLOBAL_ID { "global" } else { "organization" };
+    let scope = scope_for_id(&input.id);
     let now = chrono::Utc::now().to_rfc3339();
 
     sqlx::query(

@@ -12,7 +12,6 @@ import {
   CircleDot,
   GitPullRequest,
   GitBranch,
-  Play,
   Settings,
   Trash2,
   Rocket,
@@ -38,6 +37,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -490,6 +490,9 @@ export function AgentsSidebar() {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 dark:bg-[#0D0D0D] bg-popover dark:border-white/[0.05] border-border p-1 shadow-2xl rounded-md">
+                              <DropdownMenuLabel className="px-3 py-2 text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+                                {t("common.open")}
+                              </DropdownMenuLabel>
                               <DropdownMenuItem
                                 onClick={() => handleOpenSourcePicker("issue", repo)}
                                 className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
@@ -514,21 +517,26 @@ export function AgentsSidebar() {
 
                               <DropdownMenuSeparator className="dark:bg-white/[0.03] bg-black/[0.05]" />
 
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
-                                <Play className="h-4 w-4 text-foreground/40" />
-                                <span>{t("agents.sidebar.runTask")}</span>
-                              </DropdownMenuItem>
+                              <DropdownMenuLabel className="px-3 py-2 text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+                                {t("common.manage")}
+                              </DropdownMenuLabel>
+
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
                                 <Rocket className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.autopilot")}</span>
                               </DropdownMenuItem>
 
-                              <DropdownMenuSeparator className="dark:bg-white/[0.03] bg-black/[0.05]" />
-
                               <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
                                 <Settings className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.settings")}</span>
                               </DropdownMenuItem>
+
+                              <DropdownMenuSeparator className="dark:bg-white/[0.03] bg-black/[0.05]" />
+
+                              <DropdownMenuLabel className="px-3 py-2 text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+                                {t("common.dangerZone")}
+                              </DropdownMenuLabel>
+
                               <DropdownMenuItem
                                 onClick={() => setRepoToRemove({ id: repo.id, name: repo.name })}
                                 className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer"

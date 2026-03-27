@@ -1,9 +1,16 @@
-import { ArrowRight, CheckCircle2, Clock, ExternalLink, FileCode, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, ExternalLink, FileCode, MoreVertical, XCircle } from "lucide-react";
 
 import { useI18n } from "../../i18n/i18n";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import type { PullRequestDto } from "../../types/organization";
 
 export function formatRelativeDate(dateStr: string): string {
@@ -91,32 +98,34 @@ export function PrItem({
             {label}
           </Badge>
         ))}
-        <Tooltip>
-          <TooltipTrigger asChild>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
               className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
-              onClick={() => onReview(pr)}
             >
-              <FileCode className="h-4 w-4" />
+              <MoreVertical className="h-4 w-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("components.prDetail.review")}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
-              onClick={() => onOpen(pr.url)}
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("components.prReview.viewPrButton")}</TooltipContent>
-        </Tooltip>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+              {t("common.open")}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => onOpen(pr.url)}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {t("components.prReview.viewPrButton")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+              {t("common.manage")}
+            </DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => onReview(pr)}>
+              <FileCode className="mr-2 h-4 w-4" />
+              {t("components.prDetail.review")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

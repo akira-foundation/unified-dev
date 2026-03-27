@@ -32,7 +32,7 @@ use commands::thread::{
     list_thread_source_pull_requests, rename_thread, set_thread_pr_url,
 };
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
-use commands::settings::{get_sync_settings, upsert_sync_settings, reset_sync_settings};
+use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_sync_settings, upsert_visibility_preferences, reset_sync_settings, reset_visibility_preferences};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
 use providers::default_registry;
 use app::support::error::AppResult;
@@ -154,6 +154,9 @@ pub fn run() {
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,
+            get_visibility_preferences,
+            upsert_visibility_preferences,
+            reset_visibility_preferences,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,6 +4,13 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { Locale } from "@/i18n/translations";
 import type { Appearance } from "@/hooks/use-appearance";
+import {
+  DEFAULT_ISSUE_SCOPE,
+  DEFAULT_PR_SCOPE,
+  repositoryScopeKey,
+  type IssueScope,
+  type PullRequestScope,
+} from "@/types/work-visibility";
 
 const COMMIT_CONVENTION_BLOCK = `
 Detect the project's commit convention by checking (in order):
@@ -82,6 +89,22 @@ interface SettingsState {
   savePrompt: (action: string, content: string) => Promise<void>;
   resetPrompt: (action: string) => Promise<void>;
   getPrompt: (action: string) => string;
+  defaultIssueScope: IssueScope;
+  defaultPrScope: PullRequestScope;
+  assignIssuesToSelfByDefault: boolean;
+  organizationIssueScopes: Record<string, IssueScope>;
+  organizationPrScopes: Record<string, PullRequestScope>;
+  repositoryIssueScopes: Record<string, IssueScope>;
+  repositoryPrScopes: Record<string, PullRequestScope>;
+  setDefaultIssueScope: (scope: IssueScope) => void;
+  setDefaultPrScope: (scope: PullRequestScope) => void;
+  setAssignIssuesToSelfByDefault: (enabled: boolean) => void;
+  setOrganizationIssueScope: (orgId: string, scope: IssueScope | null) => void;
+  setOrganizationPrScope: (orgId: string, scope: PullRequestScope | null) => void;
+  setRepositoryIssueScope: (orgId: string, repoName: string, scope: IssueScope | null) => void;
+  setRepositoryPrScope: (orgId: string, repoName: string, scope: PullRequestScope | null) => void;
+  resolveIssueScope: (orgId: string, repoName?: string) => IssueScope;
+  resolvePrScope: (orgId: string, repoName?: string) => PullRequestScope;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -95,6 +118,70 @@ export const useSettingsStore = create<SettingsState>()(
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       editorTheme: "oneDark",
       setEditorTheme: (theme) => set({ editorTheme: theme }),
+      defaultIssueScope: DEFAULT_ISSUE_SCOPE,
+      defaultPrScope: DEFAULT_PR_SCOPE,
+      assignIssuesToSelfByDefault: true,
+      organizationIssueScopes: {},
+      organizationPrScopes: {},
+      repositoryIssueScopes: {},
+      repositoryPrScopes: {},
+      setDefaultIssueScope: (scope) => set({ defaultIssueScope: scope }),
+      setDefaultPrScope: (scope) => set({ defaultPrScope: scope }),
+      setAssignIssuesToSelfByDefault: (enabled) => set({ assignIssuesToSelfByDefault: enabled }),
+      setOrganizationIssueScope: (orgId, scope) => set((state) => {
+        const next = { ...state.organizationIssueScopes };
+        if (scope === null) {
+          delete next[orgId];
+        } else {
+          next[orgId] = scope;
+        }
+        return { organizationIssueScopes: next };
+      }),
+      setOrganizationPrScope: (orgId, scope) => set((state) => {
+        const next = { ...state.organizationPrScopes };
+        if (scope === null) {
+          delete next[orgId];
+        } else {
+          next[orgId] = scope;
+        }
+        return { organizationPrScopes: next };
+      }),
+      setRepositoryIssueScope: (orgId, repoName, scope) => set((state) => {
+        const key = repositoryScopeKey(orgId, repoName);
+        const next = { ...state.repositoryIssueScopes };
+        if (scope === null) {
+          delete next[key];
+        } else {
+          next[key] = scope;
+        }
+        return { repositoryIssueScopes: next };
+      }),
+      setRepositoryPrScope: (orgId, repoName, scope) => set((state) => {
+        const key = repositoryScopeKey(orgId, repoName);
+        const next = { ...state.repositoryPrScopes };
+        if (scope === null) {
+          delete next[key];
+        } else {
+          next[key] = scope;
+        }
+        return { repositoryPrScopes: next };
+      }),
+      resolveIssueScope: (orgId, repoName) => {
+        const state = get();
+        if (repoName) {
+          const repoScope = state.repositoryIssueScopes[repositoryScopeKey(orgId, repoName)];
+          if (repoScope) return repoScope;
+        }
+        return state.organizationIssueScopes[orgId] ?? state.defaultIssueScope ?? DEFAULT_ISSUE_SCOPE;
+      },
+      resolvePrScope: (orgId, repoName) => {
+        const state = get();
+        if (repoName) {
+          const repoScope = state.repositoryPrScopes[repositoryScopeKey(orgId, repoName)];
+          if (repoScope) return repoScope;
+        }
+        return state.organizationPrScopes[orgId] ?? state.defaultPrScope ?? DEFAULT_PR_SCOPE;
+      },
 
       promptOverrides: {},
 
@@ -136,6 +223,13 @@ export const useSettingsStore = create<SettingsState>()(
         appearance: state.appearance,
         sidebarOpen: state.sidebarOpen,
         editorTheme: state.editorTheme,
+        defaultIssueScope: state.defaultIssueScope,
+        defaultPrScope: state.defaultPrScope,
+        assignIssuesToSelfByDefault: state.assignIssuesToSelfByDefault,
+        organizationIssueScopes: state.organizationIssueScopes,
+        organizationPrScopes: state.organizationPrScopes,
+        repositoryIssueScopes: state.repositoryIssueScopes,
+        repositoryPrScopes: state.repositoryPrScopes,
       }),
     },
   ),

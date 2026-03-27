@@ -30,9 +30,13 @@ import { PrItem } from "../components/repos/pr-item";
 import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
+import { useOrganizations } from "@/hooks/useOrganizations";
+import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "../stores/navigation-store";
 import { useFiltersStore } from "../stores/filters-store";
+import { useSettingsStore } from "@/stores/settings-store";
 import { queryKeys } from "../lib/query-keys";
+import { resolveCurrentLogin } from "@/lib/work-visibility";
 import { cache } from "../config/cache";
 import type { PullRequestDto } from "../types/organization";
 
@@ -45,10 +49,21 @@ function toggleItem(arr: string[], item: string): string[] {
 export function RepositoryPRsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const { activeRepo, navigateTo, setActivePr, targetPrNumber, setTargetPrNumber } = useNavigationStore();
+  const { activeRepo, navigateTo, setActivePr, targetPrNumber, setTargetPrNumber, targetPrScope, setTargetPrScope } = useNavigationStore();
+  const { organizations } = useOrganizations();
+  const { providers } = useProviders();
+  const { resolvePrScope } = useSettingsStore();
   const queryClient = useQueryClient();
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const currentLogin = activeRepo ? resolveCurrentLogin(activeRepo.organizationId, organizations, providers) : null;
+  const prScope = targetPrScope ?? (activeRepo ? resolvePrScope(activeRepo.organizationId, activeRepo.name) : "mine_or_review_requested");
+
+  useEffect(() => {
+    if (targetPrScope) {
+      setTargetPrScope(null);
+    }
+  }, [targetPrScope, setTargetPrScope]);
 
   const setFilter = useFiltersStore((s) => s.setFilter);
   const clearFilters = useFiltersStore((s) => s.clearFilters);
@@ -67,11 +82,13 @@ export function RepositoryPRsPage() {
   );
 
   const { data: prs = [], isLoading } = useQuery({
-    queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
+    queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? "", prScope),
     queryFn: () =>
       invoke<PullRequestDto[]>("list_repo_pull_requests", {
         organizationId: activeRepo!.organizationId,
         repoName: activeRepo!.name,
+        scope: prScope,
+        currentLogin,
       }),
     enabled: !!activeRepo,
     staleTime: cache.staleTime.live,

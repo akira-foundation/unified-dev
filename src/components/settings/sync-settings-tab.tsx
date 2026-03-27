@@ -1,10 +1,14 @@
 import { RefreshCw } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useI18n } from "@/i18n/i18n";
+import { issueScopeLabelKey, prScopeLabelKey } from "@/lib/work-visibility";
+import { useSettingsStore } from "@/stores/settings-store";
 import { useSyncSettingsStore, GLOBAL_SYNC_ID, INTERVAL_OPTIONS } from "@/stores/sync-settings-store";
 import type { SyncSettingsDto, UpsertSyncSettingsInput } from "@/stores/sync-settings-store";
+import type { IssueScope, PullRequestScope } from "@/types/work-visibility";
 
 const DEFAULT_SETTINGS: Omit<SyncSettingsDto, "id" | "scope"> = {
   syncIssuesEnabled: true,
@@ -83,6 +87,14 @@ function SettingsItem({
 export function SyncSettingsTab() {
   const { t } = useI18n();
   const { saveSettings, globalSettings } = useSyncSettingsStore();
+  const {
+    defaultIssueScope,
+    defaultPrScope,
+    assignIssuesToSelfByDefault,
+    setDefaultIssueScope,
+    setDefaultPrScope,
+    setAssignIssuesToSelfByDefault,
+  } = useSettingsStore();
 
   const global = effective(globalSettings);
 
@@ -99,6 +111,22 @@ export function SyncSettingsTab() {
       syncOrgsIntervalSecs: patch.syncOrgsIntervalSecs ?? global.syncOrgsIntervalSecs,
     };
     await saveSettings(input);
+  };
+
+  const persistVisibility = async (
+    issueScope: IssueScope,
+    prScope: PullRequestScope,
+    assignToSelf: boolean,
+  ) => {
+    await invoke("upsert_visibility_preferences", {
+      input: {
+        scopeType: "global",
+        scopeId: GLOBAL_SYNC_ID,
+        issueScope,
+        prScope,
+        assignIssuesToSelf: assignToSelf,
+      },
+    });
   };
 
   function SyncRow({
@@ -187,6 +215,58 @@ export function SyncSettingsTab() {
           enabled={global.syncOrgsEnabled}
           intervalSecs={global.syncOrgsIntervalSecs}
           intervalKind="orgs"
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title={t("pages.organization.visibility.title")}
+        description={t("settings.sync.visibility.description")}
+        icon={RefreshCw}
+      >
+        <SettingsItem
+          label={t("pages.organization.visibility.issues")}
+          action={
+            <Select value={defaultIssueScope} onValueChange={async (value) => {
+              const next = value as IssueScope;
+              setDefaultIssueScope(next);
+              await persistVisibility(next, defaultPrScope, assignIssuesToSelfByDefault);
+            }}>
+              <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="my_queue">{t(issueScopeLabelKey("my_queue"))}</SelectItem>
+                <SelectItem value="all_open">{t(issueScopeLabelKey("all_open"))}</SelectItem>
+                <SelectItem value="all">{t(issueScopeLabelKey("all"))}</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+        />
+        <SettingsItem
+          label={t("pages.organization.visibility.prs")}
+          action={
+            <Select value={defaultPrScope} onValueChange={async (value) => {
+              const next = value as PullRequestScope;
+              setDefaultPrScope(next);
+              await persistVisibility(defaultIssueScope, next, assignIssuesToSelfByDefault);
+            }}>
+              <SelectTrigger className="w-48 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mine_or_review_requested">{t(prScopeLabelKey("mine_or_review_requested"))}</SelectItem>
+                <SelectItem value="all_open">{t(prScopeLabelKey("all_open"))}</SelectItem>
+              </SelectContent>
+            </Select>
+          }
+        />
+        <SettingsItem
+          label={t("settings.behaviour.assignIssueToSelf.label")}
+          description={t("settings.behaviour.assignIssueToSelf.description")}
+          action={<Switch checked={assignIssuesToSelfByDefault} onCheckedChange={async (checked) => {
+            setAssignIssuesToSelfByDefault(checked);
+            await persistVisibility(defaultIssueScope, defaultPrScope, checked);
+          }} />}
         />
       </SettingsSection>
     </div>
