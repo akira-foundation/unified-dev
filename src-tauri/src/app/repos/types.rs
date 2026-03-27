@@ -6,6 +6,7 @@ pub struct LocalRepository {
     pub name: String,
     pub default_branch: String,
     pub source_path: String,
+    pub remote_url: Option<String>,
     pub workspace_root: String,
     pub created_at: String,
 }

@@ -84,6 +84,7 @@ interface AgentsState {
   removeRepository: (id: string) => void;
   // Per-thread PR info cache. null = no PR.
   prUrlByThread: Record<string, { url: string; isDraft: boolean } | null>;
+  setThreadPrInfo: (threadId: string, prInfo: { url: string; isDraft: boolean } | null) => void;
   loadPrUrl: (threadId: string, workspacePath: string) => Promise<void>;
   isFilesAllExpanded: boolean;
   setIsFilesAllExpanded: (expanded: boolean) => void;
@@ -135,6 +136,9 @@ export const useAgentsStore = create<AgentsState>()(
       isRightSidebarOpen: true,
       diffViewTab: "changes",
       prUrlByThread: {},
+      setThreadPrInfo: (threadId, prInfo) => set((state) => ({
+        prUrlByThread: { ...state.prUrlByThread, [threadId]: prInfo },
+      })),
       // Chat initial state
       messages: [],
       streamingContentByThread: {},
@@ -237,9 +241,13 @@ export const useAgentsStore = create<AgentsState>()(
       loadPrUrl: async (threadId: string, workspacePath: string) => {
         try {
           const info = await invoke<{ url: string; is_draft: boolean }>("check_pr_url", { workspacePath });
-          const prInfo = info.url ? { url: info.url, isDraft: info.is_draft } : null;
           set((state) => ({
-            prUrlByThread: { ...state.prUrlByThread, [threadId]: prInfo },
+            prUrlByThread: {
+              ...state.prUrlByThread,
+              [threadId]: info.url
+                ? { url: info.url, isDraft: info.is_draft }
+                : (state.prUrlByThread[threadId] ?? null),
+            },
           }));
           // Persist to DB so it survives app reloads.
           if (info.url) {
@@ -251,7 +259,10 @@ export const useAgentsStore = create<AgentsState>()(
           }
         } catch {
           set((state) => ({
-            prUrlByThread: { ...state.prUrlByThread, [threadId]: null },
+            prUrlByThread: {
+              ...state.prUrlByThread,
+              [threadId]: state.prUrlByThread[threadId] ?? null,
+            },
           }));
         }
       },

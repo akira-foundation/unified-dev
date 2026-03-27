@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
+import { useOrganizations } from "@/hooks/useOrganizations";
 import {
   Sidebar,
   SidebarContent,
@@ -41,16 +42,36 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { invoke } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { AddRepositoryDialog } from "@/components/repos/add-repository-dialog";
 import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
 import { RemoveThreadDialog } from "@/components/agents/remove-thread-dialog";
+import {
+  ThreadSourcePickerDialog,
+  type ThreadSourceKind,
+  type ThreadSourcePickerItem,
+} from "@/components/agents/thread-source-picker-dialog";
+import type { IssueDto } from "@/types/issue";
+import type { BranchDto, PullRequestDto } from "@/types/organization";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
-  const { setIsAgentMode, navigateTo, goBack, canGoBack } = useNavigationStore();
+  const { setIsAgentMode, navigateTo, goBack, canGoBack, setActiveOrganizationId } = useNavigationStore();
+  const { organizations, isLoading: isLoadingOrganizations } = useOrganizations();
   const {
     repositoryGroups,
     selectedIssueId,
@@ -67,6 +88,9 @@ export function AgentsSidebar() {
     setExpandedRepos,
     streamingThreadId,
     prUrlByThread,
+    sendMessage,
+    selectedModelId,
+    setThreadPrInfo,
   } = useAgentsStore();
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
@@ -74,6 +98,28 @@ export function AgentsSidebar() {
   const [addingThreadForRepo, setAddingThreadForRepo] = useState<string | null>(null);
   const [removingThreadId, setRemovingThreadId] = useState<string | null>(null);
   const [threadToRemove, setThreadToRemove] = useState<{ id: string; title: string; repoId: string } | null>(null);
+  const [sourcePicker, setSourcePicker] = useState<{ kind: ThreadSourceKind; repoId: string; repoName: string } | null>(null);
+  const [sourcePickerItems, setSourcePickerItems] = useState<ThreadSourcePickerItem[]>([]);
+  const [sourcePickerLoading, setSourcePickerLoading] = useState(false);
+  const [creatingSourceThread, setCreatingSourceThread] = useState(false);
+  const [linkRepoDialog, setLinkRepoDialog] = useState<{
+    repoId: string;
+    repoName: string;
+    kind: ThreadSourceKind;
+    requiresRemote: boolean;
+  } | null>(null);
+  const [linkOrganizationId, setLinkOrganizationId] = useState<string>("");
+  const [manualRemoteUrl, setManualRemoteUrl] = useState("");
+
+  const isRepoLinkRequiredError = (error: unknown) => {
+    const message = String(error).toLowerCase();
+    return message.includes("must be linked to an organization before using issue, pull request, or branch pickers");
+  };
+
+  const isUnsupportedRemoteError = (error: unknown) => {
+    const message = String(error).toLowerCase();
+    return message.includes("repository is not linked to a supported github remote");
+  };
 
   const handleBack = () => {
     setIsAgentMode(false);
@@ -156,6 +202,147 @@ export function AgentsSidebar() {
       toast.error(`Failed to remove thread: ${error}`);
     } finally {
       setRemovingThreadId(null);
+    }
+  };
+
+  const handleOpenSourcePicker = async (
+    kind: ThreadSourceKind,
+    repo: { id: string; name: string },
+  ) => {
+    setSourcePicker({ kind, repoId: repo.id, repoName: repo.name });
+    setSourcePickerItems([]);
+    setSourcePickerLoading(true);
+
+    try {
+      if (kind === "issue") {
+        const issues = await invoke<IssueDto[]>("list_thread_source_issues", { repoId: repo.id });
+        setSourcePickerItems(
+          issues.map((issue) => ({
+            id: issue.id,
+            title: issue.title,
+            subtitle: `#${issue.number}${issue.author ? ` - ${issue.author}` : ""}`,
+            meta: issue.status,
+          })),
+        );
+        return;
+      }
+
+      if (kind === "pr") {
+        const prs = await invoke<PullRequestDto[]>("list_thread_source_pull_requests", { repoId: repo.id });
+        setSourcePickerItems(
+          prs.map((pr) => ({
+            id: pr.head_sha,
+            title: pr.title,
+            subtitle: `#${pr.number} - ${pr.head} -> ${pr.base}`,
+            meta: pr.is_draft ? "draft" : pr.state,
+          })),
+        );
+        return;
+      }
+
+      const branches = await invoke<BranchDto[]>("list_thread_source_branches", { repoId: repo.id });
+      setSourcePickerItems(
+        branches.map((branch) => ({
+          id: branch.sha,
+          title: branch.name,
+          subtitle: branch.sha.slice(0, 7),
+          meta: branch.is_default ? "default" : branch.is_protected ? "protected" : undefined,
+        })),
+      );
+    } catch (error) {
+      if (isRepoLinkRequiredError(error)) {
+        setSourcePicker(null);
+        setLinkRepoDialog({ repoId: repo.id, repoName: repo.name, kind, requiresRemote: false });
+        setLinkOrganizationId("");
+        setManualRemoteUrl("");
+        return;
+      }
+
+      if (isUnsupportedRemoteError(error)) {
+        setSourcePicker(null);
+        setLinkRepoDialog({ repoId: repo.id, repoName: repo.name, kind, requiresRemote: true });
+        setLinkOrganizationId("");
+        setManualRemoteUrl("");
+        return;
+      }
+
+      toast.error(`${error}`);
+    } finally {
+      setSourcePickerLoading(false);
+    }
+  };
+
+  const handleSelectSourceItem = async (item: ThreadSourcePickerItem) => {
+    if (!sourcePicker) return;
+
+    try {
+      setCreatingSourceThread(true);
+
+      if (sourcePicker.kind === "issue") {
+        const issues = await invoke<IssueDto[]>("list_thread_source_issues", { repoId: sourcePicker.repoId });
+        const issue = issues.find((entry) => entry.id === item.id);
+        if (!issue) {
+          throw new Error(t("agents.sourcePicker.issue.notFound"));
+        }
+
+        const thread = await invoke<{ id: string; title: string; workspace_path: string }>(
+          "create_thread_with_title",
+          { repoId: sourcePicker.repoId, title: issue.title },
+        );
+
+        addThread(sourcePicker.repoId, thread);
+        setExpandedRepos((prev) => ({ ...prev, [sourcePicker.repoId]: true }));
+        setSourcePicker(null);
+
+        if (selectedModelId) {
+          const message = `Implement the following issue:\n\n**${issue.title}**\n\n${issue.body ?? ""}`;
+          await sendMessage(thread.id, message, selectedModelId, false);
+        }
+
+        return;
+      }
+
+      if (sourcePicker.kind === "pr") {
+        const prs = await invoke<PullRequestDto[]>("list_thread_source_pull_requests", { repoId: sourcePicker.repoId });
+        const pr = prs.find((entry) => entry.head_sha === item.id);
+        if (!pr) {
+          throw new Error(t("agents.sourcePicker.pr.notFound"));
+        }
+
+        const thread = await invoke<{ id: string; title: string; workspace_path: string }>(
+          "create_thread_from_pull_request",
+          { repoId: sourcePicker.repoId, title: pr.title, headSha: pr.head_sha },
+        );
+
+        await invoke("set_thread_pr_url", {
+          threadId: thread.id,
+          prUrl: pr.url,
+          prIsDraft: pr.is_draft,
+        });
+
+        setThreadPrInfo(thread.id, {
+          url: pr.url,
+          isDraft: pr.is_draft,
+        });
+
+        addThread(sourcePicker.repoId, thread);
+        setExpandedRepos((prev) => ({ ...prev, [sourcePicker.repoId]: true }));
+        setSourcePicker(null);
+        return;
+      }
+
+      const thread = await invoke<{ id: string; title: string; workspace_path: string }>(
+        "create_thread_from_branch",
+        { repoId: sourcePicker.repoId, title: item.title, sourceCommit: item.id },
+      );
+
+      addThread(sourcePicker.repoId, thread);
+      setExpandedRepos((prev) => ({ ...prev, [sourcePicker.repoId]: true }));
+      setSourcePicker(null);
+    } catch (error) {
+      toast.error(`${error}`);
+    } finally {
+      setCreatingSourceThread(false);
     }
   };
 
@@ -301,15 +488,24 @@ export function AgentsSidebar() {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56 dark:bg-[#0D0D0D] bg-popover dark:border-white/[0.05] border-border p-1 shadow-2xl rounded-md">
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenSourcePicker("issue", repo)}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
+                              >
                                 <CircleDot className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.fromIssue")}</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenSourcePicker("pr", repo)}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
+                              >
                                 <GitPullRequest className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.fromPr")}</span>
                               </DropdownMenuItem>
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenSourcePicker("branch", repo)}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
+                              >
                                 <GitBranch className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.fromBranch")}</span>
                               </DropdownMenuItem>
@@ -376,14 +572,24 @@ export function AgentsSidebar() {
                                     </span>
                                   )}
                                   {prUrlByThread[issue.id] && (
-                                    <GitPullRequest
-                                      className={cn(
-                                        "h-3 w-3 shrink-0",
-                                        prUrlByThread[issue.id]?.isDraft
-                                          ? "text-zinc-500"
-                                          : "text-[#A855F7]"
-                                      )}
-                                    />
+                                    <button
+                                      type="button"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        void openUrl(prUrlByThread[issue.id]!.url);
+                                      }}
+                                      className="shrink-0 cursor-pointer"
+                                      title={t("agents.header.viewPr")}
+                                    >
+                                      <GitPullRequest
+                                        className={cn(
+                                          "h-3 w-3 shrink-0 transition-opacity hover:opacity-80",
+                                          prUrlByThread[issue.id]?.isDraft
+                                            ? "text-zinc-500"
+                                            : "text-[#A855F7]"
+                                        )}
+                                      />
+                                    </button>
                                   )}
                                 </div>
                                 <div className="hidden group-hover/thread:flex items-center gap-2 shrink-0 ml-auto">
@@ -440,6 +646,115 @@ export function AgentsSidebar() {
         threadTitle={threadToRemove?.title || ""}
         isRemoving={!!removingThreadId}
       />
+
+      {sourcePicker ? (
+        <ThreadSourcePickerDialog
+          open={!!sourcePicker}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSourcePicker(null);
+            }
+          }}
+          kind={sourcePicker.kind}
+          repoName={sourcePicker.repoName}
+          items={sourcePickerItems}
+          isLoading={sourcePickerLoading}
+          isCreating={creatingSourceThread}
+          onSelect={handleSelectSourceItem}
+        />
+      ) : null}
+
+      <Dialog open={!!linkRepoDialog} onOpenChange={(open) => !open && setLinkRepoDialog(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("agents.linkRepoDialog.title")}</DialogTitle>
+            <DialogDescription>
+              {t("agents.linkRepoDialog.description").replace("{repo}", linkRepoDialog?.repoName ?? "")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-2">
+            {isLoadingOrganizations ? (
+              <div className="rounded-lg border border-border px-3 py-4 text-sm text-muted-foreground">
+                {t("agents.linkRepoDialog.loading")}
+              </div>
+            ) : organizations.length === 0 ? (
+              <div className="rounded-lg border border-border px-3 py-4 text-sm text-muted-foreground">
+                {t("agents.linkRepoDialog.empty")}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Select value={linkOrganizationId} onValueChange={setLinkOrganizationId}>
+                  <SelectTrigger className="h-10 w-full rounded-md border-zinc-200 bg-zinc-100 px-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+                    <SelectValue placeholder={t("agents.linkRepoDialog.placeholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((organization) => (
+                      <SelectItem key={organization.id} value={organization.id}>
+                        {organization.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {linkRepoDialog?.requiresRemote ? (
+                  <Input
+                    value={manualRemoteUrl}
+                    onChange={(event) => setManualRemoteUrl(event.target.value)}
+                    placeholder={t("agents.linkRepoDialog.remotePlaceholder")}
+                    className="h-10"
+                  />
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button variant="ghost" onClick={() => setLinkRepoDialog(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!linkOrganizationId || !linkRepoDialog) return;
+
+                try {
+                  if (linkRepoDialog.requiresRemote) {
+                    await invoke("set_local_repository_remote", {
+                      repoId: linkRepoDialog.repoId,
+                      remoteUrl: manualRemoteUrl.trim(),
+                    });
+                  }
+
+                  await invoke("link_local_repository_to_organization", {
+                    repoId: linkRepoDialog.repoId,
+                    organizationId: linkOrganizationId,
+                  });
+
+                  const nextPicker = {
+                    kind: linkRepoDialog.kind,
+                    repoId: linkRepoDialog.repoId,
+                    repoName: linkRepoDialog.repoName,
+                  };
+
+                  setActiveOrganizationId(linkOrganizationId);
+                  setLinkRepoDialog(null);
+                  setManualRemoteUrl("");
+                  setLinkOrganizationId("");
+                  await handleOpenSourcePicker(nextPicker.kind, {
+                    id: nextPicker.repoId,
+                    name: nextPicker.repoName,
+                  });
+                } catch (error) {
+                  toast.error(`${error}`);
+                }
+              }}
+              disabled={!linkOrganizationId || (linkRepoDialog?.requiresRemote && !manualRemoteUrl.trim())}
+            >
+              {t("agents.linkRepoDialog.cta")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sidebar>
   );
 }

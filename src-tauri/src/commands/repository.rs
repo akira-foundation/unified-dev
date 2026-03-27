@@ -19,3 +19,13 @@ pub async fn add_remote_repository(url: String, state: State<'_, AppState>) -> A
 pub async fn delete_local_repository(repo_id: String, state: State<'_, AppState>) -> AppResult<()> {
     repos::delete_local(repo_id, state).await
 }
+
+#[tauri::command]
+pub async fn set_local_repository_remote(repo_id: String, remote_url: String, state: State<'_, AppState>) -> AppResult<()> {
+    repos::set_remote(repo_id, remote_url, &state.db_pool).await
+}
+
+#[tauri::command]
+pub async fn link_local_repository_to_organization(repo_id: String, organization_id: String, state: State<'_, AppState>) -> AppResult<()> {
+    repos::link_organization(repo_id, organization_id, &state.db_pool).await
+}

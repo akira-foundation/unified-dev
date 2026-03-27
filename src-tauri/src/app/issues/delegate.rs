@@ -53,7 +53,8 @@ pub async fn delegate(
             id: repo_id,
             name,
             default_branch: String::new(),
-            source_path: clone_url,
+            source_path: clone_url.clone(),
+            remote_url: Some(clone_url.clone()),
             workspace_root: workspace_root.to_string_lossy().to_string(),
             created_at: String::new(),
         };
@@ -78,17 +79,19 @@ pub async fn delegate(
             name: repo_name.clone(),
             default_branch,
             source_path: clone_url.clone(),
+            remote_url: Some(clone_url.clone()),
             workspace_root: workspace_root.to_string_lossy().to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
         };
 
         sqlx::query(
-            "INSERT INTO local_repositories (id, name, default_branch, source_path, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&repository.id)
         .bind(&repository.name)
         .bind(&repository.default_branch)
         .bind(&repository.source_path)
+        .bind(&repository.remote_url)
         .bind(&repository.workspace_root)
         .bind(&repository.created_at)
         .execute(pool)

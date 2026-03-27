@@ -6,6 +6,8 @@ pub mod create_pr;
 pub mod delete_local;
 pub mod discard_changes;
 pub mod git;
+pub mod link_organization;
+pub mod set_remote;
 pub mod types;
 
 pub use add_local::add_local;
@@ -15,4 +17,6 @@ pub use check_pr::check_pr;
 pub use create_pr::create_pr;
 pub use delete_local::delete_local;
 pub use discard_changes::discard_changes;
+pub use link_organization::link_organization;
+pub use set_remote::set_remote;
 pub use types::{AddLocalRepositoryResponse, FileChange, PrInfo};

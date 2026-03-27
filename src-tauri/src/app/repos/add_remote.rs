@@ -37,14 +37,16 @@ pub async fn add_remote(
         name: repo_name,
         default_branch,
         source_path: url.clone(),
+        remote_url: Some(url.clone()),
         workspace_root: workspace_root.to_string_lossy().to_string(),
         created_at: chrono::Utc::now().to_rfc3339(),
     };
-    sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
         .bind(&repository.id)
         .bind(&repository.name)
         .bind(&repository.default_branch)
         .bind(&repository.source_path)
+        .bind(&repository.remote_url)
         .bind(&repository.workspace_root)
         .bind(&repository.created_at)
         .execute(pool)

@@ -97,6 +97,92 @@ pub fn create_branch(path: &Path, branch: &str) -> AppResult<()> {
     Ok(())
 }
 
+pub fn fetch_branch(path: &Path, remote: &str, branch: &str) -> AppResult<()> {
+    let output = Command::new("git")
+        .current_dir(path)
+        .args(["fetch", remote, branch])
+        .output()
+        .map_err(AppError::Io)?;
+
+    if !output.status.success() {
+        return Err(AppError::Internal(format!(
+            "Failed to fetch branch: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    Ok(())
+}
+
+pub fn checkout_remote_branch(path: &Path, remote: &str, branch: &str) -> AppResult<()> {
+    let remote_branch = format!("{remote}/{branch}");
+    let output = Command::new("git")
+        .current_dir(path)
+        .args(["checkout", "-B", branch, &remote_branch])
+        .output()
+        .map_err(AppError::Io)?;
+
+    if !output.status.success() {
+        return Err(AppError::Internal(format!(
+            "Failed to checkout branch: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    Ok(())
+}
+
+pub fn fetch_ref(path: &Path, remote: &str, git_ref: &str) -> AppResult<()> {
+    let output = Command::new("git")
+        .current_dir(path)
+        .args(["fetch", remote, git_ref])
+        .output()
+        .map_err(AppError::Io)?;
+
+    if !output.status.success() {
+        return Err(AppError::Internal(format!(
+            "Failed to fetch ref: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    Ok(())
+}
+
+pub fn checkout_fetch_head(path: &Path) -> AppResult<()> {
+    let output = Command::new("git")
+        .current_dir(path)
+        .args(["checkout", "--detach", "FETCH_HEAD"])
+        .output()
+        .map_err(AppError::Io)?;
+
+    if !output.status.success() {
+        return Err(AppError::Internal(format!(
+            "Failed to checkout fetched ref: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    Ok(())
+}
+
+pub fn fetch_commit(path: &Path, remote: &str, sha: &str) -> AppResult<()> {
+    let output = Command::new("git")
+        .current_dir(path)
+        .args(["fetch", remote, sha])
+        .output()
+        .map_err(AppError::Io)?;
+
+    if !output.status.success() {
+        return Err(AppError::Internal(format!(
+            "Failed to fetch commit: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )));
+    }
+
+    Ok(())
+}
+
 pub fn get_remote_url(path: &Path, remote: &str) -> Option<String> {
     let output = Command::new("git")
         .current_dir(path)

@@ -21,6 +21,7 @@ pub async fn add_local(
 
     let repo_name = git::get_repository_name(source_path)?;
     let default_branch = git::get_default_branch(source_path)?;
+    let remote_url = git::get_remote_url(source_path, "origin");
 
     let home_dir = dirs::home_dir().ok_or_else(|| crate::app::support::error::AppError::Internal("Could not find home directory".to_string()))?;
     let workspace_root = home_dir.join(".unifieddev").join("workspaces").join(&repo_name);
@@ -48,21 +49,23 @@ pub async fn add_local(
         name: repo_name,
         default_branch,
         source_path: local_path,
+        remote_url,
         workspace_root: workspace_root.to_string_lossy().to_string(),
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
         .bind(&repository.id)
         .bind(&repository.name)
         .bind(&repository.default_branch)
         .bind(&repository.source_path)
+        .bind(&repository.remote_url)
         .bind(&repository.workspace_root)
         .bind(&repository.created_at)
         .execute(pool)
         .await?;
 
-    let thread = create_with_paths(repo_id, &base_repo_path, &workspace_root, Path::new(&source_path_owned), None, pool).await?;
+    let thread = create_with_paths(repo_id, &base_repo_path, &workspace_root, Path::new(&source_path_owned), repository.remote_url.clone(), pool).await?;
 
     Ok(AddLocalRepositoryResponse { repository, thread })
 }

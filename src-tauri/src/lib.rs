@@ -25,8 +25,12 @@ use commands::provider::{
 use commands::terminal::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
 };
-use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository};
-use commands::thread::{create_thread, delete_thread, rename_thread, list_repositories, set_thread_pr_url};
+use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository, link_local_repository_to_organization, set_local_repository_remote};
+use commands::thread::{
+    create_thread, create_thread_from_branch, create_thread_from_pull_request, create_thread_with_title, delete_thread,
+    list_repositories, list_thread_source_branches, list_thread_source_issues,
+    list_thread_source_pull_requests, rename_thread, set_thread_pr_url,
+};
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::settings::{get_sync_settings, upsert_sync_settings, reset_sync_settings};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
@@ -106,11 +110,19 @@ pub fn run() {
             add_local_repository,
             add_remote_repository,
             delete_local_repository,
+            set_local_repository_remote,
+            link_local_repository_to_organization,
             list_repositories,
             create_thread,
+            create_thread_with_title,
+            create_thread_from_branch,
+            create_thread_from_pull_request,
             delete_thread,
             rename_thread,
             set_thread_pr_url,
+            list_thread_source_issues,
+            list_thread_source_pull_requests,
+            list_thread_source_branches,
             list_files,
             search_files,
             read_file,
