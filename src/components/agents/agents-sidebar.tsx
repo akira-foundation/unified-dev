@@ -91,6 +91,7 @@ export function AgentsSidebar() {
     sendMessage,
     selectedModelId,
     setThreadPrInfo,
+    loadRepositories,
   } = useAgentsStore();
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
@@ -326,6 +327,7 @@ export function AgentsSidebar() {
         });
 
         addThread(sourcePicker.repoId, thread);
+        await loadRepositories();
         setExpandedRepos((prev) => ({ ...prev, [sourcePicker.repoId]: true }));
         setSourcePicker(null);
         return;
