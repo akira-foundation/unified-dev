@@ -1,6 +1,7 @@
 import { Activity, FileText, GitPullRequest, Plus, RefreshCw, Search, Sparkles, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useToggle } from "@uidotdev/usehooks";
 
 import {
   PageHeader,
@@ -34,7 +35,7 @@ export function DashboardPage() {
   const { providers } = useProviders();
   const { dashboardTab, setDashboardTab, setActiveRepo, navigateTo } = useNavigationStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [kanbanCompact, setKanbanCompact] = useState(false);
+  const [kanbanCompact, toggleKanbanCompact] = useToggle(false);
 
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -93,7 +94,7 @@ export function DashboardPage() {
             {dashboardTab === "prs" && (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setKanbanCompact((v) => !v)}
+                  onClick={() => toggleKanbanCompact()}
                   className={cn(
                     "cursor-pointer flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
                     kanbanCompact

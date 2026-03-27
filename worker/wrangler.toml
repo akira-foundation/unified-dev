@@ -2,6 +2,7 @@ name = "akira-github-proxy"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
 
-# GITHUB_APP_ID set via: wrangler secret put GITHUB_APP_ID
-# GITHUB_APP_PRIVATE_KEY set via: wrangler secret put GITHUB_APP_PRIVATE_KEY
-# AKIRA_SECRET set via: wrangler secret put AKIRA_SECRET
+[[kv_namespaces]]
+binding = "LICENSES"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_KV_PREVIEW_ID"

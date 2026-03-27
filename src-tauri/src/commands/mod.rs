@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod issue;
+pub mod license;
 pub mod organization;
 pub mod prompt;
 pub mod provider;

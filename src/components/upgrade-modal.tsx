@@ -1,7 +1,15 @@
 import { useState } from "react";
-import { Building2, Check, Crown, Shield, X, Zap } from "lucide-react";
+import { Check, Crown, Globe, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
+import { useLicenseStore } from "@/stores/license-store";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface UpgradeModalProps {
   onClose: () => void;
@@ -10,205 +18,193 @@ interface UpgradeModalProps {
 export default function UpgradeModal({ onClose }: UpgradeModalProps) {
   const { t } = useI18n();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const { plan: getPlan } = useLicenseStore();
+  const activePlan = getPlan();
+  const yearly = billingCycle === "yearly";
 
-  const plans = {
-    developer: {
-      name: t("upgrade.plan.developer"),
-      price: billingCycle === "monthly" ? "9" : "90",
-      period: t("upgrade.billing.monthly") === "Monthly" ? "/mo" : "/mês",
-      description: t("upgrade.desc.developer"),
+  const plans = [
+    {
+      key: "free" as const,
+      name: t("upgrade.plan.free"),
+      price: "0",
+      period: null,
+      description: t("upgrade.desc.free"),
+      icon: Zap,
       features: [
-        t("upgrade.feature.developer.1"),
-        t("upgrade.feature.developer.2"),
-        t("upgrade.feature.developer.3"),
-        t("upgrade.feature.developer.4"),
+        t("upgrade.feature.free.1"),
+        t("upgrade.feature.free.2"),
+        t("upgrade.feature.free.3"),
       ],
+      featured: false,
+      cta: t("upgrade.cta.free"),
     },
-    team: {
-      name: t("upgrade.plan.team"),
-      price: billingCycle === "monthly" ? "19" : "190",
-      period: t("upgrade.billing.monthly") === "Monthly" ? "/mo" : "/mês",
-      description: t("upgrade.desc.team"),
+    {
+      key: "pro" as const,
+      name: t("upgrade.plan.pro"),
+      price: yearly ? "8" : "9",
+      period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"),
+      description: t("upgrade.desc.pro"),
+      icon: Crown,
       features: [
-        t("upgrade.feature.team.1"),
-        t("upgrade.feature.team.2"),
-        t("upgrade.feature.team.3"),
-        t("upgrade.feature.team.4"),
-        t("upgrade.feature.team.5"),
+        t("upgrade.feature.pro.1"),
+        t("upgrade.feature.pro.2"),
+        t("upgrade.feature.pro.3"),
       ],
+      featured: true,
+      cta: t("upgrade.cta.pro"),
     },
-    enterprise: {
-      name: t("upgrade.plan.enterprise"),
-      price: t("upgrade.query"),
-      period: "",
-      description: t("upgrade.desc.enterprise"),
+    {
+      key: "ultimate" as const,
+      name: t("upgrade.plan.ultimate"),
+      price: yearly ? "17" : "19",
+      period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"),
+      description: t("upgrade.desc.ultimate"),
+      icon: Globe,
       features: [
-        t("upgrade.feature.enterprise.1"),
-        t("upgrade.feature.enterprise.2"),
-        t("upgrade.feature.enterprise.3"),
-        t("upgrade.feature.enterprise.4"),
-        t("upgrade.feature.enterprise.5"),
+        t("upgrade.feature.ultimate.1"),
+        t("upgrade.feature.ultimate.2"),
+        t("upgrade.feature.ultimate.3"),
+        t("upgrade.feature.ultimate.4"),
       ],
+      featured: false,
+      cta: t("upgrade.cta.ultimate"),
     },
-  };
+  ];
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in p-4 overflow-y-auto">
-      <div className="relative w-full max-w-6xl bg-[#0c0c0e] rounded-[32px] shadow-[0_0_100px_rgba(0,0,0,1)] border border-zinc-800/80 overflow-hidden flex flex-col md:flex-row animate-scale-in my-auto min-h-[680px]">
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        showCloseButton
+        className="p-0 gap-0 overflow-hidden sm:max-w-2xl border-4"
+      >
+        {/* Header */}
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border text-left gap-1">
+          <DialogTitle className="text-base font-semibold">
+            {t("upgrade.title")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("upgrade.description")}
+          </DialogDescription>
+        </DialogHeader>
 
-        {/* Sidebar */}
-        <div className="w-full md:w-[320px] bg-black p-12 flex flex-col justify-between shrink-0 border-r border-zinc-800/80">
-          <div>
-            <div className="inline-flex px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 mb-10">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400">{t("upgrade.title")}</span>
-            </div>
-
-            <h2 className="text-4xl font-black leading-tight text-white mb-6 whitespace-pre-line">
-              {t("upgrade.headline").split("\n").map((line, i) => (
-                <span key={i} className={line.toLowerCase().includes("workflow") || line.toLowerCase().includes("pr") ? "text-purple-400" : ""}>
-                  {line}
-                  {i === 0 && <br />}
-                </span>
-              ))}
-            </h2>
-
-            <p className="text-sm text-zinc-400 leading-relaxed font-medium">
-              {t("upgrade.description")}
-            </p>
-          </div>
-
-          <div className="mt-12">
-            <div
-              className="bg-zinc-900/80 p-1 rounded-full flex items-center border border-zinc-800 w-fit cursor-pointer shadow-xl"
-              onClick={() => setBillingCycle(billingCycle === "monthly" ? "yearly" : "monthly")}
-            >
-              <div className={cn(
-                "px-6 py-2 rounded-full text-[12px] font-bold transition-all duration-300",
-                billingCycle === "monthly" ? "bg-purple-600 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
-              )}>
-                {t("upgrade.billing.monthly")}
-              </div>
-              <div className={cn(
-                "px-6 py-2 rounded-full text-[12px] font-bold transition-all duration-300 flex items-center gap-2",
-                billingCycle === "yearly" ? "bg-purple-600 text-white shadow-lg" : "text-zinc-500 hover:text-zinc-300"
-              )}>
-                {t("upgrade.billing.yearly")} <span className={cn("font-black text-[10px]", billingCycle === "yearly" ? "text-emerald-200" : "text-emerald-400")}>{t("upgrade.billing.discount")}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Plan Cards */}
-        <div className="flex-1 p-8 lg:p-12 relative flex items-center bg-[#0c0c0e]">
+        {/* Billing toggle */}
+        <div className="flex items-center justify-end gap-3 px-6 py-2.5 border-b border-border bg-muted/40">
+          <span className={cn("text-xs font-medium transition-colors", !yearly ? "text-foreground" : "text-muted-foreground")}>
+            {t("upgrade.billing.monthly")}
+          </span>
           <button
-            onClick={onClose}
-            className="absolute top-8 right-8 p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors z-20 border border-zinc-800"
+            onClick={() => setBillingCycle(yearly ? "monthly" : "yearly")}
+            className={cn(
+              "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
+              yearly ? "bg-primary border-primary" : "bg-input border-border"
+            )}
           >
-            <X size={20} />
+            <span className={cn(
+              "inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform duration-200",
+              yearly ? "translate-x-[18px]" : "translate-x-0.5"
+            )} />
           </button>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-
-            {/* Developer Card */}
-            <div className="group bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800 flex flex-col hover:border-zinc-700 transition-all">
-              <div className="mb-6 text-center md:text-left">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-400 mb-6 border border-zinc-700 mx-auto md:mx-0 group-hover:scale-110 transition-transform">
-                  <Zap size={24} fill="currentColor" strokeWidth={0} />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{plans.developer.name}</h3>
-                <p className="text-[13px] text-zinc-400 leading-snug h-10 line-clamp-2">
-                  {plans.developer.description}
-                </p>
-              </div>
-
-              <div className="flex items-baseline gap-1 mb-8 justify-center md:justify-start">
-                <span className="text-4xl font-black text-white tracking-tight">{plans.developer.price}</span>
-                <span className="text-lg font-bold text-zinc-500">€</span>
-                <span className="text-[13px] text-zinc-600 font-bold ml-1">{plans.developer.period}</span>
-              </div>
-
-              <div className="space-y-4 mb-10 flex-1">
-                {plans.developer.features.map((f) => (
-                  <div key={f} className="flex items-center gap-4 text-zinc-300">
-                    <Check size={16} className="text-zinc-500" strokeWidth={3} />
-                    <span className="text-[13px] font-medium">{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button className="w-full py-4 rounded-xl bg-white text-black font-black text-[13px] hover:bg-zinc-200 transition-all active:scale-95">
-                {t("upgrade.cta.developer")}
-              </button>
-            </div>
-
-            {/* Team Card (Recommended Visual but no badge) */}
-            <div className="relative group bg-black/40 rounded-3xl p-8 border border-purple-500/50 flex flex-col shadow-2xl shadow-purple-900/20 hover:border-purple-500 transition-all lg:scale-105 z-10">
-              <div className="mb-6 text-center md:text-left">
-                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400 mb-6 border border-purple-500/30 mx-auto md:mx-0 group-hover:rotate-12 transition-transform">
-                  <Crown size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{plans.team.name}</h3>
-                <p className="text-[13px] text-zinc-300 leading-snug h-10 line-clamp-2 font-medium">
-                  {plans.team.description}
-                </p>
-              </div>
-
-              <div className="flex items-baseline gap-1 mb-8 justify-center md:justify-start">
-                <span className="text-4xl font-black text-white tracking-tight">{plans.team.price}</span>
-                <span className="text-lg font-bold text-purple-400">€</span>
-                <span className="text-[13px] text-zinc-600 font-bold ml-1">{plans.team.period}</span>
-              </div>
-
-              <div className="space-y-4 mb-10 flex-1">
-                {plans.team.features.map((f) => (
-                  <div key={f} className="flex items-center gap-4 text-white">
-                    <Check size={16} className="text-purple-400" strokeWidth={3} />
-                    <span className="text-[13px] font-bold">{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button className="w-full py-4.5 rounded-xl bg-purple-600 text-white font-black text-[13px] hover:bg-purple-500 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-900/40 active:scale-95">
-                <Shield size={18} strokeWidth={2.5} /> {t("upgrade.cta.team")}
-              </button>
-            </div>
-
-            {/* Enterprise Card */}
-            <div className="group bg-zinc-900/40 rounded-3xl p-8 border border-zinc-800 flex flex-col hover:border-zinc-700 transition-all">
-              <div className="mb-6 text-center md:text-left">
-                <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-zinc-400 mb-6 border border-zinc-700 mx-auto md:mx-0 group-hover:-rotate-12 transition-transform">
-                  <Building2 size={24} />
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">{plans.enterprise.name}</h3>
-                <p className="text-[13px] text-zinc-400 leading-snug h-10 line-clamp-2">
-                  {plans.enterprise.description}
-                </p>
-              </div>
-
-              <div className="mb-8 h-[40px] flex items-center justify-center md:justify-start">
-                <span className="text-2xl font-black text-white uppercase tracking-tight">{plans.enterprise.price}</span>
-              </div>
-
-              <div className="space-y-4 mb-10 flex-1">
-                {plans.enterprise.features.map((f) => (
-                  <div key={f} className="flex items-center gap-4 text-zinc-300">
-                    <Check size={16} className="text-zinc-500" strokeWidth={3} />
-                    <span className="text-[13px] font-medium">{f}</span>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => window.open("mailto:comercial@noxdireit.cv")}
-                className="w-full py-4 rounded-xl border border-zinc-700 text-zinc-200 font-black text-[13px] hover:bg-zinc-800 transition-all active:scale-95"
-              >
-                {t("upgrade.cta.enterprise")}
-              </button>
-            </div>
-
-          </div>
+          <span className={cn("text-xs font-medium flex items-center gap-1.5 transition-colors", yearly ? "text-foreground" : "text-muted-foreground")}>
+            {t("upgrade.billing.yearly")}
+            <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+              {t("upgrade.billing.discount")}
+            </span>
+          </span>
         </div>
-      </div>
-    </div>
+
+        {/* Plans */}
+        <div className="grid grid-cols-3 divide-x divide-border">
+          {plans.map((plan) => {
+            const Icon = plan.icon;
+            const isCurrent = activePlan === plan.key;
+
+            return (
+              <div
+                key={plan.key}
+                className={cn(
+                  "flex flex-col p-5",
+                  plan.featured && "bg-primary/[0.03]"
+                )}
+              >
+                {/* Icon + name */}
+                <div className="flex items-center gap-2 mb-3">
+                  <div className={cn(
+                    "w-7 h-7 rounded-md flex items-center justify-center shrink-0",
+                    plan.featured ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                  )}>
+                    <Icon size={14} />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground leading-none">
+                    {plan.name}
+                  </span>
+                  {plan.featured && (
+                    <span className="text-[9px] font-black uppercase tracking-wider bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full leading-none">
+                      {t("upgrade.recommended")}
+                    </span>
+                  )}
+                </div>
+
+                {/* Price */}
+                <div className="flex items-baseline gap-0.5 mb-1">
+                  <span className="text-2xl font-black tracking-tight text-foreground">
+                    {plan.price}
+                  </span>
+                  <span className={cn(
+                    "text-sm font-bold",
+                    plan.featured ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    €
+                  </span>
+                  {plan.period && (
+                    <span className="text-xs text-muted-foreground ml-0.5">
+                      /{plan.period.toLowerCase()}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                  {plan.description}
+                </p>
+
+                {/* Features */}
+                <ul className="space-y-2 mb-5 flex-1">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2">
+                      <Check
+                        size={12}
+                        className={cn(
+                          "shrink-0 mt-0.5",
+                          plan.featured ? "text-primary" : "text-muted-foreground"
+                        )}
+                        strokeWidth={2.5}
+                      />
+                      <span className={cn(
+                        "text-xs leading-snug",
+                        plan.featured ? "text-foreground" : "text-muted-foreground"
+                      )}>
+                        {f}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* CTA */}
+                <button
+                  disabled={isCurrent}
+                  className={cn(
+                    "w-full h-8 rounded-md text-xs font-semibold transition-all active:scale-95",
+                    plan.featured
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      : "border border-border bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed"
+                  )}
+                >
+                  {isCurrent ? t("upgrade.cta.free") : plan.cta}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,5 +1,6 @@
 pub mod chat;
 pub mod concerns;
+pub mod license;
 pub mod filesystem;
 pub mod issues;
 pub mod orgs;

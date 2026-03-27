@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "@/i18n/i18n";
+import { useDebounce } from "@uidotdev/usehooks";
 
 interface FileNodeData {
   name: string;
@@ -106,6 +107,7 @@ function FileNode({ node, level = 0, workspacePath }: { node: FileNodeData; leve
 export function FileExplorer() {
   const { t } = useI18n();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [tree, setTree] = useState<FileNodeData[]>([]);
   const [searchResults, setSearchResults] = useState<FileNodeData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -142,8 +144,8 @@ export function FileExplorer() {
 
   // Handle Search
   useEffect(() => {
-    const timer = setTimeout(async () => {
-      if (!search.trim() || !selectedIssue?.workspacePath) {
+    (async () => {
+      if (!debouncedSearch.trim() || !selectedIssue?.workspacePath) {
         setSearchResults([]);
         setIsSearching(false);
         return;
@@ -153,7 +155,7 @@ export function FileExplorer() {
         setIsSearching(true);
         const result = await invoke<FileNodeData[]>("search_files", {
           workspacePath: selectedIssue.workspacePath,
-          query: search
+          query: debouncedSearch
         });
         setSearchResults(result);
       } catch (error) {
@@ -161,10 +163,8 @@ export function FileExplorer() {
       } finally {
         setIsSearching(false);
       }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [search, selectedIssue?.workspacePath]);
+    })();
+  }, [debouncedSearch, selectedIssue?.workspacePath]);
 
   return (
     <div className="flex flex-col h-full bg-background">

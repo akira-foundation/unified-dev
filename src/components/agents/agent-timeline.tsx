@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { AgentTimelineStep } from "@/types/agents";
 import type { ChatMessage, ToolCallEvent } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
+import { useToggle } from "@uidotdev/usehooks";
 
 interface AgentTimelineProps {
   steps: AgentTimelineStep[];
@@ -62,7 +63,7 @@ function CodeBlock({ language, children }: { language: string; children: string 
 }
 
 function ToolCallBlock({ toolCall }: { toolCall: ToolCallEvent }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, toggleExpanded] = useToggle(false);
   const hasOutput = !!toolCall.output;
 
   return (
@@ -81,7 +82,7 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCallEvent }) {
       <div className="min-w-0 flex-1">
         <button
           className="flex items-center gap-1 font-mono text-zinc-500 dark:text-zinc-400 dark:hover:text-zinc-300 hover:text-zinc-600 transition-colors"
-          onClick={() => hasOutput && setExpanded((v) => !v)}
+          onClick={() => hasOutput && toggleExpanded()}
         >
           <span className="truncate">{toolCall.label}</span>
           {hasOutput && (

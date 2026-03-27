@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
+import { useToggle } from "@uidotdev/usehooks";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import type { SendMessageOptions } from "@/stores/useAgentsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -139,10 +140,10 @@ export function AgentChatInput() {
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(0);
-  const [planMode, setPlanMode] = useState(false);
+  const [planMode, togglePlanMode] = useToggle(false);
   const [thinkingOpen, setThinkingOpen] = useState(false);
   const [thinkingBudget, setThinkingBudget] = useState<"x-high" | "high" | "medium" | "low">("medium");
-  const [fastMode, setFastMode] = useState(false);
+  const [fastMode, toggleFastMode] = useToggle(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
     aiProviders,
@@ -183,7 +184,7 @@ export function AgentChatInput() {
     }
 
     if (!supportsPlanMode) {
-      setPlanMode(false);
+      togglePlanMode(false);
     }
   }, [hasReasoning, supportsPlanMode]);
 
@@ -413,7 +414,7 @@ export function AgentChatInput() {
 
               {supportsPlanMode && (
                 <button
-                  onClick={() => setPlanMode((v) => !v)}
+                  onClick={() => togglePlanMode()}
                   className={cn(
                     "text-[12px] font-medium px-2 py-0.5 rounded transition-colors",
                     planMode
@@ -460,7 +461,7 @@ export function AgentChatInput() {
 
               <button
                 title="Toggle fast mode"
-                onClick={() => setFastMode((v) => !v)}
+                onClick={() => toggleFastMode()}
                 className={cn(
                   "text-[12px] font-medium px-2 py-0.5 rounded transition-colors",
                   fastMode

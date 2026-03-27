@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { Check, ChevronDown, Columns2, FileCode, WrapText } from "lucide-react";
 import {
   Collapsible,
@@ -13,28 +14,14 @@ import { useViewedFilesStore } from "../../stores/useViewedFilesStore";
 import type { PrFileDto } from "../../types/organization";
 
 function useIntersected(rootMargin = "200px") {
-  const ref = useRef<HTMLDivElement>(null);
-  const [intersected, setIntersected] = useState(false);
+  const [sentinelRef, entry] = useIntersectionObserver({ rootMargin, threshold: 0 });
+  const [intersected, setIntersectedOnce] = useState(false);
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+  if (entry?.isIntersecting && !intersected) {
+    setIntersectedOnce(true);
+  }
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIntersected(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin },
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [rootMargin]);
-
-  return { ref, intersected };
+  return { ref: sentinelRef, intersected };
 }
 
 function FileDiffCard({

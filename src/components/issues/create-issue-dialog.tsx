@@ -14,6 +14,7 @@ import { Markdown } from "tiptap-markdown";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 import { SlashCommandExtension, SLASH_COMMANDS } from "./slash-command-extension";
 import { SlashCommandMenu, type SlashCommandMenuRef } from "./slash-command-menu";
+import { useToggle } from "@uidotdev/usehooks";
 
 import {
   Dialog,
@@ -109,7 +110,7 @@ export function CreateIssueDialog({
   const [repoOpen, setRepoOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [assigneesOpen, setAssigneesOpen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, toggleExpanded] = useToggle(false);
   const [syncWithProvider, setSyncWithProvider] = useState(true);
   const [createMore, setCreateMore] = useState(false);
   const [assignToMyself, setAssignToMyself] = useState(assignToSelfByDefault);
@@ -430,7 +431,7 @@ export function CreateIssueDialog({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setExpanded((v) => !v)}
+                    onClick={() => toggleExpanded()}
                     className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
                   >
                     {expanded ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
