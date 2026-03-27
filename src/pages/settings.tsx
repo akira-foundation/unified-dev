@@ -64,6 +64,7 @@ import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
+import { QRCodeSVG } from "qrcode.react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import {
   vscDarkPlus,
@@ -117,22 +118,29 @@ final readonly class CreateUserAction
     }
 }`;
 
-interface MockRemoteDevice {
+interface RemoteDevice {
   id: string;
   name: string;
   lastSeen: string;
   status: "connected" | "idle";
 }
 
-function PairingQrCode({ value }: { value: string }) {
-  const src = useMemo(() => {
-    const encoded = encodeURIComponent(value);
-    return `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=0&data=${encoded}`;
-  }, [value]);
+interface RemoteSettingsDto {
+  enabled: boolean;
+  hostName: string;
+  hostFingerprint: string;
+  bindAddress: string;
+  port: number;
+  tailscaleRequired: boolean;
+  pairingCode: string;
+  pairingCodeExpiresAt: string;
+  devices: RemoteDevice[];
+}
 
+function PairingQrCode({ value }: { value: string }) {
   return (
     <div className="rounded-3xl border border-zinc-200/80 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-      <img src={src} alt="Pairing QR code" className="h-[220px] w-[220px] rounded-2xl" />
+      <QRCodeSVG value={value} size={220} bgColor="transparent" fgColor="currentColor" className="h-[220px] w-[220px] rounded-2xl text-zinc-950 dark:text-white" />
     </div>
   );
 }
@@ -203,11 +211,10 @@ export function SettingsPage() {
   const [remoteEnabled, setRemoteEnabled] = useState(false);
   const [showRemotePairingModal, setShowRemotePairingModal] = useState(false);
   const [pairingCode, setPairingCode] = useState("UNFD-48K2");
-  const [remoteDeviceToRemove, setRemoteDeviceToRemove] = useState<MockRemoteDevice | null>(null);
-  const [remoteDevices, setRemoteDevices] = useState<MockRemoteDevice[]>([
-    { id: "1", name: "iPhone 16 Pro", lastSeen: "just now", status: "connected" },
-    { id: "2", name: "iPad Air", lastSeen: "2h ago", status: "idle" },
-  ]);
+  const [remoteDeviceToRemove, setRemoteDeviceToRemove] = useState<RemoteDevice | null>(null);
+  const [remoteDevices, setRemoteDevices] = useState<RemoteDevice[]>([]);
+  const [remoteHostName, setRemoteHostName] = useState("localhost.local");
+  const [isRemoteLoading, setIsRemoteLoading] = useState(false);
 
   // Local draft edits for the Prompts tab — keyed by action.
   // A draft of "" means the user cleared the field (reverting to default behaviour).
@@ -254,13 +261,16 @@ export function SettingsPage() {
     setTimeout(() => window.location.reload(), 1500);
   };
 
-  const hostName = useMemo(() => `${window.location.hostname || "unified"}.local`, []);
-  const pairingUrl = useMemo(() => `unified://pair?host=${encodeURIComponent(hostName)}&code=${encodeURIComponent(pairingCode)}`, [hostName, pairingCode]);
+  const pairingUrl = useMemo(() => `unified://pair?host=${encodeURIComponent(remoteHostName)}&code=${encodeURIComponent(pairingCode)}`, [remoteHostName, pairingCode]);
 
   const regeneratePairingCode = () => {
-    const next = `UNFD-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
-    setPairingCode(next);
-    showToast(t("settings.remote.toast.codeRegenerated"));
+    void invoke<RemoteSettingsDto>("regenerate_remote_pairing_code")
+      .then((settings) => {
+        setPairingCode(settings.pairingCode);
+        setRemoteHostName(settings.hostName);
+        setRemoteDevices(settings.devices);
+        showToast(t("settings.remote.toast.codeRegenerated"));
+      });
   };
 
   const copyRemoteValue = async (value: string, successMessage: string) => {
@@ -273,9 +283,25 @@ export function SettingsPage() {
   };
 
   const revokeRemoteDevice = (deviceId: string) => {
-    setRemoteDevices((current) => current.filter((device) => device.id !== deviceId));
-    showToast(t("settings.remote.toast.deviceRevoked"));
+    void invoke<RemoteSettingsDto>("revoke_remote_device", { deviceId }).then((settings) => {
+      setRemoteDevices(settings.devices);
+      showToast(t("settings.remote.toast.deviceRevoked"));
+    });
   };
+
+  useEffect(() => {
+    if (activeTab !== "remote") return;
+
+    setIsRemoteLoading(true);
+    void invoke<RemoteSettingsDto>("get_remote_settings")
+      .then((settings) => {
+        setRemoteEnabled(settings.enabled);
+        setPairingCode(settings.pairingCode);
+        setRemoteHostName(settings.hostName);
+        setRemoteDevices(settings.devices);
+      })
+      .finally(() => setIsRemoteLoading(false));
+  }, [activeTab]);
 
   const persistGlobalVisibilityPreferences = async (
     issueScope: IssueScope,
@@ -294,10 +320,15 @@ export function SettingsPage() {
   };
 
   const handleRemoteToggle = (checked: boolean) => {
-    setRemoteEnabled(checked);
-    if (checked) {
-      setShowRemotePairingModal(true);
-    }
+    void invoke<RemoteSettingsDto>("set_remote_enabled", { enabled: checked }).then((settings) => {
+      setRemoteEnabled(settings.enabled);
+      setPairingCode(settings.pairingCode);
+      setRemoteHostName(settings.hostName);
+      setRemoteDevices(settings.devices);
+      if (checked) {
+        setShowRemotePairingModal(true);
+      }
+    });
   };
 
   const SettingsSection = ({ title, description, children, icon: Icon }: any) => (
@@ -881,10 +912,10 @@ AWS_PROFILE=default`}
                     <Button
                       variant="outline"
                       className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300"
-                      onClick={() => copyRemoteValue(hostName, t("settings.remote.toast.hostCopied"))}
+                      onClick={() => copyRemoteValue(remoteHostName, t("settings.remote.toast.hostCopied"))}
                     >
                       <Copy className="h-4 w-4" />
-                      {hostName}
+                      {remoteHostName}
                     </Button>
                   }
                 />
@@ -911,7 +942,9 @@ AWS_PROFILE=default`}
                   description={t("settings.remote.devices.description")}
                   icon={ShieldCheck}
                 >
-                  {remoteDevices.length === 0 ? (
+                  {isRemoteLoading ? (
+                    <div className="px-4 py-10 text-sm text-zinc-500 dark:text-zinc-400">{t("settings.remote.loading")}</div>
+                  ) : remoteDevices.length === 0 ? (
                     <div className="px-4 py-10 text-sm text-zinc-500 dark:text-zinc-400">
                       {t("settings.remote.devices.empty")}
                     </div>

@@ -1,6 +1,7 @@
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::app::settings;
+use crate::app::settings::remote::RemoteSettingsDto;
 use crate::app::settings::request::{SyncSettingsDto, UpsertSyncSettingsRequest};
 use crate::app::settings::visibility::{UpsertVisibilityPreferencesRequest, VisibilityPreferencesDto};
 use crate::app::support::error::AppResult;
@@ -34,4 +35,25 @@ pub async fn upsert_visibility_preferences(input: UpsertVisibilityPreferencesReq
 #[tauri::command]
 pub async fn reset_visibility_preferences(scope_type: String, scope_id: String, state: State<'_, AppState>) -> AppResult<VisibilityPreferencesDto> {
     settings::visibility::reset(scope_type, scope_id, state).await
+}
+
+#[tauri::command]
+pub async fn get_remote_settings(state: State<'_, AppState>) -> AppResult<RemoteSettingsDto> {
+    settings::remote::get(state).await
+}
+
+#[tauri::command]
+pub async fn set_remote_enabled(enabled: bool, state: State<'_, AppState>, app: AppHandle) -> AppResult<RemoteSettingsDto> {
+    let settings = settings::remote::set_enabled(enabled, state, app).await?;
+    Ok(settings)
+}
+
+#[tauri::command]
+pub async fn regenerate_remote_pairing_code(state: State<'_, AppState>) -> AppResult<RemoteSettingsDto> {
+    settings::remote::regenerate_pairing_code(state).await
+}
+
+#[tauri::command]
+pub async fn revoke_remote_device(device_id: String, state: State<'_, AppState>) -> AppResult<RemoteSettingsDto> {
+    settings::remote::revoke_device(device_id, state).await
 }

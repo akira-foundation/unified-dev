@@ -32,7 +32,7 @@ use commands::thread::{
     list_thread_source_pull_requests, rename_thread, set_thread_pr_url,
 };
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
-use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_sync_settings, upsert_visibility_preferences, reset_sync_settings, reset_visibility_preferences};
+use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_sync_settings, upsert_visibility_preferences, reset_sync_settings, reset_visibility_preferences, get_remote_settings, set_remote_enabled, regenerate_remote_pairing_code, revoke_remote_device};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill};
 use providers::default_registry;
 use app::support::error::AppResult;
@@ -59,6 +59,19 @@ pub fn run() {
                     cipher,
                     pool.clone(),
                 ));
+
+                let app_state = app.state::<AppState>();
+                if let Ok(remote_settings) = app::settings::remote::get(app_state).await {
+                    if remote_settings.enabled {
+                        let app_state = app.state::<AppState>();
+                        let _ = app::remote::start(
+                            &remote_settings,
+                            app_state.db_pool.clone(),
+                            app_state.abort_handles.clone(),
+                            app.handle().clone(),
+                        ).await;
+                    }
+                }
 
                 let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalState::new()));
                 app.manage(terminal_manager);
@@ -157,6 +170,10 @@ pub fn run() {
             get_visibility_preferences,
             upsert_visibility_preferences,
             reset_visibility_preferences,
+            get_remote_settings,
+            set_remote_enabled,
+            regenerate_remote_pairing_code,
+            revoke_remote_device,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

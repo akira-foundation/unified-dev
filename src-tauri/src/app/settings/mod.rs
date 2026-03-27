@@ -2,6 +2,7 @@ pub mod get;
 pub mod poller;
 pub mod request;
 pub mod reset;
+pub mod remote;
 pub mod upsert;
 pub mod visibility;
 

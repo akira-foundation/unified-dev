@@ -5,6 +5,7 @@ pub mod issues;
 pub mod orgs;
 pub mod prompts;
 pub mod providers;
+pub mod remote;
 pub mod repos;
 pub mod settings;
 pub mod skills;
