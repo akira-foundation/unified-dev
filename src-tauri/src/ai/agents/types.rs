@@ -24,6 +24,7 @@ pub struct AiModel {
     pub id: String,
     pub label: String,
     pub capabilities: Vec<String>,
+    pub context_window: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -35,6 +35,7 @@ pub fn discover_codex_models() -> Result<Vec<AiModel>, String> {
             id: m.slug,
             label: m.display_name,
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         })
         .collect();
 
@@ -51,6 +52,7 @@ pub fn fallback_models() -> Vec<AiModel> {
                 "streaming".to_string(),
                 "reasoning".to_string(),
             ],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5.3-codex".to_string(),
@@ -60,6 +62,7 @@ pub fn fallback_models() -> Vec<AiModel> {
                 "streaming".to_string(),
                 "reasoning".to_string(),
             ],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5.2-codex".to_string(),
@@ -69,11 +72,13 @@ pub fn fallback_models() -> Vec<AiModel> {
                 "streaming".to_string(),
                 "reasoning".to_string(),
             ],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5.2".to_string(),
             label: "gpt-5.2".to_string(),
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5.1-codex-max".to_string(),
@@ -83,36 +88,43 @@ pub fn fallback_models() -> Vec<AiModel> {
                 "streaming".to_string(),
                 "reasoning".to_string(),
             ],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5.1-codex".to_string(),
             label: "gpt-5.1-codex".to_string(),
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5.1".to_string(),
             label: "gpt-5.1".to_string(),
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5-codex".to_string(),
             label: "gpt-5-codex".to_string(),
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5".to_string(),
             label: "gpt-5".to_string(),
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5.1-codex-mini".to_string(),
             label: "gpt-5.1-codex-mini".to_string(),
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         },
         AiModel {
             id: "gpt-5-codex-mini".to_string(),
             label: "gpt-5-codex-mini".to_string(),
             capabilities: vec!["tool_use".to_string(), "streaming".to_string()],
+            context_window: 128_000,
         },
     ]
 }

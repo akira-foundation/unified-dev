@@ -148,6 +148,7 @@ export function AgentChatInput() {
     sendMessage,
     streamingThreadIds,
     selectedIssueId,
+    messages,
   } = useAgentsStore();
 
   useEffect(() => {
@@ -160,6 +161,12 @@ export function AgentChatInput() {
   const selectedModel = aiProviders
     .flatMap((p) => p.models)
     .find((m) => m.id === effectiveModelId);
+
+  const contextWindow = selectedModel?.context_window ?? 0;
+  const usedTokens = useMemo(
+    () => Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4),
+    [messages],
+  );
 
   const hasProviders = aiProviders.length > 0;
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
@@ -378,8 +385,8 @@ export function AgentChatInput() {
               <button className="hover:text-foreground transition-colors p-1">
                 <Mic className="h-4 w-4" />
               </button>
-              <span className="text-[12.5px] font-medium tracking-wide">
-                2842k
+              <span className="text-[12.5px] font-medium tracking-wide tabular-nums">
+                {usedTokens > 0 ? `${(usedTokens / 1000).toFixed(0)}k / ` : ""}{(contextWindow / 1000).toFixed(0)}k
               </span>
             </div>
 
