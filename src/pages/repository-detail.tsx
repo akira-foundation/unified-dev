@@ -611,6 +611,7 @@ export function RepositoryDetailPage() {
               filterNamespace="repo-prs"
               organizationId={activeRepo!.organizationId}
               repoName={activeRepo!.name}
+              owner={activeRepo!.owner}
               isSyncing={syncPrsMutation.isPending}
               onSync={() => syncPrsMutation.mutate(prScope)}
               syncOptions={([
@@ -794,6 +795,7 @@ export function RepositoryDetailPage() {
         open={prSheetOpen}
         organizationId={activeRepo.organizationId}
         repoName={activeRepo.name}
+        owner={activeRepo.owner}
         onOpenChange={setPrSheetOpen}
         onOpenUrl={handleOpenUrl}
         onMerged={handleMerged}

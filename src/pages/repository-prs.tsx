@@ -347,6 +347,7 @@ export function RepositoryPRsPage() {
         open={sheetOpen}
         organizationId={activeRepo.organizationId}
         repoName={activeRepo.name}
+        owner={activeRepo.owner}
         onOpenChange={setSheetOpen}
         onOpenUrl={handleOpenUrl}
         onMerged={handleMerged}

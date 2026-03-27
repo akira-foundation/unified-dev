@@ -36,7 +36,7 @@ function FileDiffCard({
   onViewedChange: (viewed: boolean) => void;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(!viewed);
   const { ref: sentinelRef, intersected } = useIntersected("300px");
 
   const handleOpenChange = (next: boolean) => {

@@ -69,9 +69,12 @@ export function DiffViewer({ files }: DiffViewerProps) {
 
   const collapsedFiles = selectedIssueId ? (collapsedFilesByThread[selectedIssueId] ?? {}) : {};
 
+  const isCollapsed = (filename: string) =>
+    collapsedFiles[filename] ?? (storeKey ? isViewed(storeKey, filename) : false);
+
   const toggleCollapse = (filename: string) => {
     if (!selectedIssueId) return;
-    setFileCollapsed(selectedIssueId, filename, !collapsedFiles[filename]);
+    setFileCollapsed(selectedIssueId, filename, !isCollapsed(filename));
   };
 
   const toggleAll = () => {
@@ -81,7 +84,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
     }
     if (!selectedIssueId) return;
 
-    const allCollapsed = files.length > 0 && files.every(f => collapsedFiles[f.filename]);
+    const allCollapsed = files.length > 0 && files.every(f => isCollapsed(f.filename));
     files.forEach(f => setFileCollapsed(selectedIssueId, f.filename, !allCollapsed));
   };
 
@@ -170,7 +173,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
                   onClick={() => toggleCollapse(file.filename)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={cn("transition-transform duration-200", collapsedFiles[file.filename] ? "-rotate-90" : "rotate-0")}>
+                    <div className={cn("transition-transform duration-200", isCollapsed(file.filename) ? "-rotate-90" : "rotate-0")}>
                       <ChevronDown className="h-4 w-4 text-zinc-400 dark:text-muted-foreground/40" />
                     </div>
                     <div className="h-6 w-6 rounded-md flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-600 dark:text-purple-400">
@@ -249,7 +252,7 @@ export function DiffViewer({ files }: DiffViewerProps) {
 
                 <div className={cn(
                   "transition-all duration-300",
-                  collapsedFiles[file.filename] ? "max-h-0 overflow-hidden" : "max-h-none overflow-visible"
+                  isCollapsed(file.filename) ? "max-h-0 overflow-hidden" : "max-h-none overflow-visible"
                 )}>
                   <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800">
                     {file.diff && <PatchViewer patch={file.diff} splitView={splitView} filename={file.filename} />}

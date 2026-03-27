@@ -37,6 +37,7 @@ interface PrListCardProps {
   filterNamespace: string;
   organizationId: string;
   repoName: string;
+  owner: string;
   isSyncing?: boolean;
   onSync?: () => void;
   syncOptions?: Array<{ label: string; onSelect: () => void }>;
@@ -52,13 +53,14 @@ export function PrListCard({
   filterNamespace,
   organizationId,
   repoName,
+  owner,
   isSyncing,
   onSync,
   syncOptions,
   onMerged,
 }: PrListCardProps) {
   const { t } = useI18n();
-  const { navigateTo, setActivePr } = useNavigationStore();
+  const { navigateTo, setActivePr, setActiveRepo } = useNavigationStore();
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -141,6 +143,7 @@ export function PrListCard({
   };
 
   const handleReview = (pr: PullRequestDto) => {
+    setActiveRepo({ name: repoName, owner, organizationId });
     setActivePr(pr);
     navigateTo("pr-review");
   };
@@ -319,6 +322,7 @@ export function PrListCard({
         open={sheetOpen}
         organizationId={organizationId}
         repoName={repoName}
+        owner={owner}
         onOpenChange={setSheetOpen}
         onOpenUrl={handleOpenUrl}
         onMerged={onMerged ?? (() => {})} 

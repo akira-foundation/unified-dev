@@ -52,6 +52,7 @@ export function PrDetailSheet({
   open,
   organizationId,
   repoName,
+  owner,
   onOpenChange,
   onOpenUrl,
   onMerged,
@@ -60,13 +61,14 @@ export function PrDetailSheet({
   open: boolean;
   organizationId: string;
   repoName: string;
+  owner: string;
   onOpenChange: (open: boolean) => void;
   onOpenUrl: (url: string) => void;
   onMerged: () => void;
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const { navigateTo, setActivePr } = useNavigationStore();
+  const { navigateTo, setActivePr, setActiveRepo } = useNavigationStore();
   const strategyLabels: Record<PrMergeStrategy, string> = {
     merge: t("components.prDetail.mergeCommit"),
     squash: t("components.prDetail.mergeSquash"),
@@ -155,7 +157,7 @@ export function PrDetailSheet({
                     variant="outline"
                     size="sm"
                     className="h-7 px-2.5 text-xs text-zinc-600 dark:text-zinc-300 cursor-pointer inline-flex items-center gap-1.5"
-                    onClick={() => { setActivePr(pr); navigateTo("pr-review"); }}
+                    onClick={() => { setActiveRepo({ name: repoName, owner, organizationId }); setActivePr(pr); navigateTo("pr-review"); }}
                   >
                     <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                     <span>{t("components.prDetail.review")}</span>
