@@ -20,4 +20,5 @@ export const queryKeys = {
   issueDetail: (orgId: string, repo: string, number: number) =>
     ["issue-detail", orgId, repo, number] as const,
   branches: (orgId: string, repo: string) => ["branches", orgId, repo] as const,
+  rateLimits: () => ["rate-limits"] as const,
 };

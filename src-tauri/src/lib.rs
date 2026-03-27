@@ -19,7 +19,7 @@ use commands::organization::{
     update_organization,
 };
 use commands::provider::{
-    connect_github, create_provider, delete_provider, list_provider_organizations, list_provider_repositories,
+    connect_github, create_provider, delete_provider, get_rate_limit, list_provider_organizations, list_provider_repositories,
     list_providers, test_provider_connection, update_provider_auth,
 };
 use commands::terminal::{
@@ -95,6 +95,7 @@ pub fn run() {
             test_provider_connection,
             list_provider_organizations,
             list_provider_repositories,
+            get_rate_limit,
             create_organization,
             update_organization,
             list_organizations,

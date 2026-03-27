@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, MinusCircle, SkipForward, Timer, ChevronDown, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
@@ -27,36 +28,26 @@ function parseLogsByStep(raw: string, steps: CiCheckStepDto[]): Map<number, stri
   const map = new Map<number, string[]>();
   const tsRegex = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z) /;
 
-  const sorted = [...steps]
-    .filter((s) => s.started_at)
-    .sort((a, b) => a.number - b.number);
+  for (const step of steps) map.set(step.number, []);
 
-  for (const step of sorted) map.set(step.number, []);
-
-  const parsedLines = raw.split("\n").map((line) => {
+  const lines = raw.split("\n").map((line) => {
     const match = line.match(tsRegex);
-    if (!match) return null;
-    return { ts: new Date(match[1]).getTime(), text: line.replace(tsRegex, "") };
+    return match ? { ts: new Date(match[1]).getTime(), text: line.replace(tsRegex, "") } : null;
   }).filter((l): l is { ts: number; text: string } => l !== null);
 
-  // Each step owns lines from its started_at up to (next step with a different
-  // started_at second - 1ms). When multiple steps share the same second-precision
-  // started_at, only the first one in the group will have a start boundary that
-  // matches those lines — later co-second steps get 0 lines. This is a known
-  // limitation of the GitHub API which only exposes second-precision timestamps.
-  const intervals = sorted.map((s, i) => {
-    const start = new Date(s.started_at!).getTime();
-    const nextDifferent = sorted.slice(i + 1).find(
-      (n) => new Date(n.started_at!).getTime() > start
-    );
-    const end = nextDifferent
-      ? new Date(nextDifferent.started_at!).getTime() - 1
-      : Infinity;
-    return { number: s.number, start, end };
-  });
+  const sorted = [...steps]
+    .filter((s) => s.started_at)
+    .sort((a, b) => new Date(a.started_at!).getTime() - new Date(b.started_at!).getTime());
 
-  // Assign each line to the first interval that contains its timestamp.
-  for (const l of parsedLines) {
+  const intervals = sorted.map((s, i) => ({
+    number: s.number,
+    start: new Date(s.started_at!).getTime(),
+    end: i + 1 < sorted.length
+      ? new Date(sorted[i + 1].started_at!).getTime() - 1
+      : Infinity,
+  }));
+
+  for (const l of lines) {
     if (l.text.startsWith("##[")) continue;
     if (!l.text.trim()) continue;
     for (const iv of intervals) {
@@ -173,7 +164,7 @@ function CheckItem({
   const duration = formatDuration(check.started_at, check.completed_at);
   const hasSteps = check.steps.length > 0;
 
-  const { data: rawLogs, isLoading: logsLoading } = useQuery({
+  const { data: rawLogs, isLoading: logsLoading, isError: logsError, error: logsErr } = useQuery({
     queryKey: queryKeys.jobLogs(orgId, repoName, check.id),
     queryFn: async () => {
       const logs = await invoke<string>("get_job_logs", {
@@ -185,7 +176,12 @@ function CheckItem({
     },
     enabled: open && hasSteps && check.status === "completed",
     staleTime: cache.staleTime.default,
+    gcTime: cache.gcTime.long,
   });
+
+  useEffect(() => {
+    if (logsError) toast.error(String(logsErr));
+  }, [logsError, logsErr]);
 
   const logsByStep = rawLogs ? parseLogsByStep(rawLogs, check.steps) : undefined;
 

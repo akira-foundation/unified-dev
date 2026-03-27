@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { MessageSquare, ExternalLink } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { toast } from "sonner";
 
 import { useI18n } from "../i18n/i18n";
 import { Button } from "../components/ui/button";
@@ -19,6 +20,7 @@ import { PrChecksView } from "../components/repos/pr-checks-view";
 import { PrReviewSheet } from "../components/repos/pr-review-sheet";
 import { useNavigationStore } from "../stores/navigation-store";
 import { queryKeys } from "../lib/query-keys";
+import { cache } from "../config/cache";
 import type { CiCheckDto, PrFileDto } from "../types/organization";
 
 export function PrReviewPage() {
@@ -26,7 +28,7 @@ export function PrReviewPage() {
   const { activePr, activeRepo } = useNavigationStore();
   const [reviewOpen, setReviewOpen] = useState(false);
 
-  const { data: files = [], isLoading: filesLoading } = useQuery({
+  const { data: files = [], isLoading: filesLoading, isError: filesError, error: filesErr } = useQuery({
     queryKey: queryKeys.prFiles(
       activeRepo?.organizationId ?? "",
       activeRepo?.name ?? "",
@@ -39,9 +41,11 @@ export function PrReviewPage() {
         prNumber: activePr!.number,
       }),
     enabled: !!activePr && !!activeRepo,
+    staleTime: cache.staleTime.default,
+    gcTime: cache.gcTime.long,
   });
 
-  const { data: checks = [], isLoading: checksLoading } = useQuery({
+  const { data: checks = [], isLoading: checksLoading, isError: checksError, error: checksErr } = useQuery({
     queryKey: queryKeys.prChecks(
       activeRepo?.organizationId ?? "",
       activeRepo?.name ?? "",
@@ -54,7 +58,17 @@ export function PrReviewPage() {
         headSha: activePr!.head_sha,
       }),
     enabled: !!activePr && !!activeRepo && !!activePr.head_sha,
+    staleTime: cache.staleTime.default,
+    gcTime: cache.gcTime.long,
   });
+
+  useEffect(() => {
+    if (filesError) toast.error(String(filesErr));
+  }, [filesError, filesErr]);
+
+  useEffect(() => {
+    if (checksError) toast.error(String(checksErr));
+  }, [checksError, checksErr]);
 
   if (!activePr || !activeRepo) return null;
 

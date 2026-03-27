@@ -29,3 +29,18 @@ export interface CreateProviderInput {
   kind: ProviderKind;
   auth: ProviderAuth;
 }
+
+export interface RateLimitResource {
+  limit: number;
+  used: number;
+  remaining: number;
+  reset: number;
+}
+
+export interface RateLimitDto {
+  provider_id: string;
+  provider_name: string;
+  core: RateLimitResource;
+  search: RateLimitResource;
+  graphql: RateLimitResource;
+}
