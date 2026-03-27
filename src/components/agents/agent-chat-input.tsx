@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import type { SendMessageOptions } from "@/stores/useAgentsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -138,6 +139,10 @@ export function AgentChatInput() {
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [planMode, setPlanMode] = useState(false);
+  const [thinkingOpen, setThinkingOpen] = useState(false);
+  const [thinkingBudget, setThinkingBudget] = useState<"x-high" | "high" | "medium" | "low">("medium");
+  const [fastMode, setFastMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const {
     aiProviders,
@@ -168,7 +173,26 @@ export function AgentChatInput() {
     [messages],
   );
 
+  const hasReasoning = selectedModel?.capabilities.includes("reasoning") ?? false;
+  const supportsPlanMode = selectedModel !== undefined;
   const hasProviders = aiProviders.length > 0;
+
+  useEffect(() => {
+    if (!hasReasoning) {
+      setThinkingBudget("medium");
+    }
+
+    if (!supportsPlanMode) {
+      setPlanMode(false);
+    }
+  }, [hasReasoning, supportsPlanMode]);
+
+  const thinkingLabels: Record<string, string> = {
+    "x-high": "X-High",
+    high: "High",
+    medium: "Medium",
+    low: "Low",
+  };
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
   const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId;
   // Build flat list of slash items from the current query
@@ -243,7 +267,12 @@ export function AgentChatInput() {
     if (textareaRef.current) {
       textareaRef.current.style.height = "24px";
     }
-    await sendMessage(selectedIssueId!, content, effectiveModelId!);
+    const opts: SendMessageOptions = {
+      planMode,
+      thinkingBudget: hasReasoning ? thinkingBudget : "not-available",
+      fastMode,
+    };
+    await sendMessage(selectedIssueId!, content, effectiveModelId!, undefined, opts);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -311,7 +340,7 @@ export function AgentChatInput() {
         <CardContent className="flex flex-col p-3 border-0">
 
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-4 text-zinc-400">
+            <div className="flex items-center gap-2 text-zinc-400">
               <button className="hover:text-foreground transition-colors p-1">
                 <Plus className="h-4 w-4" />
               </button>
@@ -382,15 +411,76 @@ export function AgentChatInput() {
                 <span className="text-[13px] font-medium text-zinc-500">{t("agents.chatInput.noModelsAvailable")}</span>
               )}
 
-              <button className="hover:text-foreground transition-colors p-1">
-                <Mic className="h-4 w-4" />
+              {supportsPlanMode && (
+                <button
+                  onClick={() => setPlanMode((v) => !v)}
+                  className={cn(
+                    "text-[12px] font-medium px-2 py-0.5 rounded transition-colors",
+                    planMode
+                      ? "bg-purple-500/20 text-purple-400"
+                      : "hover:text-foreground",
+                  )}
+                >
+                  Plan mode
+                </button>
+              )}
+
+              {hasReasoning && (
+                <Popover open={thinkingOpen} onOpenChange={setThinkingOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={cn(
+                        "text-[12px] font-medium px-2 py-0.5 rounded transition-colors",
+                        thinkingBudget !== "medium"
+                          ? "bg-purple-500/20 text-purple-400"
+                          : "hover:text-foreground",
+                      )}
+                    >
+                      {thinkingLabels[thinkingBudget]}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="w-32 p-1 bg-popover dark:border-white/[0.05] border-border shadow-2xl rounded-md">
+                    {(["x-high", "high", "medium", "low"] as const).map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => { setThinkingBudget(level); setThinkingOpen(false); }}
+                        className={cn(
+                          "w-full text-left px-3 py-1.5 text-[13px] font-medium rounded transition-colors",
+                          thinkingBudget === level
+                            ? "text-purple-400 bg-purple-500/10"
+                            : "text-foreground/70 hover:bg-white/[0.04]",
+                        )}
+                      >
+                        {thinkingLabels[level]}
+                      </button>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              )}
+
+              <button
+                title="Toggle fast mode"
+                onClick={() => setFastMode((v) => !v)}
+                className={cn(
+                  "text-[12px] font-medium px-2 py-0.5 rounded transition-colors",
+                  fastMode
+                    ? "bg-emerald-500/20 text-emerald-400"
+                    : "hover:text-foreground",
+                )}
+              >
+                {fastMode ? "Fast" : "Standard"}
               </button>
+
               <span className="text-[12.5px] font-medium tracking-wide tabular-nums">
                 {usedTokens > 0 ? `${(usedTokens / 1000).toFixed(0)}k / ` : ""}{(contextWindow / 1000).toFixed(0)}k
               </span>
             </div>
 
-            <button
+            <div className="flex items-center gap-2">
+              <button className="hover:text-foreground text-zinc-400 transition-colors p-1">
+                <Mic className="h-4 w-4" />
+              </button>
+              <button
               onClick={
                 isCurrentThreadStreaming
                   ? () => { invoke("abort_agent", { threadId: selectedIssueId }); }
@@ -412,6 +502,7 @@ export function AgentChatInput() {
                 <ArrowUp className="h-4 w-4" />
               )}
             </button>
+            </div>
           </div>
 
           <div className="mt-2.5 px-1 pb-1">
@@ -428,7 +519,7 @@ export function AgentChatInput() {
                   : t("agents.chatInput.placeholder.noProvider")
               }
               disabled={!hasProviders}
-              className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-foreground/90 placeholder:text-zinc-400 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
+              className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-foreground/90 placeholder:text-zinc-600 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
               rows={1}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;

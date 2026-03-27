@@ -49,14 +49,31 @@ impl AnthropicProvider {
         let mut workspace_path = request.workspace_path.clone();
 
         loop {
-            let body = json!({
+            let max_tokens: u32 = if request.fast_mode { 2048 } else { 8096 };
+
+            let thinking_budget_tokens: Option<u32> = match request.thinking_budget.as_str() {
+                "x-high" => Some(10000),
+                "high"   => Some(5000),
+                "medium" => Some(2000),
+                "low"    => Some(500),
+                _        => None,
+            };
+
+            let mut body = json!({
                 "model": api_model,
-                "max_tokens": 8096,
+                "max_tokens": max_tokens,
                 "system": request.system_prompt,
                 "messages": messages,
                 "tools": tools,
                 "stream": true
             });
+
+            if let Some(budget) = thinking_budget_tokens {
+                body["thinking"] = json!({
+                    "type": "enabled",
+                    "budget_tokens": budget
+                });
+            }
 
             let response = client
                 .post("https://api.anthropic.com/v1/messages")

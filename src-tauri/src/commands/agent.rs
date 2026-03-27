@@ -26,8 +26,15 @@ pub async fn send_message(
     message: String,
     model: String,
     silent: Option<bool>,
+    plan_mode: Option<bool>,
+    thinking_budget: Option<String>,
+    fast_mode: Option<bool>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> AppResult<()> {
-    threads::agents::send_message::send_message(thread_id, message, model, silent, state, app).await
+    threads::agents::send_message::send_message(
+        thread_id, message, model, silent,
+        plan_mode, thinking_budget, fast_mode,
+        state, app,
+    ).await
 }

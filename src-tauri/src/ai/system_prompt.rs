@@ -61,7 +61,15 @@ pub fn collect_file_tree(root: &std::path::Path, max_depth: usize) -> String {
     entries.join("\n")
 }
 
-pub fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) -> String {
+pub fn build_system_prompt(
+    repo_name: &str,
+    workspace_path: &str,
+    branch: &str,
+    model: &str,
+    plan_mode: bool,
+    thinking_budget: &str,
+    fast_mode: bool,
+) -> String {
     let root = std::path::Path::new(workspace_path);
     let file_tree = collect_file_tree(root, 4);
 
@@ -70,6 +78,29 @@ pub fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) 
     } else {
         format!("\n\nRepository file tree:\n```\n{file_tree}\n```")
     };
+
+    let plan_section = if plan_mode {
+        "\n\nPLAN MODE IS ACTIVE. Before making any changes or running any tools, you MUST:\n\
+         1. Outline your full plan step by step in a numbered list.\n\
+         2. End with: \"Ready to proceed — confirm to start.\"\n\
+         3. Wait for the user's confirmation before taking any action.\n\
+         If asked whether you are in plan mode, answer: yes."
+    } else {
+        ""
+    };
+
+    let runtime_modes = format!(
+        "\n\nCurrent runtime configuration:\n- Model: {}\n- Plan mode: {}\n- Thinking budget: {}\n- Response mode: {}\n\
+         If the user asks which of these modes is active, answer using this configuration.",
+        model,
+        if plan_mode { "active" } else { "inactive" },
+        if thinking_budget == "not-available" {
+            "not available"
+        } else {
+            thinking_budget
+        },
+        if fast_mode { "fast" } else { "standard" },
+    );
 
     format!(
         "You are an AI coding agent working on the repository '{repo_name}' (branch: {branch}).\n\
@@ -82,7 +113,7 @@ pub fn build_system_prompt(repo_name: &str, workspace_path: &str, branch: &str) 
          If a rename_workspace tool is not available in your environment, output a line in this exact format on its own line: RENAME_WORKSPACE:<new_name> (e.g. RENAME_WORKSPACE:graph-inspector). The name must contain only letters, digits, hyphens, and underscores.\n\n\
          Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
          so the user can follow your progress. Keep these messages brief and factual.\
-         {tree_section}"
+         {runtime_modes}{tree_section}{plan_section}"
     )
 }
 

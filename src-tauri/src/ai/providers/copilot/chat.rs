@@ -38,14 +38,34 @@ impl CopilotChatProvider {
         let mut workspace_path = request.workspace_path.clone();
 
         loop {
-            let body = json!({
+            let max_tokens: u32 = if request.fast_mode { 2048 } else { 4096 };
+
+            let reasoning_effort: Option<&str> = match request.thinking_budget.as_str() {
+                "x-high" | "high" => Some("high"),
+                "medium"          => Some("medium"),
+                "low"             => Some("low"),
+                _                 => None,
+            };
+
+            let is_reasoning_model = request.model.starts_with("o1")
+                || request.model.starts_with("o3")
+                || request.model.starts_with("o4")
+                || request.model.starts_with("gpt-5");
+
+            let mut body = json!({
                 "model": request.model,
                 "messages": messages,
                 "stream": true,
-                "max_tokens": 4096,
+                "max_tokens": max_tokens,
                 "tools": tools,
                 "tool_choice": "auto"
             });
+
+            if is_reasoning_model {
+                if let Some(effort) = reasoning_effort {
+                    body["reasoning"] = json!({ "effort": effort });
+                }
+            }
 
             let response = client
                 .post("https://api.githubcopilot.com/chat/completions")

@@ -39,14 +39,34 @@ impl CopilotResponsesProvider {
         let mut workspace_path = request.workspace_path.clone();
 
         loop {
-            let body = json!({
+            let max_output_tokens: u32 = if request.fast_mode { 2048 } else { 8192 };
+
+            let reasoning_effort: Option<&str> = match request.thinking_budget.as_str() {
+                "x-high" | "high" => Some("high"),
+                "medium"          => Some("medium"),
+                "low"             => Some("low"),
+                _                 => None,
+            };
+
+            let is_reasoning_model = request.model.starts_with("o1")
+                || request.model.starts_with("o3")
+                || request.model.starts_with("o4")
+                || request.model.starts_with("gpt-5");
+
+            let mut body = json!({
                 "model": request.model,
                 "input": input,
                 "stream": true,
-                "max_output_tokens": 8192,
+                "max_output_tokens": max_output_tokens,
                 "tools": tools,
                 "tool_choice": "auto"
             });
+
+            if is_reasoning_model {
+                if let Some(effort) = reasoning_effort {
+                    body["reasoning"] = json!({ "effort": effort });
+                }
+            }
 
             let response = client
                 .post("https://api.githubcopilot.com/v1/responses")

@@ -18,7 +18,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 
 const DIFF_MIN_WIDTH = 280;
 const DIFF_MAX_WIDTH = 900;
-const DIFF_DEFAULT_WIDTH = 600;
+const DIFF_DEFAULT_WIDTH = 500;
 const CHAT_MIN_WIDTH = 500;
 const TERMINAL_MIN_HEIGHT = 100;
 const TERMINAL_MAX_HEIGHT = 600;

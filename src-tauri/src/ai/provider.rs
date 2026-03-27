@@ -13,6 +13,10 @@ pub struct AiRequest {
     pub history: Vec<Message>,
     pub model: String,
     pub workspace_path: String,
+    pub plan_mode: bool,
+    /// One of "x-high", "high", "medium", "low".
+    pub thinking_budget: String,
+    pub fast_mode: bool,
 }
 
 /// A pluggable AI provider adapter.

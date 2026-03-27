@@ -6,6 +6,12 @@ import { toast } from "sonner";
 import type { AgentTimelineStep, FileChange, RepositoryGroup, AgentStatus } from "../types/agents";
 import type { AiProviderGroup, AiProviderResponse } from "../types/ai-providers";
 
+export interface SendMessageOptions {
+  planMode?: boolean;
+  thinkingBudget?: "x-high" | "high" | "medium" | "low" | "not-available";
+  fastMode?: boolean;
+}
+
 export interface InstalledSkill {
   id: string;
   name: string;
@@ -58,7 +64,7 @@ interface AgentsState {
   // Which thread is currently streaming (may differ from selectedIssueId when navigating)
   streamingThreadId: string | null;
   // Per-thread message queue — messages sent while agent is already running.
-  messageQueueByThread: Record<string, Array<{ content: string; model: string }>>;
+  messageQueueByThread: Record<string, Array<{ content: string; model: string; options?: SendMessageOptions }>>;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
@@ -70,7 +76,7 @@ interface AgentsState {
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
   loadMessages: (threadId: string) => Promise<void>;
-  sendMessage: (threadId: string, content: string, model: string, silent?: boolean) => Promise<void>;
+  sendMessage: (threadId: string, content: string, model: string, silent?: boolean, options?: SendMessageOptions) => Promise<void>;
   loadFileChanges: (workspacePath: string) => Promise<void>;
   addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string, workspace_path: string }) => void;
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
@@ -249,7 +255,7 @@ export const useAgentsStore = create<AgentsState>()(
           }));
         }
       },
-      sendMessage: async (threadId: string, content: string, model: string, silent = false) => {
+      sendMessage: async (threadId: string, content: string, model: string, silent = false, options?: SendMessageOptions) => {
         const { repositoryGroups, streamingThreadIds } = get();
 
         // If this thread is already streaming, queue the message for later.
@@ -257,7 +263,7 @@ export const useAgentsStore = create<AgentsState>()(
           set((state) => ({
             messageQueueByThread: {
               ...state.messageQueueByThread,
-              [threadId]: [...(state.messageQueueByThread[threadId] ?? []), { content, model }],
+              [threadId]: [...(state.messageQueueByThread[threadId] ?? []), { content, model, options }],
             },
           }));
           return;
@@ -473,7 +479,7 @@ export const useAgentsStore = create<AgentsState>()(
                 set((state) => ({
                   messageQueueByThread: { ...state.messageQueueByThread, [threadId]: rest },
                 }));
-                await get().sendMessage(threadId, next.content, next.model);
+                await get().sendMessage(threadId, next.content, next.model, undefined, next.options);
               }
             }
           }
@@ -499,7 +505,15 @@ export const useAgentsStore = create<AgentsState>()(
         );
 
         try {
-          await invoke("send_message", { threadId, message: content, model, silent });
+          await invoke("send_message", {
+            threadId,
+            message: content,
+            model,
+            silent,
+            planMode: options?.planMode ?? false,
+            thinkingBudget: options?.thinkingBudget ?? "medium",
+            fastMode: options?.fastMode ?? false,
+          });
         } catch (err) {
           unlistenToken();
           unlistenDone();

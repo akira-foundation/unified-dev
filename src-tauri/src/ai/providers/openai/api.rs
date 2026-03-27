@@ -39,10 +39,13 @@ impl OpenAiProvider {
         let mut workspace_path = request.workspace_path.clone();
 
         loop {
+            let max_output_tokens: u32 = if request.fast_mode { 2048 } else { 8192 };
+
             let body = json!({
                 "model": "codex-mini-latest",
                 "input": input,
                 "stream": true,
+                "max_output_tokens": max_output_tokens,
                 "tools": tools,
                 "tool_choice": "auto"
             });

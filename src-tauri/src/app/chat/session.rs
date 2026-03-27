@@ -61,6 +61,9 @@ pub async fn run(
     content: String,
     model: String,
     silent: bool,
+    plan_mode: bool,
+    thinking_budget: String,
+    fast_mode: bool,
     pool: SqlitePool,
     app: AppHandle,
 ) -> AppResult<()> {
@@ -80,7 +83,15 @@ pub async fn run(
     let system_prompt = if silent {
         build_action_system_prompt(&repo_ctx.name, &thread_ctx.workspace_path, &thread_ctx.branch)
     } else {
-        build_system_prompt(&repo_ctx.name, &thread_ctx.workspace_path, &thread_ctx.branch)
+        build_system_prompt(
+            &repo_ctx.name,
+            &thread_ctx.workspace_path,
+            &thread_ctx.branch,
+            &model,
+            plan_mode,
+            &thinking_budget,
+            fast_mode,
+        )
     };
 
     let request = AiRequest {
@@ -90,6 +101,9 @@ pub async fn run(
         history,
         model: model.clone(),
         workspace_path: thread_ctx.workspace_path,
+        plan_mode,
+        thinking_budget,
+        fast_mode,
     };
 
     match default_registry().dispatch(request, &app).await {
