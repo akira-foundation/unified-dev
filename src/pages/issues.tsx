@@ -3,6 +3,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import {
   PageHeader,
@@ -136,20 +137,116 @@ export function IssuesPage() {
   }
 
   const deleteIssueMutation = useMutation({
-    mutationFn: (issue: IssueDto) => {
+    mutationFn: async (issue: IssueDto) => {
       const repo = allRepos.find(
         (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
       );
-      return invoke("delete_issue", {
-        orgId: repo?.organization_id ?? issue.orgId,
-        repoName: issue.repoName,
-        number: issue.number,
+      try {
+        return await invoke("delete_issue", {
+          orgId: repo?.organization_id ?? issue.orgId,
+          repoName: issue.repoName,
+          number: issue.number,
+          issueId: issue.id,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("Issue not found")) {
+          return;
+        }
+        throw error;
+      }
+    },
+    onMutate: async (issue) => {
+      const issueQueryKey = queryKeys.issues(issue.orgId, issue.repoName);
+      const issueSnapshots = queryClient.getQueriesData<IssueDto[]>({ queryKey: issueQueryKey });
+      issueSnapshots.forEach(([key, data]) => {
+        queryClient.setQueryData<IssueDto[]>(key, (data ?? []).filter((entry) => entry.id !== issue.id));
       });
+
+      const repoSnapshots = [
+        [queryKeys.selectedRepositories(issue.orgId), queryClient.getQueryData<OrganizationRepoWithOrg[]>(queryKeys.selectedRepositories(issue.orgId))] as const,
+        [queryKeys.allRepositories(), queryClient.getQueryData<OrganizationRepoWithOrg[]>(queryKeys.allRepositories())] as const,
+      ];
+
+      repoSnapshots.forEach(([key]) => {
+        queryClient.setQueryData<OrganizationRepoWithOrg[]>(key, (current) =>
+          current?.map((repo) => (
+            repo.organization_id === issue.orgId && repo.repo_name === issue.repoName
+              ? { ...repo, open_issues_count: Math.max((repo.open_issues_count ?? 1) - 1, 0) }
+              : repo
+          )),
+        );
+      });
+
+      return { issueSnapshots, repoSnapshots };
+    },
+    onError: (error, _issue, context) => {
+      const message = error instanceof Error ? error.message : String(error);
+      context?.issueSnapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      context?.repoSnapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast.error(message);
     },
     onSuccess: (_, issue) => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.issues(issue.orgId, issue.repoName),
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(issue.orgId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+    },
+  });
+
+  const assignToMeMutation = useMutation({
+    mutationFn: async (issue: IssueDto) => {
+      const repo = allRepos.find(
+        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
+      );
+      const currentLogin = repo ? resolveCurrentLogin(repo.organization_id, organizations, providers) : null;
+      if (!currentLogin) {
+        throw new Error(t("issues.table.toast.noCurrentUser"));
+      }
+
+      return invoke<IssueDto>("update_issue", {
+        orgId: issue.orgId,
+        repoName: issue.repoName,
+        number: issue.number,
+        issueId: issue.id,
+        input: {
+          assignees: Array.from(new Set([...(issue.assignees ?? []), currentLogin])),
+        },
       });
+    },
+    onMutate: async (issue) => {
+      const repo = allRepos.find(
+        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
+      );
+      const currentLogin = repo ? resolveCurrentLogin(repo.organization_id, organizations, providers) : null;
+      if (!currentLogin) {
+        return { snapshots: [] as Array<[readonly unknown[], IssueDto[] | undefined]> };
+      }
+
+      const queryKey = queryKeys.issues(issue.orgId, issue.repoName);
+      const snapshots = queryClient.getQueriesData<IssueDto[]>({ queryKey });
+      queryClient.setQueriesData<IssueDto[]>({ queryKey }, (current) => {
+        if (!current) return current;
+        return current.map((entry) => (
+          entry.id === issue.id
+            ? { ...entry, assignees: Array.from(new Set([...(entry.assignees ?? []), currentLogin])) }
+            : entry
+        ));
+      });
+      return { snapshots };
+    },
+    onError: (error, _issue, context) => {
+      context?.snapshots.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      toast.error(error instanceof Error ? error.message : String(error));
+    },
+    onSuccess: (updatedIssue, issue) => {
+      queryClient.setQueriesData<IssueDto[]>({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) }, (current) => {
+        if (!current) return current;
+        return current.map((entry) => (entry.id === updatedIssue.id ? updatedIssue : entry));
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) });
+      toast.success(t("issues.table.toast.assignedToMe"));
     },
   });
 
@@ -160,6 +257,38 @@ export function IssuesPage() {
       window.open(url, "_blank");
     }
   }
+
+  const removeIssueFromCaches = (issue: IssueDto) => {
+    const repo = allRepos.find(
+      (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
+    );
+    if (!repo) return;
+
+    const scope = resolveIssueScope(repo.organization_id, repo.repo_name);
+
+    queryClient.setQueryData<IssueDto[]>(
+      queryKeys.issues(repo.organization_id, repo.repo_name, scope),
+      (current) => (current ?? []).filter((entry) => entry.id !== issue.id),
+    );
+
+    queryClient.setQueryData<OrganizationRepoWithOrg[]>(
+      queryKeys.selectedRepositories(issue.orgId),
+      (current) => current?.map((entry) => (
+        entry.organization_id === issue.orgId && entry.repo_name === issue.repoName
+          ? { ...entry, open_issues_count: Math.max((entry.open_issues_count ?? 1) - 1, 0) }
+          : entry
+      )),
+    );
+
+    queryClient.setQueryData<OrganizationRepoWithOrg[]>(
+      queryKeys.allRepositories(),
+      (current) => current?.map((entry) => (
+        entry.organization_id === issue.orgId && entry.repo_name === issue.repoName
+          ? { ...entry, open_issues_count: Math.max((entry.open_issues_count ?? 1) - 1, 0) }
+          : entry
+      )),
+    );
+  };
 
   return (
     <PageLayout>
@@ -218,7 +347,11 @@ export function IssuesPage() {
             isSyncing={syncMutation.isPending}
             disableSync={allRepos.length === 0}
             onOpenUrl={handleOpenUrl}
-            onDelete={(issue) => deleteIssueMutation.mutateAsync(issue).then(() => undefined)}
+            onDelete={async (issue) => {
+              removeIssueFromCaches(issue);
+              await deleteIssueMutation.mutateAsync(issue);
+            }}
+            onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
           />
         ) : (
           <IssueKanban issues={allIssues} onSelect={handleSelectIssue} />
@@ -238,6 +371,17 @@ export function IssuesPage() {
         issues={allIssues}
         currentUserLoginByOrg={currentUserLoginByOrg}
         assignToSelfByDefault={assignIssuesToSelfByDefault}
+        onCreated={(createdIssue, repo) => {
+          if (!repo) return;
+          const scope = resolveIssueScope(repo.organization_id, repo.repo_name);
+          queryClient.setQueryData<IssueDto[]>(
+            queryKeys.issues(repo.organization_id, repo.repo_name, scope),
+            (current) => {
+              if (!current) return [createdIssue];
+              return [createdIssue, ...current.filter((entry) => entry.id !== createdIssue.id)];
+            },
+          );
+        }}
       />
     </PageLayout>
   );

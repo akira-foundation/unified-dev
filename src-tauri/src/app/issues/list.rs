@@ -34,6 +34,10 @@ pub async fn list(
                     return false;
                 }
 
+                if !issue.sync_with_provider {
+                    return true;
+                }
+
                 if issue.assignees.is_empty() {
                     return true;
                 }

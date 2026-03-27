@@ -53,9 +53,10 @@ pub async fn update_issue(
     org_id: String,
     repo_name: String,
     number: i64,
+    issue_id: Option<String>,
     input: UpdateIssueRequest,
 ) -> Result<IssueDto, String> {
-    issues::update(state, org_id, repo_name, number, input).await
+    issues::update(state, org_id, repo_name, number, issue_id, input).await
 }
 
 #[tauri::command]
@@ -75,8 +76,9 @@ pub async fn delete_issue(
     org_id: String,
     repo_name: String,
     number: i64,
+    issue_id: Option<String>,
 ) -> Result<(), String> {
-    issues::delete(state, org_id, repo_name, number).await
+    issues::delete(state, org_id, repo_name, number, issue_id).await
 }
 
 #[tauri::command]

@@ -70,6 +70,7 @@ interface IssueTableProps {
   disableSync?: boolean;
   onOpenUrl?: (url: string) => void;
   onDelete?: (issue: IssueDto) => Promise<void>;
+  onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
 }
 
 function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
@@ -94,6 +95,7 @@ export function IssueTable({
   disableSync,
   onOpenUrl,
   onDelete,
+  onAssignToMe,
 }: IssueTableProps) {
   const { t } = useI18n();
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -134,6 +136,21 @@ export function IssueTable({
     return Array.from(set).sort();
   }, [issues]);
 
+  const duplicateIssueTitleKeys = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    issues.forEach((issue) => {
+      const key = `${issue.repoName}::${issue.title.trim().toLowerCase()}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    });
+
+    return new Set(
+      Array.from(counts.entries())
+        .filter(([, count]) => count > 1)
+        .map(([key]) => key),
+    );
+  }, [issues]);
+
   const activeFilterCount =
     filters.statuses.length + filters.sources.length + filters.labels.length + filters.assignees.length + filters.repos.length;
 
@@ -162,32 +179,50 @@ export function IssueTable({
           </button>
         ),
         cell: ({ row }) => (
-          <div
-            className="flex flex-col gap-0.5 min-w-0 cursor-pointer"
-            onClick={() => onSelect?.(row.original)}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="truncate text-sm font-semibold text-gray-900 dark:text-white leading-snug hover:underline">
-                {row.original.title}
-              </span>
-              <span
-                className={`shrink-0 rounded-[6px] px-1.5 py-0.5 text-[10px] font-medium ${
-                  row.original.syncWithProvider
-                    ? "bg-emerald-500/10 text-emerald-400"
-                    : "bg-zinc-500/10 text-zinc-400"
-                }`}
+          (() => {
+            const issue = row.original;
+            const duplicateKey = `${issue.repoName}::${issue.title.trim().toLowerCase()}`;
+            const isDuplicate = duplicateIssueTitleKeys.has(duplicateKey);
+            const disambiguator = `#${issue.number}`;
+
+            return (
+              <div
+                className="flex flex-col gap-0.5 min-w-0 cursor-pointer"
+                onClick={() => onSelect?.(issue)}
               >
-                {row.original.syncWithProvider ? "sync" : "local"}
-              </span>
-            </div>
-            {row.original.labels.length > 0 && (
-              <div className="flex items-center gap-1 flex-wrap">
-                {row.original.labels.slice(0, 3).map((label) => (
-                  <LabelBadge key={label} name={label} />
-                ))}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="truncate text-sm font-semibold text-gray-900 dark:text-white leading-snug hover:underline">
+                    {issue.title}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-[6px] px-1.5 py-0.5 text-[10px] font-medium ${
+                      issue.syncWithProvider
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : "bg-zinc-500/10 text-zinc-400"
+                    }`}
+                  >
+                    {issue.syncWithProvider ? "sync" : "local"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap text-xs text-zinc-500 dark:text-zinc-400">
+                  <span>{issue.repoName}</span>
+                  {isDuplicate ? (
+                    <>
+                      <span className="text-zinc-300 dark:text-zinc-600">•</span>
+                      <span>{disambiguator}</span>
+                    </>
+                  ) : null}
+                </div>
+                {issue.labels.length > 0 && (
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {issue.labels.slice(0, 3).map((label) => (
+                      <LabelBadge key={label} name={label} />
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()
         ),
       },
       {
@@ -316,6 +351,12 @@ export function IssueTable({
                 <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
                   {t("common.open")}
                 </DropdownMenuLabel>
+                {onSelect && (
+                  <DropdownMenuItem onSelect={() => onSelect(row.original)}>
+                    <CircleDot className="mr-2 h-4 w-4" />
+                    {t("issues.table.viewIssue")}
+                  </DropdownMenuItem>
+                )}
                 {onOpenUrl && row.original.url && (
                   <DropdownMenuItem onSelect={() => onOpenUrl(row.original.url)}>
                     <ExternalLink className="mr-2 h-4 w-4" />
@@ -330,6 +371,12 @@ export function IssueTable({
                   <Bot className="mr-2 h-4 w-4" />
                   {t("issues.detail.delegate")}
                 </DropdownMenuItem>
+                {onAssignToMe && row.original.status === "open" && (
+                  <DropdownMenuItem onSelect={() => void onAssignToMe(row.original)}>
+                    <CircleDot className="mr-2 h-4 w-4" />
+                    {t("issues.table.assignToMe")}
+                  </DropdownMenuItem>
+                )}
                 {onDelete && row.original.status === "open" && (
                   <>
                     <DropdownMenuSeparator />
@@ -351,7 +398,7 @@ export function IssueTable({
         ),
       },
     ],
-    [t, onSelect, onNavigateToPrs, onNavigateToRepo, onOpenUrl, onDelete, delegateIssue],
+    [t, onSelect, onNavigateToPrs, onNavigateToRepo, onOpenUrl, onDelete, onAssignToMe, delegateIssue, duplicateIssueTitleKeys],
   );
 
   const table = useReactTable({

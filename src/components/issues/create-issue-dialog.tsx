@@ -36,6 +36,34 @@ import { useMutationWithToast } from "@/hooks/use-mutation-with-toast";
 import type { IssueDto } from "@/types/issue";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
 
+function matchesIssueScope(issue: IssueDto, scope: string, currentLogin: string | null): boolean {
+  switch (scope) {
+    case "all":
+      return true;
+    case "all_open":
+      return issue.status === "open";
+    case "my_queue":
+    default:
+      if (issue.status !== "open") return false;
+      if (!issue.syncWithProvider) return true;
+      if (issue.assignees.length === 0) return true;
+      return currentLogin ? issue.assignees.some((assignee) => assignee.toLowerCase() === currentLogin.toLowerCase()) : false;
+  }
+}
+
+function incrementRepoIssueCount<T extends { organization_id: string; repo_name: string; open_issues_count?: number }>(
+  repos: T[] | undefined,
+  orgId: string,
+  repoName: string,
+): T[] | undefined {
+  if (!repos) return repos;
+  return repos.map((repo) => (
+    repo.organization_id === orgId && repo.repo_name === repoName
+      ? { ...repo, open_issues_count: (repo.open_issues_count ?? 0) + 1 }
+      : repo
+  ));
+}
+
 interface LabelInfo {
   name: string;
   color: string;
@@ -51,6 +79,7 @@ interface CreateIssueDialogProps {
   providerName?: string;
   currentUserLoginByOrg?: Record<string, string>;
   assignToSelfByDefault?: boolean;
+  onCreated?: (issue: IssueDto, repo: OrganizationRepoWithOrg | undefined) => void;
 }
 
 const schema = z.object({
@@ -73,6 +102,7 @@ export function CreateIssueDialog({
   providerName,
   currentUserLoginByOrg = {},
   assignToSelfByDefault = true,
+  onCreated,
 }: CreateIssueDialogProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -133,7 +163,9 @@ export function CreateIssueDialog({
 
   const createMutation = useMutationWithToast<IssueDto, FormValues>({
     mutationFn: (values) => {
-      const repo = repos.find((r) => r.repo_name === values.repoName);
+      const repo = repos.find((r) =>
+        r.repo_name === values.repoName && (orgId ? r.organization_id === orgId : true),
+      );
       const currentUserLogin = repo?.organization_id ? currentUserLoginByOrg[repo.organization_id] ?? null : null;
       const assignees = assignToMyself && currentUserLogin
         ? Array.from(new Set([...(values.assignees ?? []), currentUserLogin]))
@@ -152,10 +184,34 @@ export function CreateIssueDialog({
     },
     loadingMessage: t("issues.create.toast.creating"),
     successMessage: t("issues.create.toast.created"),
-    onSuccess: (_, values) => {
-      const repo = repos.find((r) => r.repo_name === values.repoName);
+    onSuccess: (createdIssue, values) => {
+      const repo = repos.find((r) =>
+        r.repo_name === values.repoName && (orgId ? r.organization_id === orgId : true),
+      );
       if (repo) {
+        const currentLogin = currentUserLoginByOrg[repo.organization_id] ?? null;
+        const matches = queryClient.getQueriesData<IssueDto[]>({ queryKey: queryKeys.issues(repo.organization_id, repo.repo_name) });
+        matches.forEach(([key, current]) => {
+          if (!current) return;
+          const scope = typeof key[3] === "string" ? key[3] : "my_queue";
+          if (!matchesIssueScope(createdIssue, scope, currentLogin)) {
+            return;
+          }
+          queryClient.setQueryData<IssueDto[]>(
+            key,
+            [createdIssue, ...current.filter((entry: IssueDto) => entry.id !== createdIssue.id)],
+          );
+        });
+        queryClient.setQueryData<OrganizationRepoWithOrg[]>(queryKeys.selectedRepositories(repo.organization_id), (current) =>
+          incrementRepoIssueCount(current, repo.organization_id, repo.repo_name),
+        );
+        queryClient.setQueryData<OrganizationRepoWithOrg[]>(queryKeys.allRepositories(), (current) =>
+          incrementRepoIssueCount(current, repo.organization_id, repo.repo_name),
+        );
         queryClient.invalidateQueries({ queryKey: queryKeys.issues(repo.organization_id, repo.repo_name) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(repo.organization_id) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+        onCreated?.(createdIssue, repo);
       }
       if (createMore) {
         form.reset({

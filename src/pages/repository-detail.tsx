@@ -56,7 +56,7 @@ import { queryKeys } from "../lib/query-keys";
 import { cache } from "../config/cache";
 import { cn } from "../lib/utils";
 import { issueScopeLabelKey, prScopeLabelKey, resolveCurrentLogin } from "@/lib/work-visibility";
-import type { BranchDto, PullRequestDto } from "../types/organization";
+import type { BranchDto, OrganizationRepoWithOrg, PullRequestDto } from "../types/organization";
 import type { IssueDto } from "../types/issue";
 import type { IssueScope, PullRequestScope } from "@/types/work-visibility";
 
@@ -203,16 +203,104 @@ export function RepositoryDetailPage() {
   });
 
   const deleteIssueMutation = useMutation({
-    mutationFn: (issue: IssueDto) =>
-      invoke("delete_issue", {
-        orgId: activeRepo!.organizationId,
-        repoName: activeRepo!.name,
-        number: issue.number,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.issues(activeRepo!.organizationId, activeRepo!.name),
+    mutationFn: async (issue: IssueDto) => {
+      try {
+        return await invoke("delete_issue", {
+          orgId: activeRepo!.organizationId,
+          repoName: activeRepo!.name,
+          number: issue.number,
+          issueId: issue.id,
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("Issue not found")) {
+          return;
+        }
+        throw error;
+      }
+    },
+    onMutate: async (issue) => {
+      const issueQueryKey = queryKeys.issues(issue.orgId, issue.repoName);
+      const issueSnapshots = queryClient.getQueriesData<IssueDto[]>({ queryKey: issueQueryKey });
+      issueSnapshots.forEach(([key, data]) => {
+        queryClient.setQueryData<IssueDto[]>(key, (data ?? []).filter((entry) => entry.id !== issue.id));
       });
+
+      const repoSnapshots = [
+        [queryKeys.selectedRepositories(issue.orgId), queryClient.getQueryData<OrganizationRepoWithOrg[]>(queryKeys.selectedRepositories(issue.orgId))] as const,
+        [queryKeys.allRepositories(), queryClient.getQueryData<OrganizationRepoWithOrg[]>(queryKeys.allRepositories())] as const,
+      ];
+      repoSnapshots.forEach(([key]) => {
+        queryClient.setQueryData<OrganizationRepoWithOrg[]>(key, (current) =>
+          current?.map((repo) => (
+            repo.organization_id === issue.orgId && repo.repo_name === issue.repoName
+              ? { ...repo, open_issues_count: Math.max((repo.open_issues_count ?? 1) - 1, 0) }
+              : repo
+          )),
+        );
+      });
+
+      return { issueSnapshots, repoSnapshots };
+    },
+    onError: (error, _issue, context) => {
+      const message = error instanceof Error ? error.message : String(error);
+      context?.issueSnapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      context?.repoSnapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      toast.error(message);
+    },
+    onSuccess: (_, issue) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(issue.orgId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+    },
+  });
+
+  const assignToMeMutation = useMutation({
+    mutationFn: async (issue: IssueDto) => {
+      if (!currentLogin) {
+        throw new Error(t("issues.table.toast.noCurrentUser"));
+      }
+
+      return invoke<IssueDto>("update_issue", {
+        orgId: issue.orgId,
+        repoName: issue.repoName,
+        number: issue.number,
+        issueId: issue.id,
+        input: {
+          assignees: Array.from(new Set([...(issue.assignees ?? []), currentLogin])),
+        },
+      });
+    },
+    onMutate: async (issue) => {
+      if (!currentLogin) {
+        return { snapshots: [] as Array<[readonly unknown[], IssueDto[] | undefined]> };
+      }
+
+      const queryKey = queryKeys.issues(issue.orgId, issue.repoName);
+      const snapshots = queryClient.getQueriesData<IssueDto[]>({ queryKey });
+      queryClient.setQueriesData<IssueDto[]>({ queryKey }, (current) => {
+        if (!current) return current;
+        return current.map((entry) => (
+          entry.id === issue.id
+            ? { ...entry, assignees: Array.from(new Set([...(entry.assignees ?? []), currentLogin])) }
+            : entry
+        ));
+      });
+      return { snapshots };
+    },
+    onError: (error, _issue, context) => {
+      context?.snapshots.forEach(([key, data]) => {
+        queryClient.setQueryData(key, data);
+      });
+      toast.error(error instanceof Error ? error.message : String(error));
+    },
+    onSuccess: (updatedIssue, issue) => {
+      queryClient.setQueriesData<IssueDto[]>({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) }, (current) => {
+        if (!current) return current;
+        return current.map((entry) => (entry.id === updatedIssue.id ? updatedIssue : entry));
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) });
+      toast.success(t("issues.table.toast.assignedToMe"));
     },
   });
 
@@ -311,6 +399,31 @@ export function RepositoryDetailPage() {
   };
 
   if (!activeRepo) return null;
+
+  const removeIssueFromCaches = (issue: IssueDto) => {
+    queryClient.setQueryData<IssueDto[]>(
+      queryKeys.issues(activeRepo.organizationId, activeRepo.name, issueScope),
+      (current) => (current ?? []).filter((entry) => entry.id !== issue.id),
+    );
+
+    queryClient.setQueryData<OrganizationRepoWithOrg[]>(
+      queryKeys.selectedRepositories(issue.orgId),
+      (current) => current?.map((repo) => (
+        repo.organization_id === issue.orgId && repo.repo_name === issue.repoName
+          ? { ...repo, open_issues_count: Math.max((repo.open_issues_count ?? 1) - 1, 0) }
+          : repo
+      )),
+    );
+
+    queryClient.setQueryData<OrganizationRepoWithOrg[]>(
+      queryKeys.allRepositories(),
+      (current) => current?.map((repo) => (
+        repo.organization_id === issue.orgId && repo.repo_name === issue.repoName
+          ? { ...repo, open_issues_count: Math.max((repo.open_issues_count ?? 1) - 1, 0) }
+          : repo
+      )),
+    );
+  };
 
   const openPrsCount = prs.length;
   const draftPrsCount = prs.filter((p) => p.is_draft).length;
@@ -544,9 +657,13 @@ export function RepositoryDetailPage() {
                  onSelect: () => syncIssuesMutation.mutate(scope),
                }))}
                isSyncing={syncIssuesMutation.isPending}
-               onOpenUrl={handleOpenUrl}
-               onDelete={(issue) => deleteIssueMutation.mutateAsync(issue).then(() => undefined)}
-            />
+                onOpenUrl={handleOpenUrl}
+                onDelete={async (issue) => {
+                  removeIssueFromCaches(issue);
+                  await deleteIssueMutation.mutateAsync(issue);
+                }}
+                onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
+             />
           )}
         </TabsContent>
         {/* Branches tab */}
@@ -697,6 +814,15 @@ export function RepositoryDetailPage() {
         assignToSelfByDefault={assignIssuesToSelfByDefault}
         orgId={activeRepo.organizationId}
         repoName={activeRepo.name}
+        onCreated={(createdIssue) => {
+          queryClient.setQueryData<IssueDto[]>(
+            queryKeys.issues(activeRepo.organizationId, activeRepo.name, issueScope),
+            (current) => {
+              if (!current) return [createdIssue];
+              return [createdIssue, ...current.filter((entry) => entry.id !== createdIssue.id)];
+            },
+          );
+        }}
       />
 
       <CreateBranchDialog
