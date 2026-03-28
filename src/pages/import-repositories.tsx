@@ -413,21 +413,41 @@ export function ImportRepositoriesPage() {
               </Card>
             )}
             {!isLoadingRepos && !reposErrorMessage && selectedOrg && (
-              <RepoSelectionTable
-                className="h-full"
-                repos={availableRepos}
-                selectedKeys={selectedKeys}
-                onSelectionChange={setSelectedKeys}
-                action={
-                  <Button
-                    size="sm"
-                    disabled={selectedKeys.size === 0 || importMutation.isPending}
-                    onClick={handleImportSelected}
-                  >
-                    {t("common.importSelected")}
-                  </Button>
-                }
-              />
+              availableRepos.length === 0 ? (
+                <Card className="h-full">
+                  <CardContent className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500">
+                      <TriangleAlert className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                        {repos.length > 0 ? "All repositories already imported" : "No repositories available"}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {repos.length > 0
+                          ? "Everything from this source is already linked to your workspace."
+                          : "There are no repositories available for this source right now."}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <RepoSelectionTable
+                  className="h-full"
+                  repos={availableRepos}
+                  selectedKeys={selectedKeys}
+                  onSelectionChange={setSelectedKeys}
+                  action={
+                    <Button
+                      size="sm"
+                      disabled={selectedKeys.size === 0 || importMutation.isPending}
+                      onClick={handleImportSelected}
+                    >
+                      {t("common.importSelected")}
+                    </Button>
+                  }
+                />
+              )
             )}
           </div>
         </div>

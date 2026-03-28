@@ -14,6 +14,8 @@ pub enum ProviderAuth {
     #[serde(rename = "github_app")]
     GitHubApp {
         oauth_access_token: String,
+        oauth_refresh_token: Option<String>,
+        oauth_expires_at: Option<i64>,
         installation_token: String,
         installation_id: i64,
         expires_at: i64,

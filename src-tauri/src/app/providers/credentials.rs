@@ -60,6 +60,7 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
     struct RefreshResponse {
         access_token: String,
         refresh_token: Option<String>,
+        expires_at: Option<i64>,
     }
 
     let client = reqwest::Client::builder()
@@ -92,7 +93,7 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
     let new_auth = ProviderAuth::GitHubOAuth {
         access_token: result.access_token,
         refresh_token: result.refresh_token,
-        expires_at: Some(now + 28800),
+        expires_at: result.expires_at.or(Some(now + 28800)),
     };
 
     let (auth_type, auth_payload) = serialize_auth(state, &new_auth)?;
@@ -108,8 +109,29 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
 }
 
 pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth: ProviderAuth) -> AppResult<ProviderAuth> {
-    let ProviderAuth::GitHubApp { ref oauth_access_token, installation_id, .. } = auth else {
+    let ProviderAuth::GitHubApp { ref oauth_access_token, ref oauth_refresh_token, oauth_expires_at, installation_id, .. } = auth else {
         return Ok(auth);
+    };
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    let refreshed_oauth = match (oauth_refresh_token, oauth_expires_at) {
+        (Some(refresh_token), Some(exp)) if now >= exp - 300 => {
+            let oauth_auth = ProviderAuth::GitHubOAuth {
+                access_token: oauth_access_token.clone(),
+                refresh_token: Some(refresh_token.clone()),
+                expires_at: Some(exp),
+            };
+
+            match refresh_github_token(state, provider_id, oauth_auth).await? {
+                ProviderAuth::GitHubOAuth { access_token, refresh_token, expires_at } => (access_token, refresh_token, expires_at),
+                _ => (oauth_access_token.clone(), oauth_refresh_token.clone(), oauth_expires_at),
+            }
+        }
+        _ => (oauth_access_token.clone(), oauth_refresh_token.clone(), oauth_expires_at),
     };
 
     let api_url = env!("AKIRA_API_URL");
@@ -129,7 +151,10 @@ pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth:
     let response = client
         .post(format!("{api_url}/github/installation-token"))
         .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "access_token": oauth_access_token }))
+        .json(&serde_json::json!({
+            "access_token": refreshed_oauth.0,
+            "installation_id": installation_id,
+        }))
         .send()
         .await
         .map_err(|e| AppError::Provider(e.to_string()))?;
@@ -144,7 +169,9 @@ pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth:
         .map_err(|e| AppError::Provider(e.to_string()))?;
 
     let new_auth = ProviderAuth::GitHubApp {
-        oauth_access_token: oauth_access_token.clone(),
+        oauth_access_token: refreshed_oauth.0,
+        oauth_refresh_token: refreshed_oauth.1,
+        oauth_expires_at: refreshed_oauth.2,
         installation_token: result.token,
         installation_id: result.installation_id,
         expires_at: result.expires_at,
@@ -183,11 +210,17 @@ pub fn serialize_auth(state: &AppState, auth: &ProviderAuth) -> AppResult<(Strin
             };
             Ok(("github_oauth".to_string(), serde_json::to_string(&payload)?))
         }
-        ProviderAuth::GitHubApp { oauth_access_token, installation_token, installation_id, expires_at } => {
+        ProviderAuth::GitHubApp { oauth_access_token, oauth_refresh_token, oauth_expires_at, installation_token, installation_id, expires_at } => {
             let oauth_access_token_enc = state.token_cipher.encrypt(oauth_access_token)?;
+            let oauth_refresh_token_enc = oauth_refresh_token
+                .as_deref()
+                .map(|t| state.token_cipher.encrypt(t))
+                .transpose()?;
             let installation_token_enc = state.token_cipher.encrypt(installation_token)?;
             let payload = GitHubAppPayload {
                 oauth_access_token_enc,
+                oauth_refresh_token_enc,
+                oauth_expires_at: *oauth_expires_at,
                 installation_token_enc,
                 installation_id: *installation_id,
                 expires_at: *expires_at,
@@ -225,9 +258,16 @@ pub fn deserialize_auth(state: &AppState, auth_type: &str, payload: &str) -> App
         "github_app" => {
             let decoded: GitHubAppPayload = serde_json::from_str(payload)?;
             let oauth_access_token = state.token_cipher.decrypt(&decoded.oauth_access_token_enc)?;
+            let oauth_refresh_token = decoded
+                .oauth_refresh_token_enc
+                .as_deref()
+                .map(|t| state.token_cipher.decrypt(t))
+                .transpose()?;
             let installation_token = state.token_cipher.decrypt(&decoded.installation_token_enc)?;
             Ok(ProviderAuth::GitHubApp {
                 oauth_access_token,
+                oauth_refresh_token,
+                oauth_expires_at: decoded.oauth_expires_at,
                 installation_token,
                 installation_id: decoded.installation_id,
                 expires_at: decoded.expires_at,

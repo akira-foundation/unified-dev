@@ -16,8 +16,9 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         .await
         .map_err(|e| e.to_string())?;
 
+    let client_id = option_env!("GITHUB_OAUTH_CLIENT_ID").unwrap_or(env!("GITHUB_CLIENT_ID"));
     let oauth_url = format!(
-        "https://github.com/apps/{app_slug}/installations/select_target?state={oauth_state}"
+        "https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri=http%3A%2F%2Flocalhost%3A4567&scope=repo%2Cread%3Aorg%2Cread%3Auser&state={oauth_state}"
     );
     app.opener()
         .open_url(&oauth_url, None::<&str>)
@@ -31,7 +32,7 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         .await
         .map_err(|e| e.to_string())?;
 
-    let auth = fetch_installation_token(api_url, &result.access_token).await.map_err(|error| {
+    let auth = fetch_installation_token(api_url, &result.access_token, result.refresh_token.clone(), result.expires_at).await.map_err(|error| {
         if error.contains("app not installed for this user") {
             let install_url = format!("https://github.com/apps/{app_slug}/installations/select_target");
             let _ = app.opener().open_url(&install_url, None::<&str>);
@@ -80,7 +81,12 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
     })
 }
 
-async fn fetch_installation_token(api_url: &str, oauth_access_token: &str) -> Result<ProviderAuth, String> {
+async fn fetch_installation_token(
+    api_url: &str,
+    oauth_access_token: &str,
+    oauth_refresh_token: Option<String>,
+    oauth_expires_at: Option<i64>,
+) -> Result<ProviderAuth, String> {
     #[derive(serde::Deserialize)]
     struct InstallationTokenResponse {
         token: String,
@@ -111,6 +117,8 @@ async fn fetch_installation_token(api_url: &str, oauth_access_token: &str) -> Re
 
     Ok(ProviderAuth::GitHubApp {
         oauth_access_token: oauth_access_token.to_string(),
+        oauth_refresh_token,
+        oauth_expires_at,
         installation_token: data.token,
         installation_id: data.installation_id,
         expires_at: data.expires_at,

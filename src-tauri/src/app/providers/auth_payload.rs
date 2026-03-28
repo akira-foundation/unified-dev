@@ -15,6 +15,8 @@ pub struct GitHubOAuthPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitHubAppPayload {
     pub oauth_access_token_enc: String,
+    pub oauth_refresh_token_enc: Option<String>,
+    pub oauth_expires_at: Option<i64>,
     pub installation_token_enc: String,
     pub installation_id: i64,
     pub expires_at: i64,

@@ -358,6 +358,7 @@ async function handleInstallationToken(request: Request, env: Env): Promise<Resp
 
   const accessToken = body.access_token;
   const targetLogin = typeof body.target_login === "string" && body.target_login.length > 0 ? body.target_login : null;
+  const installationId = typeof body.installation_id === "number" ? body.installation_id : null;
   if (typeof accessToken !== "string" || accessToken.length === 0) {
     return json({ error: "access_token required" }, 400);
   }
@@ -383,6 +384,7 @@ async function handleInstallationToken(request: Request, env: Env): Promise<Resp
   const appId = parseInt(env.GITHUB_APP_ID, 10);
   const installation = installationsData.installations.find((i) => {
     if (i.app_id !== appId) return false;
+    if (installationId !== null) return i.id === installationId;
     if (!targetLogin) return true;
     return i.account?.login === targetLogin;
   });
