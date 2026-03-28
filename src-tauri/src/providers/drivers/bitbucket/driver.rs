@@ -62,6 +62,9 @@ impl VcsProvider for BitbucketDriver {
             id: user.account_id,
             login: personal_slug.clone(),
             kind: ProviderOrgKind::Personal,
+            app_installed: None,
+            app_install_url: None,
+            app_manage_url: None,
         });
 
         results.extend(workspaces.into_iter().filter_map(|ws| {
@@ -72,6 +75,9 @@ impl VcsProvider for BitbucketDriver {
                 id: ws.uuid.unwrap_or_else(|| ws.slug.clone()),
                 login: ws.slug,
                 kind: ProviderOrgKind::Organization,
+                app_installed: None,
+                app_install_url: None,
+                app_manage_url: None,
             })
         }));
 

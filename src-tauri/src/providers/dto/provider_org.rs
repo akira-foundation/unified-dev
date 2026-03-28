@@ -5,4 +5,7 @@ pub struct ProviderOrg {
     pub id: String,
     pub login: String,
     pub kind: ProviderOrgKind,
+    pub app_installed: Option<bool>,
+    pub app_install_url: Option<String>,
+    pub app_manage_url: Option<String>,
 }

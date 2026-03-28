@@ -19,8 +19,9 @@ use commands::organization::{
     update_organization,
 };
 use commands::provider::{
-    connect_github, create_provider, delete_provider, get_rate_limit, list_provider_organizations, list_provider_repositories,
+    connect_github, create_provider, delete_provider, get_rate_limit, install_github_app, list_provider_organizations, list_provider_repositories,
     list_providers, test_provider_connection, update_provider_auth,
+    uninstall_github_app,
 };
 use commands::terminal::{
     terminal_spawn, terminal_write, terminal_resize, terminal_kill,
@@ -88,6 +89,8 @@ pub fn run() {
             get_available_models,
             abort_agent,
             connect_github,
+            install_github_app,
+            uninstall_github_app,
             create_provider,
             list_providers,
             update_provider_auth,

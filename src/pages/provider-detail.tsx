@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Github, Blocks, AlertTriangle, KeyRound, GitlabIcon } from "lucide-react";
+import { ArrowLeft, Github, Blocks, AlertTriangle, ExternalLink, KeyRound, GitlabIcon } from "lucide-react";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -26,8 +27,11 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useProviders } from "@/hooks/useProviders";
+import { providerService } from "@/services/providerService";
 import { TOKEN_META } from "@/components/providers/add-provider-dialog";
 import { useI18n } from "@/i18n/i18n";
+import { queryKeys } from "@/lib/query-keys";
+import { useBrowserHandoffToast } from "@/hooks/use-browser-handoff-toast";
 
 const tokenSchema = z.object({
   token: z.string().trim().min(10),
@@ -104,6 +108,8 @@ export function ProviderDetailPage() {
   const { t } = useI18n();
   const { activeProviderId, goBack } = useNavigation("provider-detail");
   const { providers, isLoading, updateProviderAuth, removeProvider } = useProviders();
+  const queryClient = useQueryClient();
+  const browserHandoffToast = useBrowserHandoffToast();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [keepOrganizations, setKeepOrganizations] = useState(true);
@@ -218,6 +224,35 @@ export function ProviderDetailPage() {
             </Form>
           </div>
         </SettingsSection>
+
+        {provider.kind === "github" && (
+          <SettingsSection title="GitHub App" description="Install the GitHub App on more organizations to make their repositories available." icon={Github}>
+            <SettingsItem
+              label="Install on more organizations"
+              description="Open the GitHub target chooser to add this app to another organization."
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const handoff = browserHandoffToast();
+                    try {
+                      await providerService.installGithubApp();
+                      await queryClient.invalidateQueries({ queryKey: queryKeys.providerOrganizations(provider.id) });
+                      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
+                      await queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+                      handoff.success("GitHub App installation flow completed");
+                    } catch (error) {
+                      handoff.error(error, "Failed to open GitHub App installation");
+                    }
+                  }}
+                >
+                  <ExternalLink size={16} /> Install
+                </Button>
+              }
+            />
+          </SettingsSection>
+        )}
 
         <SettingsSection title={t("common.dangerZone")} icon={AlertTriangle}>
           <SettingsItem

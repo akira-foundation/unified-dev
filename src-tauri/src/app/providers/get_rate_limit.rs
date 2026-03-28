@@ -69,6 +69,7 @@ pub async fn get_rate_limit(state: State<'_, AppState>) -> Result<Vec<RateLimitD
         let token = match creds.auth {
             ProviderAuth::PersonalAccessToken { token } => token,
             ProviderAuth::GitHubOAuth { access_token, .. } => access_token,
+            ProviderAuth::GitHubApp { installation_token, .. } => installation_token,
             _ => continue,
         };
 

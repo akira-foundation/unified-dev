@@ -7,23 +7,23 @@ use crate::state::AppState;
 
 pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<ProviderSummary, String> {
     use tauri_plugin_opener::OpenerExt;
-    use tokio::net::TcpListener;
 
-    let client_id = env!("GITHUB_CLIENT_ID");
+    let app_slug = option_env!("GITHUB_APP_SLUG").unwrap_or("akira-apps-unified-dev");
     let api_url = env!("AKIRA_API_URL");
+    let oauth_state = uuid::Uuid::new_v4().to_string();
 
-    let listener = TcpListener::bind("127.0.0.1:4567")
+    let listener = oauth::bind_callback_listener()
         .await
-        .map_err(|e| format!("Failed to bind callback listener: {e}"))?;
+        .map_err(|e| e.to_string())?;
 
     let oauth_url = format!(
-        "https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri=http%3A%2F%2Flocalhost%3A4567&scope=repo%2Cread%3Aorg"
+        "https://github.com/apps/{app_slug}/installations/select_target?state={oauth_state}"
     );
     app.opener()
         .open_url(&oauth_url, None::<&str>)
         .map_err(|e| format!("Failed to open browser: {e}"))?;
 
-    let code = oauth::await_callback(listener)
+    let code = oauth::await_callback(listener, &oauth_state)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -31,11 +31,21 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         .await
         .map_err(|e| e.to_string())?;
 
-    let auth = ProviderAuth::GitHubOAuth {
-        access_token: result.access_token,
-        refresh_token: result.refresh_token,
-        expires_at: result.expires_at,
-    };
+    let auth = fetch_installation_token(api_url, &result.access_token).await.map_err(|error| {
+        if error.contains("app not installed for this user") {
+            let install_url = format!("https://github.com/apps/{app_slug}/installations/select_target");
+            let _ = app.opener().open_url(&install_url, None::<&str>);
+            return "GitHub App installation required. Complete the installation in the browser, then click Connect again.".to_string();
+        }
+
+        error
+    })?;
+
+    let api_token = result.access_token.clone();
+
+    let (account_login, account_type) = oauth::fetch_viewer(&api_token)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
         .map_err(|e| e.to_string())?;
@@ -49,23 +59,60 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
-    .bind(&result.account_login)
+    .bind(&account_login)
     .bind("github")
     .bind(&auth_type)
     .bind(&auth_payload)
     .bind(&created_at)
-    .bind(&result.account_login)
-    .bind(&result.account_type)
+    .bind(&account_login)
+    .bind(&account_type)
     .execute(&state.db_pool)
     .await
-    .map_err(|e| e.to_string())?;
+    .map_err(|e| format!("DB insert failed: {e}"))?;
 
     Ok(crate::database::records::ProviderSummary {
         id,
-        name: result.account_login.clone(),
+        name: account_login.clone(),
         kind: "github".to_string(),
         created_at,
-        account_login: Some(result.account_login),
-        account_type: Some(result.account_type),
+        account_login: Some(account_login),
+        account_type: Some(account_type),
+    })
+}
+
+async fn fetch_installation_token(api_url: &str, oauth_access_token: &str) -> Result<ProviderAuth, String> {
+    #[derive(serde::Deserialize)]
+    struct InstallationTokenResponse {
+        token: String,
+        expires_at: i64,
+        installation_id: i64,
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent("UnifiedDev/1.0")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let response = client
+        .post(format!("{api_url}/github/installation-token"))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "access_token": oauth_access_token }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.map_err(|e| e.to_string())?;
+        return Err(format!("installation token request failed: {status} — {body}"));
+    }
+
+    let data: InstallationTokenResponse = response.json().await.map_err(|e| e.to_string())?;
+
+    Ok(ProviderAuth::GitHubApp {
+        oauth_access_token: oauth_access_token.to_string(),
+        installation_token: data.token,
+        installation_id: data.installation_id,
+        expires_at: data.expires_at,
     })
 }

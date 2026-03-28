@@ -6,6 +6,9 @@ export interface ProviderOrg {
   id: string;
   login: string;
   kind: ProviderOrgKind;
+  app_installed?: boolean;
+  app_install_url?: string;
+  app_manage_url?: string;
 }
 
 export interface ProviderSummary {

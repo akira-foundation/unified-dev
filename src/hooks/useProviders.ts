@@ -4,9 +4,11 @@ import { toast } from "sonner";
 import { providerService } from "../services/providerService";
 import { queryKeys } from "../lib/query-keys";
 import type { ProviderKind } from "../types/provider";
+import { useBrowserHandoffToast } from "./use-browser-handoff-toast";
 
 export function useProviders() {
   const queryClient = useQueryClient();
+  const browserHandoffToast = useBrowserHandoffToast();
 
   const { data: providers = [], isLoading } = useQuery({
     queryKey: queryKeys.providers(),
@@ -61,24 +63,29 @@ export function useProviders() {
       providerService.deleteProvider(providerId, keepOrganizations),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rateLimits() });
     },
   });
 
   const connectGithub = useMutation({
     mutationFn: async () => {
-      const toastId = toast.loading("Abrindo GitHub...");
+      const handoff = browserHandoffToast("Abrindo GitHub...");
       try {
         const created = await providerService.connectGithub();
-        toast.success("GitHub conectado", { id: toastId });
+        handoff.success("GitHub conectado");
         return created;
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        toast.error(message, { id: toastId });
+        handoff.error(error, "Falha ao conectar GitHub");
         throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.rateLimits() });
     },
   });
 
@@ -90,5 +97,6 @@ export function useProviders() {
     removeProvider: (providerId: string, keepOrganizations: boolean) =>
       removeProvider.mutateAsync({ providerId, keepOrganizations }),
     connectGithub: connectGithub.mutateAsync,
+    isConnectingGithub: connectGithub.isPending,
   };
 }

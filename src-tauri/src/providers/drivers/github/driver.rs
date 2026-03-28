@@ -12,6 +12,62 @@ use super::types::{
     GitHubIssueComment, GitHubJobResponse, GitHubPrFile,
 };
 
+#[derive(Deserialize)]
+struct InstallationRepositoriesResponse {
+    repositories: Vec<InstallationRepository>,
+}
+
+#[derive(Deserialize, Clone)]
+struct InstallationRepository {
+    id: u64,
+    name: String,
+    owner: InstallationRepositoryOwner,
+    private: bool,
+    visibility: String,
+    default_branch: Option<String>,
+}
+
+#[derive(Deserialize, Clone)]
+struct InstallationRepositoryOwner {
+    id: u64,
+    login: String,
+    #[serde(rename = "type")]
+    kind: String,
+}
+
+async fn list_installation_repositories(driver: &GitHubDriver) -> AppResult<Vec<InstallationRepository>> {
+    let mut page = 1;
+    let mut repositories = Vec::new();
+
+    loop {
+        let response = driver
+            .client
+            .get(format!("{GITHUB_API}/installation/repositories?per_page=100&page={page}"))
+            .bearer_auth(&driver.token)
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!("GitHub installation repositories error: {status} {body}")));
+        }
+
+        let chunk: InstallationRepositoriesResponse = response.json().await?;
+        let count = chunk.repositories.len();
+        repositories.extend(chunk.repositories);
+
+        if count < 100 {
+            break;
+        }
+
+        page += 1;
+    }
+
+    Ok(repositories)
+}
+
 pub struct GitHubFactory;
 
 impl GitHubFactory {
@@ -30,6 +86,7 @@ impl ProviderDriverFactory for GitHubFactory {
         let token = match auth {
             ProviderAuth::PersonalAccessToken { token } => token,
             ProviderAuth::GitHubOAuth { access_token, .. } => access_token,
+            ProviderAuth::GitHubApp { installation_token, .. } => installation_token,
             _ => {
                 return Err(AppError::Provider(
                     "unsupported auth type for GitHub provider".to_string(),
@@ -54,6 +111,34 @@ impl VcsProvider for GitHubDriver {
     }
 
     async fn list_organizations(&self) -> AppResult<Vec<ProviderOrg>> {
+        if let Ok(repositories) = list_installation_repositories(self).await {
+            let mut results: Vec<ProviderOrg> = Vec::new();
+            for repo in repositories {
+                let kind = if repo.owner.kind == "Organization" {
+                    ProviderOrgKind::Organization
+                } else {
+                    ProviderOrgKind::Personal
+                };
+
+                if results.iter().any(|org| org.login == repo.owner.login) {
+                    continue;
+                }
+
+                results.push(ProviderOrg {
+                    id: repo.owner.id.to_string(),
+                    login: repo.owner.login,
+                    kind,
+                    app_installed: None,
+                    app_install_url: None,
+                    app_manage_url: None,
+                });
+            }
+
+            results.sort_by(|a, b| a.login.cmp(&b.login));
+
+            return Ok(results);
+        }
+
         #[derive(Deserialize)]
         struct Data {
             viewer: Viewer,
@@ -94,17 +179,41 @@ impl VcsProvider for GitHubDriver {
             id: data.viewer.id,
             login: data.viewer.login,
             kind: ProviderOrgKind::Personal,
+            app_installed: None,
+            app_install_url: None,
+            app_manage_url: None,
         });
         results.extend(data.viewer.organizations.nodes.into_iter().map(|org| ProviderOrg {
             id: org.database_id.to_string(),
             login: org.login,
             kind: ProviderOrgKind::Organization,
+            app_installed: None,
+            app_install_url: None,
+            app_manage_url: None,
         }));
 
         Ok(results)
     }
 
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>> {
+        if let Ok(repositories) = list_installation_repositories(self).await {
+            let mut repos = repositories
+                .into_iter()
+                .map(|repo| ProviderRepo {
+                    id: repo.id.to_string(),
+                    owner: repo.owner.login,
+                    name: repo.name,
+                    visibility: repo.visibility,
+                    is_private: repo.private,
+                    default_branch: repo.default_branch.unwrap_or_else(|| "main".to_string()),
+                })
+                .collect::<Vec<_>>();
+
+            repos.sort_by(|a, b| a.owner.cmp(&b.owner).then(a.name.cmp(&b.name)));
+
+            return Ok(repos);
+        }
+
         #[derive(Deserialize)]
         struct Data {
             viewer: Viewer,
@@ -181,6 +290,25 @@ impl VcsProvider for GitHubDriver {
     }
 
     async fn list_organization_repositories(&self, organization: &str) -> AppResult<Vec<ProviderRepo>> {
+        if let Ok(repositories) = list_installation_repositories(self).await {
+            let mut repos = repositories
+                .into_iter()
+                .filter(|repo| repo.owner.login == organization)
+                .map(|repo| ProviderRepo {
+                    id: repo.id.to_string(),
+                    owner: repo.owner.login,
+                    name: repo.name,
+                    visibility: repo.visibility,
+                    is_private: repo.private,
+                    default_branch: repo.default_branch.unwrap_or_else(|| "main".to_string()),
+                })
+                .collect::<Vec<_>>();
+
+            repos.sort_by(|a, b| a.name.cmp(&b.name));
+
+            return Ok(repos);
+        }
+
         #[derive(Deserialize)]
         struct Data {
             organization: Option<OrgData>,

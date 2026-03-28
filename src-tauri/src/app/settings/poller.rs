@@ -20,7 +20,7 @@ pub fn start(app_handle: AppHandle) {
             let global = load_settings(&state, GLOBAL_ID).await;
 
             let orgs: Vec<(String,)> = match sqlx::query_as(
-                "SELECT id FROM organizations ORDER BY name",
+                "SELECT o.id FROM organizations o JOIN providers p ON p.id = o.provider_id ORDER BY o.name",
             )
             .fetch_all(&state.db_pool)
             .await
@@ -30,7 +30,7 @@ pub fn start(app_handle: AppHandle) {
             };
 
             let repos: Vec<(String, String, String)> = match sqlx::query_as(
-                "SELECT organization_id, owner, repo_name FROM organization_repos WHERE is_selected = 1",
+                "SELECT r.organization_id, r.owner, r.repo_name FROM organization_repos r JOIN organizations o ON o.id = r.organization_id JOIN providers p ON p.id = o.provider_id WHERE r.is_selected = 1",
             )
             .fetch_all(&state.db_pool)
             .await

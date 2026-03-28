@@ -47,6 +47,16 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
 }
 
 #[tauri::command]
+pub async fn install_github_app(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+    providers::install_github_app(state, app).await
+}
+
+#[tauri::command]
+pub async fn uninstall_github_app(state: State<'_, AppState>, provider_id: String, target_login: String) -> Result<(), String> {
+    providers::uninstall_github_app(state, provider_id, target_login).await
+}
+
+#[tauri::command]
 pub async fn list_provider_organizations(state: State<'_, AppState>, provider_id: String) -> Result<Vec<ProviderOrg>, String> {
     providers::list_organizations(state, provider_id).await
 }

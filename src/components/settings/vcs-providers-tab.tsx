@@ -91,7 +91,7 @@ function RateLimitRow({
 
 export function VcsProvidersTab() {
   const { t } = useI18n();
-  const { providers, createProvider, connectGithub } = useProviders();
+  const { providers, createProvider, connectGithub, isConnectingGithub } = useProviders();
   const { navigateTo, setActiveProviderId } = useNavigation("settings");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -142,7 +142,7 @@ export function VcsProvidersTab() {
                     </Button>
                   </div>
                 ) : kind === "github" ? (
-                  <Button onClick={() => connectGithub()}>
+                  <Button onClick={() => connectGithub()} disabled={isConnectingGithub}>
                     <Link2 size={18} /> {t("common.connect")}
                   </Button>
                 ) : (

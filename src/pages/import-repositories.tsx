@@ -7,7 +7,8 @@ import { PageLayout } from "../components/layout/page-layout";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Building2, ExternalLink, RefreshCw, RotateCw, TriangleAlert } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../components/ui/alert-dialog";
+import { Building2, ExternalLink, RefreshCw, RotateCw, Trash2, TriangleAlert } from "lucide-react";
 import { cache } from "../config/cache";
 import { Skeleton } from "../components/ui/skeleton";
 import { useDateLabel } from "../hooks/use-date-label";
@@ -20,6 +21,7 @@ import type { ProviderRepo } from "../types/organization";
 import type { ProviderOrg } from "../types/provider";
 import { useI18n } from "../i18n/i18n";
 import { toast } from "sonner";
+import { useBrowserHandoffToast } from "../hooks/use-browser-handoff-toast";
 
 const repoKey = (repo: ProviderRepo) => `${repo.owner}/${repo.name}`;
 
@@ -29,6 +31,7 @@ export function ImportRepositoriesPage() {
   const { activeOrganizationId, navigateTo } = useNavigation("dashboard");
   const { organizations, isLoading: isOrganizationsLoading } = useOrganizations();
   const queryClient = useQueryClient();
+  const browserHandoffToast = useBrowserHandoffToast();
 
   const organization = useMemo(
     () => organizations.find((item) => item.id === activeOrganizationId) ?? null,
@@ -39,6 +42,8 @@ export function ImportRepositoriesPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [syncingOrgId, setSyncingOrgId] = useState<string | null>(null);
+  const [orgToRemove, setOrgToRemove] = useState<ProviderOrg | null>(null);
+  const [isRemovingOrg, setIsRemovingOrg] = useState(false);
 
   // Query 1: imported repos (to filter out already-imported ones)
   const { data: importedRepos = [] } = useQuery({
@@ -179,6 +184,48 @@ export function ImportRepositoriesPage() {
   const orgsErrorMessage = orgsError instanceof Error ? orgsError.message : orgsError ? String(orgsError) : null;
   const reposErrorMessage = reposError instanceof Error ? reposError.message : reposError ? String(reposError) : null;
 
+  const handleRemoveOrg = async () => {
+    if (!organization?.provider_id || !orgToRemove) return;
+
+    setIsRemovingOrg(true);
+    const orgName = orgToRemove.kind === "personal" ? t("pages.importRepos.personal") : orgToRemove.login;
+    const toastId = toast.loading(`Removing ${orgName}...`);
+
+    try {
+      await providerService.uninstallGithubApp(organization.provider_id, orgToRemove.login);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.providerOrganizations(organization.provider_id) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.providerRepositories(organization.provider_id, "organization", orgToRemove.login) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.providerRepositories(organization.provider_id, "personal") });
+      if (selectedOrg?.id === orgToRemove.id) {
+        setSelectedOrg(null);
+        setSelectedKeys(new Set());
+      }
+      toast.success(`${orgName} removed`, { id: toastId });
+      setOrgToRemove(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(message, { id: toastId });
+    } finally {
+      setIsRemovingOrg(false);
+    }
+  };
+
+  const handleInstallMoreOrganizations = async () => {
+    const handoff = browserHandoffToast();
+
+    try {
+      await providerService.installGithubApp();
+      if (organization?.provider_id) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.providerOrganizations(organization.provider_id) });
+      }
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+      handoff.success("GitHub App installation flow completed");
+    } catch (error) {
+      handoff.error(error, "Failed to open GitHub App installation");
+    }
+  };
+
   return (
     <PageLayout>
       <PageHeader>
@@ -226,6 +273,7 @@ export function ImportRepositoriesPage() {
               </button>
             </CardHeader>
             <CardContent className="flex flex-col p-2 gap-2 overflow-y-hidden custom-scrollbar h-[calc(100vh-20rem)]">
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
               {isLoadingOrgs && (
                 <div className="space-y-2 opacity-70">
                   <Skeleton className="h-10 w-full rounded-full" />
@@ -278,7 +326,7 @@ export function ImportRepositoriesPage() {
                       className="w-full justify-start gap-2 pr-8"
                       onClick={() => { setSelectedOrg(org); setSelectedKeys(new Set()); }}
                     >
-                      <span className="truncate">
+                      <span className="truncate text-left">
                         {org.kind === "personal" ? t("pages.importRepos.personal") : org.login}
                       </span>
                       {selectedOrg?.id === org.id ? (
@@ -287,22 +335,33 @@ export function ImportRepositoriesPage() {
                             {repos.length} {t("pages.importRepos.reposCount")}
                           </Badge>
                         ) : null
-                      ) : (
-                        <Badge variant="secondary" className="ml-auto text-[10px] uppercase">
-                          {org.kind === "personal" ? t("pages.importRepos.scopeYou") : t("pages.importRepos.scopeOrg")}
-                        </Badge>
-                      )}
+                      ) : null}
                     </Button>
                     <button
                       onClick={(e) => { e.stopPropagation(); void handleSyncOrg(org); }}
                       disabled={syncingOrgId === org.id}
-                      className="hidden group-hover/org:flex absolute right-1.5 top-1/2 -translate-y-1/2 items-center justify-center p-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                      className="hidden group-hover/org:flex absolute right-7 top-1/2 -translate-y-1/2 items-center justify-center p-1 rounded hover:bg-zinc-200/60 dark:hover:bg-zinc-700/60 text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                       title={t("common.sync")}
                     >
                       <RotateCw className={`h-3 w-3 ${syncingOrgId === org.id ? "animate-spin" : ""}`} />
                     </button>
+                    {org.kind === "organization" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setOrgToRemove(org); }}
+                        className="hidden group-hover/org:flex absolute right-1.5 top-1/2 -translate-y-1/2 items-center justify-center p-1 rounded hover:bg-red-500/10 text-zinc-400 dark:text-zinc-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                        title="Remove organization"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
                 ))}
+              </div>
+              <div className="border-t border-zinc-100 dark:border-zinc-800 px-1 pt-2">
+                <Button variant="outline" className="w-full" onClick={() => void handleInstallMoreOrganizations()}>
+                  <ExternalLink size={16} /> Add orgs
+                </Button>
+              </div>
             </CardContent>
           </Card>
           <div className="h-[calc(100vh-16rem)]">
@@ -373,6 +432,22 @@ export function ImportRepositoriesPage() {
           </div>
         </div>
       )}
+      <AlertDialog open={!!orgToRemove} onOpenChange={(open) => !open && setOrgToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove organization?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will uninstall the GitHub App for {orgToRemove?.login} and remove its repositories from this view.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isRemovingOrg}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleRemoveOrg()} disabled={isRemovingOrg}>
+              {isRemovingOrg ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageLayout>
   );
 }

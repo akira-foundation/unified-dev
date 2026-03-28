@@ -61,12 +61,18 @@ impl VcsProvider for GitLabDriver {
             id: user.id.to_string(),
             login: user.username,
             kind: ProviderOrgKind::Personal,
+            app_installed: None,
+            app_install_url: None,
+            app_manage_url: None,
         });
 
         results.extend(groups.into_iter().map(|g| ProviderOrg {
             id: g.id.to_string(),
             login: g.path,
             kind: ProviderOrgKind::Organization,
+            app_installed: None,
+            app_install_url: None,
+            app_manage_url: None,
         }));
 
         Ok(results)

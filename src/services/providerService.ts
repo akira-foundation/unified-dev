@@ -46,4 +46,10 @@ export const providerService = {
   async connectGithub(): Promise<ProviderSummary> {
     return invoke<ProviderSummary>("connect_github");
   },
+  async installGithubApp(): Promise<void> {
+    await invoke<void>("install_github_app");
+  },
+  async uninstallGithubApp(providerId: string, targetLogin: string): Promise<void> {
+    await invoke<void>("uninstall_github_app", { providerId, targetLogin });
+  },
 };
