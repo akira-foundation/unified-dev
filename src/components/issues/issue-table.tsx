@@ -21,7 +21,6 @@ import {
 import {
   FilterPopoverHeader,
   FilterSectionDivider,
-  FilterToggleSection,
 } from "../filters/filter-popover-section";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
@@ -79,8 +78,94 @@ function SortIcon({ sorted }: { sorted: false | "asc" | "desc" }) {
   return <ArrowUpDown className="ml-1 inline h-3.5 w-3.5 opacity-40" />;
 }
 
-function toggleItem(arr: string[], item: string): string[] {
-  return arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
+function IssueActionsMenu({
+  issue,
+  onSelect,
+  onOpenUrl,
+  onAssignToMe,
+  onDelete,
+  delegateIssue,
+  t,
+  setIssueToDelete,
+}: {
+  issue: IssueDto;
+  onSelect?: (issue: IssueDto) => void;
+  onOpenUrl?: (url: string) => void;
+  onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
+  onDelete?: (issue: IssueDto) => Promise<void>;
+  delegateIssue: (issue: IssueDto) => Promise<void>;
+  t: (key: string) => string;
+  setIssueToDelete: (issue: IssueDto | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex justify-end" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+      <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+            {t("common.open")}
+          </DropdownMenuLabel>
+          {onSelect && (
+            <DropdownMenuItem onSelect={() => onSelect(issue)}>
+              <CircleDot className="mr-2 h-4 w-4" />
+              {t("issues.table.viewIssue")}
+            </DropdownMenuItem>
+          )}
+          {onOpenUrl && issue.url && (
+            <DropdownMenuItem onSelect={() => onOpenUrl(issue.url)}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {t("issues.table.openInBrowser")}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+            {t("common.manage")}
+          </DropdownMenuLabel>
+          <DropdownMenuItem onSelect={() => void delegateIssue(issue)}>
+            <Bot className="mr-2 h-4 w-4" />
+            {t("issues.detail.delegate")}
+          </DropdownMenuItem>
+          {onAssignToMe && issue.status === "open" && (
+            <DropdownMenuItem onSelect={() => void onAssignToMe(issue)}>
+              <CircleDot className="mr-2 h-4 w-4" />
+              {t("issues.table.assignToMe")}
+            </DropdownMenuItem>
+          )}
+          {onDelete && issue.status === "open" && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
+                {t("common.dangerZone")}
+              </DropdownMenuLabel>
+              <DropdownMenuItem
+                onSelect={() => setIssueToDelete(issue)}
+                className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t("issues.table.deleteIssue")}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
 
 export function IssueTable({
@@ -335,66 +420,16 @@ export function IssueTable({
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <div className="flex justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
-                  {t("common.open")}
-                </DropdownMenuLabel>
-                {onSelect && (
-                  <DropdownMenuItem onSelect={() => onSelect(row.original)}>
-                    <CircleDot className="mr-2 h-4 w-4" />
-                    {t("issues.table.viewIssue")}
-                  </DropdownMenuItem>
-                )}
-                {onOpenUrl && row.original.url && (
-                  <DropdownMenuItem onSelect={() => onOpenUrl(row.original.url)}>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    {t("issues.table.openInBrowser")}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
-                  {t("common.manage")}
-                </DropdownMenuLabel>
-                <DropdownMenuItem onSelect={() => delegateIssue(row.original)}>
-                  <Bot className="mr-2 h-4 w-4" />
-                  {t("issues.detail.delegate")}
-                </DropdownMenuItem>
-                {onAssignToMe && row.original.status === "open" && (
-                  <DropdownMenuItem onSelect={() => void onAssignToMe(row.original)}>
-                    <CircleDot className="mr-2 h-4 w-4" />
-                    {t("issues.table.assignToMe")}
-                  </DropdownMenuItem>
-                )}
-                {onDelete && row.original.status === "open" && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
-                      {t("common.dangerZone")}
-                    </DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onSelect={() => setIssueToDelete(row.original)}
-                      className="text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {t("issues.table.deleteIssue")}
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <IssueActionsMenu
+            issue={row.original}
+            onSelect={onSelect}
+            onOpenUrl={onOpenUrl}
+            onAssignToMe={onAssignToMe}
+            onDelete={onDelete}
+            delegateIssue={delegateIssue}
+            t={t}
+            setIssueToDelete={setIssueToDelete}
+          />
         ),
       },
     ],
@@ -498,38 +533,32 @@ export function IssueTable({
                 />
                 <FilterSectionDivider />
 
-                {/* Status */}
-                <FilterToggleSection
+                <MultiSelectFilterSection
                   label={t("issues.table.filter.status")}
-                  options={(["open", "closed"] as const).map((status) => ({
-                    key: status,
-                    label: t(`issues.table.filter.${status}`),
-                    checked: filters.statuses.includes(status),
-                    onCheckedChange: () =>
-                      setFilter(filterNamespace, "statuses", toggleItem(filters.statuses, status)),
-                  }))}
+                  placeholder={t("issues.table.filter.status")}
+                  items={(["open", "closed"] as const).map((status) => t(`issues.table.filter.${status}`))}
+                  value={filters.statuses.map((status) => t(`issues.table.filter.${status}`))}
+                  onValueChange={(values) => {
+                    const next = values.map((value) => {
+                      if (value === t("issues.table.filter.open")) return "open";
+                      if (value === t("issues.table.filter.closed")) return "closed";
+                      return value;
+                    });
+                    setFilter(filterNamespace, "statuses", next);
+                  }}
                 />
 
                 <FilterSectionDivider />
 
-                <FilterToggleSection
+                <MultiSelectFilterSection
                   label="Source"
-                  options={[
-                    {
-                      key: "synced",
-                      label: "Synced",
-                      checked: filters.sources.includes("synced"),
-                      onCheckedChange: () =>
-                        setFilter(filterNamespace, "sources", toggleItem(filters.sources, "synced")),
-                    },
-                    {
-                      key: "local",
-                      label: "Local",
-                      checked: filters.sources.includes("local"),
-                      onCheckedChange: () =>
-                        setFilter(filterNamespace, "sources", toggleItem(filters.sources, "local")),
-                    },
-                  ]}
+                  placeholder="Source"
+                  items={["Synced", "Local"]}
+                  value={filters.sources.map((source) => source === "synced" ? "Synced" : "Local")}
+                  onValueChange={(values) => {
+                    const next = values.map((value) => value === "Synced" ? "synced" : "local");
+                    setFilter(filterNamespace, "sources", next);
+                  }}
                 />
 
                 {/* Repositories */}

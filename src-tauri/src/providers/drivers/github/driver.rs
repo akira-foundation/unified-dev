@@ -205,7 +205,7 @@ impl VcsProvider for GitHubDriver {
                     name: repo.name,
                     visibility: repo.visibility,
                     is_private: repo.private,
-                    default_branch: repo.default_branch.unwrap_or_else(|| "main".to_string()),
+                    default_branch: repo.default_branch.unwrap_or_default(),
                 })
                 .collect::<Vec<_>>();
 
@@ -279,7 +279,7 @@ impl VcsProvider for GitHubDriver {
                         name: r.name,
                         visibility: if r.is_private { "private".to_string() } else { "public".to_string() },
                         is_private: r.is_private,
-                        default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_else(|| "main".to_string()),
+                        default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_default(),
                     }
                 }).collect();
                 (items, conn.page_info.has_next_page, conn.page_info.end_cursor)
@@ -300,7 +300,7 @@ impl VcsProvider for GitHubDriver {
                     name: repo.name,
                     visibility: repo.visibility,
                     is_private: repo.private,
-                    default_branch: repo.default_branch.unwrap_or_else(|| "main".to_string()),
+                    default_branch: repo.default_branch.unwrap_or_default(),
                 })
                 .collect::<Vec<_>>();
 
@@ -378,7 +378,7 @@ impl VcsProvider for GitHubDriver {
                         name: r.name,
                         visibility: if r.is_private { "private".to_string() } else { "public".to_string() },
                         is_private: r.is_private,
-                        default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_else(|| "main".to_string()),
+                        default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_default(),
                     }
                 }).collect();
                 (items, conn.page_info.has_next_page, conn.page_info.end_cursor)

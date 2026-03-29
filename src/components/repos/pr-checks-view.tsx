@@ -12,6 +12,8 @@ import { cache } from "../../config/cache";
 import { highlightLine } from "../../lib/ansi-highlight";
 import type { CiCheckDto, CiCheckStepDto } from "../../types/organization";
 
+const HIDDEN_STEP_NAMES = new Set(["Post Checkout code", "Complete job"]);
+
 function formatDuration(startedAt: string | null, completedAt: string | null): string | null {
   if (!startedAt || !completedAt) return null;
   const start = new Date(startedAt).getTime();
@@ -162,7 +164,8 @@ function CheckItem({
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const duration = formatDuration(check.started_at, check.completed_at);
-  const hasSteps = check.steps.length > 0;
+  const visibleSteps = check.steps.filter((step) => !HIDDEN_STEP_NAMES.has(step.name));
+  const hasSteps = visibleSteps.length > 0;
 
   const { data: rawLogs, isLoading: logsLoading, isError: logsError, error: logsErr } = useQuery({
     queryKey: queryKeys.jobLogs(orgId, repoName, check.id),
@@ -183,7 +186,7 @@ function CheckItem({
     if (logsError) toast.error(String(logsErr));
   }, [logsError, logsErr]);
 
-  const logsByStep = rawLogs ? parseLogsByStep(rawLogs, check.steps) : undefined;
+  const logsByStep = rawLogs ? parseLogsByStep(rawLogs, visibleSteps) : undefined;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} disabled={!hasSteps}>
@@ -214,7 +217,7 @@ function CheckItem({
         {hasSteps && (
           <CollapsibleContent>
             <CardContent className="px-0 py-0 border-t border-zinc-100 dark:border-zinc-800">
-              {check.steps.map((step) => (
+              {visibleSteps.map((step) => (
                 <StepRow
                   key={step.number}
                   step={step}

@@ -14,7 +14,7 @@ pub fn repo_to_provider(repo: BitbucketRepo) -> ProviderRepo {
         .mainbranch
         .as_ref()
         .map(|b| b.name.clone())
-        .unwrap_or_else(|| "main".to_string());
+        .unwrap_or_default();
 
     ProviderRepo {
         id: repo.uuid.unwrap_or_else(|| repo.slug.clone()),

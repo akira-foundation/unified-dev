@@ -218,11 +218,12 @@ export function IssuesPage() {
         (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
       );
       const currentLogin = repo ? resolveCurrentLogin(repo.organization_id, organizations, providers) : null;
+      const scope = repo ? resolveIssueScope(repo.organization_id, repo.repo_name) : undefined;
       if (!currentLogin) {
         return { snapshots: [] as Array<[readonly unknown[], IssueDto[] | undefined]> };
       }
 
-      const queryKey = queryKeys.issues(issue.orgId, issue.repoName);
+      const queryKey = queryKeys.issues(issue.orgId, issue.repoName, scope);
       const snapshots = queryClient.getQueriesData<IssueDto[]>({ queryKey });
       queryClient.setQueriesData<IssueDto[]>({ queryKey }, (current) => {
         if (!current) return current;
@@ -241,11 +242,16 @@ export function IssuesPage() {
       toast.error(error instanceof Error ? error.message : String(error));
     },
     onSuccess: (updatedIssue, issue) => {
-      queryClient.setQueriesData<IssueDto[]>({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) }, (current) => {
+      const repo = allRepos.find(
+        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
+      );
+      const scope = repo ? resolveIssueScope(repo.organization_id, repo.repo_name) : undefined;
+
+      queryClient.setQueriesData<IssueDto[]>({ queryKey: queryKeys.issues(issue.orgId, issue.repoName, scope) }, (current) => {
         if (!current) return current;
         return current.map((entry) => (entry.id === updatedIssue.id ? updatedIssue : entry));
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName, scope) });
       toast.success(t("issues.table.toast.assignedToMe"));
     },
   });

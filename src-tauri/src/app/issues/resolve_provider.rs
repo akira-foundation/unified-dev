@@ -43,7 +43,7 @@ pub async fn resolve_provider_and_owner(
     org_id: &str,
     repo_name: &str,
 ) -> Result<(Arc<dyn VcsProvider>, String), String> {
-    let provider = get_provider(state, org_id).await?;
     let owner = resolve_owner(state, org_id, repo_name).await?;
+    let (provider, _) = crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(state, org_id, &owner).await?;
     Ok((provider, owner))
 }

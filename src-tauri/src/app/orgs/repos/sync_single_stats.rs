@@ -19,14 +19,18 @@ pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: Stri
     let current_default_branch = repo.default_branch.clone();
     let current_visibility = repo.visibility.clone();
 
-    let provider = match crate::app::orgs::resolve_provider::resolve_provider_for_org(&state, &organization_id).await {
+    let (provider, is_personal_owner) = match crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(&state, &organization_id, &owner).await {
         Ok(p) => p,
         Err(_) => return Ok(()),
     };
 
-    let (default_branch, visibility) = provider
-        .list_organization_repositories(&owner)
-        .await
+    let provider_repos = if is_personal_owner {
+        provider.list_repositories().await
+    } else {
+        provider.list_organization_repositories(&owner).await
+    };
+
+    let (default_branch, visibility) = provider_repos
         .ok()
         .and_then(|repos| repos.into_iter().find(|r| r.name == repo_name))
         .map(|r| (r.default_branch, r.visibility))

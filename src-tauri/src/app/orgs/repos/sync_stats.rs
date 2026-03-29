@@ -15,11 +15,6 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
         return Ok(());
     }
 
-    let provider = match crate::app::orgs::resolve_provider::resolve_provider_for_org(&state, &organization_id).await {
-        Ok(p) => p,
-        Err(_) => return Ok(()),
-    };
-
     let unique_owners: Vec<String> = {
         let mut seen = std::collections::HashSet::new();
         repos.iter().filter_map(|r| seen.insert(r.owner.clone()).then(|| r.owner.clone())).collect()
@@ -27,7 +22,17 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
 
     let mut repo_meta: std::collections::HashMap<String, (String, String)> = std::collections::HashMap::new();
     for owner in unique_owners {
-        if let Ok(provider_repos) = provider.list_organization_repositories(&owner).await {
+        let Ok((provider, is_personal_owner)) = crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(&state, &organization_id, &owner).await else {
+            continue;
+        };
+
+        let provider_repos_result = if is_personal_owner {
+            provider.list_repositories().await
+        } else {
+            provider.list_organization_repositories(&owner).await
+        };
+
+        if let Ok(provider_repos) = provider_repos_result {
             for pr in provider_repos {
                 repo_meta.insert(pr.name.clone(), (pr.default_branch.clone(), pr.visibility.clone()));
             }

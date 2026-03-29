@@ -21,7 +21,7 @@ pub fn project_to_provider(project: GitLabProject) -> ProviderRepo {
         name: project.path,
         visibility: project.visibility,
         is_private,
-        default_branch: project.default_branch.unwrap_or_else(|| "main".to_string()),
+        default_branch: project.default_branch.unwrap_or_default(),
     }
 }
 

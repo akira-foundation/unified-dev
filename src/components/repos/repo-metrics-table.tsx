@@ -223,7 +223,11 @@ export function RepoMetricsTable({
         header: t("tables.header.default"),
         cell: ({ row }) => (
           <div className="flex justify-end items-center gap-2">
-            <Badge variant="secondary">{row.original.default_branch}</Badge>
+            {row.original.default_branch ? (
+              <Badge variant="secondary">{row.original.default_branch}</Badge>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
           </div>
         ),
       },
