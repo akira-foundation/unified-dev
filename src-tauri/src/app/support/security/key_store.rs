@@ -1,10 +1,13 @@
 use base64::Engine;
 use rand::RngCore;
 
-use std::fs;
-use std::path::PathBuf;
-
 use crate::app::support::error::{AppError, AppResult};
+
+#[cfg(debug_assertions)]
+use std::fs;
+#[cfg(debug_assertions)]
+use std::path::PathBuf;
+#[cfg(debug_assertions)]
 use tauri::Manager;
 
 const KEYRING_SERVICE: &str = "unified-dev";
