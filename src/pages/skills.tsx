@@ -141,6 +141,7 @@ export function SkillsPage() {
   const filteredRecommended = remoteSkills.filter(
     (s) =>
       !installedIds.has(s.id) &&
+      s.description.trim().length > 0 &&
       (!search ||
         s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.description.toLowerCase().includes(search.toLowerCase())),

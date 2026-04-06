@@ -188,6 +188,9 @@ pub async fn fetch_recommended() -> Vec<DiscoveredSkill> {
         let descriptions = join_all(desc_futures).await;
 
         for (entry, description) in chunk.iter().zip(descriptions) {
+            if description.is_empty() {
+                continue;
+            }
             results.push(DiscoveredSkill {
                 uid: entry.id.clone(),
                 id: entry.skill_id.clone(),
