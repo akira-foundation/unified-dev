@@ -1,5 +1,21 @@
 
 
+# [0.2.0](https://github.com/akira-foundation/unified-dev/compare/v0.1.0...v0.2.0) (2026-04-06)
+
+
+### Bug Fixes
+
+* **ci:** add APPLE_SIGNING_IDENTITY, comment Linux/Windows in test-build, use pnpm ([751ac9f](https://github.com/akira-foundation/unified-dev/commit/751ac9ff98c1a0144861fb166e67daac7b79af71))
+* **ci:** fix codesign keychain search path and suppress Rust dead_code warnings ([e71d493](https://github.com/akira-foundation/unified-dev/commit/e71d4930d85fee1037ee2ddf32e74f94374fc326))
+* **ci:** use pnpm run lint with fallback instead of --if-present flag ([82bf76c](https://github.com/akira-foundation/unified-dev/commit/82bf76c65e5f45a7bebbde153899ae7ce43529df))
+* **rust:** move debug-only imports under cfg(debug_assertions) in key_store ([2dec1eb](https://github.com/akira-foundation/unified-dev/commit/2dec1eb5c1973f2aa5d69fe1dd17e7f97c1a2c0a))
+* **zod:** resolve version mismatch errors in form resolvers and update zod dependency ([574b19d](https://github.com/akira-foundation/unified-dev/commit/574b19d1630593c6e4d18380ae78d73ceaa3b4e3))
+
+
+### Features
+
+* **ci:** add AKIRA_API_URL and GITHUB_CLIENT_ID to build environment variables ([0e9551b](https://github.com/akira-foundation/unified-dev/commit/0e9551b9a282e9b6663177c3faeae18851fb7abc))
+
 # 0.1.0 (2026-04-06)
 
 
