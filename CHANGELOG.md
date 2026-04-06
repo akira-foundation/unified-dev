@@ -1,5 +1,12 @@
 
 
+## [0.2.1](https://github.com/akira-foundation/unified-dev/compare/v0.2.0...v0.2.1) (2026-04-06)
+
+
+### Bug Fixes
+
+* **ci:** add contents write permission for GitHub release upload ([004f113](https://github.com/akira-foundation/unified-dev/commit/004f113ae935b95f9327a9d35cab1158530154c3))
+
 # [0.2.0](https://github.com/akira-foundation/unified-dev/compare/v0.1.0...v0.2.0) (2026-04-06)
 
 
