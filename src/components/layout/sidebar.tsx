@@ -17,7 +17,6 @@ import {
 import type { NavItem } from "@/types/navigation";
 import { useI18n } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
-import { appVersion } from "@/lib/app-meta";
 
 interface AppSidebarProps {
   items: NavItem[];
@@ -137,15 +136,6 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
           ))}
         </SidebarMenu>
 
-        <div className="flex items-center gap-3 px-3 py-4 mt-2 border-t border-border/5 group-data-[collapsible=icon]:hidden">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-zinc-100 dark:bg-zinc-900 text-[10px] font-black uppercase text-zinc-500">
-            v{appVersion.split(".")[0]}
-          </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">{t("sidebar.engineLabel")}</span>
-            <span className="text-[10px] font-medium text-zinc-500">v{appVersion}</span>
-          </div>
-        </div>
       </SidebarFooter>
     </Sidebar>
   );

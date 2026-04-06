@@ -27,10 +27,14 @@ import { useOrganizations } from "@/hooks/useOrganizations";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -649,6 +653,25 @@ export function AgentsSidebar() {
 
 
       </SidebarContent>
+
+      <SidebarFooter className="p-3 border-t border-border/10">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => navigateTo("settings")}
+              tooltip={t("nav.settings")}
+              className="transition-all duration-200 rounded-md h-10 px-3 text-zinc-500 hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0"
+            >
+              <div className="flex items-center justify-center shrink-0 text-zinc-500">
+                <Settings className="h-4 w-4" />
+              </div>
+              <span className="ml-3 text-[13px] font-medium group-data-[collapsible=icon]:hidden">
+                {t("nav.settings")}
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
 
       <AddRepositoryDialog
         open={showAddRepositoryDialog}
