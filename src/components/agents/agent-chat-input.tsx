@@ -537,12 +537,12 @@ export function AgentChatInput() {
                   : t("agents.chatInput.placeholder.noProvider")
               }
               disabled={!hasProviders}
-              className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-foreground/90 placeholder:text-zinc-600 resize-none h-[24px] custom-scrollbar p-0 disabled:opacity-50"
+              className="w-full bg-transparent border-none outline-none focus:ring-0 text-[14px] font-medium text-foreground/90 placeholder:text-zinc-600 resize-none h-[24px] max-h-[160px] overflow-y-auto custom-scrollbar p-0 disabled:opacity-50"
               rows={1}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
                 target.style.height = "24px";
-                target.style.height = `${target.scrollHeight}px`;
+                target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
               }}
             />
           </div>

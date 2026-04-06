@@ -258,7 +258,7 @@ export function AgentWorkspaceLayout() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background mt-4">
+    <div className="flex flex-col h-full bg-background pt-4">
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 flex flex-col min-w-0 bg-background">
           {!selectedFilePath && <AgentHeader issue={selectedIssue} />}

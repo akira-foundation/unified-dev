@@ -453,7 +453,7 @@ export function AgentsSidebar() {
                       <div className="group/repo flex items-center gap-1 pr-2 rounded-md">
                         <button
                           onClick={(e) => toggleRepo(repo.id, e)}
-                          className="flex-1 flex items-center gap-2 px-2 py-2 select-none cursor-pointer"
+                          className="flex-1 min-w-0 flex items-center gap-2 px-2 py-2 select-none cursor-pointer"
                         >
                           <span className="w-4 flex items-center justify-center shrink-0">
                             {repo.issues.length > 0 && (
