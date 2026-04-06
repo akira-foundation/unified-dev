@@ -56,4 +56,6 @@ jobs:
       - name: Test build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          AKIRA_API_URL: ${{ secrets.AKIRA_API_URL }}
+          GITHUB_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
         run: npm run tauri build
