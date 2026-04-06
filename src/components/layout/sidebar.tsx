@@ -1,4 +1,5 @@
 import {
+  Layers,
   PanelLeft,
 } from "lucide-react";
 import {
@@ -44,11 +45,8 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
             </button>
           ) : (
             <>
-              <div className="relative">
-                <div className="absolute inset-0 bg-primary/30 blur-lg rounded-full" />
-                <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-primary to-purple-600 text-white font-bold text-xs shadow-lg shadow-primary/20">
-                  UD
-                </div>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-primary/20">
+                <Layers className="h-5 w-5 text-white" />
               </div>
               <div className="flex flex-col flex-1 overflow-hidden">
                 <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
