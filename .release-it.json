@@ -1,19 +1,66 @@
 {
+  "hooks": {
+    "after:bump": "node scripts/sync-version.js"
+  },
   "git": {
     "requireCleanWorkingDir": true,
     "commit": true,
-    "commitMessage": "chore: release ${version}",
+    "commitMessage": "chore: release v${version}",
+    "requireCommits": false,
+    "changelog": true,
     "tag": true,
     "tagName": "v${version}",
-    "push": true
+    "push": true,
+    "pushArgs": "--follow-tags"
   },
   "npm": {
-    "publish": false
+    "publish": false,
+    "tag": false,
+    "allowSameVersion": false,
+    "skipChecks": true
+  },
+  "github": {
+    "release": true,
+    "releaseName": "v${version}",
+    "web": true,
+    "draft": false,
+    "preRelease": false,
+    "skipChecks": true
   },
   "plugins": {
     "@release-it/conventional-changelog": {
-      "preset": "conventionalcommits",
-      "infile": "CHANGELOG.md"
+      "infile": "CHANGELOG.md",
+      "preset": "angular",
+      "types": {
+        "feat": {
+          "section": "Features"
+        },
+        "fix": {
+          "section": "Bug Fixes"
+        },
+        "perf": {
+          "section": "Performance"
+        },
+        "docs": {
+          "section": "Documentation",
+          "hidden": true
+        },
+        "style": {
+          "section": "Styling",
+          "hidden": true
+        },
+        "refactor": {
+          "section": "Code Refactoring"
+        },
+        "test": {
+          "section": "Tests",
+          "hidden": true
+        },
+        "chore": {
+          "section": "Build & CI/CD",
+          "hidden": true
+        }
+      }
     }
   }
 }
