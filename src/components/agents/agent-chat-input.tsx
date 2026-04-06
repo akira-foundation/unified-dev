@@ -1,11 +1,12 @@
 import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal, Square, Search } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAgentsStore } from "@/stores/useAgentsStore";
-import type { SendMessageOptions } from "@/stores/useAgentsStore";
+import type { SendMessageOptions, InstalledSkill } from "@/stores/useAgentsStore";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -16,7 +17,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { installedSkills, slashCommands } from "@/lib/skills-data";
+import { slashCommands } from "@/lib/skills-data";
+import { queryKeys } from "@/lib/query-keys";
 
 // ─── Slash menu ──────────────────────────────────────────────────────────────
 
@@ -157,6 +159,11 @@ export function AgentChatInput() {
     messages,
   } = useAgentsStore();
 
+  const { data: installedSkills = [] } = useQuery({
+    queryKey: queryKeys.skills(),
+    queryFn: () => invoke<InstalledSkill[]>("sync_skills", { workspacePath: null }),
+  });
+
   useEffect(() => {
     loadAiProviders();
   }, [loadAiProviders]);
@@ -217,18 +224,17 @@ export function AgentChatInput() {
     const skills: SlashItem[] = installedSkills
       .filter(
         (s) =>
-          s.active &&
-          (s.id.includes(lowerQuery) ||
-            s.title.toLowerCase().includes(lowerQuery) ||
+          s.enabled &&
+          (s.name.toLowerCase().includes(lowerQuery) ||
             s.description.toLowerCase().includes(lowerQuery)),
       )
       .map((s) => ({
         type: "skill",
         id: s.id,
-        label: s.title,
+        label: s.name,
         description: s.description,
-        icon: s.icon,
-        textIcon: s.textIcon,
+        icon: undefined,
+        textIcon: undefined,
         insertValue: `/${s.id} `,
       }));
 
