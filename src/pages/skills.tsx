@@ -15,109 +15,17 @@ import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { queryKeys } from "@/lib/query-keys";
+import { skillColor } from "@/lib/skill-color";
 
-interface RecommendedSkill {
+const FOUR_HOURS = 4 * 60 * 60 * 1000;
+
+interface RemoteSkill {
+  uid: string;
   id: string;
-  title: string;
+  name: string;
   description: string;
-  icon: string;
-  textIcon?: string;
-  repoUrl: string;
-}
-
-const recommendedSkills: RecommendedSkill[] = [
-  {
-    id: "fortify",
-    title: "Developing with Fortify",
-    description: "Laravel Fortify headless authentication backend",
-    icon: "bg-indigo-500/10 text-indigo-500",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "skill-creator",
-    title: "Skill Creator",
-    description: "Create or update a skill",
-    icon: "bg-yellow-500/10 text-yellow-500",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "skill-installer",
-    title: "Skill Installer",
-    description: "Install curated skills from a GitHub repo",
-    icon: "bg-orange-500/10 text-orange-500",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "slides",
-    title: "Slides",
-    description: "Create and edit slide decks with artifacts",
-    icon: "bg-blue-500/10 text-blue-500",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "spreadsheets",
-    title: "Spreadsheets",
-    description: "Create and edit spreadsheets with artifacts",
-    icon: "bg-green-500/10 text-green-500",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "aspnet",
-    title: "Aspnet Core",
-    description: "[Windows only] Build and review ASP.NET Core web apps",
-    icon: "bg-purple-600 border-purple-500 text-white",
-    textIcon: ".NET",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "chatgpt",
-    title: "Chatgpt Apps",
-    description: "Build and scaffold ChatGPT apps",
-    icon: "bg-orange-500/10 text-orange-500",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "cloudflare",
-    title: "Cloudflare Deploy",
-    description: "Deploy Workers, Pages, and platform services",
-    icon: "bg-orange-500/10 text-orange-500",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-  {
-    id: "webgame",
-    title: "Develop Web Game",
-    description: "Web game dev + Playwright test loop",
-    icon: "bg-neutral-200 text-neutral-800",
-    repoUrl: "https://github.com/anomalyco/opencode",
-  },
-];
-
-const SKILL_COLORS = [
-  "bg-red-500/15 text-red-400",
-  "bg-rose-500/15 text-rose-400",
-  "bg-pink-500/15 text-pink-400",
-  "bg-fuchsia-500/15 text-fuchsia-400",
-  "bg-purple-500/15 text-purple-400",
-  "bg-violet-500/15 text-violet-400",
-  "bg-indigo-500/15 text-indigo-400",
-  "bg-blue-500/15 text-blue-400",
-  "bg-sky-500/15 text-sky-400",
-  "bg-cyan-500/15 text-cyan-400",
-  "bg-teal-500/15 text-teal-400",
-  "bg-emerald-500/15 text-emerald-400",
-  "bg-green-500/15 text-green-400",
-  "bg-lime-500/15 text-lime-400",
-  "bg-yellow-500/15 text-yellow-400",
-  "bg-amber-500/15 text-amber-400",
-  "bg-orange-500/15 text-orange-400",
-];
-
-function skillColor(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return SKILL_COLORS[hash % SKILL_COLORS.length];
+  repo_url: string;
+  installs: number;
 }
 
 interface SkillIconProps {
@@ -169,6 +77,19 @@ export function SkillsPage() {
     queryFn: () => invoke<InstalledSkill[]>("sync_skills", { workspacePath }),
   });
 
+  const {
+    data: remoteSkills = [],
+    isLoading: remoteLoading,
+    isFetching: remoteFetching,
+    isError: remoteError,
+    refetch: refetchRemote,
+  } = useQuery({
+    queryKey: queryKeys.recommendedSkills(),
+    queryFn: () => invoke<RemoteSkill[]>("fetch_recommended_skills"),
+    staleTime: FOUR_HOURS,
+    retry: 2,
+  });
+
   const installedIds = new Set(installedSkills.map((s) => s.id));
 
   const toggleSkill = useMutation({
@@ -217,11 +138,11 @@ export function SkillsPage() {
       s.description.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const filteredRecommended = recommendedSkills.filter(
+  const filteredRecommended = remoteSkills.filter(
     (s) =>
       !installedIds.has(s.id) &&
       (!search ||
-        s.title.toLowerCase().includes(search.toLowerCase()) ||
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
         s.description.toLowerCase().includes(search.toLowerCase())),
   );
 
@@ -312,7 +233,6 @@ export function SkillsPage() {
                         </div>
                       </div>
 
-                      {/* Actions — visible on hover */}
                       <div
                         className="flex items-center gap-1 shrink-0 pl-2"
                         onClick={(e) => e.stopPropagation()}
@@ -350,29 +270,53 @@ export function SkillsPage() {
           </div>
 
           {/* Recommended Section */}
-          {filteredRecommended.length > 0 && (
-            <div className="pb-12">
-              <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">
+          <div className="pb-12">
+            <div className="flex items-center gap-3 mb-6">
+              <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500">
                 {t("pages.skills.recommended")}
               </h2>
+              <button
+                onClick={() => refetchRemote()}
+                disabled={remoteFetching}
+                className="flex items-center gap-1 text-zinc-600 hover:text-zinc-400 transition-colors disabled:opacity-40"
+                title="Refresh recommended skills"
+              >
+                <RefreshCcw className={cn("h-3 w-3", remoteFetching && "animate-spin")} />
+              </button>
+            </div>
+
+            {remoteLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-[66px] rounded-xl dark:bg-white/[0.03] bg-black/[0.03] animate-pulse" />
+                ))}
+              </div>
+            ) : remoteError ? (
+              <div className="flex items-center gap-3 text-sm text-zinc-600">
+                <span>Could not load recommended skills.</span>
+                <button
+                  onClick={() => refetchRemote()}
+                  className="text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredRecommended.length === 0 ? null : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filteredRecommended.map((skill) => {
                   const isInstalling = installSkill.isPending && installSkill.variables?.skillId === skill.id;
                   return (
                     <Card
-                      key={skill.id}
+                      key={skill.uid}
                       className="group overflow-hidden dark:hover:border-white/10 hover:border-border transition-colors cursor-pointer"
                       onClick={() => setSelectedSkill(skill)}
                     >
                       <CardContent className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-4 min-w-0 pr-4">
-                          <SkillIcon
-                            className={skill.icon}
-                            textIcon={skill.textIcon}
-                          />
+                          <SkillIcon className={skillColor(skill.uid)} />
                           <div className="flex flex-col gap-0.5 min-w-0">
                             <span className="text-[14px] font-bold dark:text-zinc-100 text-foreground truncate">
-                              {skill.title}
+                              {skill.name}
                             </span>
                             <span className="text-[13px] text-zinc-500 truncate font-medium">
                               {skill.description}
@@ -387,7 +331,7 @@ export function SkillsPage() {
                                 <button
                                   disabled={isInstalling}
                                   className="flex items-center gap-1.5 px-2 h-8 rounded-md text-zinc-400 hover:text-foreground dark:hover:bg-white/10 hover:bg-black/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-xs font-semibold"
-                                  onClick={() => installSkill.mutate({ skillId: skill.id, repoUrl: skill.repoUrl })}
+                                  onClick={() => installSkill.mutate({ skillId: skill.id, repoUrl: skill.repo_url })}
                                 >
                                   {isInstalling ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -408,8 +352,8 @@ export function SkillsPage() {
                   );
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </PageLayout>

@@ -5,6 +5,12 @@ use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
 pub use crate::app::skills::InstalledSkill;
+pub use crate::app::skills::DiscoveredSkill;
+
+#[tauri::command]
+pub async fn fetch_recommended_skills() -> Vec<DiscoveredSkill> {
+    skills::fetch_recommended().await
+}
 
 #[tauri::command]
 pub async fn sync_skills(

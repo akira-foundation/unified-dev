@@ -1,3 +1,4 @@
+pub mod discover;
 pub mod get;
 pub mod install;
 pub mod list_installed;
@@ -7,6 +8,7 @@ pub mod sync;
 pub mod types;
 pub mod uninstall;
 
+pub use discover::{fetch_recommended, DiscoveredSkill};
 pub use get::get;
 pub use install::install;
 pub use list_installed::list_installed;
