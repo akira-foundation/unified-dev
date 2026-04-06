@@ -53,6 +53,11 @@ jobs:
       - name: Lint frontend
         run: npm run lint --if-present
 
+      - name: Create .env for build
+        run: |
+          echo "AKIRA_API_URL=${{ secrets.AKIRA_API_URL }}" >> .env
+          echo "GITHUB_CLIENT_ID=${{ secrets.GH_OAUTH_CLIENT_ID }}" >> .env
+
       - name: Test build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
