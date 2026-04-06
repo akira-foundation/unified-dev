@@ -1,10 +1,12 @@
 use async_trait::async_trait;
+use serde_json::json;
 use tauri::AppHandle;
 use tauri::Manager;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::app::chat::stream::{emit_token, emit_tool_call, StreamToolCallPayload};
+use crate::app::mcp::types::McpServer;
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 
@@ -36,6 +38,41 @@ fn resolve_cli_model(model: &str) -> &str {
     }
 }
 
+fn build_mcp_config(servers: &[McpServer]) -> Option<String> {
+    if servers.is_empty() {
+        return None;
+    }
+
+    let mut mcp_servers = serde_json::Map::new();
+    for server in servers {
+        let Some(ref token) = server.access_token else { continue };
+        if token.is_empty() { continue }
+
+        let url = if server.url.ends_with("/sse") {
+            format!("{}/mcp", &server.url[..server.url.len() - 4])
+        } else         if server.url.ends_with("/mcp") {
+            server.url.clone()
+        } else {
+            format!("{}/mcp", server.url.trim_end_matches('/'))
+        };
+
+        let entry = json!({
+            "type": "http",
+            "url": url,
+            "headers": {
+                "Authorization": format!("Bearer {token}")
+            }
+        });
+        mcp_servers.insert(server.id.clone(), entry);
+    }
+
+    if mcp_servers.is_empty() {
+        return None;
+    }
+
+    Some(json!({ "mcpServers": mcp_servers }).to_string())
+}
+
 impl AnthropicCliProvider {
     async fn run(&self, request: &AiRequest, app: &AppHandle) -> AppResult<String> {
         let claude_bin = find_claude_cli().ok_or_else(|| {
@@ -64,6 +101,20 @@ impl AnthropicCliProvider {
             .arg("--add-dir").arg(&request.workspace_path)
             .arg("--allowedTools").arg("Bash Read Write Edit Glob Grep LS")
             .arg("--model").arg(cli_model);
+
+        if let Some(mcp_config_json) = build_mcp_config(&request.mcp_servers) {
+            let tmp_path = std::env::temp_dir().join(format!("unified-mcp-{}.json", uuid::Uuid::new_v4()));
+            std::fs::write(&tmp_path, &mcp_config_json).map_err(|e| {
+                AppError::Internal(format!("Failed to write MCP config: {e}"))
+            })?;
+            cmd.arg("--mcp-config").arg(&tmp_path);
+            cmd.arg("--strict-mcp-config");
+            cmd.arg("--dangerously-skip-permissions");
+            let _ = tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                let _ = std::fs::remove_file(&tmp_path);
+            });
+        }
 
         cmd.stdin(std::process::Stdio::piped())
             .stdout(std::process::Stdio::piped())

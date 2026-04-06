@@ -24,24 +24,31 @@ impl AiRegistry {
         self.providers.iter().find(|p| p.id() == id)
     }
 
-    /// Routes a request to the correct provider, applying fallback logic.
     pub async fn dispatch(&self, request: AiRequest, app: &AppHandle) -> AppResult<String> {
         let model = request.model.clone();
+
+        if let Some(inner_model) = model.strip_prefix("copilot:") {
+            if read_copilot_oauth_token().is_some() {
+                let mut req = request;
+                req.model = inner_model.to_string();
+                return self.find("copilot_chat").unwrap().complete(req, app).await;
+            }
+            return Err(AppError::Internal(
+                "GitHub Copilot credentials not found. Make sure the Copilot extension is installed and authenticated.".to_string(),
+            ));
+        }
 
         if model.starts_with("claude-") {
             if resolve_env_key("ANTHROPIC_API_KEY").is_some() {
                 return self.find("anthropic").unwrap().complete(request, app).await;
             }
             if find_claude_cli().is_some() {
-                eprintln!("[registry] ANTHROPIC_API_KEY not found, falling back to Claude CLI");
                 return self.find("anthropic_cli").unwrap().complete(request, app).await;
             }
             if read_copilot_oauth_token().is_some() {
-                eprintln!("[registry] Claude CLI not found, falling back to GitHub Copilot");
                 return self.find("copilot_chat").unwrap().complete(request, app).await;
             }
             if read_codex_access_token().is_some() {
-                eprintln!("[registry] Copilot not available, falling back to OpenAI direct");
                 return self.find("openai").unwrap().complete(request, app).await;
             }
             return Err(AppError::Internal(

@@ -42,7 +42,6 @@ impl AnthropicProvider {
             .map(|m| json!({ "role": m.role, "content": m.content }))
             .collect();
 
-        // Always append the current user message after the history.
         messages.push(json!({ "role": "user", "content": request.content }));
 
         let mut full_text = String::new();
@@ -126,7 +125,7 @@ impl AnthropicProvider {
                     output: None,
                 });
 
-                let (result, new_path) = execute_tool(&block.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers).await;
+                let (result, new_path) = execute_tool(&block.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers, &request.mcp_tools).await;
                 if let Some(p) = new_path {
                     workspace_path = p;
                 }

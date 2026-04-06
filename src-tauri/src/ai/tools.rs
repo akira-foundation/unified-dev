@@ -1,10 +1,6 @@
 use serde_json::{json, Value};
 use crate::app::mcp::{McpServer, McpTool};
 
-/// Split a shell command string into tokens, respecting single and double quoted strings.
-/// e.g. `git commit -m "chore: add routes"` → ["git", "commit", "-m", "chore: add routes"]
-/// Shell redirections (2>&1, >/dev/null, 2>/dev/null, etc.) are stripped — we capture
-/// stdout/stderr directly via tokio::process::Command, so they are never needed.
 fn shell_split(cmd: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let mut current = String::new();
@@ -57,7 +53,6 @@ fn shell_split(cmd: &str) -> Vec<String> {
     filtered
 }
 
-/// Anthropic tool definitions (uses `input_schema`).
 pub fn tool_definitions_anthropic(mcp_tools: &[McpTool]) -> Value {
     let mut tools = json!([
         {
@@ -167,7 +162,6 @@ pub fn tool_definitions_anthropic(mcp_tools: &[McpTool]) -> Value {
     tools
 }
 
-/// OpenAI Chat Completions tool definitions (uses `function.parameters`).
 pub fn tool_definitions_openai(mcp_tools: &[McpTool]) -> Value {
     let mut tools = json!([
         {
@@ -274,7 +268,6 @@ pub fn tool_definitions_openai(mcp_tools: &[McpTool]) -> Value {
     tools
 }
 
-/// Responses API tool definitions (no `function` wrapper).
 pub fn tool_definitions_responses(mcp_tools: &[McpTool]) -> Value {
     let mut tools = json!([
         {
@@ -361,8 +354,7 @@ pub fn tool_definitions_responses(mcp_tools: &[McpTool]) -> Value {
     tools
 }
 
-/// Execute a tool call and return the result string.
-pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread_id: &str, pool: &sqlx::SqlitePool, mcp_servers: &[McpServer]) -> (String, Option<String>) {
+pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread_id: &str, pool: &sqlx::SqlitePool, mcp_servers: &[McpServer], mcp_tools: &[McpTool]) -> (String, Option<String>) {
     let root = std::path::Path::new(workspace_path);
 
     match name {
@@ -591,10 +583,12 @@ pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread
         }
 
         other => {
-            if let Some(server) = mcp_servers.iter().find(|s| {
-                let prefix = format!("{}_", s.id);
-                other.starts_with(&prefix) || other.starts_with(&s.id)
-            }) {
+            let server = mcp_tools
+                .iter()
+                .find(|t| t.name == other)
+                .and_then(|t| mcp_servers.iter().find(|s| s.id == t.server_id));
+
+            if let Some(server) = server {
                 let token = server.access_token.as_deref().unwrap_or("");
                 let result = crate::app::mcp::call_tool(&server.url, token, other, args.clone())
                     .await
@@ -607,7 +601,6 @@ pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread
     }
 }
 
-/// Build a human-readable label for a tool call event.
 pub fn tool_label(name: &str, args: &Value) -> String {
     match name {
         "read_file" => {

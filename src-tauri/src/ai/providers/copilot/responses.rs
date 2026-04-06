@@ -32,7 +32,6 @@ impl CopilotResponsesProvider {
         for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
             input.push(json!({ "type": "message", "role": msg.role, "content": msg.content }));
         }
-        // Always append the current user message after the history.
         input.push(json!({ "type": "message", "role": "user", "content": request.content }));
 
         let mut full_text = String::new();
@@ -117,7 +116,7 @@ impl CopilotResponsesProvider {
                     output: None,
                 });
 
-                let (result, new_path) = execute_tool(&tc.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers).await;
+                let (result, new_path) = execute_tool(&tc.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers, &request.mcp_tools).await;
                 if let Some(p) = new_path {
                     workspace_path = p;
                 }

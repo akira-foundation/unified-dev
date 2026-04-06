@@ -241,14 +241,6 @@ export function SkillsPage() {
             </PageHeaderMeta>
           </div>
           <PageHeaderActions className="gap-3">
-            <Button
-              variant="ghost"
-              className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs"
-              onClick={() => refetch()}
-            >
-              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-              {t("common.refresh")}
-            </Button>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
               <Input
@@ -258,6 +250,14 @@ export function SkillsPage() {
                 className="w-64 pl-9 focus-visible:ring-purple-500/50"
               />
             </div>
+            <Button
+              variant="ghost"
+              className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs"
+              onClick={() => refetch()}
+            >
+              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+              {t("common.refresh")}
+            </Button>
             <Button className="gap-1.5">
               <Plus className="h-4 w-4" strokeWidth={3} />
               {t("common.newSkill")}

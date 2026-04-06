@@ -115,17 +115,34 @@ pub fn build_system_prompt(
     let mcp_section = if mcp_tools.is_empty() {
         String::new()
     } else {
-        let tool_list: String = mcp_tools
+        let mut by_server: std::collections::BTreeMap<&str, Vec<&crate::app::mcp::McpTool>> =
+            std::collections::BTreeMap::new();
+        for tool in mcp_tools {
+            by_server.entry(&tool.server_id).or_default().push(tool);
+        }
+
+        let server_blocks: String = by_server
             .iter()
-            .map(|t| {
-                let desc = t.description.as_deref().unwrap_or("");
-                format!("  - `{}`: {}", t.name, desc)
+            .map(|(server_id, tools)| {
+                let tool_list = tools
+                    .iter()
+                    .map(|t| {
+                        let desc = t.description.as_deref().unwrap_or("");
+                        format!("    - `{}`: {}", t.name, desc)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                format!("  Server: {server_id}\n{tool_list}")
             })
             .collect::<Vec<_>>()
-            .join("\n");
+            .join("\n\n");
+
         format!(
-            "\n\nThe following MCP (Model Context Protocol) tools are available to you as callable tools in this session. \
-             Use them directly via tool calls — do NOT generate OAuth URLs, ask the user to authenticate, or pretend they are unavailable:\n{tool_list}"
+            "\n\n## MCP TOOLS — ALREADY AUTHENTICATED AND READY\n\
+             CRITICAL: The following external service tools are connected, authenticated, and available RIGHT NOW as callable tools.\
+             \nDo NOT ask the user to authenticate. Do NOT generate OAuth URLs. Do NOT say authentication is needed.\
+             \nThe OAuth flow is already complete. Just call the tools directly.\
+             \n\n{server_blocks}"
         )
     };
 
@@ -160,7 +177,7 @@ pub fn build_system_prompt(
          If a rename_workspace tool is not available in your environment, output a line in this exact format on its own line: RENAME_WORKSPACE:<new_name> (e.g. RENAME_WORKSPACE:graph-inspector). The name must contain only letters, digits, hyphens, and underscores.\n\n\
          Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
          so the user can follow your progress. Keep these messages brief and factual.\
-         {runtime_modes}{mcp_section}{mcp_disconnected_section}{tree_section}{skills_section}{plan_section}"
+         {runtime_modes}{tree_section}{skills_section}{mcp_disconnected_section}{mcp_section}{plan_section}"
     )
 }
 
