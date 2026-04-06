@@ -45,7 +45,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
             </button>
           ) : (
             <>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-primary/20">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary shadow-lg shadow-primary/20">
                 <Layers className="h-5 w-5 text-white" />
               </div>
               <div className="flex flex-col flex-1 overflow-hidden">
