@@ -34,6 +34,7 @@ pub fn github_issue_to_vcs(issue: GitHubIssue) -> VcsIssue {
 
 #[derive(Debug, Deserialize)]
 pub struct GitHubCheckRunsResponse {
+    #[allow(dead_code)]
     pub total_count: u64,
     pub check_runs: Vec<GitHubCheckRun>,
 }
@@ -109,6 +110,7 @@ pub struct GitHubIssue {
     pub assignees: Option<Vec<GitHubIssueUser>>,
     pub created_at: String,
     pub updated_at: String,
+    #[allow(dead_code)]
     pub pull_request: Option<serde_json::Value>,
 }
 

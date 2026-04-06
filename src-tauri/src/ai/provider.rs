@@ -12,11 +12,13 @@ pub struct AiRequest {
     pub history: Vec<Message>,
     pub model: String,
     pub workspace_path: String,
+    #[allow(dead_code)]
     pub plan_mode: bool,
     pub thinking_budget: String,
     pub fast_mode: bool,
     pub mcp_tools: Vec<McpTool>,
     pub mcp_servers: Vec<McpServer>,
+    #[allow(dead_code)]
     pub mcp_disconnected_servers: Vec<McpServer>,
 }
 

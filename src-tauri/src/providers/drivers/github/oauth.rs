@@ -52,16 +52,19 @@ pub async fn exchange_code(api_url: &str, code: &str) -> AppResult<ConnectResult
 
 pub async fn fetch_viewer(token: &str) -> AppResult<(String, String)> {
     #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
     struct GraphQlResponse {
         data: ViewerData,
     }
 
     #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
     struct ViewerData {
         viewer: Viewer,
     }
 
     #[derive(serde::Deserialize)]
+    #[allow(dead_code)]
     struct Viewer {
         login: String,
         #[serde(rename = "type")]

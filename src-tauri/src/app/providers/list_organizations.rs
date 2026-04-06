@@ -14,6 +14,7 @@ struct UserInstallationsResponse {
 
 #[derive(serde::Deserialize)]
 struct UserInstallation {
+    #[allow(dead_code)]
     id: u64,
     html_url: String,
     account: InstallationAccount,

@@ -33,9 +33,13 @@ pub struct WorkerLicenseResponse {
 #[derive(Debug, Deserialize)]
 pub struct WorkerStatusResponse {
     pub valid: bool,
+    #[allow(dead_code)]
     pub plan: Option<String>,
+    #[allow(dead_code)]
     pub cycle: Option<String>,
+    #[allow(dead_code)]
     pub email: Option<String>,
+    #[allow(dead_code)]
     pub status: Option<String>,
     pub valid_until: Option<String>,
 }

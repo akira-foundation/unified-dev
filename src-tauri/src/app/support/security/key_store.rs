@@ -13,6 +13,7 @@ const KEYRING_ACCOUNT: &str = "token-encryption-key";
 pub struct KeyStore;
 
 impl KeyStore {
+    #[allow(unused_variables)]
     pub fn load_or_create_key(app: &tauri::AppHandle) -> AppResult<[u8; 32]> {
         // In debug mode, the file is the stable source — checked before the keychain
         // to prevent a new key being generated on each recompile.
@@ -53,18 +54,21 @@ fn generate_key() -> [u8; 32] {
     key
 }
 
+#[cfg(debug_assertions)]
 fn key_file_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;
     fs::create_dir_all(&app_dir)?;
     Ok(app_dir.join("dev-key.txt"))
 }
 
+#[cfg(debug_assertions)]
 fn read_key_file(app: &tauri::AppHandle) -> AppResult<String> {
     let path = key_file_path(app)?;
     let encoded = fs::read_to_string(path)?;
     Ok(encoded.trim().to_string())
 }
 
+#[cfg(debug_assertions)]
 fn write_key_file(app: &tauri::AppHandle, encoded: &str) -> AppResult<()> {
     let path = key_file_path(app)?;
     fs::write(path, encoded)?;
