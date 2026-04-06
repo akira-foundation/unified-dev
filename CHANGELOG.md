@@ -1,5 +1,12 @@
 
 
+# [0.3.0](https://github.com/akira-foundation/unified-dev/compare/v0.2.1...v0.3.0) (2026-04-06)
+
+
+### Features
+
+* **updater:** implement auto-update with tauri-plugin-updater and update UI in AppHeader ([822a4cb](https://github.com/akira-foundation/unified-dev/commit/822a4cba108afe1e7d11a45d6e1865ed7dc33ec6))
+
 ## [0.2.1](https://github.com/akira-foundation/unified-dev/compare/v0.2.0...v0.2.1) (2026-04-06)
 
 
