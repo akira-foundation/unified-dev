@@ -10,4 +10,5 @@ pub mod settings;
 pub mod skill;
 pub mod terminal;
 pub mod thread;
+pub mod updater;
 pub mod workspace;

@@ -37,6 +37,7 @@ use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_s
 use commands::license::{activate_license, checkout_license, clear_license, get_license, verify_license};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills};
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
+use commands::updater::{check_for_updates, install_update};
 use providers::default_registry;
 use app::support::error::AppResult;
 use app::support::security::{KeyStore, TokenCipher};
@@ -49,6 +50,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
                 let pool = database::init_pool(app.handle()).await?;
@@ -193,6 +195,8 @@ pub fn run() {
             connect_mcp_server,
             disconnect_mcp_server,
             cancel_mcp_connect,
+            check_for_updates,
+            install_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
