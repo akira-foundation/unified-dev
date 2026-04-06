@@ -15,6 +15,7 @@ export const queryKeys = {
   jobLogs: (orgId: string, repo: string, jobId: number) =>
     ["job-logs", orgId, repo, jobId] as const,
   skills: () => ["skills"] as const,
+  mcpServers: () => ["mcp-servers"] as const,
   allRepositories: () => ["all-repositories"] as const,
   issues: (orgId: string, repo: string, scope = "default") => ["issues", orgId, repo, scope] as const,
   issueDetail: (orgId: string, repo: string, number: number) =>

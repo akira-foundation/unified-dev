@@ -6,6 +6,8 @@ use crate::ai::providers::default_registry;
 use crate::ai::system_prompt::{build_action_system_prompt, build_system_prompt};
 use crate::app::chat::message::{get_messages, save_message};
 use crate::app::chat::stream::{emit_done, emit_error};
+use crate::app::mcp;
+use crate::app::skills;
 use crate::app::support::error::{AppError, AppResult};
 
 struct ThreadContext {
@@ -80,9 +82,19 @@ pub async fn run(
         get_messages(&thread_id, &pool).await?
     };
 
+    let (mcp_tools, mcp_servers, mcp_disconnected_servers) = if silent {
+        (vec![], vec![], vec![])
+    } else {
+        let servers = mcp::load_servers(&pool).await;
+        let tools = mcp::load_tools(&pool).await;
+        let disconnected = mcp::load_disconnected_servers(&pool).await;
+        (tools, servers, disconnected)
+    };
+
     let system_prompt = if silent {
         build_action_system_prompt(&repo_ctx.name, &thread_ctx.workspace_path, &thread_ctx.branch)
     } else {
+        let skill_content = skills::load_content(&pool).await;
         build_system_prompt(
             &repo_ctx.name,
             &thread_ctx.workspace_path,
@@ -91,6 +103,9 @@ pub async fn run(
             plan_mode,
             &thinking_budget,
             fast_mode,
+            &skill_content,
+            &mcp_tools,
+            &mcp_disconnected_servers,
         )
     };
 
@@ -104,6 +119,9 @@ pub async fn run(
         plan_mode,
         thinking_budget,
         fast_mode,
+        mcp_tools,
+        mcp_servers,
+        mcp_disconnected_servers,
     };
 
     match default_registry().dispatch(request, &app).await {

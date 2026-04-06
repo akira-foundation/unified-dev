@@ -14,6 +14,7 @@ import { SkillsPage } from "@/pages/skills";
 import { SkillDetailsPage } from "@/pages/skill-details";
 import { AutomationsPage } from "@/pages/automations";
 import { CreateAutomationPage } from "@/pages/create-automation";
+import { McpPage } from "@/pages/mcp";
 import { useEffect, useRef, useState, useCallback } from "react";
 
 const DIFF_MIN_WIDTH = 280;
@@ -169,6 +170,14 @@ export function AgentWorkspaceLayout() {
     return (
       <div className="flex flex-col h-full bg-background w-full">
         <SkillsPage />
+      </div>
+    );
+  }
+
+  if (activeTab === "mcp") {
+    return (
+      <div className="flex flex-col h-full bg-background w-full">
+        <McpPage />
       </div>
     );
   }

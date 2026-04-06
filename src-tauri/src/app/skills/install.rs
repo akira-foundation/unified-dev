@@ -1,25 +1,11 @@
-use tauri::State;
+use tauri::{AppHandle, Manager, State};
 use std::io::Read;
-use std::path::PathBuf;
 use chrono::Utc;
 
 use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
 use super::types::InstalledSkill;
-
-fn skill_dirs() -> Vec<PathBuf> {
-    let home = match dirs::home_dir() {
-        Some(h) => h,
-        None => return vec![],
-    };
-    vec![
-        home.join(".codex").join("skills"),
-        home.join(".claude").join("skills"),
-        home.join(".config").join("opencode").join("skills"),
-        home.join(".agents").join("skills"),
-    ]
-}
 
 fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
     let mut name: Option<String> = None;
@@ -55,7 +41,12 @@ fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppState>) -> AppResult<InstalledSkill> {
+pub async fn install(
+    skill_id: String,
+    repo_url: String,
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<InstalledSkill> {
     let repo_url = repo_url.trim_end_matches('/').to_string();
     let zip_url = format!("{}/archive/refs/heads/main.zip", repo_url);
 
@@ -72,9 +63,13 @@ pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppSta
 
     let mut name = String::new();
     let mut description = String::new();
-    let mut installed_source = String::new();
     let now = Utc::now().to_rfc3339();
-    let dirs = skill_dirs();
+
+    let global_skills_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?
+        .join("skills");
 
     let mut skill_files: Vec<(String, Vec<u8>)> = Vec::new();
     let mut strip_prefix = String::new();
@@ -115,36 +110,33 @@ pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppSta
         )));
     }
 
-    for target_dir in &dirs {
-        let skill_dir = target_dir.join(&skill_id);
-        if let Err(e) = std::fs::create_dir_all(&skill_dir) {
-            eprintln!("Failed to create dir {:?}: {}", skill_dir, e);
-            continue;
+    let skill_dir = global_skills_dir.join(&skill_id);
+    std::fs::create_dir_all(&skill_dir)
+        .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?;
+
+    for (relative, buf) in &skill_files {
+        let dest = skill_dir.join(relative);
+        if let Some(parent) = dest.parent() {
+            let _ = std::fs::create_dir_all(parent);
         }
-        for (relative, buf) in &skill_files {
-            let dest = skill_dir.join(relative);
-            if let Some(parent) = dest.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            let _ = std::fs::write(&dest, buf);
-        }
-        if installed_source.is_empty() {
-            installed_source = skill_dir.to_string_lossy().to_string();
-        }
+        let _ = std::fs::write(&dest, buf);
     }
+
+    let installed_source = skill_dir.to_string_lossy().to_string();
 
     if name.is_empty() {
         name = title_case(&skill_id);
     }
 
     sqlx::query(
-        "INSERT INTO skills (id, name, description, enabled, icon_path, installed_at, source_path)
-         VALUES (?, ?, ?, 1, NULL, ?, ?)
+        "INSERT INTO skills (id, name, description, enabled, icon_path, installed_at, source_path, scope)
+         VALUES (?, ?, ?, 1, NULL, ?, ?, 'global')
          ON CONFLICT(id) DO UPDATE SET
            name = excluded.name,
            description = excluded.description,
            source_path = excluded.source_path,
-           installed_at = excluded.installed_at",
+           installed_at = excluded.installed_at,
+           scope = 'global'",
     )
     .bind(&skill_id)
     .bind(&name)
@@ -162,5 +154,6 @@ pub async fn install(skill_id: String, repo_url: String, state: State<'_, AppSta
         icon_path: None,
         installed_at: now,
         source_path: installed_source,
+        scope: "global".to_string(),
     })
 }

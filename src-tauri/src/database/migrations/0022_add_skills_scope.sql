@@ -1,0 +1,1 @@
+ALTER TABLE skills ADD COLUMN scope TEXT NOT NULL DEFAULT 'global';

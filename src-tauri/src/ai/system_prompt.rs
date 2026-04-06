@@ -1,6 +1,3 @@
-/// Walks `root` up to `max_depth` levels, collecting relative paths of all
-/// files (skipping common noise dirs). Returns a sorted, newline-separated
-/// tree string suitable for embedding in a system prompt.
 pub fn collect_file_tree(root: &std::path::Path, max_depth: usize) -> String {
     let ignore = [
         ".git",
@@ -69,6 +66,9 @@ pub fn build_system_prompt(
     plan_mode: bool,
     thinking_budget: &str,
     fast_mode: bool,
+    skills: &[(String, String)],
+    mcp_tools: &[crate::app::mcp::McpTool],
+    mcp_disconnected_servers: &[crate::app::mcp::McpServer],
 ) -> String {
     let root = std::path::Path::new(workspace_path);
     let file_tree = collect_file_tree(root, 4);
@@ -102,6 +102,53 @@ pub fn build_system_prompt(
         if fast_mode { "fast" } else { "standard" },
     );
 
+    let skills_section = if skills.is_empty() {
+        String::new()
+    } else {
+        let blocks: String = skills
+            .iter()
+            .map(|(name, content)| format!("\n\n## Skill: {name}\n\n{content}"))
+            .collect();
+        format!("\n\n---\nThe following skill instructions are active for this session. Follow them carefully:{blocks}")
+    };
+
+    let mcp_section = if mcp_tools.is_empty() {
+        String::new()
+    } else {
+        let tool_list: String = mcp_tools
+            .iter()
+            .map(|t| {
+                let desc = t.description.as_deref().unwrap_or("");
+                format!("  - `{}`: {}", t.name, desc)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "\n\nThe following MCP (Model Context Protocol) tools are available to you as callable tools in this session. \
+             Use them directly via tool calls — do NOT generate OAuth URLs, ask the user to authenticate, or pretend they are unavailable:\n{tool_list}"
+        )
+    };
+
+    let mcp_disconnected_section = if mcp_disconnected_servers.is_empty() {
+        String::new()
+    } else {
+        let server_list: String = mcp_disconnected_servers
+            .iter()
+            .map(|s| format!("  - {} ({})", s.name, s.url))
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "\n\nThe following MCP servers are configured but NOT connected (no authentication token).\
+             \nIf the user asks about tools from these services, instruct them to:\
+             \n1. Click \"MCP\" in the left sidebar\
+             \n2. Find the server and click \"Connect\"\
+             \n3. Complete the OAuth login in the browser\
+             \n4. Return here and retry their request\
+             \n\nDo NOT attempt to generate OAuth URLs or perform authentication yourself.\
+             \n\nDisconnected servers:\n{server_list}"
+        )
+    };
+
     format!(
         "You are an AI coding agent working on the repository '{repo_name}' (branch: {branch}).\n\
          Workspace path: {workspace_path}\n\n\
@@ -113,7 +160,7 @@ pub fn build_system_prompt(
          If a rename_workspace tool is not available in your environment, output a line in this exact format on its own line: RENAME_WORKSPACE:<new_name> (e.g. RENAME_WORKSPACE:graph-inspector). The name must contain only letters, digits, hyphens, and underscores.\n\n\
          Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
          so the user can follow your progress. Keep these messages brief and factual.\
-         {runtime_modes}{tree_section}{plan_section}"
+         {runtime_modes}{mcp_section}{mcp_disconnected_section}{tree_section}{skills_section}{plan_section}"
     )
 }
 

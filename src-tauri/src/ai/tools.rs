@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use crate::app::mcp::{McpServer, McpTool};
 
 /// Split a shell command string into tokens, respecting single and double quoted strings.
 /// e.g. `git commit -m "chore: add routes"` → ["git", "commit", "-m", "chore: add routes"]
@@ -57,8 +58,8 @@ fn shell_split(cmd: &str) -> Vec<String> {
 }
 
 /// Anthropic tool definitions (uses `input_schema`).
-pub fn tool_definitions_anthropic() -> Value {
-    json!([
+pub fn tool_definitions_anthropic(mcp_tools: &[McpTool]) -> Value {
+    let mut tools = json!([
         {
             "name": "read_file",
             "description": "Read the contents of a file in the workspace. Use this to examine source code, config files, or any text file.",
@@ -151,12 +152,24 @@ pub fn tool_definitions_anthropic() -> Value {
                 "required": ["new_name"]
             }
         }
-    ])
+    ]);
+
+    if let Some(arr) = tools.as_array_mut() {
+        for t in mcp_tools {
+            arr.push(json!({
+                "name": t.name,
+                "description": t.description,
+                "input_schema": t.input_schema,
+            }));
+        }
+    }
+
+    tools
 }
 
 /// OpenAI Chat Completions tool definitions (uses `function.parameters`).
-pub fn tool_definitions_openai() -> Value {
-    json!([
+pub fn tool_definitions_openai(mcp_tools: &[McpTool]) -> Value {
+    let mut tools = json!([
         {
             "type": "function",
             "function": {
@@ -243,12 +256,27 @@ pub fn tool_definitions_openai() -> Value {
                 }
             }
         }
-    ])
+    ]);
+
+    if let Some(arr) = tools.as_array_mut() {
+        for t in mcp_tools {
+            arr.push(json!({
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.input_schema,
+                }
+            }));
+        }
+    }
+
+    tools
 }
 
 /// Responses API tool definitions (no `function` wrapper).
-pub fn tool_definitions_responses() -> Value {
-    json!([
+pub fn tool_definitions_responses(mcp_tools: &[McpTool]) -> Value {
+    let mut tools = json!([
         {
             "type": "function",
             "name": "read_file",
@@ -317,11 +345,24 @@ pub fn tool_definitions_responses() -> Value {
                 "required": ["new_name"]
             }
         }
-    ])
+    ]);
+
+    if let Some(arr) = tools.as_array_mut() {
+        for t in mcp_tools {
+            arr.push(json!({
+                "type": "function",
+                "name": t.name,
+                "description": t.description,
+                "parameters": t.input_schema,
+            }));
+        }
+    }
+
+    tools
 }
 
 /// Execute a tool call and return the result string.
-pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread_id: &str, pool: &sqlx::SqlitePool) -> (String, Option<String>) {
+pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread_id: &str, pool: &sqlx::SqlitePool, mcp_servers: &[McpServer]) -> (String, Option<String>) {
     let root = std::path::Path::new(workspace_path);
 
     match name {
@@ -549,7 +590,20 @@ pub async fn execute_tool(name: &str, args: &Value, workspace_path: &str, thread
             }
         }
 
-        other => (format!("Error: unknown tool '{other}'"), None),
+        other => {
+            if let Some(server) = mcp_servers.iter().find(|s| {
+                let prefix = format!("{}_", s.id);
+                other.starts_with(&prefix) || other.starts_with(&s.id)
+            }) {
+                let token = server.access_token.as_deref().unwrap_or("");
+                let result = crate::app::mcp::call_tool(&server.url, token, other, args.clone())
+                    .await
+                    .unwrap_or_else(|e| format!("MCP error: {e}"));
+                (result, None)
+            } else {
+                (format!("Error: unknown tool '{other}'"), None)
+            }
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCcw, Plus, Search, Trash2, Download, Loader2 } from "lucide-react";
+import { RefreshCcw, Plus, Search, Trash2, Download, Loader2, FolderOpen } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
@@ -155,13 +155,18 @@ function SkillIcon({ className, textIcon, iconPath, onClick }: SkillIconProps) {
 
 export function SkillsPage() {
   const { t } = useI18n();
-  const { setSelectedSkill } = useAgentsStore();
+  const { setSelectedSkill, repositoryGroups, selectedIssueId } = useAgentsStore();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
 
+  const activeThread = repositoryGroups
+    .flatMap((g) => g.repositories.flatMap((r) => r.issues))
+    .find((i) => i.id === selectedIssueId);
+  const workspacePath = activeThread?.workspacePath ?? null;
+
   const { data: installedSkills = [], isLoading: loading, refetch } = useQuery({
     queryKey: queryKeys.skills(),
-    queryFn: () => invoke<InstalledSkill[]>("sync_skills"),
+    queryFn: () => invoke<InstalledSkill[]>("sync_skills", { workspacePath }),
   });
 
   const installedIds = new Set(installedSkills.map((s) => s.id));
@@ -290,9 +295,17 @@ export function SkillsPage() {
                           onClick={() => changeIcon(skill.id)}
                         />
                         <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-[14px] font-bold dark:text-zinc-100 text-foreground truncate">
-                            {skill.name}
-                          </span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[14px] font-bold dark:text-zinc-100 text-foreground truncate">
+                              {skill.name}
+                            </span>
+                            {skill.scope === "project" && (
+                              <span className="flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                                <FolderOpen className="h-2.5 w-2.5" />
+                                Project
+                              </span>
+                            )}
+                          </div>
                           <span className="text-[13px] text-zinc-500 truncate font-medium">
                             {skill.description}
                           </span>
@@ -304,22 +317,24 @@ export function SkillsPage() {
                         className="flex items-center gap-1 shrink-0 pl-2"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-2 h-8 rounded-md text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-xs font-semibold"
-                                onClick={() => uninstallSkill.mutate(skill.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                {t("common.uninstall")}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-zinc-800 text-zinc-200 border-zinc-700 text-xs">
-                              {t("pages.skills.removeTooltip")}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                        {skill.scope !== "project" && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  className="opacity-0 group-hover:opacity-100 flex items-center gap-1.5 px-2 h-8 rounded-md text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-xs font-semibold"
+                                  onClick={() => uninstallSkill.mutate(skill.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  {t("common.uninstall")}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-zinc-800 text-zinc-200 border-zinc-700 text-xs">
+                                {t("pages.skills.removeTooltip")}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
 
                         <Switch
                           checked={skill.enabled}

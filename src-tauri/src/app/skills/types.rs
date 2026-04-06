@@ -9,4 +9,6 @@ pub struct InstalledSkill {
     pub icon_path: Option<String>,
     pub installed_at: String,
     pub source_path: String,
+    /// "global" for app-level skills, "project" for workspace .skills/ overrides
+    pub scope: String,
 }

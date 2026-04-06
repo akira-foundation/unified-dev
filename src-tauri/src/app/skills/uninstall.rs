@@ -1,37 +1,18 @@
-use tauri::State;
-use std::path::PathBuf;
+use tauri::{AppHandle, Manager, State};
 
 use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
-fn skill_dirs() -> Vec<PathBuf> {
-    let home = match dirs::home_dir() {
-        Some(h) => h,
-        None => return vec![],
-    };
-    vec![
-        home.join(".codex").join("skills"),
-        home.join(".claude").join("skills"),
-        home.join(".config").join("opencode").join("skills"),
-        home.join(".agents").join("skills"),
-    ]
-}
-
-fn icons_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".agents").join("skills").join(".icons"))
-}
-
-pub async fn uninstall(id: String, state: State<'_, AppState>) -> AppResult<()> {
-    for dir in skill_dirs() {
-        let skill_dir = dir.join(&id);
+pub async fn uninstall(id: String, app_handle: AppHandle, state: State<'_, AppState>) -> AppResult<()> {
+    if let Ok(app_data) = app_handle.path().app_data_dir() {
+        let skill_dir = app_data.join("skills").join(&id);
         if skill_dir.is_dir() {
             let _ = std::fs::remove_dir_all(&skill_dir);
         }
-    }
 
-    if let Some(icons) = icons_dir() {
+        let icons_dir = app_data.join("skills").join(".icons");
         for ext in &["png", "jpg", "jpeg", "webp", "svg"] {
-            let icon = icons.join(format!("{}.{}", id, ext));
+            let icon = icons_dir.join(format!("{}.{}", id, ext));
             if icon.exists() {
                 let _ = std::fs::remove_file(icon);
             }

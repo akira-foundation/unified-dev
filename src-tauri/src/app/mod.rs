@@ -3,6 +3,7 @@ pub mod concerns;
 pub mod license;
 pub mod filesystem;
 pub mod issues;
+pub mod mcp;
 pub mod orgs;
 pub mod prompts;
 pub mod providers;

@@ -20,6 +20,7 @@ export interface InstalledSkill {
   icon_path: string | null;
   installed_at: string;
   source_path: string;
+  scope: "global" | "project";
 }
 
 export interface ChatMessage {
@@ -45,7 +46,7 @@ interface AgentsState {
   timelineSteps: AgentTimelineStep[];
   fileChanges: FileChange[];
   selectedFilePath: string | null;
-  activeTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill";
+  activeTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp";
   selectedSkill: any | null;
   selectedAutomation: any | null;
   aiProviders: AiProviderGroup[];
@@ -67,7 +68,7 @@ interface AgentsState {
   messageQueueByThread: Record<string, Array<{ content: string; model: string; options?: SendMessageOptions }>>;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
-  setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill") => void;
+  setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp") => void;
   setSelectedSkill: (skill: any | null) => void;
   setSelectedAutomation: (automation: any | null) => void;
   setSelectedModelId: (id: string) => void;

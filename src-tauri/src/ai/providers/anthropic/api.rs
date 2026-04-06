@@ -33,7 +33,7 @@ impl AnthropicProvider {
 
         let api_model = resolve_model_id(&request.model);
         let client = Client::new();
-        let tools = tool_definitions_anthropic();
+        let tools = tool_definitions_anthropic(&request.mcp_tools);
 
         let mut messages: Vec<Value> = request
             .history
@@ -126,7 +126,7 @@ impl AnthropicProvider {
                     output: None,
                 });
 
-                let (result, new_path) = execute_tool(&block.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool).await;
+                let (result, new_path) = execute_tool(&block.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers).await;
                 if let Some(p) = new_path {
                     workspace_path = p;
                 }

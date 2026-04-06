@@ -24,7 +24,7 @@ impl CopilotChatProvider {
 
         let api_token = exchange_copilot_token(&oauth_token).await?;
         let client = Client::new();
-        let tools = tool_definitions_openai();
+        let tools = tool_definitions_openai(&request.mcp_tools);
 
         let mut messages: Vec<Value> =
             vec![json!({ "role": "system", "content": request.system_prompt })];
@@ -117,7 +117,7 @@ impl CopilotChatProvider {
                     output: None,
                 });
 
-                let (result, new_path) = execute_tool(&tc.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool).await;
+                let (result, new_path) = execute_tool(&tc.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers).await;
                 if let Some(p) = new_path {
                     workspace_path = p;
                 }

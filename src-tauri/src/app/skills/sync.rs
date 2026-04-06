@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{AppHandle, State};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use chrono::Utc;
@@ -7,19 +7,6 @@ use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
 use super::types::InstalledSkill;
-
-fn skill_dirs() -> Vec<PathBuf> {
-    let home = match dirs::home_dir() {
-        Some(h) => h,
-        None => return vec![],
-    };
-    vec![
-        home.join(".codex").join("skills"),
-        home.join(".claude").join("skills"),
-        home.join(".config").join("opencode").join("skills"),
-        home.join(".agents").join("skills"),
-    ]
-}
 
 fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
     let mut name: Option<String> = None;
@@ -55,11 +42,24 @@ fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-pub async fn sync(state: State<'_, AppState>) -> AppResult<Vec<InstalledSkill>> {
+fn scope_for_dir(dir: &PathBuf) -> &'static str {
+    dir.parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+        .map(|n| if n == ".skills" { "project" } else { "global" })
+        .unwrap_or("global")
+}
+
+pub async fn sync(
+    app_handle: AppHandle,
+    workspace_path: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<Vec<InstalledSkill>> {
+    let dirs = super::skill_dirs(&app_handle, workspace_path.as_deref());
     let mut seen: HashSet<String> = HashSet::new();
 
-    for dir in skill_dirs() {
-        let entries = match std::fs::read_dir(&dir) {
+    for dir in &dirs {
+        let entries = match std::fs::read_dir(dir) {
             Ok(e) => e,
             Err(_) => continue,
         };
@@ -89,26 +89,31 @@ pub async fn sync(state: State<'_, AppState>) -> AppResult<Vec<InstalledSkill>> 
             let name = parsed_name.unwrap_or_else(|| title_case(&dir_name));
             let description = parsed_desc.unwrap_or_default();
             let source_path = path.to_string_lossy().to_string();
+            let scope = scope_for_dir(&path);
             let now = Utc::now().to_rfc3339();
 
             sqlx::query(
-                "INSERT OR IGNORE INTO skills (id, name, description, enabled, icon_path, installed_at, source_path) VALUES (?, ?, ?, 1, NULL, ?, ?)",
+                "INSERT OR IGNORE INTO skills (id, name, description, enabled, icon_path, installed_at, source_path, scope) VALUES (?, ?, ?, 1, NULL, ?, ?, ?)",
             )
             .bind(&dir_name)
             .bind(&name)
             .bind(&description)
             .bind(&now)
             .bind(&source_path)
+            .bind(scope)
             .execute(&state.db_pool)
             .await?;
 
-            sqlx::query("UPDATE skills SET name = ?, description = ?, source_path = ? WHERE id = ?")
-                .bind(&name)
-                .bind(&description)
-                .bind(&source_path)
-                .bind(&dir_name)
-                .execute(&state.db_pool)
-                .await?;
+            sqlx::query(
+                "UPDATE skills SET name = ?, description = ?, source_path = ?, scope = ? WHERE id = ?",
+            )
+            .bind(&name)
+            .bind(&description)
+            .bind(&source_path)
+            .bind(scope)
+            .bind(&dir_name)
+            .execute(&state.db_pool)
+            .await?;
 
             seen.insert(dir_name);
         }

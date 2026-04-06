@@ -1,18 +1,21 @@
-use tauri::State;
-use std::path::PathBuf;
+use tauri::{AppHandle, Manager, State};
 
 use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
-fn icons_dir() -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".agents").join("skills").join(".icons"))
-}
+pub async fn set_icon(
+    id: String,
+    data: Vec<u8>,
+    extension: String,
+    app_handle: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<String> {
+    let icons = app_handle
+        .path()
+        .app_data_dir()
+        .map(|d| d.join("skills").join(".icons"))
+        .map_err(|_| crate::app::support::error::AppError::Internal("Cannot resolve app data dir".into()))?;
 
-pub async fn set_icon(id: String, data: Vec<u8>, extension: String, state: State<'_, AppState>) -> AppResult<String> {
-    let icons = match icons_dir() {
-        Some(d) => d,
-        None => return Err(crate::app::support::error::AppError::Internal("Cannot resolve home dir".into())),
-    };
     std::fs::create_dir_all(&icons)?;
 
     let filename = format!("{}.{}", id, extension);

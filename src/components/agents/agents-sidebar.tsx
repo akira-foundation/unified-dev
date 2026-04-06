@@ -8,6 +8,7 @@ import {
   Filter,
   Zap,
   Lightbulb,
+  Link2,
   MoreVertical,
   CircleDot,
   GitPullRequest,
@@ -412,6 +413,21 @@ export function AgentsSidebar() {
               activeTab === 'skills' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
             )} />
             <span>{t("agents.sidebar.skills")}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('mcp')}
+            className={cn(
+              "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
+              activeTab === 'mcp'
+                ? "dark:bg-white/10 bg-black/10 text-foreground"
+                : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
+            )}
+          >
+            <Link2 className={cn(
+              "h-4 w-4 transition-colors",
+              activeTab === 'mcp' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+            )} />
+            <span>MCP</span>
           </button>
         </div>
       </SidebarHeader>
