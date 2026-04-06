@@ -151,7 +151,7 @@ function MessageMarkdown({ content }: { content: string }) {
           <h1 className="mt-4 mb-2 text-[15px] font-bold text-foreground/95">{children}</h1>
         ),
         h2: ({ children }) => (
-          <h2 className="mt-3 mb-1.5 text-[14px] font-bold text-foreground/90">{children}</h2>
+          <h2 className="mt-3 mb-1.5 text-[14px] font-semibold text-foreground/90">{children}</h2>
         ),
         h3: ({ children }) => (
           <h3 className="mt-2 mb-1 text-[13px] font-semibold text-foreground/85">{children}</h3>
@@ -160,6 +160,28 @@ function MessageMarkdown({ content }: { content: string }) {
           <a href={href} target="_blank" rel="noopener noreferrer" className="text-purple-400 underline underline-offset-2 hover:text-purple-300">
             {children}
           </a>
+        ),
+        table: ({ children }) => (
+          <div className="my-3 w-full overflow-x-auto rounded-xl dark:border-white/[0.06] border border-zinc-200">
+            <table className="w-full text-[13px] border-collapse">{children}</table>
+          </div>
+        ),
+        thead: ({ children }) => (
+          <thead className="dark:bg-zinc-800/60 bg-zinc-100">{children}</thead>
+        ),
+        tbody: ({ children }) => (
+          <tbody className="divide-y dark:divide-white/[0.04] divide-zinc-200">{children}</tbody>
+        ),
+        tr: ({ children }) => (
+          <tr className="dark:hover:bg-white/[0.02] hover:bg-black/[0.02] transition-colors">{children}</tr>
+        ),
+        th: ({ children }) => (
+          <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="px-3 py-2 text-foreground/75 align-top">{children}</td>
         ),
       }}
     >
@@ -173,8 +195,6 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
   const bottomRef = useRef<HTMLDivElement>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Scroll to bottom on new history messages (smooth) or streaming chunks (instant).
-  // Using "smooth" on every streaming flush causes layout thrashing and visible flicker.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -183,7 +203,6 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
     bottomRef.current?.scrollIntoView({ behavior: "auto" });
   }, [streamingContent]);
 
-  // Timer that counts up while streaming.
   useEffect(() => {
     if (!isStreaming) {
       setElapsedSeconds(0);
@@ -198,7 +217,6 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Legacy timeline steps — shown when there are no real messages yet */}
       {!hasContent && steps.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 py-32 text-center select-none">
           <div className="flex h-20 w-20 items-center justify-center rounded-3xl dark:bg-white/[0.04] bg-black/[0.04] dark:border-white/[0.06] border-black/[0.06] border">
@@ -246,9 +264,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
         </>
       )}
 
-      {/* Chat messages */}
       {messages.map((msg) => {
-        // Tool / command output — shown as a terminal block
         if (msg.role === "tool") {
           return (
             <div key={msg.id} className="flex flex-col gap-1">
@@ -275,7 +291,6 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             msg.role === "user" ? "flex-row-reverse" : "flex-row"
           )}
         >
-          {/* Avatar */}
           <div className={cn(
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/10 shadow-sm",
             msg.role === "user"
@@ -288,7 +303,6 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
             }
           </div>
 
-          {/* Bubble */}
           <div className={cn(
             "flex flex-col gap-1 min-w-0",
             msg.role === "user" ? "items-end max-w-[80%]" : "items-start w-full"
@@ -312,14 +326,12 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
         );
       })}
 
-      {/* Live streaming bubble */}
       {isStreaming && (
         <div className="flex gap-4 flex-row">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/10 shadow-sm bg-white dark:bg-zinc-900 text-zinc-400 animate-pulse">
             <Bot className="h-4 w-4" />
           </div>
           <div className="flex flex-col gap-2 items-start w-full min-w-0">
-            {/* Tool call steps */}
             {toolCalls.length > 0 && (
               <div className="w-full rounded-xl dark:border-white/[0.05] border border-zinc-200 dark:bg-zinc-900/60 bg-zinc-100 px-3 py-2.5 flex flex-col gap-1.5">
                 {toolCalls.map((tc) => (
@@ -332,7 +344,6 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
                 <MessageMarkdown content={streamingContent} />
               </div>
             )}
-            {/* Working indicator — always visible while streaming */}
             <span className="flex items-center gap-2 px-1 text-[12px] text-zinc-500">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
