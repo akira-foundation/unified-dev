@@ -6,4 +6,7 @@ pub struct ProviderRepo {
     pub visibility: String,
     pub is_private: bool,
     pub default_branch: String,
+    pub is_fork: bool,
+    pub fork_owner: Option<String>,
+    pub fork_repo: Option<String>,
 }

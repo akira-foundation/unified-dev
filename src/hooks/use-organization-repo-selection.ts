@@ -51,6 +51,9 @@ export function useOrganizationRepoSelection(organizationId: string | null) {
           is_selected: true,
           auto_sync: true,
           default_branch: repo.default_branch,
+          is_fork: repo.is_fork,
+          fork_owner: repo.fork_owner,
+          fork_repo: repo.fork_repo,
         }));
 
       await repositorySelectionService.saveSelectedRepositories(organizationId, payload);

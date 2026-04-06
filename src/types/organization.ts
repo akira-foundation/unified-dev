@@ -29,6 +29,9 @@ export interface OrganizationRepoSummary {
   default_branch: string;
   open_prs_count: number;
   open_issues_count?: number;
+  is_fork: boolean;
+  fork_owner: string | null;
+  fork_repo: string | null;
   created_at: string;
 }
 
@@ -52,6 +55,9 @@ export interface ProviderRepo {
   visibility: string;
   is_private: boolean;
   default_branch: string;
+  is_fork: boolean;
+  fork_owner: string | null;
+  fork_repo: string | null;
 }
 
 export interface SelectedRepositoryInput {
@@ -61,6 +67,9 @@ export interface SelectedRepositoryInput {
   is_selected: boolean;
   auto_sync?: boolean;
   default_branch?: string;
+  is_fork?: boolean;
+  fork_owner?: string | null;
+  fork_repo?: string | null;
 }
 
 export interface PullRequestDto {

@@ -20,8 +20,10 @@ pub async fn sync(
         _ => Some("open"),
     };
 
+    let (effective_owner, effective_repo) = resolve_upstream(&state, &org_id, &owner, &repo_name).await;
+
     let issues = provider
-        .list_issues(&owner, &repo_name, state_param)
+        .list_issues(&effective_owner, &effective_repo, state_param)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -126,4 +128,26 @@ pub async fn sync(
     }
 
     super::list::list(state, org_id, repo_name, Some(scope), current_login).await
+}
+
+async fn resolve_upstream(state: &AppState, org_id: &str, owner: &str, repo_name: &str) -> (String, String) {
+    let result = sqlx::query_as::<_, (bool, Option<String>, Option<String>)>(
+        "SELECT is_fork, fork_owner, fork_repo FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
+    )
+    .bind(org_id)
+    .bind(repo_name)
+    .fetch_optional(&state.db_pool)
+    .await;
+
+    match result {
+        Ok(Some((true, Some(fo), Some(fr)))) => return (fo, fr),
+        Ok(Some((true, _, _))) => {
+            if let Some((fo, fr)) = crate::app::orgs::resolve_provider::fetch_and_persist_github_parent(state, org_id, owner, repo_name).await {
+                return (fo, fr);
+            }
+        }
+        _ => {}
+    }
+
+    (owner.to_string(), repo_name.to_string())
 }

@@ -11,6 +11,9 @@ pub struct OrgRepoSummary {
     pub auto_sync: bool,
     pub default_branch: String,
     pub open_prs_count: i64,
+    pub is_fork: bool,
+    pub fork_owner: Option<String>,
+    pub fork_repo: Option<String>,
     pub created_at: String,
 }
 
@@ -26,5 +29,8 @@ pub struct OrgRepoWithOrg {
     pub auto_sync: bool,
     pub default_branch: String,
     pub open_prs_count: i64,
+    pub is_fork: bool,
+    pub fork_owner: Option<String>,
+    pub fork_repo: Option<String>,
     pub created_at: String,
 }

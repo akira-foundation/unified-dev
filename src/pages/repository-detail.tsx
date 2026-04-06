@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, MoreVertical, Plus, RefreshCw, Settings2, Trash2 } from "lucide-react";
+import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw, Settings2, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { toast } from "sonner";
@@ -362,6 +362,22 @@ export function RepositoryDetailPage() {
     },
   });
 
+  const syncRepoMutation = useMutation({
+    mutationFn: () =>
+      invoke("sync_single_repo_stats", {
+        organizationId: activeRepo!.organizationId,
+        repoName: activeRepo!.name,
+      }),
+    onMutate: () => toast.loading(t("agents.sidebar.toast.syncingRepo").replace("{name}", activeRepo!.name)),
+    onSuccess: (_data, _vars, loadingToast) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+      toast.success(t("agents.sidebar.toast.repoSynced").replace("{name}", activeRepo!.name), { id: loadingToast as string });
+    },
+    onError: (_err, _vars, loadingToast) => {
+      toast.error(t("agents.sidebar.toast.syncFailed").replace("{name}", activeRepo!.name), { id: loadingToast as string });
+    },
+  });
+
   const handleCreateBranch = async (branchName: string, fromSha: string) => {
     const loadingId = toast.loading(t("pages.repositoryBranches.dialog.creating"));
     try {
@@ -462,6 +478,14 @@ export function RepositoryDetailPage() {
                 </Badge>
               </>
             )}
+            {currentRepo?.is_fork && (
+              <>
+                <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+                <Badge variant="info" className="text-[10px] px-1.5 py-0">
+                  Fork
+                </Badge>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setRepoConfigOpen(true)}
@@ -472,7 +496,36 @@ export function RepositoryDetailPage() {
             </button>
           </PageHeaderMeta>
         </div>
-        <PageHeaderActions>
+        <PageHeaderActions className="gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => syncRepoMutation.mutate()}
+                disabled={syncRepoMutation.isPending}
+              >
+                <RotateCw className={cn("h-4 w-4", syncRepoMutation.isPending && "animate-spin")} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("common.sync")}</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  const ghOwner = currentRepo?.fork_owner ?? activeRepo.owner;
+                  const ghRepo = currentRepo?.fork_repo ?? activeRepo.name;
+                  void handleOpenUrl(`https://github.com/${ghOwner}/${ghRepo}`);
+                }}
+              >
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>View on GitHub</TooltipContent>
+          </Tooltip>
           {tab === "issues" && (
             <Button onClick={() => setCreateOpen(true)}>
               <Plus size={18} />

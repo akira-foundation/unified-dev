@@ -13,11 +13,11 @@ pub async fn sync(
     current_login: Option<String>,
 ) -> Result<Vec<PullRequestDto>, String> {
     let _ = owner;
-    let (owner, provider) = super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let (effective_owner, effective_repo, provider) = super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
     let provider_kind = provider.kind().to_string();
 
     let prs = provider
-        .list_pull_requests(&owner, &repo_name)
+        .list_pull_requests(&effective_owner, &effective_repo)
         .await
         .map_err(|e| e.to_string())?;
 

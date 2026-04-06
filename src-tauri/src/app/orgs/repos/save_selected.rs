@@ -54,12 +54,15 @@ async fn replace_selected_repos(state: &AppState, organization_id: &str, repos: 
 
     for repo in repos {
         let updated = sqlx::query(
-            "UPDATE organization_repos SET visibility = ?, is_selected = ?, auto_sync = ?, default_branch = ? WHERE organization_id = ? AND repo_name = ?",
+            "UPDATE organization_repos SET visibility = ?, is_selected = ?, auto_sync = ?, default_branch = ?, is_fork = ?, fork_owner = ?, fork_repo = ? WHERE organization_id = ? AND repo_name = ?",
         )
         .bind(&repo.visibility)
         .bind(repo.is_selected)
         .bind(repo.auto_sync.unwrap_or(true))
         .bind(repo.default_branch.as_deref().unwrap_or(""))
+        .bind(repo.is_fork.unwrap_or(false))
+        .bind(&repo.fork_owner)
+        .bind(&repo.fork_repo)
         .bind(organization_id)
         .bind(&repo.repo_name)
         .execute(&mut *transaction)
@@ -68,7 +71,7 @@ async fn replace_selected_repos(state: &AppState, organization_id: &str, repos: 
 
         if updated.rows_affected() == 0 {
             sqlx::query(
-                "INSERT INTO organization_repos (organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO organization_repos (organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, is_fork, fork_owner, fork_repo, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(organization_id)
             .bind(&repo.owner)
@@ -78,6 +81,9 @@ async fn replace_selected_repos(state: &AppState, organization_id: &str, repos: 
             .bind(repo.auto_sync.unwrap_or(true))
             .bind(repo.default_branch.as_deref().unwrap_or(""))
             .bind(repo.open_prs_count.unwrap_or(0))
+            .bind(repo.is_fork.unwrap_or(false))
+            .bind(&repo.fork_owner)
+            .bind(&repo.fork_repo)
             .bind(created_at)
             .execute(&mut *transaction)
             .await

@@ -9,4 +9,7 @@ pub struct SelectRepoRequest {
     pub auto_sync: Option<bool>,
     pub default_branch: Option<String>,
     pub open_prs_count: Option<i64>,
+    pub is_fork: Option<bool>,
+    pub fork_owner: Option<String>,
+    pub fork_repo: Option<String>,
 }

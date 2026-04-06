@@ -25,6 +25,7 @@ struct InstallationRepository {
     private: bool,
     visibility: String,
     default_branch: Option<String>,
+    fork: Option<bool>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -206,6 +207,9 @@ impl VcsProvider for GitHubDriver {
                     visibility: repo.visibility,
                     is_private: repo.private,
                     default_branch: repo.default_branch.unwrap_or_default(),
+                    is_fork: repo.fork.unwrap_or(false),
+                    fork_owner: None,
+                    fork_repo: None,
                 })
                 .collect::<Vec<_>>();
 
@@ -244,12 +248,24 @@ impl VcsProvider for GitHubDriver {
             name_with_owner: String,
             #[serde(rename = "isPrivate")]
             is_private: bool,
+            #[serde(rename = "isFork")]
+            is_fork: bool,
             #[serde(rename = "defaultBranchRef")]
             default_branch_ref: Option<DefaultBranchRef>,
+            parent: Option<ParentRepo>,
         }
         #[derive(Deserialize)]
         struct DefaultBranchRef {
             name: String,
+        }
+        #[derive(Deserialize)]
+        struct ParentRepo {
+            name: String,
+            owner: ParentRepoOwner,
+        }
+        #[derive(Deserialize)]
+        struct ParentRepoOwner {
+            login: String,
         }
 
         let query = r#"
@@ -257,8 +273,9 @@ impl VcsProvider for GitHubDriver {
                 viewer {
                     repositories(first: 100, after: $after, affiliations: [OWNER, COLLABORATOR, ORGANIZATION_MEMBER]) {
                         nodes {
-                            databaseId name nameWithOwner isPrivate
+                            databaseId name nameWithOwner isPrivate isFork
                             defaultBranchRef { name }
+                            parent { name owner { login } }
                         }
                         pageInfo { hasNextPage endCursor }
                     }
@@ -273,6 +290,10 @@ impl VcsProvider for GitHubDriver {
                 let conn = data.viewer.repositories;
                 let items = conn.nodes.into_iter().map(|r| {
                     let owner = r.name_with_owner.split('/').next().unwrap_or("").to_string();
+                    let (fork_owner, fork_repo) = match &r.parent {
+                        Some(p) => (Some(p.owner.login.clone()), Some(p.name.clone())),
+                        None => (None, None),
+                    };
                     ProviderRepo {
                         id: r.database_id.to_string(),
                         owner,
@@ -280,6 +301,9 @@ impl VcsProvider for GitHubDriver {
                         visibility: if r.is_private { "private".to_string() } else { "public".to_string() },
                         is_private: r.is_private,
                         default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_default(),
+                        is_fork: r.is_fork,
+                        fork_owner,
+                        fork_repo,
                     }
                 }).collect();
                 (items, conn.page_info.has_next_page, conn.page_info.end_cursor)
@@ -301,6 +325,9 @@ impl VcsProvider for GitHubDriver {
                     visibility: repo.visibility,
                     is_private: repo.private,
                     default_branch: repo.default_branch.unwrap_or_default(),
+                    is_fork: repo.fork.unwrap_or(false),
+                    fork_owner: None,
+                    fork_repo: None,
                 })
                 .collect::<Vec<_>>();
 
@@ -339,12 +366,24 @@ impl VcsProvider for GitHubDriver {
             name_with_owner: String,
             #[serde(rename = "isPrivate")]
             is_private: bool,
+            #[serde(rename = "isFork")]
+            is_fork: bool,
             #[serde(rename = "defaultBranchRef")]
             default_branch_ref: Option<DefaultBranchRef>,
+            parent: Option<ParentRepo>,
         }
         #[derive(Deserialize)]
         struct DefaultBranchRef {
             name: String,
+        }
+        #[derive(Deserialize)]
+        struct ParentRepo {
+            name: String,
+            owner: ParentRepoOwner,
+        }
+        #[derive(Deserialize)]
+        struct ParentRepoOwner {
+            login: String,
         }
 
         let query = r#"
@@ -352,8 +391,9 @@ impl VcsProvider for GitHubDriver {
                 organization(login: $login) {
                     repositories(first: 100, after: $after) {
                         nodes {
-                            databaseId name nameWithOwner isPrivate
+                            databaseId name nameWithOwner isPrivate isFork
                             defaultBranchRef { name }
+                            parent { name owner { login } }
                         }
                         pageInfo { hasNextPage endCursor }
                     }
@@ -372,6 +412,10 @@ impl VcsProvider for GitHubDriver {
                 };
                 let items = conn.nodes.into_iter().map(|r| {
                     let owner = r.name_with_owner.split('/').next().unwrap_or("").to_string();
+                    let (fork_owner, fork_repo) = match &r.parent {
+                        Some(p) => (Some(p.owner.login.clone()), Some(p.name.clone())),
+                        None => (None, None),
+                    };
                     ProviderRepo {
                         id: r.database_id.to_string(),
                         owner,
@@ -379,6 +423,9 @@ impl VcsProvider for GitHubDriver {
                         visibility: if r.is_private { "private".to_string() } else { "public".to_string() },
                         is_private: r.is_private,
                         default_branch: r.default_branch_ref.map(|b| b.name).unwrap_or_default(),
+                        is_fork: r.is_fork,
+                        fork_owner,
+                        fork_repo,
                     }
                 }).collect();
                 (items, conn.page_info.has_next_page, conn.page_info.end_cursor)

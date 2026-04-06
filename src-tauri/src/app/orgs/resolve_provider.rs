@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::app::concerns::VcsProvider;
-use crate::providers::drivers::github::client::GitHubDriver;
+use crate::providers::drivers::github::client::{GitHubDriver, GITHUB_API};
 use crate::providers::enums::{ProviderAuth, ProviderKind};
 use crate::state::AppState;
 
@@ -108,4 +108,66 @@ pub async fn resolve_provider_for_org(
         .create(&credentials.kind, credentials.auth)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[derive(serde::Deserialize)]
+struct GitHubRepoParentOwner {
+    login: String,
+}
+
+#[derive(serde::Deserialize)]
+struct GitHubRepoParent {
+    name: String,
+    owner: GitHubRepoParentOwner,
+}
+
+#[derive(serde::Deserialize)]
+struct GitHubRepoResponse {
+    parent: Option<GitHubRepoParent>,
+}
+
+pub async fn fetch_and_persist_github_parent(
+    state: &AppState,
+    org_id: &str,
+    owner: &str,
+    repo_name: &str,
+) -> Option<(String, String)> {
+    let provider_id = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT provider_id FROM organizations WHERE id = ?",
+    )
+    .bind(org_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .ok()??;
+
+    let credentials = crate::app::providers::credentials::credentials(state, &provider_id)
+        .await
+        .ok()?;
+
+    let token = match credentials.auth {
+        ProviderAuth::PersonalAccessToken { token } => token,
+        ProviderAuth::GitHubOAuth { access_token, .. } => access_token,
+        ProviderAuth::GitHubApp { installation_token, .. } => installation_token,
+        ProviderAuth::AppPassword { .. } => return None,
+    };
+
+    let driver = GitHubDriver::new(token).ok()?;
+    let url = format!("{GITHUB_API}/repos/{owner}/{repo_name}");
+    let response: GitHubRepoResponse = driver.get_json(url).await.ok()?;
+    let parent = response.parent?;
+
+    let fork_owner = parent.owner.login;
+    let fork_repo = parent.name;
+
+    let _ = sqlx::query(
+        "UPDATE organization_repos SET fork_owner = ?, fork_repo = ? WHERE organization_id = ? AND repo_name = ?",
+    )
+    .bind(&fork_owner)
+    .bind(&fork_repo)
+    .bind(org_id)
+    .bind(repo_name)
+    .execute(&state.db_pool)
+    .await;
+
+    Some((fork_owner, fork_repo))
 }

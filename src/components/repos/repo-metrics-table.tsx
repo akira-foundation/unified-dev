@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw, Search } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useRepoActions } from "../../hooks/useRepoActions";
@@ -17,6 +17,7 @@ import { useFiltersStore } from "../../stores/filters-store";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
+import { Input } from "../ui/input";
 import {
   FilterPopover,
   FilterPopoverContent,
@@ -73,6 +74,7 @@ export function RepoMetricsTable({
   const { t } = useI18n();
   const { handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask } = useRepoActions();
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [search, setSearch] = useState("");
 
   const setFilter = useFiltersStore((s) => s.setFilter);
   const clearFilters = useFiltersStore((s) => s.clearFilters);
@@ -109,14 +111,16 @@ export function RepoMetricsTable({
     filters.defaultBranch.length;
 
   const filteredRepos = useMemo(() => {
+    const lower = search.toLowerCase();
     return repos.filter((repo) => {
+      if (lower && !repo.repo_name.toLowerCase().includes(lower) && !repo.organization_name.toLowerCase().includes(lower)) return false;
       if (filters.visibility.length > 0 && !filters.visibility.includes(repo.visibility)) return false;
       if (filters.organizations.length > 0 && !filters.organizations.includes(repo.organization_name)) return false;
       if (showHasOpenPrsFilter && repo.open_prs_count === 0) return false;
       if (filters.defaultBranch.length > 0 && !filters.defaultBranch.includes(repo.default_branch)) return false;
       return true;
     });
-  }, [repos, filters, showHasOpenPrsFilter]);
+  }, [repos, filters, showHasOpenPrsFilter, search]);
 
   const columns = useMemo<ColumnDef<OrganizationRepoWithOrg>[]>(() => {
     const cols: ColumnDef<OrganizationRepoWithOrg>[] = [
@@ -133,14 +137,26 @@ export function RepoMetricsTable({
           </button>
         ),
         cell: ({ row }) => (
-          <div className="flex flex-col">
-            <button
-              className="text-sm font-semibold text-gray-900 dark:text-white text-left hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
-              onClick={() => handleViewRepo(row.original)}
-            >
-              {row.original.repo_name}
-            </button>
-            <span className="text-xs text-gray-500 dark:text-gray-400">{row.original.owner}</span>
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <button
+                className="text-sm font-semibold text-gray-900 dark:text-white text-left hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
+                onClick={() => handleViewRepo(row.original)}
+              >
+                {row.original.repo_name}
+              </button>
+              {row.original.is_fork && (
+                <Badge variant="info" className="text-[10px] px-1.5 py-0 h-4 font-medium">
+                  Fork
+                </Badge>
+              )}
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {row.original.owner}
+              {row.original.is_fork && row.original.fork_owner && row.original.fork_repo && (
+                <span className="text-zinc-400 dark:text-zinc-600"> · upstream: {row.original.fork_owner}/{row.original.fork_repo}</span>
+              )}
+            </span>
           </div>
         ),
       },
@@ -330,6 +346,15 @@ export function RepoMetricsTable({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("filters.search.placeholder")}
+              className="pl-8 h-9 w-48 text-sm focus-visible:ring-purple-500/50"
+            />
+          </div>
           {onSync && (
             <Tooltip>
               <TooltipTrigger asChild>

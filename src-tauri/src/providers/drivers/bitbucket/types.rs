@@ -27,6 +27,9 @@ pub fn repo_to_provider(repo: BitbucketRepo) -> ProviderRepo {
         },
         is_private,
         default_branch,
+        is_fork: false,
+        fork_owner: None,
+        fork_repo: None,
     }
 }
 
