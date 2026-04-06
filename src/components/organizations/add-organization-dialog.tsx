@@ -26,7 +26,6 @@ const organizationSchema = z.object({
 export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit }: AddOrganizationDialogProps) {
   const { t } = useI18n();
   const form = useForm<z.infer<typeof organizationSchema>>({
-    // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(organizationSchema),
     mode: "onChange",
     defaultValues: {

@@ -45,7 +45,6 @@ export const TOKEN_META: Record<string, { label: string; placeholder: string; hi
 export function AddProviderDialog({ open, onOpenChange, onSubmit, defaultKind }: AddProviderDialogProps) {
   const { t } = useI18n();
   const form = useForm<z.infer<typeof providerSchema>>({
-    // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(providerSchema),
     mode: "onChange",
     defaultValues: {

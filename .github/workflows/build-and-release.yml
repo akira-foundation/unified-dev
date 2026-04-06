@@ -80,8 +80,6 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          AKIRA_API_URL: ${{ secrets.AKIRA_API_URL }}
-          GITHUB_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
         run: npm run tauri build
 
       - name: Upload macOS artifacts

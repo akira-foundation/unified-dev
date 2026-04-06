@@ -47,20 +47,18 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Create .env for build
+        run: |
+          echo "AKIRA_API_URL=${{ secrets.AKIRA_API_URL }}" >> .env
+          echo "GITHUB_CLIENT_ID=${{ secrets.GH_OAUTH_CLIENT_ID }}" >> .env
+
       - name: Check Rust compilation
         run: cargo check --manifest-path src-tauri/Cargo.toml
 
       - name: Lint frontend
         run: npm run lint --if-present
 
-      - name: Create .env for build
-        run: |
-          echo "AKIRA_API_URL=${{ secrets.AKIRA_API_URL }}" >> .env
-          echo "GITHUB_CLIENT_ID=${{ secrets.GH_OAUTH_CLIENT_ID }}" >> .env
-
       - name: Test build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          AKIRA_API_URL: ${{ secrets.AKIRA_API_URL }}
-          GITHUB_CLIENT_ID: ${{ secrets.GH_OAUTH_CLIENT_ID }}
         run: npm run tauri build

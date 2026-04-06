@@ -230,7 +230,7 @@ export function TeamView() {
     initialState: { pagination: { pageSize: 5 } },
   });
 
-  const { pageIndex, pageSize } = table.getState().pagination;
+  const { pageIndex } = table.getState().pagination;
   const totalPages = table.getPageCount();
 
   return (

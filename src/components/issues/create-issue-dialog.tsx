@@ -119,7 +119,6 @@ export function CreateIssueDialog({
     orgId && repoName ? repoName : repos.length > 0 ? repos[0].repo_name : "";
 
   const form = useForm<FormValues>({
-    // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: { repoName: defaultRepoName, title: "", body: "", labels: [], assignees: [] },

@@ -40,7 +40,6 @@ export function CreateBranchDialog({
   const { t } = useI18n();
 
   const form = useForm<FormValues>({
-    // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(schema),
     mode: "onChange",
     defaultValues: { branchName: "", fromBranch: defaultBranch },

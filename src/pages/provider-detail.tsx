@@ -117,7 +117,6 @@ export function ProviderDetailPage() {
   const provider = providers.find((p) => p.id === activeProviderId) ?? null;
 
   const form = useForm<z.infer<typeof tokenSchema>>({
-    // @ts-expect-error - version mismatch between zod and hook-form resolver
     resolver: zodResolver(tokenSchema),
     mode: "onChange",
     defaultValues: { token: "" },
