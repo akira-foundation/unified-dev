@@ -44,11 +44,22 @@ type TabId =
   | "integrations" | "agents" | "remote" | "sync" | "shortcuts" | "dictation"
   | "advanced" | "vcs-providers" | "workspaces" | "prompts";
 
+import { useNavigationStore } from "@/stores/navigation-store";
+
 export function SettingsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
-  const [activeTab, setActiveTab] = useState<TabId>("general");
+  const settingsTab = useNavigationStore((s) => s.settingsTab);
+  const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
+  const [activeTab, setActiveTab] = useState<TabId>((settingsTab as TabId) ?? "general");
   const [isPending, startTransition] = useTransition();
+
+  const handleTabChange = (id: TabId) => {
+    startTransition(() => {
+      setActiveTab(id);
+      setSettingsTab(id);
+    });
+  };
 
   const SETTINGS_GROUPS = [
     {
@@ -111,7 +122,7 @@ export function SettingsPage() {
                 {group.items.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => startTransition(() => setActiveTab(tab.id))}
+                    onClick={() => handleTabChange(tab.id)}
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-all duration-200",
                       activeTab === tab.id

@@ -39,6 +39,8 @@ interface NavigationState {
   setTargetPrScope: (scope: PullRequestScope | null) => void;
   setTargetRepoTab: (tab: "prs" | "issues" | "branches" | null) => void;
   setDashboardTab: (tab: string) => void;
+  settingsTab: string;
+  setSettingsTab: (tab: string) => void;
 }
 
 export const useNavigationStore = create<NavigationState>()(
@@ -57,6 +59,7 @@ export const useNavigationStore = create<NavigationState>()(
       canGoBack: false,
       isAgentMode: false,
       dashboardTab: "overview",
+      settingsTab: "general",
       setCurrentPage: (page) => set({ currentPage: page }),
       navigateTo: (page) => {
         const { currentPage, history } = get();
@@ -106,6 +109,7 @@ export const useNavigationStore = create<NavigationState>()(
       setTargetPrScope: (scope) => set({ targetPrScope: scope }),
       setTargetRepoTab: (tab) => set({ targetRepoTab: tab }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
+      setSettingsTab: (tab) => set({ settingsTab: tab }),
     }),
     {
       name: "unified_dev_navigation",

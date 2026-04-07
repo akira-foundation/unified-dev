@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   GitBranch,
   Wrench,
@@ -6,9 +7,11 @@ import {
   PanelLeft,
   PanelRight,
 } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useI18n } from "@/i18n/i18n";
+import { useNavigationStore } from "@/stores/navigation-store";
 
 interface AgentStatusBarProps {
   branchName: string;
@@ -29,6 +32,20 @@ export function AgentStatusBar({
 }: AgentStatusBarProps) {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
+  const navigateTo = useNavigationStore((s) => s.navigateTo);
+  const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
+  const [remoteEnabled, setRemoteEnabled] = useState(false);
+
+  useEffect(() => {
+    invoke<{ enabled: boolean }>("get_remote_settings")
+      .then((s) => setRemoteEnabled(s.enabled))
+      .catch(() => setRemoteEnabled(false));
+  }, []);
+
+  const handleOpenRemote = () => {
+    setSettingsTab("remote");
+    navigateTo("settings");
+  };
 
   return (
     <div className="h-10 border-t border-border bg-background flex items-center px-4 justify-between select-none">
@@ -62,14 +79,22 @@ export function AgentStatusBar({
 
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-6">
-          <button className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground/40 hover:text-foreground transition-colors group">
+          <button
+            onClick={handleOpenRemote}
+            className={cn(
+              "flex items-center gap-2 text-[11px] font-medium transition-colors group cursor-pointer",
+              remoteEnabled
+                ? "text-emerald-500 hover:text-emerald-400"
+                : "text-muted-foreground/40 hover:text-foreground",
+            )}
+          >
             <MonitorCog className="h-3.5 w-3.5" />
             <span>{t("agents.statusBar.mobileRemote")}</span>
           </button>
           <button
             onClick={onToggleTerminal}
             className={cn(
-              "flex items-center gap-2 text-[11px] font-medium transition-colors group",
+              "flex items-center gap-2 text-[11px] font-medium transition-colors group cursor-pointer",
               isTerminalOpen
                 ? "text-purple-400"
                 : "text-muted-foreground/40 hover:text-foreground",
