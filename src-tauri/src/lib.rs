@@ -33,7 +33,7 @@ use commands::thread::{
     list_thread_source_pull_requests, rename_thread, set_thread_pr_url, update_repository_settings,
 };
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
-use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_sync_settings, upsert_visibility_preferences, reset_sync_settings, reset_visibility_preferences, get_remote_settings, set_remote_enabled, regenerate_remote_pairing_code, revoke_remote_device};
+use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_sync_settings, upsert_visibility_preferences, reset_sync_settings, reset_visibility_preferences, get_remote_settings, set_remote_enabled, regenerate_remote_pairing_code, revoke_remote_device, touch_org_synced_at};
 use commands::license::{activate_license, checkout_license, clear_license, get_license, verify_license};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills};
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
@@ -196,6 +196,7 @@ pub fn run() {
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,
+            touch_org_synced_at,
             get_visibility_preferences,
             upsert_visibility_preferences,
             reset_visibility_preferences,

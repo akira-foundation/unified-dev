@@ -23,6 +23,11 @@ pub async fn reset_sync_settings(id: String, state: State<'_, AppState>) -> AppR
 }
 
 #[tauri::command]
+pub async fn touch_org_synced_at(org_id: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<()> {
+    settings::touch(org_id, state, app).await
+}
+
+#[tauri::command]
 pub async fn get_visibility_preferences(scope_type: String, scope_id: String, state: State<'_, AppState>) -> AppResult<VisibilityPreferencesDto> {
     settings::visibility::get(scope_type, scope_id, state).await
 }

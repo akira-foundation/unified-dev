@@ -32,6 +32,7 @@ interface OrganizationItemProps {
   onSelect?: (id: string) => void;
   onImportRepositories?: (id: string) => void;
   onConfigureSync?: (id: string) => void;
+  onSync?: (id: string) => void;
   onEdit?: (id: string) => void;
   providerName?: string | null;
 }
@@ -53,6 +54,7 @@ export function OrganizationItem({
   onSelect,
   onImportRepositories,
   onConfigureSync,
+  onSync,
   onEdit,
   providerName,
 }: OrganizationItemProps) {
@@ -86,6 +88,10 @@ export function OrganizationItem({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.manage")}</DropdownMenuLabel>
+            <DropdownMenuItem onSelect={() => onSync?.(organization.id)} disabled={isSyncing}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
+              {t("common.syncNow")}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onConfigureSync?.(organization.id)}>
               <Settings2 className="mr-2 h-4 w-4" />
               {t("common.configureSync")}
