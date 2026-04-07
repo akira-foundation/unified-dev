@@ -96,6 +96,7 @@ jobs:
           echo "EOF_SIG" >> "$GITHUB_OUTPUT"
 
       - name: Upload DMG to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
@@ -212,6 +213,7 @@ jobs:
           echo "EOF_SIG" >> "$GITHUB_OUTPUT"
 
       - name: Upload DMG to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
@@ -264,23 +266,23 @@ jobs:
           AARCH64_SIG="${{ needs.build-aarch64.outputs.sig }}"
           X86_SIG="${{ needs.build-x86_64.outputs.sig }}"
 
-          cat > latest.json << EOF
-          {
-            "version": "${VERSION}",
-            "notes": "Release ${VERSION}",
-            "pub_date": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')",
-            "platforms": {
-              "darwin-aarch64": {
-                "signature": "${AARCH64_SIG}",
-                "url": "${RELEASE_URL}/$(echo "${AARCH64_FILENAME}" | sed 's/ /%20/g')"
-              },
-              "darwin-x86_64": {
-                "signature": "${X86_SIG}",
-                "url": "${RELEASE_URL}/$(echo "${X86_FILENAME}" | sed 's/ /%20/g')"
-              }
-            }
-          }
-          EOF
+          PUB_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          AARCH64_URL="${RELEASE_URL}/$(echo "${AARCH64_FILENAME}" | sed 's/ /%20/g')"
+          X86_URL="${RELEASE_URL}/$(echo "${X86_FILENAME}" | sed 's/ /%20/g')"
+
+          python3 -c "
+import json, sys
+data = {
+  'version': sys.argv[1],
+  'notes': 'Release ' + sys.argv[1],
+  'pub_date': sys.argv[2],
+  'platforms': {
+    'darwin-aarch64': {'signature': sys.argv[3], 'url': sys.argv[4]},
+    'darwin-x86_64':  {'signature': sys.argv[5], 'url': sys.argv[6]},
+  }
+}
+print(json.dumps(data, indent=2))
+" "$VERSION" "$PUB_DATE" "$AARCH64_SIG" "$AARCH64_URL" "$X86_SIG" "$X86_URL" > latest.json
 
           echo "Generated latest.json:"
           cat latest.json
