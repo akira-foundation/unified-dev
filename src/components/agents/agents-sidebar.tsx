@@ -5,7 +5,7 @@ import {
   Plus,
   Folder,
   Search,
-  Filter,
+  X,
   Zap,
   Lightbulb,
   Link2,
@@ -19,7 +19,7 @@ import {
   PanelLeft,
   ExternalLink,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useAgentsStore } from "@/stores/useAgentsStore";
@@ -122,6 +122,9 @@ export function AgentsSidebar() {
   } | null>(null);
   const [linkOrganizationId, setLinkOrganizationId] = useState<string>("");
   const [manualRemoteUrl, setManualRemoteUrl] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isRepoLinkRequiredError = (error: unknown) => {
     const message = String(error).toLowerCase();
@@ -495,18 +498,60 @@ export function AgentsSidebar() {
           {repositoryGroups.map((group) => (
             <SidebarGroup key={group.name} className="py-2">
               <SidebarGroupLabel className="flex items-center justify-between px-4 mb-2">
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">
-                  {group.name}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Filter className="h-3 w-3 text-muted-foreground/40" />
-                  <Search className="h-3 w-3 text-muted-foreground/40" />
-                </div>
+                {searchOpen ? (
+                  <div className="flex-1 relative group min-w-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600 group-focus-within:text-purple-500/50 transition-colors" />
+                    <input
+                      ref={searchInputRef}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setSearchQuery("");
+                          setSearchOpen(false);
+                        }
+                      }}
+                      placeholder={t("agents.sidebar.searchThreads")}
+                      className="w-full bg-white/[0.03] border border-white/[0.05] rounded-md py-1.5 pl-9 pr-8 text-[11px] text-zinc-200 focus:outline-none focus:border-purple-500/30 focus:bg-white/[0.05] transition-all placeholder:text-zinc-600 font-medium"
+                    />
+                    <button
+                      onClick={() => { setSearchQuery(""); setSearchOpen(false); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/40">
+                    {group.name}
+                  </span>
+                )}
+                {!searchOpen && (
+                   <button
+                     onClick={() => {
+                       setSearchOpen(true);
+                       setTimeout(() => searchInputRef.current?.focus(), 0);
+                     }}
+                     className="text-muted-foreground/40 hover:text-foreground transition-colors cursor-pointer"
+                   >
+                     <Search className="h-3 w-3" />
+                   </button>
+                 )}
               </SidebarGroupLabel>
 
               <SidebarGroupContent>
                 <div className="flex flex-col gap-0.5">
-                  {group.repositories.map((repo) => (
+                  {group.repositories
+                    .filter((repo) => {
+                      if (searchQuery.trim() === "") return true;
+                      const repoLabel = (repo.displayName ?? repo.name).toLowerCase();
+                      const q = searchQuery.toLowerCase().trim();
+                      if (repoLabel.includes(q)) return true;
+                      return repo.issues.some((issue) => issue.title.toLowerCase().includes(q));
+                    })
+                    .map((repo) => {
+                    const isExpanded = searchQuery.trim() !== "" ? true : !!expandedRepos[repo.id];
+                    return (
                     <div key={repo.id} className="group/workspace flex flex-col mx-2 rounded-md">
                       <div className="group/repo flex items-center gap-1 pr-2 rounded-md">
                         <button
@@ -515,7 +560,7 @@ export function AgentsSidebar() {
                         >
                           <span className="w-4 flex items-center justify-center shrink-0">
                             {repo.issues.length > 0 && (
-                              expandedRepos[repo.id] ? (
+                              isExpanded ? (
                                 <ChevronDown className="h-3 w-3 text-muted-foreground/30" />
                               ) : (
                                 <ChevronRight className="h-3 w-3 text-muted-foreground/30" />
@@ -630,9 +675,16 @@ export function AgentsSidebar() {
                         </div>
                       </div>
 
-                      {expandedRepos[repo.id] && repo.issues.length > 0 && (
+                      {isExpanded && repo.issues.length > 0 && (
                         <div className="flex flex-col pb-1">
-                          {repo.issues.map((issue) => (
+                          {repo.issues
+                             .filter((issue) => {
+                               const q = searchQuery.toLowerCase().trim();
+                               if (q === "") return true;
+                               const repoLabel = (repo.displayName ?? repo.name).toLowerCase();
+                               return repoLabel.includes(q) || issue.title.toLowerCase().includes(q);
+                             })
+                            .map((issue) => (
                             <button
                               key={issue.id}
                               onClick={() => {
@@ -720,9 +772,10 @@ export function AgentsSidebar() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                  </div>
-               </SidebarGroupContent>
+                </SidebarGroupContent>
              </SidebarGroup>
            ))}
           </>
