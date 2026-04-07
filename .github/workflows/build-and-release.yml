@@ -91,10 +91,8 @@ jobs:
           echo "TAR=${TAR}"
           echo "FILENAME=${FILENAME}"
           echo "filename=${FILENAME}" >> "$GITHUB_OUTPUT"
-          SIG_DELIM="EOF_SIG_AARCH64_$(openssl rand -hex 8)"
-          echo "sig<<${SIG_DELIM}" >> "$GITHUB_OUTPUT"
-          cat "${TAR}.sig" >> "$GITHUB_OUTPUT"
-          echo "${SIG_DELIM}" >> "$GITHUB_OUTPUT"
+          SIG_B64=$(base64 < "${TAR}.sig" | tr -d '\n')
+          echo "sig=${SIG_B64}" >> "$GITHUB_OUTPUT"
 
       - name: Upload DMG to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -209,10 +207,8 @@ jobs:
           echo "TAR=${TAR}"
           echo "FILENAME=${FILENAME}"
           echo "filename=${FILENAME}" >> "$GITHUB_OUTPUT"
-          SIG_DELIM="EOF_SIG_X86_$(openssl rand -hex 8)"
-          echo "sig<<${SIG_DELIM}" >> "$GITHUB_OUTPUT"
-          cat "${TAR}.sig" >> "$GITHUB_OUTPUT"
-          echo "${SIG_DELIM}" >> "$GITHUB_OUTPUT"
+          SIG_B64=$(base64 < "${TAR}.sig" | tr -d '\n')
+          echo "sig=${SIG_B64}" >> "$GITHUB_OUTPUT"
 
       - name: Upload DMG to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -265,8 +261,8 @@ jobs:
 
           AARCH64_FILENAME="${{ needs.build-aarch64.outputs.filename }}"
           X86_FILENAME="${{ needs.build-x86_64.outputs.filename }}"
-          AARCH64_SIG="${{ needs.build-aarch64.outputs.sig }}"
-          X86_SIG="${{ needs.build-x86_64.outputs.sig }}"
+          AARCH64_SIG=$(echo "${{ needs.build-aarch64.outputs.sig }}" | base64 --decode)
+          X86_SIG=$(echo "${{ needs.build-x86_64.outputs.sig }}" | base64 --decode)
 
           PUB_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
           AARCH64_URL="${RELEASE_URL}/$(echo "${AARCH64_FILENAME}" | sed 's/ /%20/g')"
