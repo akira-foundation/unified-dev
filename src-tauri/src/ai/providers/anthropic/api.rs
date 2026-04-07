@@ -8,7 +8,7 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_anthropic_turn;
 use crate::ai::tools::{execute_tool, tool_definitions_anthropic, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
-use crate::app::chat::message::parse_content_to_api;
+use crate::app::chat::message::{parse_content_to_api, content_has_image};
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
@@ -36,10 +36,12 @@ impl AnthropicProvider {
         let client = Client::new();
         let tools = tool_definitions_anthropic(&request.mcp_tools);
 
+        let current_has_image = content_has_image(&request.content);
         let mut messages: Vec<Value> = request
             .history
             .iter()
             .filter(|m| m.role == "user" || m.role == "assistant")
+            .filter(|m| !(current_has_image && content_has_image(&m.content)))
             .map(|m| json!({ "role": m.role, "content": parse_content_to_api(&m.content) }))
             .collect();
 

@@ -152,6 +152,18 @@ pub fn parse_content_to_responses_api(content: &str, role: &str) -> Value {
     Value::Array(converted)
 }
 
+/// Returns true if the content string contains at least one image part.
+pub fn content_has_image(content: &str) -> bool {
+    if content.starts_with('[') {
+        if let Ok(Value::Array(parts)) = serde_json::from_str::<Value>(content) {
+            return parts.iter().any(|p| {
+                p.get("type").and_then(|t| t.as_str()) == Some("image")
+            });
+        }
+    }
+    false
+}
+
 /// Extract the plain text from a content string (strips image parts).
 #[allow(dead_code)]
 pub fn content_to_text(content: &str) -> String {

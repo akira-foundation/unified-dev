@@ -4,7 +4,7 @@ use tauri::AppHandle;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use crate::ai::provider::{AiProvider, AiRequest};
-use crate::app::chat::message::parse_content_to_api;
+use crate::app::chat::message::{parse_content_to_api, content_has_image};
 use crate::app::chat::stream::emit_token;
 use crate::app::mcp::types::McpServer;
 use crate::app::support::error::{AppError, AppResult};
@@ -82,8 +82,12 @@ impl AnthropicCliProvider {
 
         let cli_model = resolve_cli_model(&request.model);
 
+        let current_has_image = content_has_image(&request.content);
         let mut stdin_lines: Vec<String> = Vec::new();
         for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
+            if current_has_image && content_has_image(&msg.content) {
+                continue;
+            }
             let content = parse_content_to_api(&msg.content);
             let line = json!({
                 "type": msg.role,

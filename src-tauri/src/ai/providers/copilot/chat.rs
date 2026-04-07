@@ -8,7 +8,7 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_openai_sse_with_tools;
 use crate::ai::tools::{execute_tool, tool_definitions_openai, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
-use crate::app::chat::message::{parse_content_to_openai_api, parse_content_to_openai_api_text_only};
+use crate::app::chat::message::{parse_content_to_openai_api, parse_content_to_openai_api_text_only, content_has_image};
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
@@ -43,7 +43,14 @@ impl CopilotChatProvider {
         } else {
             &history_window[..]
         };
+        let current_has_image = content_has_image(&request.content);
         for msg in history_window {
+            // When the current message has an image, skip history messages that
+            // previously contained images (now degraded to "[image]" text) to
+            // prevent the model from confusing the new image with past ones.
+            if current_has_image && content_has_image(&msg.content) {
+                continue;
+            }
             messages.push(json!({ "role": msg.role, "content": parse_content_to_openai_api_text_only(&msg.content) }));
         }
         messages.push(json!({ "role": "user", "content": parse_content_to_openai_api(&request.content) }));
@@ -86,7 +93,6 @@ impl CopilotChatProvider {
                 .header("Authorization", format!("Bearer {api_token}"))
                 .header("Copilot-Integration-Id", "vscode-chat")
                 .header("Editor-Version", "vscode/1.85.0")
-                .header("Editor-Plugin-Version", "copilot-chat/0.12.0")
                 .header("User-Agent", "unified-dev/1.0")
                 .json(&body)
                 .send()
