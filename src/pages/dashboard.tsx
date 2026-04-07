@@ -298,7 +298,7 @@ export function DashboardPage() {
             </TabsContent>
 
             <TabsContent value="syncs" className="mt-0 h-full">
-              <AgendaView />
+              <AgendaView organizations={organizations} allRepos={allRepos} />
             </TabsContent>
           </div>
         </Tabs>
