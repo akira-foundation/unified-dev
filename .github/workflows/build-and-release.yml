@@ -82,23 +82,32 @@ jobs:
         run: |
           echo "=== bundle/macos contents ==="
           find src-tauri/target/aarch64-apple-darwin/release/bundle -type f | sort
+          VERSION=${GITHUB_REF#refs/tags/v}
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
+            VERSION=${GITHUB_SHA::7}
+          fi
           TAR=$(find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.app.tar.gz" | head -1)
+          DMG=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
           if [ -z "$TAR" ]; then
             echo "ERROR: no .app.tar.gz found"
             exit 1
           fi
-          FILENAME=$(basename "$TAR")
-          echo "TAR=${TAR}"
-          echo "FILENAME=${FILENAME}"
-          echo "filename=${FILENAME}" >> "$GITHUB_OUTPUT"
+          TAR_NORMALIZED="unified_dev_${VERSION}_aarch64.app.tar.gz"
+          DMG_NORMALIZED="unified_dev_${VERSION}_aarch64.dmg"
+          cp "$TAR" "$(dirname "$TAR")/${TAR_NORMALIZED}"
+          cp "${TAR}.sig" "$(dirname "$TAR")/${TAR_NORMALIZED}.sig"
+          cp "$DMG" "$(dirname "$DMG")/${DMG_NORMALIZED}"
+          echo "filename=${TAR_NORMALIZED}" >> "$GITHUB_OUTPUT"
           SIG_B64=$(base64 < "${TAR}.sig" | tr -d '\n')
           echo "sig=${SIG_B64}" >> "$GITHUB_OUTPUT"
+          echo "dmg_path=$(dirname "$DMG")/${DMG_NORMALIZED}" >> "$GITHUB_OUTPUT"
+          echo "tar_path=$(dirname "$TAR")/${TAR_NORMALIZED}" >> "$GITHUB_OUTPUT"
 
       - name: Upload DMG to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          files: ${{ steps.meta.outputs.dmg_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -113,12 +122,11 @@ jobs:
             VERSION=${GITHUB_SHA::7}
           fi
           for file in \
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz \
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig \
-            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg; do
+            "${{ steps.meta.outputs.tar_path }}" \
+            "${{ steps.meta.outputs.tar_path }}.sig" \
+            "${{ steps.meta.outputs.dmg_path }}"; do
             if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/${filename}" \
+              aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/$(basename "$file")" \
                 --endpoint-url https://nyc3.digitaloceanspaces.com \
                 --region us-east-1 \
                 --acl public-read
@@ -198,23 +206,32 @@ jobs:
         run: |
           echo "=== bundle/macos contents ==="
           find src-tauri/target/x86_64-apple-darwin/release/bundle -type f | sort
+          VERSION=${GITHUB_REF#refs/tags/v}
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
+            VERSION=${GITHUB_SHA::7}
+          fi
           TAR=$(find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz" | head -1)
+          DMG=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/dmg -name "*.dmg" | head -1)
           if [ -z "$TAR" ]; then
             echo "ERROR: no .app.tar.gz found"
             exit 1
           fi
-          FILENAME=$(basename "$TAR")
-          echo "TAR=${TAR}"
-          echo "FILENAME=${FILENAME}"
-          echo "filename=${FILENAME}" >> "$GITHUB_OUTPUT"
+          TAR_NORMALIZED="unified_dev_${VERSION}_x86_64.app.tar.gz"
+          DMG_NORMALIZED="unified_dev_${VERSION}_x86_64.dmg"
+          cp "$TAR" "$(dirname "$TAR")/${TAR_NORMALIZED}"
+          cp "${TAR}.sig" "$(dirname "$TAR")/${TAR_NORMALIZED}.sig"
+          cp "$DMG" "$(dirname "$DMG")/${DMG_NORMALIZED}"
+          echo "filename=${TAR_NORMALIZED}" >> "$GITHUB_OUTPUT"
           SIG_B64=$(base64 < "${TAR}.sig" | tr -d '\n')
           echo "sig=${SIG_B64}" >> "$GITHUB_OUTPUT"
+          echo "dmg_path=$(dirname "$DMG")/${DMG_NORMALIZED}" >> "$GITHUB_OUTPUT"
+          echo "tar_path=$(dirname "$TAR")/${TAR_NORMALIZED}" >> "$GITHUB_OUTPUT"
 
       - name: Upload DMG to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+          files: ${{ steps.meta.outputs.dmg_path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -229,12 +246,11 @@ jobs:
             VERSION=${GITHUB_SHA::7}
           fi
           for file in \
-            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz \
-            src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig \
-            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg; do
+            "${{ steps.meta.outputs.tar_path }}" \
+            "${{ steps.meta.outputs.tar_path }}.sig" \
+            "${{ steps.meta.outputs.dmg_path }}"; do
             if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/${filename}" \
+              aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/$(basename "$file")" \
                 --endpoint-url https://nyc3.digitaloceanspaces.com \
                 --region us-east-1 \
                 --acl public-read
