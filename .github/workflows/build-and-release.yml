@@ -270,19 +270,22 @@ jobs:
           AARCH64_URL="${RELEASE_URL}/$(echo "${AARCH64_FILENAME}" | sed 's/ /%20/g')"
           X86_URL="${RELEASE_URL}/$(echo "${X86_FILENAME}" | sed 's/ /%20/g')"
 
-          python3 -c "
-import json, sys
-data = {
-  'version': sys.argv[1],
-  'notes': 'Release ' + sys.argv[1],
-  'pub_date': sys.argv[2],
-  'platforms': {
-    'darwin-aarch64': {'signature': sys.argv[3], 'url': sys.argv[4]},
-    'darwin-x86_64':  {'signature': sys.argv[5], 'url': sys.argv[6]},
-  }
-}
-print(json.dumps(data, indent=2))
-" "$VERSION" "$PUB_DATE" "$AARCH64_SIG" "$AARCH64_URL" "$X86_SIG" "$X86_URL" > latest.json
+          jq -n \
+            --arg version "$VERSION" \
+            --arg pub_date "$PUB_DATE" \
+            --arg aarch64_sig "$AARCH64_SIG" \
+            --arg aarch64_url "$AARCH64_URL" \
+            --arg x86_sig "$X86_SIG" \
+            --arg x86_url "$X86_URL" \
+            '{
+              version: $version,
+              notes: ("Release " + $version),
+              pub_date: $pub_date,
+              platforms: {
+                "darwin-aarch64": {signature: $aarch64_sig, url: $aarch64_url},
+                "darwin-x86_64":  {signature: $x86_sig,    url: $x86_url}
+              }
+            }' > latest.json
 
           echo "Generated latest.json:"
           cat latest.json
