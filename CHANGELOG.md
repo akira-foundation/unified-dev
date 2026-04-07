@@ -1,5 +1,12 @@
 
 
+## [0.4.1](https://github.com/akira-foundation/unified-dev/compare/v0.4.0...v0.4.1) (2026-04-07)
+
+
+### Bug Fixes
+
+* **build:** improve artifact handling by dynamically locating macOS tarballs ([8df6e4e](https://github.com/akira-foundation/unified-dev/commit/8df6e4ee1ee3f3e25c9dccfa4bc712d05d9ad34c))
+
 # [0.4.0](https://github.com/akira-foundation/unified-dev/compare/v0.3.0...v0.4.0) (2026-04-07)
 
 
