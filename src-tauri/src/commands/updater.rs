@@ -40,6 +40,8 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
             .download_and_install(|_, _| {}, || {})
             .await
             .map_err(|e| e.to_string())?;
+
+        app.restart();
     }
 
     Ok(())

@@ -16,7 +16,7 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            target: x86_64-apple-darwin
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
           # - os: ubuntu-latest
           #   target: x86_64-unknown-linux-gnu
           # - os: windows-latest
@@ -36,7 +36,7 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }},aarch64-apple-darwin
+          targets: ${{ matrix.targets }}
 
       # - name: Install dependencies (Linux)
       #   if: runner.os == 'Linux'
@@ -79,20 +79,33 @@ jobs:
           echo "AKIRA_API_URL=${{ secrets.AKIRA_API_URL }}" >> .env
           echo "GITHUB_CLIENT_ID=${{ secrets.GH_OAUTH_CLIENT_ID }}" >> .env
 
-      - name: Build application
+      - name: Build application (aarch64)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm run tauri build
+        run: pnpm run tauri build --target aarch64-apple-darwin
+
+      - name: Build application (x86_64)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm run tauri build --target x86_64-apple-darwin
 
       - name: Upload macOS artifacts to GitHub Release
         if: runner.os == 'macOS'
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/release/bundle/dmg/*
+          files: |
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -104,14 +117,16 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
-          for file in src-tauri/target/release/bundle/dmg/*.dmg; do
-            if [ -f "$file" ]; then
-              filename=$(basename "$file")
-              aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/${filename}" \
-                --endpoint-url https://nyc3.digitaloceanspaces.com \
-                --region us-east-1 \
-                --acl public-read
-            fi
+          for arch in aarch64-apple-darwin x86_64-apple-darwin; do
+            for file in src-tauri/target/${arch}/release/bundle/macos/*.app.tar.gz src-tauri/target/${arch}/release/bundle/macos/*.app.tar.gz.sig; do
+              if [ -f "$file" ]; then
+                filename=$(basename "$file")
+                aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/${filename}" \
+                  --endpoint-url https://nyc3.digitaloceanspaces.com \
+                  --region us-east-1 \
+                  --acl public-read
+              fi
+            done
           done
 
       - name: Generate and upload latest.json (macOS)
@@ -124,11 +139,14 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
           RELEASE_URL="https://unified-dev.nyc3.cdn.digitaloceanspaces.com/releases/v${VERSION}"
 
-          AARCH64_DMG="src-tauri/target/release/bundle/dmg/Unified Dev_${VERSION}_aarch64.dmg"
-          AARCH64_SIG=""
-          if [ -f "${AARCH64_DMG}.sig" ]; then
-            AARCH64_SIG=$(cat "${AARCH64_DMG}.sig")
-          fi
+          AARCH64_TAR="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Unified Dev.app.tar.gz"
+          X86_TAR="src-tauri/target/x86_64-apple-darwin/release/bundle/macos/Unified Dev.app.tar.gz"
+
+          AARCH64_SIG=$(cat "${AARCH64_TAR}.sig")
+          X86_SIG=$(cat "${X86_TAR}.sig")
+
+          AARCH64_FILENAME="Unified Dev_${VERSION}_aarch64.app.tar.gz"
+          X86_FILENAME="Unified Dev_${VERSION}_x86_64.app.tar.gz"
 
           cat > latest.json << EOF
           {
@@ -138,11 +156,11 @@ jobs:
             "platforms": {
               "darwin-aarch64": {
                 "signature": "${AARCH64_SIG}",
-                "url": "${RELEASE_URL}/Unified%20Dev_${VERSION}_aarch64.dmg"
+                "url": "${RELEASE_URL}/$(echo "${AARCH64_FILENAME}" | sed 's/ /%20/g')"
               },
               "darwin-x86_64": {
-                "signature": "${AARCH64_SIG}",
-                "url": "${RELEASE_URL}/Unified%20Dev_${VERSION}_aarch64.dmg"
+                "signature": "${X86_SIG}",
+                "url": "${RELEASE_URL}/$(echo "${X86_FILENAME}" | sed 's/ /%20/g')"
               }
             }
           }

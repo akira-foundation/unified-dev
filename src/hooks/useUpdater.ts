@@ -11,6 +11,7 @@ interface UseUpdaterReturn {
     update: UpdateInfo | null;
     checking: boolean;
     installing: boolean;
+    error: string | null;
     check: () => Promise<void>;
     install: () => Promise<void>;
 }
@@ -19,6 +20,7 @@ export function useUpdater(): UseUpdaterReturn {
     const [update, setUpdate] = useState<UpdateInfo | null>(null);
     const [checking, setChecking] = useState(false);
     const [installing, setInstalling] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const check = useCallback(async () => {
         setChecking(true);
@@ -34,8 +36,11 @@ export function useUpdater(): UseUpdaterReturn {
 
     const install = useCallback(async () => {
         setInstalling(true);
+        setError(null);
         try {
             await invoke("install_update");
+        } catch (e) {
+            setError(e instanceof Error ? e.message : String(e));
         } finally {
             setInstalling(false);
         }
@@ -45,5 +50,5 @@ export function useUpdater(): UseUpdaterReturn {
         check();
     }, [check]);
 
-    return { update, checking, installing, check, install };
+    return { update, checking, installing, error, check, install };
 }
