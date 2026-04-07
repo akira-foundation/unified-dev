@@ -7,7 +7,7 @@ import {
   type ColumnDef,
   type SortingState,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, ArrowUpDown, Bot, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUpDown, Bot, CircleDot, ExternalLink, Filter, MoreVertical, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -23,6 +23,7 @@ import {
   FilterSectionDivider,
 } from "../filters/filter-popover-section";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { Card, CardContent } from "../ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import {
@@ -184,6 +185,7 @@ export function IssueTable({
 }: IssueTableProps) {
   const { t } = useI18n();
   const [sorting, setSorting] = useState<SortingState>([]);
+  const [search, setSearch] = useState("");
   const [issueToDelete, setIssueToDelete] = useState<IssueDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const { delegateIssue } = useDelegateIssue();
@@ -240,15 +242,17 @@ export function IssueTable({
     filters.statuses.length + filters.sources.length + filters.labels.length + filters.assignees.length + filters.repos.length;
 
   const filteredIssues = useMemo(() => {
+    const query = search.trim().toLowerCase();
     return issues.filter((issue) => {
       if (filters.statuses.length > 0 && !filters.statuses.includes(issue.status)) return false;
       if (filters.sources.length > 0 && !filters.sources.includes(issue.syncWithProvider ? "synced" : "local")) return false;
       if (filters.labels.length > 0 && !filters.labels.some((l) => issue.labels.includes(l))) return false;
       if (filters.assignees.length > 0 && !filters.assignees.some((a) => issue.assignees.includes(a))) return false;
       if (filters.repos.length > 0 && !filters.repos.includes(issue.repoName)) return false;
+      if (query && !issue.title.toLowerCase().includes(query) && !issue.repoName.toLowerCase().includes(query)) return false;
       return true;
     });
-  }, [issues, filters]);
+  }, [issues, filters, search]);
 
   const columns = useMemo<ColumnDef<IssueDto>[]>(
     () => [
@@ -480,6 +484,15 @@ export function IssueTable({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-500 pointer-events-none" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("issues.table.search")}
+                className="pl-8 h-9 w-48 text-sm focus-visible:ring-purple-500/50"
+              />
+            </div>
             {onSync && (
               syncOptions && syncOptions.length > 0 ? (
                 <DropdownMenu>
