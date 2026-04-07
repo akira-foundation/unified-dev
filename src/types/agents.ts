@@ -82,6 +82,7 @@ export interface AgentRepository {
   displayName: string | null;
   defaultModelId: string | null;
   reviewModelId: string | null;
+  defaultMergeAction: string | null;
   remoteUrl: string | null;
   issues: AgentIssue[];
 }

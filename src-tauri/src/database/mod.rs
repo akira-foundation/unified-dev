@@ -11,7 +11,12 @@ pub mod records;
 fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&app_dir)?;
-    Ok(app_dir.join("unified-dev.sqlite"))
+    let filename = if cfg!(debug_assertions) {
+        "unified-dev-local.sqlite"
+    } else {
+        "unified-dev.sqlite"
+    };
+    Ok(app_dir.join(filename))
 }
 
 pub async fn init_pool(app: &tauri::AppHandle) -> AppResult<SqlitePool> {

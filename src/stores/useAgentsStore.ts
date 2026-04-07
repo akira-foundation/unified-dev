@@ -68,7 +68,7 @@ interface AgentsState {
   setSelectedModelId: (id: string) => void;
   setThreadModelId: (threadId: string, modelId: string) => void;
   getEffectiveModelId: (repoId: string, threadId: string) => string | null;
-  updateRepositorySettings: (repoId: string, patch: { displayName?: string | null; defaultBranch?: string; defaultModelId?: string | null; reviewModelId?: string | null }) => Promise<void>;
+  updateRepositorySettings: (repoId: string, patch: { displayName?: string | null; defaultBranch?: string; defaultModelId?: string | null; reviewModelId?: string | null; defaultMergeAction?: string | null }) => Promise<void>;
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
   loadMessages: (threadId: string) => Promise<void>;
@@ -173,12 +173,15 @@ export const useAgentsStore = create<AgentsState>()(
         try {
           await invoke("update_repository_settings", {
             repoId,
-            displayName: patch.displayName !== undefined ? patch.displayName : null,
+            displayName: patch.displayName !== undefined && patch.displayName !== null ? patch.displayName : null,
+            clearDisplayName: patch.displayName !== undefined && patch.displayName === null,
             defaultBranch: patch.defaultBranch ?? null,
             defaultModelId: patch.defaultModelId !== undefined && patch.defaultModelId !== null ? patch.defaultModelId : null,
             clearDefaultModelId: patch.defaultModelId !== undefined && patch.defaultModelId === null,
             reviewModelId: patch.reviewModelId !== undefined && patch.reviewModelId !== null ? patch.reviewModelId : null,
             clearReviewModelId: patch.reviewModelId !== undefined && patch.reviewModelId === null,
+            defaultMergeAction: patch.defaultMergeAction !== undefined && patch.defaultMergeAction !== null ? patch.defaultMergeAction : null,
+            clearDefaultMergeAction: patch.defaultMergeAction !== undefined && patch.defaultMergeAction === null,
           });
         } catch (e) {
           console.error("update_repository_settings failed:", e);
@@ -195,6 +198,7 @@ export const useAgentsStore = create<AgentsState>()(
                 defaultBranch: patch.defaultBranch ?? repo.defaultBranch,
                 defaultModelId: patch.defaultModelId !== undefined ? patch.defaultModelId : repo.defaultModelId,
                 reviewModelId: patch.reviewModelId !== undefined ? patch.reviewModelId : repo.reviewModelId,
+                defaultMergeAction: patch.defaultMergeAction !== undefined ? patch.defaultMergeAction : repo.defaultMergeAction,
               };
             }),
           })),
@@ -236,6 +240,7 @@ export const useAgentsStore = create<AgentsState>()(
             display_name: string | null;
             default_model_id: string | null;
             review_model_id: string | null;
+            default_merge_action: string | null;
             remote_url: string | null;
             threads: Array<{ id: string; title: string; branch: string; workspace_path: string; status: string; created_at: string; pr_url: string | null; pr_is_draft: boolean }>;
           }>>("list_repositories");
@@ -247,6 +252,7 @@ export const useAgentsStore = create<AgentsState>()(
             displayName: row.display_name,
             defaultModelId: row.default_model_id,
             reviewModelId: row.review_model_id,
+            defaultMergeAction: row.default_merge_action,
             remoteUrl: row.remote_url,
             issues: row.threads.map((t) => {
               if (t.pr_url) {
@@ -604,6 +610,7 @@ export const useAgentsStore = create<AgentsState>()(
             displayName: null,
             defaultModelId: null,
             reviewModelId: null,
+            defaultMergeAction: null,
             remoteUrl: null,
             issues: [{
               id: thread.id,

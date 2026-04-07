@@ -5,6 +5,8 @@ import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { ModelPicker } from "@/components/agents/model-picker";
 
@@ -103,14 +105,19 @@ export function RepoSettingsSheet({ repoId, onClose }: RepoSettingsSheetProps) {
                           onBlur={handleDisplayNameBlur}
                           className="h-8 w-36 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                         />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 shrink-0"
-                          onClick={handleResetDisplayName}
-                        >
-                          <RotateCcw size={13} />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 shrink-0"
+                              onClick={handleResetDisplayName}
+                            >
+                              <RotateCcw size={13} />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Reset to {repo.name}</TooltipContent>
+                        </Tooltip>
                       </div>
                     </div>
 
@@ -127,6 +134,31 @@ export function RepoSettingsSheet({ repoId, onClose }: RepoSettingsSheetProps) {
                         onBlur={handleBaseBranchBlur}
                         className="h-8 w-36 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 shrink-0"
                       />
+                    </div>
+
+                    <div className="flex items-center justify-between px-4 py-3 gap-4">
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-zinc-900 dark:text-white">Default Merge Action</span>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                          The primary action shown on the merge button for this repository.
+                        </p>
+                      </div>
+                      <Select
+                        value={repo.defaultMergeAction ?? "global_default"}
+                        onValueChange={(value) =>
+                          updateRepositorySettings(repo.id, { defaultMergeAction: value === "global_default" ? null : value })
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-44 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 shrink-0">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="global_default">Use global default</SelectItem>
+                          <SelectItem value="draft_pr">Draft pull request</SelectItem>
+                          <SelectItem value="merge_locally">Merge locally</SelectItem>
+                          <SelectItem value="merge_push">Merge and push</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                   </CardContent>

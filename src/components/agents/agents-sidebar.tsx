@@ -500,7 +500,7 @@ export function AgentsSidebar() {
                           </span>
                           <Folder className="h-4 w-4 text-muted-foreground/60 group-hover/repo:text-foreground/80 shrink-0" />
                           <span className="flex-1 text-left text-[13px] font-medium text-foreground/70 group-hover/repo:text-foreground truncate">
-                            {repo.name}
+                            {repo.displayName ?? repo.name}
                           </span>
                           {repo.issues.some((i) => !!streamingThreadIds[i.id]) && (
                             <div className="h-3 w-3 shrink-0 rounded-full border border-t-foreground/60 border-foreground/20 animate-spin" />

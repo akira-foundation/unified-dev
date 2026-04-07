@@ -47,14 +47,17 @@ pub async fn set_thread_pr_url(thread_id: String, pr_url: String, pr_is_draft: b
 pub async fn update_repository_settings(
     repo_id: String,
     display_name: Option<String>,
+    clear_display_name: bool,
     default_branch: Option<String>,
     default_model_id: Option<String>,
     clear_default_model_id: bool,
     review_model_id: Option<String>,
     clear_review_model_id: bool,
+    default_merge_action: Option<String>,
+    clear_default_merge_action: bool,
     state: State<'_, AppState>,
 ) -> AppResult<()> {
-    threads::update_repo_settings::update(&repo_id, display_name, default_branch, default_model_id, clear_default_model_id, review_model_id, clear_review_model_id, &state.db_pool).await
+    threads::update_repo_settings::update(&repo_id, display_name, clear_display_name, default_branch, default_model_id, clear_default_model_id, review_model_id, clear_review_model_id, default_merge_action, clear_default_merge_action, &state.db_pool).await
 }
 
 #[tauri::command]
