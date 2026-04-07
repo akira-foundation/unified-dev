@@ -8,11 +8,17 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_openai_sse_with_tools;
 use crate::ai::tools::{execute_tool, tool_definitions_openai, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
+use crate::app::chat::message::{parse_content_to_openai_api, parse_content_to_openai_api_text_only};
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
 
 pub struct CopilotChatProvider;
+
+/// Maximum number of history messages to include in a Copilot request.
+/// Copilot has stricter payload size limits than the Anthropic API, so we
+/// keep the window small to avoid 413 errors.
+const COPILOT_HISTORY_LIMIT: usize = 20;
 
 impl CopilotChatProvider {
     async fn run(&self, request: &AiRequest, app: &AppHandle) -> AppResult<String> {
@@ -28,10 +34,19 @@ impl CopilotChatProvider {
 
         let mut messages: Vec<Value> =
             vec![json!({ "role": "system", "content": request.system_prompt })];
-        for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
-            messages.push(json!({ "role": msg.role, "content": msg.content }));
+        let history_window: Vec<_> = request.history
+            .iter()
+            .filter(|m| m.role == "user" || m.role == "assistant")
+            .collect();
+        let history_window = if history_window.len() > COPILOT_HISTORY_LIMIT {
+            &history_window[history_window.len() - COPILOT_HISTORY_LIMIT..]
+        } else {
+            &history_window[..]
+        };
+        for msg in history_window {
+            messages.push(json!({ "role": msg.role, "content": parse_content_to_openai_api_text_only(&msg.content) }));
         }
-        messages.push(json!({ "role": "user", "content": request.content }));
+        messages.push(json!({ "role": "user", "content": parse_content_to_openai_api(&request.content) }));
 
         let mut full_text = String::new();
         let mut workspace_path = request.workspace_path.clone();
@@ -98,11 +113,19 @@ impl CopilotChatProvider {
                 "type": "function",
                 "function": { "name": tc.name, "arguments": tc.arguments }
             })).collect();
-            messages.push(json!({
-                "role": "assistant",
-                "content": if text_in_turn.is_empty() { Value::Null } else { Value::String(text_in_turn.clone()) },
-                "tool_calls": tool_calls_json
-            }));
+            let assistant_msg = if text_in_turn.is_empty() {
+                json!({
+                    "role": "assistant",
+                    "tool_calls": tool_calls_json
+                })
+            } else {
+                json!({
+                    "role": "assistant",
+                    "content": text_in_turn,
+                    "tool_calls": tool_calls_json
+                })
+            };
+            messages.push(assistant_msg);
 
             for tc in &pending_calls {
                 let args: Value =
