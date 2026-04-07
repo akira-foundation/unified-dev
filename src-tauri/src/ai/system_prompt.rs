@@ -139,9 +139,11 @@ pub fn build_system_prompt(
 
         format!(
             "\n\n## MCP TOOLS — ALREADY AUTHENTICATED AND READY\n\
-             CRITICAL: The following external service tools are connected, authenticated, and available RIGHT NOW as callable tools.\
+             The following external service tools are connected, authenticated, and available as callable tools.\
              \nDo NOT ask the user to authenticate. Do NOT generate OAuth URLs. Do NOT say authentication is needed.\
-             \nThe OAuth flow is already complete. Just call the tools directly.\
+             \nThe OAuth flow is already complete. Call the tools directly when the user explicitly requests an action that requires them.\
+             \nIMPORTANT: Only call these tools when the user clearly requests an action that requires them. \
+             Do NOT call them proactively, speculatively, or in response to greetings/images/general questions.\
              \n\n{server_blocks}"
         )
     };
@@ -175,6 +177,8 @@ pub fn build_system_prompt(
          When asked about code, read the relevant files before answering. \
          When asked to rename the workspace, thread, or folder, use the rename_workspace tool directly — do NOT use git branch commands for this. \
          If a rename_workspace tool is not available in your environment, output a line in this exact format on its own line: RENAME_WORKSPACE:<new_name> (e.g. RENAME_WORKSPACE:graph-inspector). The name must contain only letters, digits, hyphens, and underscores.\n\n\
+         For general questions, greetings, or image analysis, respond directly without calling any tools. \
+         Only call tools when the user explicitly requests a file/code operation or an action that requires a specific tool.\n\n\
          Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
          so the user can follow your progress. Keep these messages brief and factual.\
          {runtime_modes}{tree_section}{skills_section}{mcp_disconnected_section}{mcp_section}{plan_section}"

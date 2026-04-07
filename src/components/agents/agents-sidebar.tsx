@@ -91,7 +91,7 @@ export function AgentsSidebar() {
     setShowAddRepositoryDialog,
     expandedRepos,
     setExpandedRepos,
-    streamingThreadId,
+    streamingThreadIds,
     prUrlByThread,
     sendMessage,
     selectedModelId,
@@ -472,12 +472,8 @@ export function AgentsSidebar() {
                           <span className="flex-1 text-left text-[13px] font-medium text-foreground/70 group-hover/repo:text-foreground truncate">
                             {repo.name}
                           </span>
-                          {repo.issues.some((i) => streamingThreadId === i.id) && (
-                            <span className="flex items-center gap-[3px] shrink-0">
-                              <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:0ms]" />
-                              <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:150ms]" />
-                              <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:300ms]" />
-                            </span>
+                          {repo.issues.some((i) => !!streamingThreadIds[i.id]) && (
+                            <div className="h-3 w-3 shrink-0 rounded-full border border-t-foreground/60 border-foreground/20 animate-spin" />
                           )}
                         </button>
 
@@ -594,7 +590,7 @@ export function AgentsSidebar() {
                                   )}>
                                     {issue.title}
                                   </span>
-                                  {streamingThreadId === issue.id && (
+                                  {!!streamingThreadIds[issue.id] && (
                                     <span className="flex items-center gap-[3px] shrink-0">
                                       <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:0ms]" />
                                       <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:150ms]" />
