@@ -1,5 +1,26 @@
 
 
+# [0.4.0](https://github.com/akira-foundation/unified-dev/compare/v0.3.0...v0.4.0) (2026-04-07)
+
+
+### Bug Fixes
+
+* **agent:** prevent proactive MCP tool calls and fix streaming indicator ([05b32f7](https://github.com/akira-foundation/unified-dev/commit/05b32f70387ce93930f9c08405cc001842e63dde))
+* **copilot:** resolve 400 and 413 errors on multi-turn conversations ([8d6852b](https://github.com/akira-foundation/unified-dev/commit/8d6852b98c5cf00258b5d7a059e88151a886ee5d))
+
+
+### Features
+
+* **agent:** display dynamic tool call count in status bar ([580d830](https://github.com/akira-foundation/unified-dev/commit/580d830fb4c6bc0671fbb4c82590f29bdc5e9818))
+* **agent:** enhance message handling with loading states and thread-specific storage ([8af775b](https://github.com/akira-foundation/unified-dev/commit/8af775b1478c2c404dcae156ca30e7357b3f1a00))
+* **build:** support building for multiple macOS architectures and update artifact handling ([f6d5fda](https://github.com/akira-foundation/unified-dev/commit/f6d5fdaa13f2b7060282fa16fd0e2b6c3a4b6a21))
+* **chat:** add image support across all providers and frontend ([b02ca7c](https://github.com/akira-foundation/unified-dev/commit/b02ca7c6c801857afcde2cef2bf1fae28267a57a))
+* **chat:** skip history messages with images when current message contains an image ([7b3146f](https://github.com/akira-foundation/unified-dev/commit/7b3146fb413ed25e377807119e6c84b6faba0673))
+* **copilot:** add Claude models and remove cross-provider fallbacks ([5e1d880](https://github.com/akira-foundation/unified-dev/commit/5e1d8806b79ece59135ebdd523eded5b2a711952))
+* **repository:** add default merge action configuration to repository settings ([45f88ab](https://github.com/akira-foundation/unified-dev/commit/45f88ab42ff7fb4aa71dd90d267c6fe6076654b8))
+* **repository:** add repository removal functionality with confirmation dialog ([d6a951b](https://github.com/akira-foundation/unified-dev/commit/d6a951bcab89084cea3e821489ff5ff9cc1a15b7))
+* **repository:** add repository settings management with display name and model configuration ([3bf3466](https://github.com/akira-foundation/unified-dev/commit/3bf34667274a244dd3f8fa0338baaea4d1899ac6))
+
 # [0.3.0](https://github.com/akira-foundation/unified-dev/compare/v0.2.1...v0.3.0) (2026-04-06)
 
 
