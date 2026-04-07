@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,20 +13,31 @@ import { useI18n } from "@/i18n/i18n";
 interface LicenseActivationDialogProps {
   open: boolean;
   onClose: () => void;
+  initialSessionId?: string;
 }
 
-export function LicenseActivationDialog({ open, onClose }: LicenseActivationDialogProps) {
+export function LicenseActivationDialog({ open, onClose, initialSessionId }: LicenseActivationDialogProps) {
   const { t } = useI18n();
   const { activate, loading } = useLicenseStore();
-  const [sessionId, setSessionId] = useState("");
+  const [sessionId, setSessionId] = useState(initialSessionId ?? "");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const handleActivate = async () => {
-    if (!sessionId.trim()) return;
+  // When opened via deep link, pre-fill and auto-activate
+  useEffect(() => {
+    if (open && initialSessionId) {
+      setSessionId(initialSessionId);
+      setError(null);
+      handleActivate(initialSessionId);
+    }
+  }, [open, initialSessionId]);
+
+  const handleActivate = async (id?: string) => {
+    const target = (id ?? sessionId).trim();
+    if (!target) return;
     setError(null);
     try {
-      await activate(sessionId.trim());
+      await activate(target);
       setSuccess(true);
       setTimeout(() => {
         onClose();
@@ -67,7 +78,7 @@ export function LicenseActivationDialog({ open, onClose }: LicenseActivationDial
               <Button variant="outline" onClick={onClose} disabled={loading}>
                 {t("common.cancel")}
               </Button>
-              <Button onClick={handleActivate} disabled={loading || !sessionId.trim()}>
+              <Button onClick={() => handleActivate()} disabled={loading || !sessionId.trim()}>
                 {loading ? t("license.activate.activating") : t("license.activate.confirm")}
               </Button>
             </div>

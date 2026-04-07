@@ -110,7 +110,11 @@ async function handleBillingActivate(request: Request, env: Env): Promise<Respon
   const existingToken = await env.LICENSES.get(`session:${sessionId}`);
   if (existingToken) {
     const existing = await env.LICENSES.get(`license:${existingToken}`);
-    if (existing) return json({ token: existingToken, ...JSON.parse(existing) });
+    if (existing) {
+      const existingData = JSON.parse(existing) as LicenseData;
+      const signature = await signLicense(existingToken, existingData.plan, existingData.cycle, existingData.valid_until, existingData.email);
+      return json({ token: existingToken, signature, ...existingData });
+    }
   }
 
   const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}?expand[]=subscription`, {
@@ -145,7 +149,8 @@ async function handleBillingActivate(request: Request, env: Env): Promise<Respon
   await env.LICENSES.put(`session:${sessionId}`, token);
   await env.LICENSES.put(`email:${email}`, token);
 
-  return json({ token, ...licenseData });
+  const signature = await signLicense(token, licenseData.plan, licenseData.cycle, licenseData.valid_until, licenseData.email);
+  return json({ token, signature, ...licenseData });
 }
 
 async function handleBillingStatus(request: Request, env: Env): Promise<Response> {
@@ -170,7 +175,7 @@ async function handleBillingStatus(request: Request, env: Env): Promise<Response
     }
   }
 
-  return json({ valid: license.status === "active", ...license });
+  return json({ valid: license.status === "active", signature: await signLicense(token, license.plan, license.cycle, license.valid_until, license.email), ...license });
 }
 
 async function handleBillingWebhook(request: Request, env: Env): Promise<Response> {
@@ -337,6 +342,19 @@ interface LicenseData {
   valid_until: string;
   status: "active" | "expired";
   activated_at: string;
+}
+
+async function signLicense(token: string, plan: string, cycle: string, valid_until: string, email: string): Promise<string> {
+  const payload = `${plan}:${cycle}:${valid_until}:${email}`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(token),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 interface StripeCheckoutSession {

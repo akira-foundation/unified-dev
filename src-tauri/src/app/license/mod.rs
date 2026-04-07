@@ -1,5 +1,6 @@
 pub mod activate;
 pub mod checkout;
+pub mod hmac;
 pub mod types;
 pub mod verify;
 

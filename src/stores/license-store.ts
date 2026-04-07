@@ -14,6 +14,8 @@ export interface LicenseDto {
   validUntil: string;
   activatedAt: string;
   lastVerifiedAt: string;
+  signature: string;
+  gracePeriod: boolean;
 }
 
 interface LicenseState {

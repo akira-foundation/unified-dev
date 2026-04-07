@@ -11,6 +11,8 @@ pub struct LicenseDto {
     pub valid_until: String,
     pub activated_at: String,
     pub last_verified_at: String,
+    pub signature: String,
+    pub grace_period: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -28,6 +30,7 @@ pub struct WorkerLicenseResponse {
     pub status: String,
     pub valid_until: String,
     pub activated_at: String,
+    pub signature: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,4 +45,5 @@ pub struct WorkerStatusResponse {
     #[allow(dead_code)]
     pub status: Option<String>,
     pub valid_until: Option<String>,
+    pub signature: Option<String>,
 }

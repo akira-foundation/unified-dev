@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useToggle } from "@uidotdev/usehooks";
-import { User, LogOut, Check } from "lucide-react";
+import { User, Check } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useI18n } from "@/i18n/i18n";
@@ -52,10 +52,7 @@ export function GeneralTab() {
                 <span className="text-[13px] text-zinc-500">{license?.email ?? "kidiatoliny@akira-io.com"}</span>
               </div>
             </div>
-            <button className="flex items-center gap-2 text-[13px] text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors">
-              <LogOut className="h-4 w-4" />
-              {t("common.signOut")}
-            </button>
+
           </div>
 
           <div className="p-5 rounded-md border border-zinc-100 bg-zinc-50 dark:border-white/5 dark:bg-white/[0.02]">
@@ -160,8 +157,8 @@ export function GeneralTab() {
                     const yearly = billingCycle === "yearly";
                     const planData = {
                       free:     { price: "0",  period: null, features: [t("upgrade.feature.free.1"), t("upgrade.feature.free.2"), t("upgrade.feature.free.3")] },
-                      pro:      { price: yearly ? "8" : "9",   period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.pro.1"), t("upgrade.feature.pro.2"), t("upgrade.feature.pro.3")] },
-                      ultimate: { price: yearly ? "17" : "19", period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.ultimate.1"), t("upgrade.feature.ultimate.2"), t("upgrade.feature.ultimate.3"), t("upgrade.feature.ultimate.4")] },
+                      pro:      { price: yearly ? "12" : "15",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.pro.1"), t("upgrade.feature.pro.2"), t("upgrade.feature.pro.3")] },
+                      ultimate: { price: yearly ? "24" : "29",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.ultimate.1"), t("upgrade.feature.ultimate.2"), t("upgrade.feature.ultimate.3"), t("upgrade.feature.ultimate.4")] },
                     }[key];
                     const isFeatured = key === "pro";
                     const isCurrent = currentPlan === key;

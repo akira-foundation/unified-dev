@@ -39,6 +39,11 @@
     ]
   },
   "plugins": {
+    "deep-link": {
+      "desktop": [
+        { "schemes": ["akira"] }
+      ]
+    },
     "updater": {
       "endpoints": [
         "https://unified-dev.nyc3.cdn.digitaloceanspaces.com/releases/latest.json"

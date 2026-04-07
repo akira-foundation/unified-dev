@@ -1,5 +1,6 @@
 use crate::app::support::error::{AppError, AppResult};
 
+use super::hmac;
 use super::types::{ActivateLicenseRequest, LicenseDto, WorkerLicenseResponse};
 
 const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
@@ -21,11 +22,22 @@ pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool) ->
 
     let worker_res: WorkerLicenseResponse = res.json().await.map_err(AppError::Http)?;
 
+    if !hmac::verify(
+        &worker_res.token,
+        &worker_res.plan,
+        &worker_res.cycle,
+        &worker_res.valid_until,
+        &worker_res.email,
+        &worker_res.signature,
+    ) {
+        return Err(AppError::Internal("License signature verification failed".into()));
+    }
+
     let now = chrono::Utc::now().to_rfc3339();
 
     sqlx::query(
-        "INSERT INTO license (id, token, plan, cycle, email, status, valid_until, activated_at, last_verified_at)
-         VALUES ('local', ?, ?, ?, ?, ?, ?, ?, ?)
+        "INSERT INTO license (id, token, plan, cycle, email, status, valid_until, activated_at, last_verified_at, signature)
+         VALUES ('local', ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            token = excluded.token,
            plan = excluded.plan,
@@ -34,7 +46,8 @@ pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool) ->
            status = excluded.status,
            valid_until = excluded.valid_until,
            activated_at = excluded.activated_at,
-           last_verified_at = excluded.last_verified_at",
+           last_verified_at = excluded.last_verified_at,
+           signature = excluded.signature",
     )
     .bind(&worker_res.token)
     .bind(&worker_res.plan)
@@ -44,6 +57,7 @@ pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool) ->
     .bind(&worker_res.valid_until)
     .bind(&worker_res.activated_at)
     .bind(&now)
+    .bind(&worker_res.signature)
     .execute(pool)
     .await?;
 
@@ -56,5 +70,7 @@ pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool) ->
         valid_until: worker_res.valid_until,
         activated_at: worker_res.activated_at,
         last_verified_at: now,
+        signature: worker_res.signature,
+        grace_period: false,
     })
 }

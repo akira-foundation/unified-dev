@@ -43,13 +43,14 @@ use app::support::error::AppResult;
 use app::support::security::{KeyStore, TokenCipher};
 use state::AppState;
 use app::terminal::state::TerminalState;
-use tauri::Manager;
+use tauri::{Emitter, Listener, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
@@ -86,7 +87,25 @@ pub fn run() {
                 Ok(())
             });
 
-            setup_result.map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
+            setup_result.map_err(|error| Box::new(error) as Box<dyn std::error::Error>)?;
+
+            // Register deep link handler for akira:// scheme
+            let app_handle = app.handle().clone();
+            app.listen("deep-link://new-url", move |event: tauri::Event| {
+                if let Ok(urls) = serde_json::from_str::<Vec<String>>(event.payload()) {
+                    for url in urls {
+                        if let Ok(parsed) = reqwest::Url::parse(&url) {
+                            if parsed.scheme() == "akira" && parsed.path() == "/license/activate" {
+                                if let Some(session_id) = parsed.query_pairs().find(|(k, _)| k == "session_id").map(|(_, v): (_, std::borrow::Cow<str>)| v.into_owned()) {
+                                    let _ = app_handle.emit("license://activate", session_id);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             get_available_models,

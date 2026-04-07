@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { cn } from "@/lib/utils";
 
 import { AppContent } from "./components/layout/app-content";
@@ -9,6 +10,7 @@ import { AgentsSidebar } from "./components/agents/agents-sidebar";
 import { AgentWorkspaceLayout } from "./components/agents/agent-workspace-layout";
 import { Toaster } from "./components/ui/sonner";
 import { CommandPalette } from "./components/layout/command-palette";
+import { LicenseActivationDialog } from "./components/license-activation-dialog";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationPage } from "./pages/organization";
 import { OrganizationsPage } from "./pages/organizations";
@@ -40,10 +42,18 @@ export default function App() {
   const isAgentMode = useNavigationStore((state) => state.isAgentMode);
   const loadRepositories = useAgentsStore((state) => state.loadRepositories);
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
+  const [activationSessionId, setActivationSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     loadRepositories();
     loadAiProviders();
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<string>("license://activate", (event) => {
+      setActivationSessionId(event.payload);
+    });
+    return () => { unlisten.then((fn) => fn()); };
   }, []);
 
   return (
@@ -80,6 +90,11 @@ export default function App() {
         </main>
         <Toaster richColors />
         <CommandPalette />
+        <LicenseActivationDialog
+          open={activationSessionId !== null}
+          initialSessionId={activationSessionId ?? ""}
+          onClose={() => setActivationSessionId(null)}
+        />
       </AppContent>
     </AppShell>
   );
