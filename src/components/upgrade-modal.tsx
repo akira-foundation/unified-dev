@@ -41,7 +41,7 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
     {
       key: "pro" as const,
       name: t("upgrade.plan.pro"),
-      price: yearly ? "8" : "9",
+      price: yearly ? "12" : "15",
       period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"),
       description: t("upgrade.desc.pro"),
       icon: Crown,
@@ -56,7 +56,7 @@ export default function UpgradeModal({ onClose }: UpgradeModalProps) {
     {
       key: "ultimate" as const,
       name: t("upgrade.plan.ultimate"),
-      price: yearly ? "17" : "19",
+      price: yearly ? "24" : "29",
       period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"),
       description: t("upgrade.desc.ultimate"),
       icon: Globe,
