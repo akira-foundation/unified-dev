@@ -12,6 +12,7 @@ import { useI18n } from "@/i18n/i18n";
 
 interface AgentStatusBarProps {
   branchName: string;
+  toolCallCount: number;
   isRightOpen: boolean;
   onToggleRight: () => void;
   isTerminalOpen?: boolean;
@@ -20,6 +21,7 @@ interface AgentStatusBarProps {
 
 export function AgentStatusBar({
   branchName,
+  toolCallCount,
   isRightOpen,
   onToggleRight,
   isTerminalOpen = false,
@@ -54,7 +56,7 @@ export function AgentStatusBar({
 
         <div className="flex items-center gap-2 text-muted-foreground/40">
           <Wrench className="h-3.5 w-3.5" />
-          <span className="text-[11px] font-medium">26 tool calls</span>
+          <span className="text-[11px] font-medium">{toolCallCount} tool calls</span>
         </div>
       </div>
 

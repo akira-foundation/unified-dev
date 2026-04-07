@@ -334,6 +334,7 @@ export function AgentWorkspaceLayout() {
 
       <AgentStatusBar
         branchName={selectedIssue.branchName}
+        toolCallCount={toolCalls.length}
         isRightOpen={isRightSidebarOpen}
         onToggleRight={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
         isTerminalOpen={isTerminalOpen}
