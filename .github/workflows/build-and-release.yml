@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -80,8 +80,16 @@ jobs:
         id: meta
         shell: bash
         run: |
-          TAR=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -name "*.app.tar.gz" | head -1)
+          echo "=== bundle/macos contents ==="
+          find src-tauri/target/aarch64-apple-darwin/release/bundle -type f | sort
+          TAR=$(find src-tauri/target/aarch64-apple-darwin/release/bundle -name "*.app.tar.gz" | head -1)
+          if [ -z "$TAR" ]; then
+            echo "ERROR: no .app.tar.gz found"
+            exit 1
+          fi
           FILENAME=$(basename "$TAR")
+          echo "TAR=${TAR}"
+          echo "FILENAME=${FILENAME}"
           echo "filename=${FILENAME}" >> "$GITHUB_OUTPUT"
           echo "sig<<EOF_SIG" >> "$GITHUB_OUTPUT"
           cat "${TAR}.sig" >> "$GITHUB_OUTPUT"
@@ -101,6 +109,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
+            VERSION=${GITHUB_SHA::7}
+          fi
           for file in \
             src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz \
             src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig \
@@ -185,8 +196,16 @@ jobs:
         id: meta
         shell: bash
         run: |
-          TAR=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/macos -name "*.app.tar.gz" | head -1)
+          echo "=== bundle/macos contents ==="
+          find src-tauri/target/x86_64-apple-darwin/release/bundle -type f | sort
+          TAR=$(find src-tauri/target/x86_64-apple-darwin/release/bundle -name "*.app.tar.gz" | head -1)
+          if [ -z "$TAR" ]; then
+            echo "ERROR: no .app.tar.gz found"
+            exit 1
+          fi
           FILENAME=$(basename "$TAR")
+          echo "TAR=${TAR}"
+          echo "FILENAME=${FILENAME}"
           echo "filename=${FILENAME}" >> "$GITHUB_OUTPUT"
           echo "sig<<EOF_SIG" >> "$GITHUB_OUTPUT"
           cat "${TAR}.sig" >> "$GITHUB_OUTPUT"
@@ -206,6 +225,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
+            VERSION=${GITHUB_SHA::7}
+          fi
           for file in \
             src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz \
             src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig \
@@ -232,6 +254,9 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
+          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
+            VERSION=${GITHUB_SHA::7}
+          fi
           RELEASE_URL="https://unified-dev.nyc3.cdn.digitaloceanspaces.com/releases/v${VERSION}"
 
           AARCH64_FILENAME="${{ needs.build-aarch64.outputs.filename }}"
