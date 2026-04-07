@@ -82,6 +82,11 @@ export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) 
     term.open(wrapper);
 
     wrapper.style.display = "block";
+
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+    );
+
     fitAddon.fit();
 
     const dims = fitAddon.proposeDimensions();
@@ -116,7 +121,7 @@ export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) 
     } catch (err) {
       term.writeln(`\x1b[31mFailed to spawn: ${err}\x1b[0m`);
     }
-  }, []);
+  }, [cwd]);
 
   const closeTab = useCallback((tabId: string) => {
     const idx = tabsRef.current.findIndex((t) => t.id === tabId);
@@ -171,6 +176,7 @@ export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) 
     });
   }, [activeTabId]);
 
+  const resizeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(false);
   useEffect(() => {
     if (mountedRef.current) return;
@@ -200,22 +206,33 @@ export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) 
     if (!hostRef.current) return;
 
     const observer = new ResizeObserver(() => {
-      const tab = tabsRef.current.find((t) => t.id === activeTabId);
-      if (tab) {
-        tab.fitAddon.fit();
-        const dims = tab.fitAddon.proposeDimensions();
-        if (dims && tab.sessionId) {
-          invoke("terminal_resize", {
-            sessionId: tab.sessionId,
-            cols: dims.cols,
-            rows: dims.rows,
-          });
-        }
+      if (resizeDebounceRef.current !== null) {
+        clearTimeout(resizeDebounceRef.current);
       }
+      resizeDebounceRef.current = setTimeout(() => {
+        resizeDebounceRef.current = null;
+        const tab = tabsRef.current.find((t) => t.id === activeTabId);
+        if (tab) {
+          tab.fitAddon.fit();
+          const dims = tab.fitAddon.proposeDimensions();
+          if (dims && tab.sessionId) {
+            invoke("terminal_resize", {
+              sessionId: tab.sessionId,
+              cols: dims.cols,
+              rows: dims.rows,
+            });
+          }
+        }
+      }, 100);
     });
 
     observer.observe(hostRef.current);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (resizeDebounceRef.current !== null) {
+        clearTimeout(resizeDebounceRef.current);
+      }
+    };
   }, [activeTabId]);
 
   return (

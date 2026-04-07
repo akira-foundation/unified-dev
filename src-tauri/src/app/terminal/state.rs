@@ -43,6 +43,8 @@ impl TerminalState {
         let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/zsh".to_string());
         let mut cmd = CommandBuilder::new(&shell);
         cmd.arg("-l");
+        cmd.env("TERM", "xterm-256color");
+        cmd.env("COLORTERM", "truecolor");
 
         if let Some(dir) = cwd {
             cmd.cwd(dir);
