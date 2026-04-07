@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tauri::AppHandle;
 
-use crate::ai::credentials::{read_codex_access_token, read_copilot_oauth_token, resolve_env_key};
+use crate::ai::credentials::{read_copilot_oauth_token, resolve_env_key};
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::providers::anthropic::find_claude_cli;
 use crate::app::support::error::{AppError, AppResult};
@@ -45,14 +45,8 @@ impl AiRegistry {
             if find_claude_cli().is_some() {
                 return self.find("anthropic_cli").unwrap().complete(request, app).await;
             }
-            if read_copilot_oauth_token().is_some() {
-                return self.find("copilot_chat").unwrap().complete(request, app).await;
-            }
-            if read_codex_access_token().is_some() {
-                return self.find("openai").unwrap().complete(request, app).await;
-            }
             return Err(AppError::Internal(
-                "No AI provider available. Set ANTHROPIC_API_KEY in your shell config, install the Claude CLI, or install GitHub Copilot / OpenAI Codex CLI.".to_string(),
+                "No Anthropic provider available. Set ANTHROPIC_API_KEY in your shell config or install the Claude CLI.".to_string(),
             ));
         }
 

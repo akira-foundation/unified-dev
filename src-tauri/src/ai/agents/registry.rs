@@ -33,7 +33,7 @@ pub async fn build_model_registry() -> ModelRegistry {
         }
 
         if has_copilot {
-            let copilot_models = claude_models
+            let copilot_models = fallback_models(&AiProviderKind::Copilot)
                 .into_iter()
                 .map(|m| super::types::AiModel {
                     id: format!("copilot:{}", m.id),
