@@ -9,13 +9,16 @@ use crate::state::AppState;
 #[tauri::command]
 pub async fn sync_issues(
     state: State<'_, AppState>,
+    app: tauri::AppHandle,
     org_id: String,
     owner: String,
     repo_name: String,
     scope: Option<String>,
     current_login: Option<String>,
 ) -> Result<Vec<IssueDto>, String> {
-    issues::sync(state, org_id, owner, repo_name, scope, current_login).await
+    let issues = issues::sync(state.clone(), org_id.clone(), owner, repo_name, scope, current_login).await?;
+    crate::app::settings::touch::touch(org_id, state, app).await.map_err(|e| e.to_string())?;
+    Ok(issues)
 }
 
 #[tauri::command]

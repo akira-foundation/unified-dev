@@ -48,13 +48,15 @@ pub async fn list_all_selected_repositories(state: State<'_, AppState>) -> Resul
 }
 
 #[tauri::command]
-pub async fn sync_repository_stats(state: State<'_, AppState>, organization_id: String) -> Result<(), String> {
-    orgs::sync_repository_stats(state, organization_id).await
+pub async fn sync_repository_stats(state: State<'_, AppState>, app: tauri::AppHandle, organization_id: String) -> Result<(), String> {
+    orgs::sync_repository_stats(state.clone(), organization_id.clone()).await?;
+    crate::app::settings::touch::touch(organization_id, state, app).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn sync_single_repo_stats(state: State<'_, AppState>, organization_id: String, repo_name: String) -> Result<(), String> {
-    orgs::sync_single_repo_stats(state, organization_id, repo_name).await
+pub async fn sync_single_repo_stats(state: State<'_, AppState>, app: tauri::AppHandle, organization_id: String, repo_name: String) -> Result<(), String> {
+    orgs::sync_single_repo_stats(state.clone(), organization_id.clone(), repo_name).await?;
+    crate::app::settings::touch::touch(organization_id, state, app).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -121,11 +123,14 @@ pub async fn delete_repo_branch(state: State<'_, AppState>, organization_id: Str
 #[tauri::command]
 pub async fn sync_pull_requests(
     state: State<'_, AppState>,
+    app: tauri::AppHandle,
     organization_id: String,
     repo_name: String,
     owner: Option<String>,
     scope: Option<String>,
     current_login: Option<String>,
 ) -> Result<Vec<PullRequestDto>, String> {
-    orgs::sync_pull_requests(state, organization_id, repo_name, owner, scope, current_login).await
+    let prs = orgs::sync_pull_requests(state.clone(), organization_id.clone(), repo_name, owner, scope, current_login).await?;
+    crate::app::settings::touch::touch(organization_id, state, app).await.map_err(|e| e.to_string())?;
+    Ok(prs)
 }

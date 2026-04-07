@@ -46,6 +46,8 @@ pub fn start(app_handle: AppHandle) {
                     .map(|(_, owner, repo)| (owner, repo))
                     .collect();
 
+                let mut org_touched = false;
+
                 for (owner, repo) in &org_repos {
                     let repo_id = format!("{org_id}:{repo}");
                     let repo_settings = load_settings(&state, &repo_id).await;
@@ -62,6 +64,7 @@ pub fn start(app_handle: AppHandle) {
                         last_synced.insert(("repos", repo_id.clone()), now);
                         touch_synced_at(&state, &repo_id, &repo_settings).await;
                         emit(&app_handle, "repos", org_id);
+                        org_touched = true;
                     }
 
                     if repo_settings.sync_prs_enabled
@@ -81,6 +84,7 @@ pub fn start(app_handle: AppHandle) {
                         last_synced.insert(("prs", repo_id.clone()), now);
                         touch_synced_at(&state, &repo_id, &repo_settings).await;
                         emit(&app_handle, "prs", org_id);
+                        org_touched = true;
                     }
 
                     if repo_settings.sync_issues_enabled
@@ -100,7 +104,13 @@ pub fn start(app_handle: AppHandle) {
                         last_synced.insert(("issues", repo_id.clone()), now);
                         touch_synced_at(&state, &repo_id, &repo_settings).await;
                         emit(&app_handle, "issues", org_id);
+                        org_touched = true;
                     }
+                }
+
+                if org_touched {
+                    let org_settings = load_settings(&state, org_id).await;
+                    touch_synced_at(&state, org_id, &org_settings).await;
                 }
             }
 
@@ -114,7 +124,12 @@ pub fn start(app_handle: AppHandle) {
                         .unwrap_or_default();
 
                 for provider_id in provider_ids {
-                    let _ = sync_orgs(app_handle.state::<AppState>(), &provider_id).await;
+                    if let Ok(synced_org_ids) = sync_orgs(app_handle.state::<AppState>(), &provider_id).await {
+                        for org_id in &synced_org_ids {
+                            let org_settings = load_settings(&state, org_id).await;
+                            touch_synced_at(&state, org_id, &org_settings).await;
+                        }
+                    }
                 }
 
                 last_synced.insert(("orgs", GLOBAL_ID.to_string()), now);
@@ -199,7 +214,7 @@ async fn touch_synced_at(state: &AppState, id: &str, settings: &SyncSettingsDto)
     .await;
 }
 
-async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Result<(), String> {
+async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Result<Vec<String>, String> {
     let credentials = crate::app::providers::credentials::credentials(&state, provider_id)
         .await
         .map_err(|e| e.to_string())?;
@@ -216,6 +231,7 @@ async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Resu
         .map_err(|e| e.to_string())?;
 
     let now = chrono::Utc::now().to_rfc3339();
+    let mut synced_org_ids: Vec<String> = Vec::new();
 
     for org in remote_orgs {
         sqlx::query(
@@ -231,9 +247,20 @@ async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Resu
         .execute(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
+
+        if let Ok(org_id) = sqlx::query_scalar::<_, String>(
+            "SELECT id FROM organizations WHERE provider_id = ? AND external_id = ?",
+        )
+        .bind(provider_id)
+        .bind(&org.id)
+        .fetch_one(&state.db_pool)
+        .await
+        {
+            synced_org_ids.push(org_id);
+        }
     }
 
-    Ok(())
+    Ok(synced_org_ids)
 }
 
 async fn resolve_current_login(state: &AppState, org_id: &str) -> Option<String> {
