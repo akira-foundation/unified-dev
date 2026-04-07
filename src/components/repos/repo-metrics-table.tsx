@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
-import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw, Search } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw, Search, Trash2 } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useRepoActions } from "../../hooks/useRepoActions";
@@ -43,6 +43,7 @@ interface RepoMetricsTableProps {
   onSyncRepo?: (repo: OrganizationRepoWithOrg) => void;
   onOrganizationClick?: (repo: OrganizationRepoWithOrg) => void;
   onVisibilitySettings?: (repo: OrganizationRepoWithOrg) => void;
+  onRemoveRepo?: (repo: OrganizationRepoWithOrg) => void;
   isSyncing?: boolean;
   syncingRepoId?: string;
   hideOrganization?: boolean;
@@ -67,6 +68,7 @@ export function RepoMetricsTable({
   onSyncRepo,
   onOrganizationClick,
   onVisibilitySettings,
+  onRemoveRepo,
   isSyncing,
   syncingRepoId,
   hideOrganization,
@@ -312,6 +314,18 @@ export function RepoMetricsTable({
                   {t("common.sync")}
                 </DropdownMenuItem>
               )}
+              {onRemoveRepo && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => onRemoveRepo(row.original)}
+                    className="text-red-500 focus:text-red-500"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {t("common.remove")}
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         ),
@@ -320,7 +334,7 @@ export function RepoMetricsTable({
     );
 
     return cols;
-  }, [t, hideOrganization, onOrganizationClick, onVisibilitySettings, onSyncRepo, syncingRepoId, handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask]);
+  }, [t, hideOrganization, onOrganizationClick, onVisibilitySettings, onSyncRepo, onRemoveRepo, syncingRepoId, handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask]);
 
   const table = useReactTable({
     data: filteredRepos,

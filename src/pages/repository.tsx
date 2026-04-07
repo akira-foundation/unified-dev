@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { FolderGit2, GitPullRequest, Globe2, Lock } from "lucide-react";
 
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
+import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
 import { EmptyState } from "../components/ui/empty-state";
 import {
   PageHeader,
@@ -40,6 +41,8 @@ export function RepositoryPage() {
   const { providers } = useProviders();
   const { resolvePrScope, resolveIssueScope } = useSettingsStore();
   const [visibilityRepo, setVisibilityRepo] = useState<OrganizationRepoWithOrg | null>(null);
+  const [repoToRemove, setRepoToRemove] = useState<OrganizationRepoWithOrg | null>(null);
+  const [isRemovingRepo, setIsRemovingRepo] = useState(false);
 
   const { data: repos = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -132,6 +135,34 @@ export function RepositoryPage() {
       });
     },
   });
+
+  const handleRemoveRepo = async () => {
+    if (!repoToRemove) return;
+    try {
+      setIsRemovingRepo(true);
+      await invoke("save_selected_repositories", {
+        organizationId: repoToRemove.organization_id,
+        repoList: [{
+          owner: repoToRemove.owner,
+          repo_name: repoToRemove.repo_name,
+          visibility: repoToRemove.visibility,
+          is_selected: false,
+          auto_sync: repoToRemove.auto_sync,
+          default_branch: repoToRemove.default_branch,
+          is_fork: repoToRemove.is_fork,
+          fork_owner: repoToRemove.fork_owner,
+          fork_repo: repoToRemove.fork_repo,
+        }],
+      });
+      void refetch();
+      toast.success(t("agents.sidebar.toast.repoRemoved").replace("{name}", repoToRemove.repo_name));
+      setRepoToRemove(null);
+    } catch (error) {
+      toast.error(`Failed to remove repository: ${error}`);
+    } finally {
+      setIsRemovingRepo(false);
+    }
+  };
 
   return (
     <PageLayout>
@@ -236,6 +267,7 @@ export function RepositoryPage() {
               isSyncing={syncAllMutation.isPending}
               onSyncRepo={(repo) => syncRepoMutation.mutate(repo)}
               onVisibilitySettings={(repo) => setVisibilityRepo(repo)}
+              onRemoveRepo={(repo) => setRepoToRemove(repo)}
               syncingRepoId={syncRepoMutation.isPending ? String(syncRepoMutation.variables?.id) : undefined}
               onOrganizationClick={(repo) => {
                 setActiveOrganizationId(repo.organization_id);
@@ -247,6 +279,14 @@ export function RepositoryPage() {
               repo={visibilityRepo}
               open={!!visibilityRepo}
               onOpenChange={(open) => !open && setVisibilityRepo(null)}
+            />
+
+            <RemoveRepositoryDialog
+              open={!!repoToRemove}
+              onOpenChange={(open) => !open && setRepoToRemove(null)}
+              onRemove={() => void handleRemoveRepo()}
+              repoName={repoToRemove?.repo_name ?? ""}
+              isRemoving={isRemovingRepo}
             />
           </>
         )}

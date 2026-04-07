@@ -3,6 +3,7 @@ import { PageLayout } from "../components/layout/page-layout";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "../components/ui/card";
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
+import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigationStore } from "../stores/navigation-store";
@@ -33,6 +34,8 @@ export function OrganizationPage() {
   const { activeOrganizationId, navigateTo } = useNavigationStore();
   const queryClient = useQueryClient();
   const [orgConfigOpen, setOrgConfigOpen] = useState(false);
+  const [repoToRemove, setRepoToRemove] = useState<OrganizationRepoWithOrg | null>(null);
+  const [isRemovingRepo, setIsRemovingRepo] = useState(false);
 
   const organization = useMemo(
     () => organizations.find((item) => item.id === activeOrganizationId) ?? null,
@@ -126,6 +129,34 @@ export function OrganizationPage() {
       toast.error(t("agents.sidebar.toast.syncFailed").replace("{name}", repo.repo_name), { id: toastId as string });
     },
   });
+
+  const handleRemoveRepo = async () => {
+    if (!repoToRemove) return;
+    try {
+      setIsRemovingRepo(true);
+      await invoke("save_selected_repositories", {
+        organizationId: repoToRemove.organization_id,
+        repoList: [{
+          owner: repoToRemove.owner,
+          repo_name: repoToRemove.repo_name,
+          visibility: repoToRemove.visibility,
+          is_selected: false,
+          auto_sync: repoToRemove.auto_sync,
+          default_branch: repoToRemove.default_branch,
+          is_fork: repoToRemove.is_fork,
+          fork_owner: repoToRemove.fork_owner,
+          fork_repo: repoToRemove.fork_repo,
+        }],
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(organization!.id) });
+      toast.success(t("agents.sidebar.toast.repoRemoved").replace("{name}", repoToRemove.repo_name));
+      setRepoToRemove(null);
+    } catch (error) {
+      toast.error(`Failed to remove repository: ${error}`);
+    } finally {
+      setIsRemovingRepo(false);
+    }
+  };
 
   return (
     <PageLayout>
@@ -238,6 +269,7 @@ export function OrganizationPage() {
                 onSync={() => syncAll.mutate()}
                 isSyncing={syncAll.isPending}
                 onSyncRepo={(repo) => syncRepo.mutate(repo)}
+                onRemoveRepo={(repo) => setRepoToRemove(repo)}
                 syncingRepoId={syncRepo.isPending ? String(syncRepo.variables?.id) : undefined}
                 hideOrganization
               />
@@ -250,6 +282,14 @@ export function OrganizationPage() {
         organization={organization}
         open={orgConfigOpen}
         onOpenChange={setOrgConfigOpen}
+      />
+
+      <RemoveRepositoryDialog
+        open={!!repoToRemove}
+        onOpenChange={(open) => !open && setRepoToRemove(null)}
+        onRemove={() => void handleRemoveRepo()}
+        repoName={repoToRemove?.repo_name ?? ""}
+        isRemoving={isRemovingRepo}
       />
     </PageLayout>
   );
