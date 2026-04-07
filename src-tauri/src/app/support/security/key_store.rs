@@ -32,7 +32,9 @@ impl KeyStore {
                 let _ = write_key_file(app, &encoded); // keep file in sync
                 decode_key(&encoded)
             }
-            Err(keyring::Error::NoEntry) => {
+            Err(keyring::Error::NoEntry)
+            | Err(keyring::Error::NoStorageAccess(_))
+            | Err(keyring::Error::PlatformFailure(_)) => {
                 let key = generate_key();
                 let encoded = base64::engine::general_purpose::STANDARD.encode(key);
                 let _ = entry.set_password(&encoded);

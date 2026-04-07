@@ -139,14 +139,14 @@ jobs:
           VERSION=${GITHUB_REF#refs/tags/v}
           RELEASE_URL="https://unified-dev.nyc3.cdn.digitaloceanspaces.com/releases/v${VERSION}"
 
-          AARCH64_TAR="src-tauri/target/aarch64-apple-darwin/release/bundle/macos/Unified Dev.app.tar.gz"
-          X86_TAR="src-tauri/target/x86_64-apple-darwin/release/bundle/macos/Unified Dev.app.tar.gz"
+          AARCH64_TAR=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -name "*.app.tar.gz" | head -1)
+          X86_TAR=$(find src-tauri/target/x86_64-apple-darwin/release/bundle/macos -name "*.app.tar.gz" | head -1)
 
           AARCH64_SIG=$(cat "${AARCH64_TAR}.sig")
           X86_SIG=$(cat "${X86_TAR}.sig")
 
-          AARCH64_FILENAME="Unified Dev_${VERSION}_aarch64.app.tar.gz"
-          X86_FILENAME="Unified Dev_${VERSION}_x86_64.app.tar.gz"
+          AARCH64_FILENAME=$(basename "${AARCH64_TAR}")
+          X86_FILENAME=$(basename "${X86_TAR}")
 
           cat > latest.json << EOF
           {
