@@ -1,14 +1,13 @@
 use async_trait::async_trait;
 use serde_json::json;
 use tauri::AppHandle;
-use tauri::Manager;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use crate::ai::provider::{AiProvider, AiRequest};
-use crate::app::chat::stream::{emit_token, emit_tool_call, StreamToolCallPayload};
+use crate::app::chat::message::parse_content_to_api;
+use crate::app::chat::stream::emit_token;
 use crate::app::mcp::types::McpServer;
 use crate::app::support::error::{AppError, AppResult};
-use crate::state::AppState;
 
 pub struct AnthropicCliProvider;
 
@@ -81,19 +80,27 @@ impl AnthropicCliProvider {
             )
         })?;
 
-        let mut prompt_parts: Vec<String> = Vec::new();
-        for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
-            let role_label = if msg.role == "user" { "Human" } else { "Assistant" };
-            prompt_parts.push(format!("{}: {}", role_label, msg.content));
-        }
-        // Always append the current user message.
-        prompt_parts.push(format!("Human: {}", request.content));
-        let stdin_prompt = prompt_parts.join("\n\n");
-
         let cli_model = resolve_cli_model(&request.model);
+
+        let mut stdin_lines: Vec<String> = Vec::new();
+        for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
+            let content = parse_content_to_api(&msg.content);
+            let line = json!({
+                "type": msg.role,
+                "message": { "role": msg.role, "content": content }
+            });
+            stdin_lines.push(line.to_string());
+        }
+        let current_content = parse_content_to_api(&request.content);
+        stdin_lines.push(json!({
+            "type": "user",
+            "message": { "role": "user", "content": current_content }
+        }).to_string());
+        let stdin_payload = stdin_lines.join("\n") + "\n";
 
         let mut cmd = tokio::process::Command::new(&claude_bin);
         cmd.arg("-p")
+            .arg("--input-format").arg("stream-json")
             .arg("--output-format").arg("stream-json")
             .arg("--verbose")
             .arg("--system-prompt").arg(&request.system_prompt)
@@ -126,7 +133,7 @@ impl AnthropicCliProvider {
         })?;
 
         if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(stdin_prompt.as_bytes()).await.map_err(|e| {
+            stdin.write_all(stdin_payload.as_bytes()).await.map_err(|e| {
                 AppError::Internal(format!("Failed to write to claude CLI stdin: {e}"))
             })?;
         }
@@ -233,54 +240,7 @@ impl AnthropicCliProvider {
             ));
         }
 
-        let pool = app.state::<AppState>().db_pool.clone();
-        let mut renamed_to: Option<String> = None;
-        for line in full_response.lines() {
-            let trimmed = line.trim();
-            if let Some(new_name) = trimmed.strip_prefix("RENAME_WORKSPACE:") {
-                let new_name = new_name.trim();
-                if !new_name.is_empty() {
-                    if crate::app::threads::rename_logic(&request.thread_id, new_name, &pool).await.is_ok() {
-                        renamed_to = Some(new_name.to_string());
-                    }
-                }
-                break;
-            }
-        }
-
-        if let Some(ref new_name) = renamed_to {
-            let label = format!("Renaming workspace to '{new_name}'");
-            emit_tool_call(app, StreamToolCallPayload {
-                thread_id: request.thread_id.clone(),
-                label: label.clone(),
-                status: "running".to_string(),
-                output: None,
-            });
-            emit_tool_call(app, StreamToolCallPayload {
-                thread_id: request.thread_id.clone(),
-                label,
-                status: "done".to_string(),
-                output: None,
-            });
-        }
-
-        let cleaned: String = full_response
-            .lines()
-            .filter(|l| !l.trim().starts_with("RENAME_WORKSPACE:"))
-            .collect::<Vec<_>>()
-            .join("\n");
-
-        let final_response = if cleaned.trim().is_empty() {
-            if let Some(ref name) = renamed_to {
-                format!("Workspace renamed to '{name}'.")
-            } else {
-                cleaned
-            }
-        } else {
-            cleaned
-        };
-
-        Ok(final_response)
+        Ok(full_response)
     }
 }
 

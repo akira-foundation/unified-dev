@@ -8,6 +8,7 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_responses_sse;
 use crate::ai::tools::{execute_tool, tool_definitions_responses, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
+use crate::app::chat::message::parse_content_to_responses_api;
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
@@ -29,9 +30,9 @@ impl OpenAiProvider {
             json!({ "type": "message", "role": "system", "content": request.system_prompt })
         ];
         for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
-            input.push(json!({ "type": "message", "role": msg.role, "content": msg.content }));
+            input.push(json!({ "type": "message", "role": msg.role, "content": parse_content_to_responses_api(&msg.content, &msg.role) }));
         }
-        input.push(json!({ "type": "message", "role": "user", "content": request.content }));
+        input.push(json!({ "type": "message", "role": "user", "content": parse_content_to_responses_api(&request.content, "user") }));
 
         let mut full_text = String::new();
         let mut workspace_path = request.workspace_path.clone();

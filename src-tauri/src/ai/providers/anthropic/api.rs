@@ -8,6 +8,7 @@ use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_anthropic_turn;
 use crate::ai::tools::{execute_tool, tool_definitions_anthropic, tool_label};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
+use crate::app::chat::message::parse_content_to_api;
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
@@ -39,10 +40,10 @@ impl AnthropicProvider {
             .history
             .iter()
             .filter(|m| m.role == "user" || m.role == "assistant")
-            .map(|m| json!({ "role": m.role, "content": m.content }))
+            .map(|m| json!({ "role": m.role, "content": parse_content_to_api(&m.content) }))
             .collect();
 
-        messages.push(json!({ "role": "user", "content": request.content }));
+        messages.push(json!({ "role": "user", "content": parse_content_to_api(&request.content) }));
 
         let mut full_text = String::new();
         let mut workspace_path = request.workspace_path.clone();

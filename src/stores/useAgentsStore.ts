@@ -3,7 +3,8 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
-import type { AgentTimelineStep, FileChange, RepositoryGroup, AgentStatus } from "../types/agents";
+import type { AgentTimelineStep, FileChange, RepositoryGroup, AgentStatus, MessageContent } from "../types/agents";
+import { serializeContent, contentToText, parseContent } from "../types/agents";
 import type { AiProviderGroup, AiProviderResponse } from "../types/ai-providers";
 
 export interface SendMessageOptions {
@@ -28,7 +29,7 @@ export interface ChatMessage {
   thread_id: string;
   role: "user" | "assistant" | "system" | "tool";
   model: string | null;
-  content: string;
+  content: MessageContent;
   metadata: string | null;
   created_at: string;
 }
@@ -65,7 +66,7 @@ interface AgentsState {
   // Which thread is currently streaming (may differ from selectedIssueId when navigating)
   streamingThreadId: string | null;
   // Per-thread message queue — messages sent while agent is already running.
-  messageQueueByThread: Record<string, Array<{ content: string; model: string; options?: SendMessageOptions }>>;
+  messageQueueByThread: Record<string, Array<{ content: MessageContent; model: string; options?: SendMessageOptions }>>;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
   setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp") => void;
@@ -77,7 +78,7 @@ interface AgentsState {
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
   loadMessages: (threadId: string) => Promise<void>;
-  sendMessage: (threadId: string, content: string, model: string, silent?: boolean, options?: SendMessageOptions) => Promise<void>;
+  sendMessage: (threadId: string, content: MessageContent, model: string, silent?: boolean, options?: SendMessageOptions) => Promise<void>;
   loadFileChanges: (workspacePath: string) => Promise<void>;
   addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string, workspace_path: string }) => void;
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
@@ -182,8 +183,15 @@ export const useAgentsStore = create<AgentsState>()(
         try {
           const response = await invoke<AiProviderResponse>("get_available_models");
           const providers = response.providers;
-          const defaultModel = selectDefaultModel(providers);
-          set({ aiProviders: providers, selectedModelId: defaultModel });
+          const allModelIds = new Set(providers.flatMap((p) => p.models.map((m) => m.id)));
+          const currentModelId = get().selectedModelId;
+          const selectedModelId = currentModelId && allModelIds.has(currentModelId)
+            ? currentModelId
+            : selectDefaultModel(providers);
+          const selectedModelByThread = Object.fromEntries(
+            Object.entries(get().selectedModelByThread).filter(([, id]) => allModelIds.has(id))
+          );
+          set({ aiProviders: providers, selectedModelId, selectedModelByThread });
         } catch {
           set({ aiProviders: [], selectedModelId: null });
         }
@@ -225,7 +233,8 @@ export const useAgentsStore = create<AgentsState>()(
       },
       loadMessages: async (threadId: string) => {
         try {
-          const messages = await invoke<ChatMessage[]>("get_messages", { threadId });
+          const raw = await invoke<Array<Omit<ChatMessage, "content"> & { content: string }>>("get_messages", { threadId });
+          const messages: ChatMessage[] = raw.map((m) => ({ ...m, content: parseContent(m.content) }));
           set({ messages });
         } catch {
           set({ messages: [] });
@@ -267,7 +276,7 @@ export const useAgentsStore = create<AgentsState>()(
           }));
         }
       },
-      sendMessage: async (threadId: string, content: string, model: string, silent = false, options?: SendMessageOptions) => {
+      sendMessage: async (threadId: string, content: MessageContent, model: string, silent = false, options?: SendMessageOptions) => {
         const { repositoryGroups, streamingThreadIds } = get();
 
         // If this thread is already streaming, queue the message for later.
@@ -287,7 +296,7 @@ export const useAgentsStore = create<AgentsState>()(
         const workspacePath = thread?.workspacePath ?? "";
 
         // ── Slash command interception ─────────────────────────────────────
-        const trimmed = content.trim();
+        const trimmed = contentToText(content).trim();
 
         if (trimmed === "/clear") {
           set((state) => ({
@@ -519,7 +528,7 @@ export const useAgentsStore = create<AgentsState>()(
         try {
           await invoke("send_message", {
             threadId,
-            message: content,
+            message: serializeContent(content),
             model,
             silent,
             planMode: options?.planMode ?? false,

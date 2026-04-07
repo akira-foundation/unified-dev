@@ -6,6 +6,7 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { cn } from "@/lib/utils";
 import type { AgentTimelineStep } from "@/types/agents";
+import { parseContent } from "@/types/agents";
 import type { ChatMessage, ToolCallEvent } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
 import { useToggle } from "@uidotdev/usehooks";
@@ -190,6 +191,32 @@ function MessageMarkdown({ content }: { content: string }) {
   );
 }
 
+function MessageContent({ content }: { content: ChatMessage["content"] }) {
+  const parts = typeof content === "string" ? parseContent(content) : content;
+
+  if (typeof parts === "string") {
+    return <MessageMarkdown content={parts} />;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {parts.map((part, i) => {
+        if (part.type === "image") {
+          return (
+            <img
+              key={i}
+              src={`data:${part.mediaType};base64,${part.data}`}
+              alt=""
+              className="max-h-64 max-w-full rounded-lg object-contain border border-border/20"
+            />
+          );
+        }
+        return <MessageMarkdown key={i} content={part.text} />;
+      })}
+    </div>
+  );
+}
+
 export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls }: AgentTimelineProps) {
   const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -273,7 +300,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
                   <span className="text-[11px] font-mono text-zinc-400">{t("agents.timeline.output")}</span>
                 </div>
                 <pre className="p-3 text-[12px] font-mono dark:text-zinc-300 text-zinc-700 leading-relaxed overflow-x-auto whitespace-pre-wrap break-words dark:bg-[#18181b] bg-zinc-50">
-                  {msg.content}
+                  {typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content)}
                 </pre>
               </div>
               <span className="text-[10px] text-muted-foreground/30 px-1">
@@ -313,7 +340,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
                 ? "bg-purple-500/10 text-foreground/90 rounded-tr-sm"
                 : "dark:bg-white/[0.04] bg-black/[0.04] text-foreground/80 rounded-tl-sm"
             )}>
-              <MessageMarkdown content={msg.content} />
+              <MessageContent content={msg.content} />
             </div>
             <span className="text-[10px] text-muted-foreground/30 px-1">
               {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}

@@ -5,10 +5,11 @@ use crate::ai::provider::AiRequest;
 use crate::ai::providers::default_registry;
 use crate::ai::system_prompt::{build_action_system_prompt, build_system_prompt};
 use crate::app::chat::message::{get_messages, save_message};
-use crate::app::chat::stream::{emit_done, emit_error};
+use crate::app::chat::stream::{emit_done, emit_error, emit_tool_call, StreamToolCallPayload};
 use crate::app::mcp;
 use crate::app::skills;
 use crate::app::support::error::{AppError, AppResult};
+use crate::app::threads;
 
 struct ThreadContext {
     repo_id: String,
@@ -126,8 +127,9 @@ pub async fn run(
 
     match default_registry().dispatch(request, &app).await {
         Ok(response_text) => {
-            if !silent || !response_text.trim().is_empty() {
-                save_message(&thread_id, "assistant", &response_text, Some(&model), None, &pool).await?;
+            let cleaned = process_rename_workspace(&response_text, &thread_id, &pool, &app).await;
+            if !silent || !cleaned.trim().is_empty() {
+                save_message(&thread_id, "assistant", &cleaned, Some(&model), None, &pool).await?;
             }
             emit_done(&app, &thread_id);
         }
@@ -138,4 +140,57 @@ pub async fn run(
     }
 
     Ok(())
+}
+
+async fn process_rename_workspace(
+    response_text: &str,
+    thread_id: &str,
+    pool: &SqlitePool,
+    app: &AppHandle,
+) -> String {
+    let mut renamed_to: Option<String> = None;
+
+    for line in response_text.lines() {
+        if let Some(new_name) = line.trim().strip_prefix("RENAME_WORKSPACE:") {
+            let new_name = new_name.trim();
+            if !new_name.is_empty() {
+                if threads::rename_logic(thread_id, new_name, pool).await.is_ok() {
+                    renamed_to = Some(new_name.to_string());
+                }
+            }
+            break;
+        }
+    }
+
+    if let Some(ref new_name) = renamed_to {
+        let label = format!("Renaming workspace to '{new_name}'");
+        emit_tool_call(app, StreamToolCallPayload {
+            thread_id: thread_id.to_string(),
+            label: label.clone(),
+            status: "running".to_string(),
+            output: None,
+        });
+        emit_tool_call(app, StreamToolCallPayload {
+            thread_id: thread_id.to_string(),
+            label,
+            status: "done".to_string(),
+            output: None,
+        });
+    }
+
+    let cleaned: String = response_text
+        .lines()
+        .filter(|l| !l.trim().starts_with("RENAME_WORKSPACE:"))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if cleaned.trim().is_empty() {
+        if let Some(ref name) = renamed_to {
+            format!("Workspace renamed to '{name}'.")
+        } else {
+            cleaned
+        }
+    } else {
+        cleaned
+    }
 }

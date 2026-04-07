@@ -1,5 +1,48 @@
 export type AgentStatus = "Pending" | "Running" | "Completed" | "Error";
 
+export type ImageMediaType = "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+
+export interface TextPart {
+  type: "text";
+  text: string;
+}
+
+export interface ImagePart {
+  type: "image";
+  data: string;
+  mediaType: ImageMediaType;
+}
+
+export type ContentPart = TextPart | ImagePart;
+
+export type MessageContent = string | ContentPart[];
+
+export const IMAGE_SIZE_LIMIT = 5 * 1024 * 1024;
+
+export function serializeContent(content: MessageContent): string {
+  if (typeof content === "string") return content;
+  return JSON.stringify(content);
+}
+
+export function parseContent(raw: string): MessageContent {
+  if (!raw.startsWith("[")) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed as ContentPart[];
+  } catch {
+    // fall through
+  }
+  return raw;
+}
+
+export function contentToText(content: MessageContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((p): p is TextPart => p.type === "text")
+    .map((p) => p.text)
+    .join(" ");
+}
+
 export interface AgentIssue {
   id: string;
   title: string;

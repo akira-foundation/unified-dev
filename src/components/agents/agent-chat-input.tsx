@@ -1,12 +1,15 @@
-import { Plus, Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal, Square, Search } from "lucide-react";
+import { Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal, Square, Search, X, ImageIcon } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import type { SendMessageOptions, InstalledSkill } from "@/stores/useAgentsStore";
+import type { ImagePart, ImageMediaType } from "@/types/agents";
+import { IMAGE_SIZE_LIMIT, contentToText } from "@/types/agents";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -146,7 +149,10 @@ export function AgentChatInput() {
   const [thinkingOpen, setThinkingOpen] = useState(false);
   const [thinkingBudget, setThinkingBudget] = useState<"x-high" | "high" | "medium" | "low">("medium");
   const [fastMode, toggleFastMode] = useToggle(false);
+  const [attachedImages, setAttachedImages] = useState<ImagePart[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     aiProviders,
     selectedModelId,
@@ -181,7 +187,7 @@ export function AgentChatInput() {
 
   const contextWindow = selectedModel?.context_window ?? 0;
   const usedTokens = useMemo(
-    () => Math.round(messages.reduce((sum, m) => sum + m.content.length, 0) / 4),
+    () => Math.round(messages.reduce((sum, m) => sum + contentToText(m.content).length, 0) / 4),
     [messages],
   );
 
@@ -205,8 +211,55 @@ export function AgentChatInput() {
     medium: "Medium",
     low: "Low",
   };
+
+  const readFileAsImagePart = useCallback((file: File): Promise<ImagePart | null> => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith("image/")) { resolve(null); return; }
+      if (file.size > IMAGE_SIZE_LIMIT) {
+        toast(`Image "${file.name}" exceeds the 5MB limit.`);
+        resolve(null);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        const base64 = dataUrl.split(",")[1];
+        resolve({ type: "image", data: base64, mediaType: file.type as ImageMediaType });
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }, []);
+
+  const addImages = useCallback(async (files: FileList | File[]) => {
+    const results = await Promise.all(Array.from(files).map(readFileAsImagePart));
+    const valid = results.filter((p): p is ImagePart => p !== null);
+    setAttachedImages((prev) => [...prev, ...valid]);
+  }, [readFileAsImagePart]);
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const imageFiles = Array.from(e.clipboardData.items)
+      .filter((item) => item.kind === "file" && item.type.startsWith("image/"))
+      .map((item) => item.getAsFile())
+      .filter((f): f is File => f !== null);
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      await addImages(imageFiles);
+    }
+  }, [addImages]);
+
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (files.length > 0) await addImages(files);
+  }, [addImages]);
+
+  const removeImage = useCallback((index: number) => {
+    setAttachedImages((prev) => prev.filter((_, i) => i !== index));
+  }, []);
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
-  const canSend = message.trim().length > 0 && hasProviders && !!selectedIssueId;
+  const canSend = (message.trim().length > 0 || attachedImages.length > 0) && hasProviders && !!selectedIssueId;
   // Build flat list of slash items from the current query
   const slashItems = useMemo<SlashItem[]>(() => {
     const lowerQuery = slashQuery.toLowerCase();
@@ -272,8 +325,9 @@ export function AgentChatInput() {
 
   const handleSend = async () => {
     if (!canSend) return;
-    const content = message.trim();
+    const text = message.trim();
     setMessage("");
+    setAttachedImages([]);
     setSlashOpen(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "24px";
@@ -283,7 +337,15 @@ export function AgentChatInput() {
       thinkingBudget: hasReasoning ? thinkingBudget : "not-available",
       fastMode,
     };
-    await sendMessage(selectedIssueId!, content, effectiveModelId!, undefined, opts);
+
+    if (attachedImages.length > 0) {
+      const parts: import("@/types/agents").ContentPart[] = [];
+      if (text) parts.push({ type: "text", text });
+      parts.push(...attachedImages);
+      await sendMessage(selectedIssueId!, parts, effectiveModelId!, undefined, opts);
+    } else {
+      await sendMessage(selectedIssueId!, text, effectiveModelId!, undefined, opts);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -322,7 +384,23 @@ export function AgentChatInput() {
   };
 
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={handleDrop}
+    >
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={async (e) => {
+          if (e.target.files) await addImages(e.target.files);
+          e.target.value = "";
+        }}
+      />
       {/* Slash command menu — rendered above the card */}
       {slashOpen && (
         <div className="absolute bottom-full mb-2 left-0 right-0 z-50">
@@ -347,13 +425,48 @@ export function AgentChatInput() {
         </div>
       )}
 
-      <Card className="gap-0 p-0">
+      {isDragOver && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/50 bg-background/80 backdrop-blur-sm pointer-events-none">
+          <div className="flex flex-col items-center gap-2 text-primary/70">
+            <ImageIcon className="h-6 w-6" />
+            <span className="text-[13px] font-medium">Drop image to attach</span>
+          </div>
+        </div>
+      )}
+
+      <Card className={cn("gap-0 p-0 transition-colors", isDragOver && "border-primary/50 dark:border-primary/40")}>
         <CardContent className="flex flex-col p-3 border-0">
+
+          {attachedImages.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-1 pb-2">
+              {attachedImages.map((img, i) => (
+                <div key={i} className="relative group">
+                  <img
+                    src={`data:${img.mediaType};base64,${img.data}`}
+                    alt=""
+                    className="h-16 w-16 rounded-lg object-cover border border-border/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-zinc-800 border border-zinc-600 text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2 text-zinc-400">
-              <button className="hover:text-foreground transition-colors p-1">
-                <Plus className="h-4 w-4" />
+              <button
+                type="button"
+                className="hover:text-foreground transition-colors p-1"
+                onClick={() => fileInputRef.current?.click()}
+                title="Attach image"
+              >
+                <ImageIcon className="h-4 w-4" />
               </button>
 
               {hasProviders ? (
@@ -529,6 +642,7 @@ export function AgentChatInput() {
               value={message}
               onChange={(e) => handleChange(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder={
                 isCurrentThreadStreaming
                   ? t("agents.chatInput.placeholder.responding")
