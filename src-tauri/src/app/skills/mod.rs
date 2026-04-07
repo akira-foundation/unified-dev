@@ -22,18 +22,23 @@ use std::path::PathBuf;
 use sqlx::SqlitePool;
 use tauri::Manager;
 
-pub fn skill_dirs(app_handle: &tauri::AppHandle, workspace_path: Option<&str>) -> Vec<PathBuf> {
-    let mut dirs: Vec<PathBuf> = Vec::new();
+pub fn skill_dirs(app_handle: &tauri::AppHandle, workspace_path: Option<&str>) -> Vec<(PathBuf, &'static str)> {
+    let mut dirs: Vec<(PathBuf, &'static str)> = Vec::new();
 
     if let Some(ws) = workspace_path {
         let ws_path = PathBuf::from(ws);
         if !ws_path.as_os_str().is_empty() {
-            dirs.push(ws_path.join(".skills"));
+            dirs.push((ws_path.join(".skills"), "project"));
         }
     }
 
+    if let Ok(home) = app_handle.path().home_dir() {
+        dirs.push((home.join(".claude").join("skills"), "local"));
+        dirs.push((home.join(".codex"), "local"));
+    }
+
     if let Ok(app_data) = app_handle.path().app_data_dir() {
-        dirs.push(app_data.join("skills"));
+        dirs.push((app_data.join("skills"), "global"));
     }
 
     dirs

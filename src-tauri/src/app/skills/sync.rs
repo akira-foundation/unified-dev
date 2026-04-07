@@ -1,6 +1,5 @@
 use tauri::{AppHandle, State};
 use std::collections::HashSet;
-use std::path::PathBuf;
 use chrono::Utc;
 
 use crate::state::AppState;
@@ -42,14 +41,6 @@ fn title_case(s: &str) -> String {
         .join(" ")
 }
 
-fn scope_for_dir(dir: &PathBuf) -> &'static str {
-    dir.parent()
-        .and_then(|p| p.file_name())
-        .and_then(|n| n.to_str())
-        .map(|n| if n == ".skills" { "project" } else { "global" })
-        .unwrap_or("global")
-}
-
 pub async fn sync(
     app_handle: AppHandle,
     workspace_path: Option<String>,
@@ -58,7 +49,7 @@ pub async fn sync(
     let dirs = super::skill_dirs(&app_handle, workspace_path.as_deref());
     let mut seen: HashSet<String> = HashSet::new();
 
-    for dir in &dirs {
+    for (dir, scope) in &dirs {
         let entries = match std::fs::read_dir(dir) {
             Ok(e) => e,
             Err(_) => continue,
@@ -89,7 +80,6 @@ pub async fn sync(
             let name = parsed_name.unwrap_or_else(|| title_case(&dir_name));
             let description = parsed_desc.unwrap_or_default();
             let source_path = path.to_string_lossy().to_string();
-            let scope = scope_for_dir(&path);
             let now = Utc::now().to_rfc3339();
 
             sqlx::query(
@@ -105,7 +95,7 @@ pub async fn sync(
             .await?;
 
             sqlx::query(
-                "UPDATE skills SET name = ?, description = ?, source_path = ?, scope = ? WHERE id = ?",
+                "UPDATE skills SET name = ?, description = ?, source_path = ?, scope = ? WHERE id = ? AND scope != 'global'",
             )
             .bind(&name)
             .bind(&description)

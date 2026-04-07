@@ -184,7 +184,7 @@ export function SkillDetailsPage() {
                 />
               }
             />
-            {selectedSkill.scope !== "project" && (
+            {selectedSkill.scope !== "project" && selectedSkill.scope !== "local" && (
               <SettingsItem
                 label={t("common.uninstall")}
                 description="Remove this skill from all skill directories."

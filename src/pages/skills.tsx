@@ -81,6 +81,7 @@ export function SkillsPage() {
     queryFn: () => invoke<InstalledSkill[]>("sync_skills", { workspacePath }),
   });
 
+
   const startDiscover = async () => {
     if (discoverRunning.current) return;
     discoverRunning.current = true;
@@ -154,20 +155,22 @@ export function SkillsPage() {
     queryClient.invalidateQueries({ queryKey: queryKeys.skills() });
   };
 
+  const query = search.toLowerCase();
+
   const filteredInstalled = installedSkills.filter(
     (s) =>
       !search ||
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.description.toLowerCase().includes(search.toLowerCase()),
+      s.name.toLowerCase().includes(query) ||
+      s.description.toLowerCase().includes(query),
   );
 
   const filteredRecommended = remoteSkills.filter(
     (s) =>
       !installedIds.has(s.id) &&
       s.description.trim().length > 0 &&
-      (!search ||
-        s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.description.toLowerCase().includes(search.toLowerCase())),
+      (!query ||
+        s.name.toLowerCase().includes(query) ||
+        s.description.toLowerCase().includes(query)),
   );
 
   return (
@@ -250,6 +253,12 @@ export function SkillsPage() {
                                 Project
                               </span>
                             )}
+                            {skill.scope === "local" && (
+                              <span className="flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                <FolderOpen className="h-2.5 w-2.5" />
+                                Local
+                              </span>
+                            )}
                           </div>
                           <span className="text-[13px] text-zinc-500 truncate font-medium">
                             {skill.description}
@@ -261,7 +270,7 @@ export function SkillsPage() {
                         className="flex items-center gap-1 shrink-0 pl-2"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        {skill.scope !== "project" && (
+                        {skill.scope !== "project" && skill.scope !== "local" && (
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
