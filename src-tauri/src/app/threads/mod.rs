@@ -5,6 +5,7 @@ pub mod list_repos;
 pub mod rename;
 pub mod set_pr_url;
 pub mod source_picker;
+pub mod update_repo_settings;
 
 use crate::state::AppState;
 use crate::app::support::error::AppResult;

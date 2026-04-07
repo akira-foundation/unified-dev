@@ -15,9 +15,6 @@ use tauri::Manager;
 
 pub struct CopilotChatProvider;
 
-/// Maximum number of history messages to include in a Copilot request.
-/// Copilot has stricter payload size limits than the Anthropic API, so we
-/// keep the window small to avoid 413 errors.
 const COPILOT_HISTORY_LIMIT: usize = 20;
 
 impl CopilotChatProvider {
@@ -45,9 +42,6 @@ impl CopilotChatProvider {
         };
         let current_has_image = content_has_image(&request.content);
         for msg in history_window {
-            // When the current message has an image, skip history messages that
-            // previously contained images (now degraded to "[image]" text) to
-            // prevent the model from confusing the new image with past ones.
             if current_has_image && content_has_image(&msg.content) {
                 continue;
             }

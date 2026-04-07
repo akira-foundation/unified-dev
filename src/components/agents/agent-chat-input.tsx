@@ -1,4 +1,4 @@
-import { Mic, ArrowUp, ChevronDown, AlertCircle, Check, Zap, Terminal, Square, Search, X, ImageIcon } from "lucide-react";
+import { Mic, ArrowUp, AlertCircle, Zap, Terminal, Square, X, ImageIcon } from "lucide-react";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
@@ -12,18 +12,10 @@ import type { ImagePart, ImageMediaType } from "@/types/agents";
 import { IMAGE_SIZE_LIMIT, contentToText } from "@/types/agents";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { slashCommands } from "@/lib/skills-data";
 import { queryKeys } from "@/lib/query-keys";
+import { ModelPicker } from "@/components/agents/model-picker";
 
-// ─── Slash menu ──────────────────────────────────────────────────────────────
 
 interface SlashItem {
   type: "command" | "skill";
@@ -46,7 +38,6 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
   const { t } = useI18n();
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Scroll focused item into view
   useEffect(() => {
     itemRefs.current[focusedIndex]?.scrollIntoView({ block: "nearest" });
   }, [focusedIndex]);
@@ -136,12 +127,11 @@ function SlashMenu({ query, focusedIndex, onSelect, items }: SlashMenuProps) {
   );
 }
 
-// ─── Main input ───────────────────────────────────────────────────────────────
+
 
 export function AgentChatInput() {
   const { t } = useI18n();
   const [message, setMessage] = useState("");
-  const [open, setOpen] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
   const [focusedIndex, setFocusedIndex] = useState(0);
@@ -155,13 +145,13 @@ export function AgentChatInput() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     aiProviders,
-    selectedModelId,
-    selectedModelByThread,
     setThreadModelId,
     loadAiProviders,
     sendMessage,
     streamingThreadIds,
     selectedIssueId,
+    repositoryGroups,
+    getEffectiveModelId,
     messages,
   } = useAgentsStore();
 
@@ -174,16 +164,15 @@ export function AgentChatInput() {
     loadAiProviders();
   }, [loadAiProviders]);
 
-  // Effective model for this thread: per-thread override → global default.
-  const effectiveModelId = (selectedIssueId && selectedModelByThread[selectedIssueId]) || selectedModelId;
+  const selectedRepoId = repositoryGroups
+    .flatMap((g) => g.repositories)
+    .find((r) => r.issues.some((i) => i.id === selectedIssueId))?.id ?? "";
+
+  const effectiveModelId = getEffectiveModelId(selectedRepoId, selectedIssueId ?? "");
 
   const selectedModel = aiProviders
     .flatMap((p) => p.models)
     .find((m) => m.id === effectiveModelId);
-
-  const selectedProvider = aiProviders.find((p) =>
-    p.models.some((m) => m.id === effectiveModelId),
-  );
 
   const contextWindow = selectedModel?.context_window ?? 0;
   const usedTokens = useMemo(
@@ -260,7 +249,7 @@ export function AgentChatInput() {
   }, []);
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
   const canSend = (message.trim().length > 0 || attachedImages.length > 0) && hasProviders && !!selectedIssueId;
-  // Build flat list of slash items from the current query
+
   const slashItems = useMemo<SlashItem[]>(() => {
     const lowerQuery = slashQuery.toLowerCase();
 
@@ -299,7 +288,7 @@ export function AgentChatInput() {
     setFocusedIndex(0);
   }, [slashItems.length]);
 
-  // Detect slash at the start of the message
+
   function handleChange(value: string) {
     setMessage(value);
 
@@ -470,74 +459,17 @@ export function AgentChatInput() {
               </button>
 
               {hasProviders ? (
-                <Popover open={open} onOpenChange={setOpen}>
-                  <PopoverTrigger asChild>
-                    <button className="flex items-center gap-2 hover:text-foreground transition-colors group outline-none">
-                      <span className="text-[13px] font-medium">
-                        {selectedModel?.label ?? t("agents.chatInput.selectModel")}
-                      </span>
-                      {selectedProvider && (
-                        <span className="text-[11px] text-muted-foreground font-normal">
-                          {selectedProvider.name}
-                        </span>
-                      )}
-                      <ChevronDown className="h-3 w-3 opacity-50 group-hover:opacity-100 transition-opacity" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    align="start"
-                    className="w-56 bg-popover dark:border-white/[0.05] border-border p-0 shadow-2xl rounded-md overflow-hidden"
-                  >
-                    <Command className="bg-transparent">
-                      <div className="flex items-center px-3 border-b dark:border-white/[0.05] border-border">
-                        <Search className="h-3.5 w-3.5 text-zinc-500 shrink-0 mr-2" />
-                        <CommandInput
-                          placeholder={t("agents.chatInput.searchModels")}
-                          className="h-9 text-[13px] border-0 outline-none ring-0 focus:ring-0 px-0"
-                        />
-                      </div>
-                      <CommandList className="max-h-[260px] p-1">
-                        <CommandEmpty className="py-6 text-center text-[12px] text-zinc-500">
-                          {t("agents.chatInput.noModels")}
-                        </CommandEmpty>
-                        {aiProviders.map((provider) => (
-                          <CommandGroup key={provider.name}>
-                            {provider.models.map((model) => (
-                              <CommandItem
-                                key={model.id}
-                                value={model.label}
-                                onSelect={() => {
-                                  if (selectedIssueId) {
-                                    setThreadModelId(selectedIssueId, model.id);
-                                  }
-                                  setOpen(false);
-                                }}
-                                className={cn(
-                                  "flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-[13px] font-medium",
-                                  effectiveModelId === model.id
-                                    ? "bg-purple-500/10 text-purple-400"
-                                    : "text-foreground/70"
-                                )}
-                              >
-                                <div className={cn(
-                                  "h-1.5 w-1.5 rounded-full shrink-0",
-                                  effectiveModelId === model.id ? "bg-purple-400" : "bg-zinc-500"
-                                )} />
-                                <span>{model.label}</span>
-                                <span className="text-[11px] text-muted-foreground font-normal">
-                                  {provider.name}
-                                </span>
-                                {effectiveModelId === model.id && (
-                                  <Check className="ml-auto h-3.5 w-3.5 text-purple-400 shrink-0" />
-                                )}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        ))}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <ModelPicker
+                  value={effectiveModelId}
+                  onChange={(modelId) => {
+                    if (selectedIssueId && modelId) {
+                      setThreadModelId(selectedIssueId, modelId);
+                    }
+                  }}
+                  variant="text"
+                  emptyLabel={t("agents.chatInput.selectModel")}
+                  align="start"
+                />
               ) : (
                 <span className="text-[13px] font-medium text-zinc-500">{t("agents.chatInput.noModelsAvailable")}</span>
               )}

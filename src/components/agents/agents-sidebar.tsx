@@ -16,7 +16,8 @@ import {
   Settings,
   Trash2,
   Rocket,
-  PanelLeft
+  PanelLeft,
+  ExternalLink,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -64,6 +65,8 @@ import { toast } from "sonner";
 import { AddRepositoryDialog } from "@/components/repos/add-repository-dialog";
 import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
 import { RemoveThreadDialog } from "@/components/agents/remove-thread-dialog";
+import { RepoSettingsSheet } from "@/components/agents/repo-settings-sheet";
+import { repositorySelectionService } from "@/services/repositorySelectionService";
 import {
   ThreadSourcePickerDialog,
   type ThreadSourceKind,
@@ -71,11 +74,12 @@ import {
 } from "@/components/agents/thread-source-picker-dialog";
 import type { IssueDto } from "@/types/issue";
 import type { BranchDto, PullRequestDto } from "@/types/organization";
+import type { AgentRepository } from "@/types/agents";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar } = useSidebar();
-  const { setIsAgentMode, navigateTo, goBack, canGoBack, setActiveOrganizationId } = useNavigationStore();
+  const { setIsAgentMode, navigateTo, goBack, canGoBack, setActiveOrganizationId, setActiveRepo } = useNavigationStore();
   const { organizations, isLoading: isLoadingOrganizations } = useOrganizations();
   const {
     repositoryGroups,
@@ -101,6 +105,7 @@ export function AgentsSidebar() {
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
   const [isRemovingRepo, setIsRemovingRepo] = useState(false);
+  const [repoSettingsTarget, setRepoSettingsTarget] = useState<string | null>(null);
   const [addingThreadForRepo, setAddingThreadForRepo] = useState<string | null>(null);
   const [removingThreadId, setRemovingThreadId] = useState<string | null>(null);
   const [threadToRemove, setThreadToRemove] = useState<{ id: string; title: string; repoId: string } | null>(null);
@@ -163,6 +168,31 @@ export function AgentsSidebar() {
       toast.error(`Error: ${error}`, { id: loadingToast });
     } finally {
       setIsAddingRepo(false);
+    }
+  };
+
+  const handleViewRepo = async (repo: AgentRepository) => {
+    if (!repo.remoteUrl) {
+      toast.error("This repository is not linked to a workspace.");
+      return;
+    }
+    try {
+      const match = repo.remoteUrl.replace(/\.git$/, "").match(/github\.com[:/]([^/]+)\/([^/]+)/);
+      if (!match) {
+        toast.error("This repository is not linked to a workspace.");
+        return;
+      }
+      const repoName = match[2];
+      const allRepos = await repositorySelectionService.listAllSelectedRepositories();
+      const linked = allRepos.find((r) => r.repo_name === repoName);
+      if (!linked) {
+        toast.error("This repository is not linked to a workspace.");
+        return;
+      }
+      setActiveRepo({ name: linked.repo_name, owner: linked.owner, organizationId: linked.organization_id });
+      navigateTo("repository-detail");
+    } catch {
+      toast.error("Failed to navigate to repository.");
     }
   };
 
@@ -542,7 +572,18 @@ export function AgentsSidebar() {
                                 <span>{t("agents.sidebar.autopilot")}</span>
                               </DropdownMenuItem>
 
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                              <DropdownMenuItem
+                                onClick={() => handleViewRepo(repo)}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
+                              >
+                                <ExternalLink className="h-4 w-4 text-foreground/40" />
+                                <span>View Repo</span>
+                              </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={() => setRepoSettingsTarget(repo.id)}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
+                              >
                                 <Settings className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.settings")}</span>
                               </DropdownMenuItem>
@@ -800,6 +841,11 @@ export function AgentsSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RepoSettingsSheet
+        repoId={repoSettingsTarget}
+        onClose={() => setRepoSettingsTarget(null)}
+      />
     </Sidebar>
   );
 }

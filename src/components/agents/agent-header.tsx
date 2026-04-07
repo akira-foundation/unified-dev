@@ -65,15 +65,13 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   };
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
   const [isActioning, setIsActioning] = useState(false);
-  const { fileChanges, sendMessage, selectedModelId, selectedModelByThread, prUrlByThread } = useAgentsStore();
+  const { fileChanges, sendMessage, repositoryGroups, getEffectiveModelId, prUrlByThread } = useAgentsStore();
   const { getPrompt } = useSettingsStore();
 
   const currentAction = ACTION_CONFIGS[selectedAction];
 
-  // Effective model for this thread: per-thread override → global default.
-  const effectiveModelId = selectedModelByThread[issue.id] ?? selectedModelId;
-
-  // Whether a PR already exists for this thread.
+  const repoId = repositoryGroups.flatMap((g) => g.repositories).find((r) => r.issues.some((i) => i.id === issue.id))?.id ?? "";
+  const effectiveModelId = getEffectiveModelId(repoId, issue.id);
   const prUrl = prUrlByThread[issue.id] ?? null;
 
   const handleAction = async () => {
@@ -84,7 +82,6 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
     setIsActioning(true);
     try {
-      // When a PR exists, always run the merge_commit action regardless of selectedAction.
       const actionKey = prUrl ? "merge_commit" : selectedAction;
       const basePrompt = getPrompt(actionKey);
       const issueContext = `\n\nContext about this thread:\n- Thread title: ${issue.title}\n- Branch: ${issue.branchName}\n- Repository: ${issue.repoName}\n\nUse the thread title as the basis for the PR title and body. The PR title should clearly reflect what was done.`;
@@ -99,7 +96,6 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
   return (
     <header className="h-14 border-b border-border/30 flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
-      {/* Title & Metadata */}
       <div className="flex items-center gap-1.5 min-w-0">
         <span className="text-[13px] font-medium tracking-tight text-foreground/40 truncate">
           {issue.repoName}
@@ -110,7 +106,6 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
         </span>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center gap-3">
         {prUrl && (
           <Button

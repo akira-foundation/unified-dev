@@ -90,7 +90,12 @@ export const useNavigationStore = create<NavigationState>()(
         }
         const nextHistory = history.slice(0, -1);
         const previous = history[history.length - 1];
-        set({ currentPage: previous, history: nextHistory, canGoBack: nextHistory.length > 0 });
+        set({
+          currentPage: previous,
+          history: nextHistory,
+          canGoBack: nextHistory.length > 0,
+          isAgentMode: previous === "agents",
+        });
       },
       setActiveProviderId: (providerId) => set({ activeProviderId: providerId }),
       setActiveOrganizationId: (organizationId) => set({ activeOrganizationId: organizationId }),

@@ -52,20 +52,13 @@ interface AgentsState {
   selectedAutomation: any | null;
   aiProviders: AiProviderGroup[];
   selectedModelId: string | null;
-  // Per-thread model override. Falls back to selectedModelId when not set for a thread.
   selectedModelByThread: Record<string, string>;
   repositoriesLoaded: boolean;
-  // Chat
   messages: ChatMessage[];
-  // Per-thread streaming content and tool calls, keyed by threadId.
   streamingContentByThread: Record<string, string>;
   toolCallsByThread: Record<string, ToolCallEvent[]>;
-  // Per-thread streaming state — keyed by threadId. Use this instead of a
-  // global boolean so that streaming in one thread does not block others.
   streamingThreadIds: Record<string, boolean>;
-  // Which thread is currently streaming (may differ from selectedIssueId when navigating)
   streamingThreadId: string | null;
-  // Per-thread message queue — messages sent while agent is already running.
   messageQueueByThread: Record<string, Array<{ content: MessageContent; model: string; options?: SendMessageOptions }>>;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
@@ -73,8 +66,9 @@ interface AgentsState {
   setSelectedSkill: (skill: any | null) => void;
   setSelectedAutomation: (automation: any | null) => void;
   setSelectedModelId: (id: string) => void;
-  // Set the model for a specific thread (overrides the global default for that thread).
   setThreadModelId: (threadId: string, modelId: string) => void;
+  getEffectiveModelId: (repoId: string, threadId: string) => string | null;
+  updateRepositorySettings: (repoId: string, patch: { displayName?: string | null; defaultBranch?: string; defaultModelId?: string | null; reviewModelId?: string | null }) => Promise<void>;
   loadAiProviders: () => Promise<void>;
   loadRepositories: () => Promise<void>;
   loadMessages: (threadId: string) => Promise<void>;
@@ -84,7 +78,6 @@ interface AgentsState {
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
   removeThread: (repoId: string, threadId: string) => void;
   removeRepository: (id: string) => void;
-  // Per-thread PR info cache. null = no PR.
   prUrlByThread: Record<string, { url: string; isDraft: boolean } | null>;
   setThreadPrInfo: (threadId: string, prInfo: { url: string; isDraft: boolean } | null) => void;
   loadPrUrl: (threadId: string, workspacePath: string) => Promise<void>;
@@ -100,10 +93,8 @@ interface AgentsState {
   setExpandedRepos: (update: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => void;
   isTerminalOpen: boolean;
   setIsTerminalOpen: (open: boolean) => void;
-  // Collapsed state of each file card in the diff viewer, keyed by threadId → filename
   collapsedFilesByThread: Record<string, Record<string, boolean>>;
   setFileCollapsed: (threadId: string, filename: string, collapsed: boolean) => void;
-  // Skills from DB (synced on skills page load)
   installedSkills: InstalledSkill[];
   setInstalledSkills: (skills: InstalledSkill[]) => void;
 }
@@ -141,7 +132,6 @@ export const useAgentsStore = create<AgentsState>()(
       setThreadPrInfo: (threadId, prInfo) => set((state) => ({
         prUrlByThread: { ...state.prUrlByThread, [threadId]: prInfo },
       })),
-      // Chat initial state
       messages: [],
       streamingContentByThread: {},
       toolCallsByThread: {},
@@ -179,6 +169,47 @@ export const useAgentsStore = create<AgentsState>()(
       setThreadModelId: (threadId, modelId) => set((state) => ({
         selectedModelByThread: { ...state.selectedModelByThread, [threadId]: modelId },
       })),
+      updateRepositorySettings: async (repoId, patch) => {
+        try {
+          await invoke("update_repository_settings", {
+            repoId,
+            displayName: patch.displayName !== undefined ? patch.displayName : null,
+            defaultBranch: patch.defaultBranch ?? null,
+            defaultModelId: patch.defaultModelId !== undefined && patch.defaultModelId !== null ? patch.defaultModelId : null,
+            clearDefaultModelId: patch.defaultModelId !== undefined && patch.defaultModelId === null,
+            reviewModelId: patch.reviewModelId !== undefined && patch.reviewModelId !== null ? patch.reviewModelId : null,
+            clearReviewModelId: patch.reviewModelId !== undefined && patch.reviewModelId === null,
+          });
+        } catch (e) {
+          console.error("update_repository_settings failed:", e);
+          throw e;
+        }
+        set((state) => ({
+          repositoryGroups: state.repositoryGroups.map((group) => ({
+            ...group,
+            repositories: group.repositories.map((repo) => {
+              if (repo.id !== repoId) return repo;
+              return {
+                ...repo,
+                displayName: patch.displayName !== undefined ? patch.displayName : repo.displayName,
+                defaultBranch: patch.defaultBranch ?? repo.defaultBranch,
+                defaultModelId: patch.defaultModelId !== undefined ? patch.defaultModelId : repo.defaultModelId,
+                reviewModelId: patch.reviewModelId !== undefined ? patch.reviewModelId : repo.reviewModelId,
+              };
+            }),
+          })),
+        }));
+      },
+      getEffectiveModelId: (repoId, threadId) => {
+        const state = get();
+        const repo = state.repositoryGroups.flatMap((g) => g.repositories).find((r) => r.id === repoId);
+        return (
+          state.selectedModelByThread[threadId] ??
+          repo?.defaultModelId ??
+          state.selectedModelId ??
+          null
+        );
+      },
       loadAiProviders: async () => {
         try {
           const response = await invoke<AiProviderResponse>("get_available_models");
@@ -198,11 +229,25 @@ export const useAgentsStore = create<AgentsState>()(
       },
       loadRepositories: async () => {
         try {
-          const rows = await invoke<Array<{ id: string; name: string; threads: Array<{ id: string; title: string; branch: string; workspace_path: string; status: string; created_at: string; pr_url: string | null; pr_is_draft: boolean }> }>>("list_repositories");
+          const rows = await invoke<Array<{
+            id: string;
+            name: string;
+            default_branch: string;
+            display_name: string | null;
+            default_model_id: string | null;
+            review_model_id: string | null;
+            remote_url: string | null;
+            threads: Array<{ id: string; title: string; branch: string; workspace_path: string; status: string; created_at: string; pr_url: string | null; pr_is_draft: boolean }>;
+          }>>("list_repositories");
           const prUrlByThread: Record<string, { url: string; isDraft: boolean } | null> = {};
           const repositories = rows.map((row) => ({
             id: row.id,
             name: row.name,
+            defaultBranch: row.default_branch,
+            displayName: row.display_name,
+            defaultModelId: row.default_model_id,
+            reviewModelId: row.review_model_id,
+            remoteUrl: row.remote_url,
             issues: row.threads.map((t) => {
               if (t.pr_url) {
                 prUrlByThread[t.id] = { url: t.pr_url, isDraft: t.pr_is_draft };
@@ -555,6 +600,11 @@ export const useAgentsStore = create<AgentsState>()(
           threadsGroup.repositories.unshift({
             id: repo.id,
             name: repo.name,
+            defaultBranch: "",
+            displayName: null,
+            defaultModelId: null,
+            reviewModelId: null,
+            remoteUrl: null,
             issues: [{
               id: thread.id,
               title: thread.title,

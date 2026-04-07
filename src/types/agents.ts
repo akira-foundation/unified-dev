@@ -78,5 +78,10 @@ export interface RepositoryGroup {
 export interface AgentRepository {
   id: string;
   name: string;
+  defaultBranch: string;
+  displayName: string | null;
+  defaultModelId: string | null;
+  reviewModelId: string | null;
+  remoteUrl: string | null;
   issues: AgentIssue[];
 }

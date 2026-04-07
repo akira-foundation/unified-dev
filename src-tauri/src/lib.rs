@@ -30,7 +30,7 @@ use commands::repository::{add_local_repository, add_remote_repository, delete_l
 use commands::thread::{
     create_thread, create_thread_from_branch, create_thread_from_pull_request, create_thread_with_title, delete_thread,
     list_repositories, list_thread_source_branches, list_thread_source_issues,
-    list_thread_source_pull_requests, rename_thread, set_thread_pr_url,
+    list_thread_source_pull_requests, rename_thread, set_thread_pr_url, update_repository_settings,
 };
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_sync_settings, upsert_visibility_preferences, reset_sync_settings, reset_visibility_preferences, get_remote_settings, set_remote_enabled, regenerate_remote_pairing_code, revoke_remote_device};
@@ -134,6 +134,7 @@ pub fn run() {
             set_local_repository_remote,
             link_local_repository_to_organization,
             list_repositories,
+            update_repository_settings,
             create_thread,
             create_thread_with_title,
             create_thread_from_branch,

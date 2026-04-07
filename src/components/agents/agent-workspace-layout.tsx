@@ -81,14 +81,11 @@ export function AgentWorkspaceLayout() {
 
   const handleToggleTerminal = useCallback(() => {
     if (!isTerminalMounted) {
-      // Fresh open after close: mount + show
       setIsTerminalMounted(true);
       setIsTerminalOpen(true);
     } else if (isTerminalOpen) {
-      // Visible → minimize (keep mounted, sessions alive)
       setIsTerminalOpen(false);
     } else {
-      // Minimized → show again
       setIsTerminalOpen(true);
     }
   }, [isTerminalMounted, isTerminalOpen, setIsTerminalOpen]);
@@ -102,8 +99,6 @@ export function AgentWorkspaceLayout() {
 
     const onMouseMove = (ev: MouseEvent) => {
       if (!isDragging.current) return;
-      // Width = distance from mouse to right edge of viewport,
-      // clamped so the chat area never goes below CHAT_MIN_WIDTH.
       const maxAllowed = window.innerWidth - CHAT_MIN_WIDTH;
       const next = Math.min(DIFF_MAX_WIDTH, Math.max(DIFF_MIN_WIDTH, Math.min(maxAllowed, window.innerWidth - ev.clientX)));
       setDiffWidth(next);
@@ -122,7 +117,6 @@ export function AgentWorkspaceLayout() {
     window.addEventListener("mouseup", onMouseUp);
   }, []);
 
-  // Only show streaming state when the user is viewing the thread that's actively streaming.
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
   const streamingContent = streamingContentByThread[selectedIssueId ?? ""] ?? "";
   const toolCalls = toolCallsByThread[selectedIssueId ?? ""] ?? [];
@@ -132,14 +126,8 @@ export function AgentWorkspaceLayout() {
   );
   const selectedIssue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
 
-  // Load persisted messages and file changes whenever the active thread changes,
-  // or when repositories finish loading (covers the reload case where selectedIssueId
-  // is restored from localStorage before repositoryGroups is populated).
   useEffect(() => {
     if (selectedIssueId) {
-      // Skip loading messages if the thread is currently streaming — the optimistic
-      // user message and live tokens are already in state, and overwriting with an
-      // empty DB result would blank the chat.
       if (!streamingThreadIds[selectedIssueId]) {
         loadMessages(selectedIssueId);
       }
@@ -152,8 +140,6 @@ export function AgentWorkspaceLayout() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIssueId, repositoriesLoaded, loadMessages, loadFileChanges, loadPrUrl]);
 
-  // Poll for file changes every 3 seconds while the agent is actively streaming
-  // so the diff panel updates in real-time as the agent writes files.
   useEffect(() => {
     if (!isCurrentThreadStreaming) return;
     const workspacePath = selectedIssue?.workspacePath;
@@ -209,11 +195,9 @@ export function AgentWorkspaceLayout() {
   if (!selectedIssue) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-background h-full relative overflow-hidden">
-        {/* Decorative Background Element */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="relative flex flex-col items-center gap-12 z-10">
-          {/* Logo Section */}
+        <div className="flex flex-col items-center gap-12 z-10">
           <div className="flex flex-col items-center gap-6">
             <div className="relative group">
               <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-2xl group-hover:bg-primary/30 transition-all duration-500" />
@@ -231,7 +215,6 @@ export function AgentWorkspaceLayout() {
             </div>
           </div>
 
-          {/* Shortcuts Grid */}
           <div className="grid grid-cols-1 gap-y-2 w-full max-w-[320px] p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
             {[
               { keys: ["⌘", "N"], labelKey: "agents.workspace.shortcut.newThread" },
@@ -293,7 +276,6 @@ export function AgentWorkspaceLayout() {
           )}
           style={isRightSidebarOpen ? { width: diffWidth } : undefined}
         >
-          {/* Resize handle */}
           {isRightSidebarOpen && (
             <div
               className="w-1 h-full cursor-col-resize shrink-0 group relative"
