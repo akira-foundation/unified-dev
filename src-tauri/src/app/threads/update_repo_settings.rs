@@ -1,4 +1,3 @@
-use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
 pub async fn update(
