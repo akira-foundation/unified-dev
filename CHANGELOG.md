@@ -1,5 +1,12 @@
 
 
+## [0.4.2](https://github.com/akira-foundation/unified-dev/compare/v0.4.1...v0.4.2) (2026-04-07)
+
+
+### Bug Fixes
+
+* **ci:** refactor build workflow to separate aarch64 and x86_64 jobs and improve artifact handling ([fd70d85](https://github.com/akira-foundation/unified-dev/commit/fd70d85004002f750bfee92dced4fbdad49a90f1))
+
 ## [0.4.1](https://github.com/akira-foundation/unified-dev/compare/v0.4.0...v0.4.1) (2026-04-07)
 
 
