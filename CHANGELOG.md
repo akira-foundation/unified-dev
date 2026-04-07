@@ -1,5 +1,17 @@
 
 
+## [0.4.3](https://github.com/akira-foundation/unified-dev/compare/v0.4.2...v0.4.3) (2026-04-07)
+
+
+### Bug Fixes
+
+* **ci:** replace Python script with jq for generating latest.json ([93b600d](https://github.com/akira-foundation/unified-dev/commit/93b600d7c05a23fad02ce2c5dadfafea4177c203))
+* **ci:** update build workflow to trigger on main branch and improve error handling for macOS tarballs ([644f5a3](https://github.com/akira-foundation/unified-dev/commit/644f5a39c869d5420a5a8852d21bd24d8de7ec2a))
+* **ci:** update DMG upload step to trigger on tag references and refactor latest.json generation ([4e6be96](https://github.com/akira-foundation/unified-dev/commit/4e6be96f97deb2011058db16a54c3cea20eb60e6))
+* **config:** update public key in tauri configuration ([513c2ad](https://github.com/akira-foundation/unified-dev/commit/513c2adfa032b36a7bb0ab3365d61c97c01f6c50))
+* **config:** update tauri configuration to remove updater target and enable updater artifacts ([6ff3d1d](https://github.com/akira-foundation/unified-dev/commit/6ff3d1d20a65d6e96fb5b8836d7672b4dd8f3e9e))
+* update bundle targets in tauri configuration ([701e296](https://github.com/akira-foundation/unified-dev/commit/701e296af949ce98fb32155dd18c57d6f6eb9a0c))
+
 ## [0.4.2](https://github.com/akira-foundation/unified-dev/compare/v0.4.1...v0.4.2) (2026-04-07)
 
 
