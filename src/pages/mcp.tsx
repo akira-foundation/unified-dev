@@ -175,10 +175,6 @@ export function McpPage() {
               <p className="text-xs text-zinc-600 max-w-xs">
                 Add a server URL to connect an MCP-compatible service and expose its tools to the AI.
               </p>
-              <Button className="mt-6 gap-1.5" onClick={() => setAddOpen(true)}>
-                <Plus className="h-4 w-4" strokeWidth={3} />
-                Add Server
-              </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-3">

@@ -54,7 +54,8 @@ interface AgentsState {
   selectedModelId: string | null;
   selectedModelByThread: Record<string, string>;
   repositoriesLoaded: boolean;
-  messages: ChatMessage[];
+  messagesByThread: Record<string, ChatMessage[]>;
+  messagesLoadingByThread: Record<string, boolean>;
   streamingContentByThread: Record<string, string>;
   toolCallsByThread: Record<string, ToolCallEvent[]>;
   streamingThreadIds: Record<string, boolean>;
@@ -132,7 +133,8 @@ export const useAgentsStore = create<AgentsState>()(
       setThreadPrInfo: (threadId, prInfo) => set((state) => ({
         prUrlByThread: { ...state.prUrlByThread, [threadId]: prInfo },
       })),
-      messages: [],
+      messagesByThread: {},
+      messagesLoadingByThread: {},
       streamingContentByThread: {},
       toolCallsByThread: {},
       streamingThreadIds: {},
@@ -283,12 +285,24 @@ export const useAgentsStore = create<AgentsState>()(
         }
       },
       loadMessages: async (threadId: string) => {
+        const hasCached = (get().messagesByThread[threadId]?.length ?? 0) > 0;
+        if (!hasCached) {
+          set((state) => ({
+            messagesLoadingByThread: { ...state.messagesLoadingByThread, [threadId]: true },
+          }));
+        }
         try {
           const raw = await invoke<Array<Omit<ChatMessage, "content"> & { content: string }>>("get_messages", { threadId });
           const messages: ChatMessage[] = raw.map((m) => ({ ...m, content: parseContent(m.content) }));
-          set({ messages });
+          set((state) => ({
+            messagesByThread: { ...state.messagesByThread, [threadId]: messages },
+            messagesLoadingByThread: { ...state.messagesLoadingByThread, [threadId]: false },
+          }));
         } catch {
-          set({ messages: [] });
+          set((state) => ({
+            messagesByThread: { ...state.messagesByThread, [threadId]: [] },
+            messagesLoadingByThread: { ...state.messagesLoadingByThread, [threadId]: false },
+          }));
         }
       },
       loadFileChanges: async (workspacePath: string) => {
@@ -351,7 +365,7 @@ export const useAgentsStore = create<AgentsState>()(
 
         if (trimmed === "/clear") {
           set((state) => ({
-            messages: [],
+            messagesByThread: { ...state.messagesByThread, [threadId]: [] },
             streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
           }));
           return;
@@ -377,7 +391,12 @@ export const useAgentsStore = create<AgentsState>()(
             metadata: null,
             created_at: new Date().toISOString(),
           };
-          set((state) => ({ messages: [...state.messages, userMsg] }));
+          set((state) => ({
+            messagesByThread: {
+              ...state.messagesByThread,
+              [threadId]: [...(state.messagesByThread[threadId] ?? []), userMsg],
+            },
+          }));
 
           try {
             const output = await invoke<string>("run_workspace_command", {
@@ -385,7 +404,6 @@ export const useAgentsStore = create<AgentsState>()(
               command: shellCmd,
             });
 
-            // Show output as a tool message in the UI
             const toolMsg: ChatMessage = {
               id: crypto.randomUUID(),
               thread_id: threadId,
@@ -395,7 +413,12 @@ export const useAgentsStore = create<AgentsState>()(
               metadata: null,
               created_at: new Date().toISOString(),
             };
-            set((state) => ({ messages: [...state.messages, toolMsg] }));
+            set((state) => ({
+              messagesByThread: {
+                ...state.messagesByThread,
+                [threadId]: [...(state.messagesByThread[threadId] ?? []), toolMsg],
+              },
+            }));
           } catch (err) {
             const errMsg: ChatMessage = {
               id: crypto.randomUUID(),
@@ -406,7 +429,12 @@ export const useAgentsStore = create<AgentsState>()(
               metadata: null,
               created_at: new Date().toISOString(),
             };
-            set((state) => ({ messages: [...state.messages, errMsg] }));
+            set((state) => ({
+              messagesByThread: {
+                ...state.messagesByThread,
+                [threadId]: [...(state.messagesByThread[threadId] ?? []), errMsg],
+              },
+            }));
           }
           return;
         }
@@ -424,7 +452,10 @@ export const useAgentsStore = create<AgentsState>()(
           };
 
           set((state) => ({
-            messages: [...state.messages, optimisticUserMessage],
+            messagesByThread: {
+              ...state.messagesByThread,
+              [threadId]: [...(state.messagesByThread[threadId] ?? []), optimisticUserMessage],
+            },
             streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
             streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
             streamingThreadId: threadId,
@@ -625,7 +656,7 @@ export const useAgentsStore = create<AgentsState>()(
             }]
           });
         }
-        return { repositoryGroups: newGroups, selectedIssueId: thread.id, messages: [] };
+        return { repositoryGroups: newGroups, selectedIssueId: thread.id };
       }),
       addThread: (repoId, thread) => set((state) => {
         const newGroups = state.repositoryGroups.map(group => ({
@@ -648,7 +679,7 @@ export const useAgentsStore = create<AgentsState>()(
             };
           })
         }));
-        return { repositoryGroups: newGroups, selectedIssueId: thread.id, messages: [] };
+        return { repositoryGroups: newGroups, selectedIssueId: thread.id };
       }),
       removeThread: (repoId, threadId) => set((state) => {
         const newGroups = state.repositoryGroups.map(group => ({
@@ -671,6 +702,8 @@ export const useAgentsStore = create<AgentsState>()(
         const prUrlByThread = { ...state.prUrlByThread };
         const selectedModelByThread = { ...state.selectedModelByThread };
         const collapsedFilesByThread = { ...state.collapsedFilesByThread };
+        const messagesByThread = { ...state.messagesByThread };
+        const messagesLoadingByThread = { ...state.messagesLoadingByThread };
         delete streamingContentByThread[threadId];
         delete toolCallsByThread[threadId];
         delete streamingThreadIds[threadId];
@@ -678,11 +711,12 @@ export const useAgentsStore = create<AgentsState>()(
         delete prUrlByThread[threadId];
         delete selectedModelByThread[threadId];
         delete collapsedFilesByThread[threadId];
+        delete messagesByThread[threadId];
+        delete messagesLoadingByThread[threadId];
 
         return {
           repositoryGroups: newGroups,
           selectedIssueId: nextSelectedId,
-          messages: nextSelectedId === null ? [] : state.messages,
           streamingContentByThread,
           toolCallsByThread,
           streamingThreadIds,
@@ -690,6 +724,8 @@ export const useAgentsStore = create<AgentsState>()(
           prUrlByThread,
           selectedModelByThread,
           collapsedFilesByThread,
+          messagesByThread,
+          messagesLoadingByThread,
         };
       }),
       removeRepository: (id) => set((state) => {
@@ -710,6 +746,8 @@ export const useAgentsStore = create<AgentsState>()(
         const prUrlByThread = { ...state.prUrlByThread };
         const selectedModelByThread = { ...state.selectedModelByThread };
         const collapsedFilesByThread = { ...state.collapsedFilesByThread };
+        const messagesByThread = { ...state.messagesByThread };
+        const messagesLoadingByThread = { ...state.messagesLoadingByThread };
         for (const tid of removedThreadIds) {
           delete streamingContentByThread[tid];
           delete toolCallsByThread[tid];
@@ -718,6 +756,8 @@ export const useAgentsStore = create<AgentsState>()(
           delete prUrlByThread[tid];
           delete selectedModelByThread[tid];
           delete collapsedFilesByThread[tid];
+          delete messagesByThread[tid];
+          delete messagesLoadingByThread[tid];
         }
 
         const nextSelectedId = removedThreadIds.has(state.selectedIssueId ?? "") ? null : state.selectedIssueId;
@@ -725,7 +765,6 @@ export const useAgentsStore = create<AgentsState>()(
         return {
           repositoryGroups: newGroups,
           selectedIssueId: nextSelectedId,
-          messages: nextSelectedId === null ? [] : state.messages,
           streamingContentByThread,
           toolCallsByThread,
           streamingThreadIds,
@@ -733,6 +772,8 @@ export const useAgentsStore = create<AgentsState>()(
           prUrlByThread,
           selectedModelByThread,
           collapsedFilesByThread,
+          messagesByThread,
+          messagesLoadingByThread,
         };
       }),
     }),

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { RefreshCcw, Plus, Search, Trash2, Download, Loader2, FolderOpen } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -12,12 +12,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useAgentsStore, type InstalledSkill } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { queryKeys } from "@/lib/query-keys";
 import { skillColor } from "@/lib/skill-color";
 
-const FOUR_HOURS = 4 * 60 * 60 * 1000;
+
 
 interface RemoteSkill {
   uid: string;
@@ -66,6 +67,9 @@ export function SkillsPage() {
   const { setSelectedSkill, repositoryGroups, selectedIssueId } = useAgentsStore();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [remoteSkills, setRemoteSkills] = useState<RemoteSkill[]>([]);
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const discoverRunning = useRef(false);
 
   const activeThread = repositoryGroups
     .flatMap((g) => g.repositories.flatMap((r) => r.issues))
@@ -77,18 +81,37 @@ export function SkillsPage() {
     queryFn: () => invoke<InstalledSkill[]>("sync_skills", { workspacePath }),
   });
 
-  const {
-    data: remoteSkills = [],
-    isLoading: remoteLoading,
-    isFetching: remoteFetching,
-    isError: remoteError,
-    refetch: refetchRemote,
-  } = useQuery({
-    queryKey: queryKeys.recommendedSkills(),
-    queryFn: () => invoke<RemoteSkill[]>("fetch_recommended_skills"),
-    staleTime: FOUR_HOURS,
-    retry: 2,
-  });
+  const startDiscover = async () => {
+    if (discoverRunning.current) return;
+    discoverRunning.current = true;
+    setRemoteLoading(true);
+    setRemoteSkills([]);
+
+    const unlistenSkill = await listen<RemoteSkill>("skills:discover:skill", (event) => {
+      setRemoteSkills((prev) => {
+        if (prev.some((s) => s.uid === event.payload.uid)) return prev;
+        return [...prev, event.payload];
+      });
+    });
+
+    const unlistenDone = await listen("skills:discover:done", () => {
+      setRemoteLoading(false);
+      discoverRunning.current = false;
+      unlistenSkill();
+      unlistenDone();
+    });
+
+    invoke("fetch_recommended_skills").catch(() => {
+      setRemoteLoading(false);
+      discoverRunning.current = false;
+      unlistenSkill();
+      unlistenDone();
+    });
+  };
+
+  useEffect(() => {
+    startDiscover();
+  }, []);
 
   const installedIds = new Set(installedSkills.map((s) => s.id));
 
@@ -277,30 +300,20 @@ export function SkillsPage() {
                 {t("pages.skills.recommended")}
               </h2>
               <button
-                onClick={() => refetchRemote()}
-                disabled={remoteFetching}
+                onClick={() => startDiscover()}
+                disabled={remoteLoading}
                 className="flex items-center gap-1 text-zinc-600 hover:text-zinc-400 transition-colors disabled:opacity-40"
                 title="Refresh recommended skills"
               >
-                <RefreshCcw className={cn("h-3 w-3", remoteFetching && "animate-spin")} />
+                <RefreshCcw className={cn("h-3 w-3", remoteLoading && "animate-spin")} />
               </button>
             </div>
 
-            {remoteLoading ? (
+            {filteredRecommended.length === 0 && remoteLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <div key={i} className="h-[66px] rounded-xl dark:bg-white/[0.03] bg-black/[0.03] animate-pulse" />
                 ))}
-              </div>
-            ) : remoteError ? (
-              <div className="flex items-center gap-3 text-sm text-zinc-600">
-                <span>Could not load recommended skills.</span>
-                <button
-                  onClick={() => refetchRemote()}
-                  className="text-zinc-500 hover:text-zinc-300 underline underline-offset-2 transition-colors"
-                >
-                  Retry
-                </button>
               </div>
             ) : filteredRecommended.length === 0 ? null : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

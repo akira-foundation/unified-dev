@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAgentsStore } from "@/stores/useAgentsStore";
-import type { SendMessageOptions, InstalledSkill } from "@/stores/useAgentsStore";
+import type { SendMessageOptions, InstalledSkill, ChatMessage } from "@/stores/useAgentsStore";
 import type { ImagePart, ImageMediaType } from "@/types/agents";
 import { IMAGE_SIZE_LIMIT, contentToText } from "@/types/agents";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -152,7 +152,7 @@ export function AgentChatInput() {
     selectedIssueId,
     repositoryGroups,
     getEffectiveModelId,
-    messages,
+    messagesByThread,
   } = useAgentsStore();
 
   const { data: installedSkills = [] } = useQuery({
@@ -175,8 +175,9 @@ export function AgentChatInput() {
     .find((m) => m.id === effectiveModelId);
 
   const contextWindow = selectedModel?.context_window ?? 0;
+  const messages = messagesByThread[selectedIssueId ?? ""] ?? [];
   const usedTokens = useMemo(
-    () => Math.round(messages.reduce((sum, m) => sum + contentToText(m.content).length, 0) / 4),
+    () => Math.round(messages.reduce((sum: number, m: { content: ChatMessage["content"] }) => sum + contentToText(m.content).length, 0) / 4),
     [messages],
   );
 

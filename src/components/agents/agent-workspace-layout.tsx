@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { useNavigationStore } from "@/stores/navigation-store";
 import { useI18n } from "@/i18n/i18n";
 import { AgentHeader } from "./agent-header";
 import { AgentTimeline } from "./agent-timeline";
@@ -27,6 +28,7 @@ const TERMINAL_DEFAULT_HEIGHT = 260;
 
 export function AgentWorkspaceLayout() {
   const { t } = useI18n();
+  const isAgentMode = useNavigationStore((state) => state.isAgentMode);
   const {
     repositoryGroups,
     selectedIssueId,
@@ -38,7 +40,8 @@ export function AgentWorkspaceLayout() {
     setIsRightSidebarOpen,
     isTerminalOpen,
     setIsTerminalOpen,
-    messages,
+    messagesByThread,
+    messagesLoadingByThread,
     streamingContentByThread,
     streamingThreadIds,
     toolCallsByThread,
@@ -120,6 +123,8 @@ export function AgentWorkspaceLayout() {
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
   const streamingContent = streamingContentByThread[selectedIssueId ?? ""] ?? "";
   const toolCalls = toolCallsByThread[selectedIssueId ?? ""] ?? [];
+  const messages = messagesByThread[selectedIssueId ?? ""] ?? [];
+  const messagesLoading = !!(selectedIssueId && messagesLoadingByThread[selectedIssueId]);
 
   const allIssues = repositoryGroups.flatMap((g: RepositoryGroup) =>
     g.repositories.flatMap((r: AgentRepository) => r.issues)
@@ -127,6 +132,8 @@ export function AgentWorkspaceLayout() {
   const selectedIssue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
 
   useEffect(() => {
+    if (!isAgentMode) return;
+    if (!repositoriesLoaded) return;
     if (selectedIssueId) {
       if (!streamingThreadIds[selectedIssueId]) {
         loadMessages(selectedIssueId);
@@ -138,9 +145,10 @@ export function AgentWorkspaceLayout() {
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIssueId, repositoriesLoaded, loadMessages, loadFileChanges, loadPrUrl]);
+  }, [isAgentMode, selectedIssueId, repositoriesLoaded, loadMessages, loadFileChanges, loadPrUrl]);
 
   useEffect(() => {
+    if (!isAgentMode) return;
     if (!isCurrentThreadStreaming) return;
     const workspacePath = selectedIssue?.workspacePath;
     if (!workspacePath) return;
@@ -193,6 +201,31 @@ export function AgentWorkspaceLayout() {
   }
 
   if (!selectedIssue) {
+    if (!repositoriesLoaded && selectedIssueId) {
+      // Repos still loading — show skeletons only briefly
+      return (
+        <div className="flex flex-col h-full bg-background pt-4">
+          <div className="flex-1 flex overflow-hidden relative">
+            <div className="flex-1 flex flex-col min-w-0 bg-background">
+              <div className="flex-1 flex flex-col overflow-hidden max-w-5xl mx-auto w-full px-6">
+                <div className="flex-1 overflow-y-auto py-8" style={{ scrollbarWidth: "none" }}>
+                  <AgentTimeline
+                    steps={[]}
+                    messages={[]}
+                    streamingContent=""
+                    isStreaming={false}
+                    toolCalls={[]}
+                    isLoadingMessages={true}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // repositoriesLoaded=true but no matching thread — stale selectedIssueId, show splash
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-background h-full relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
@@ -259,6 +292,7 @@ export function AgentWorkspaceLayout() {
                   streamingContent={streamingContent}
                   isStreaming={isCurrentThreadStreaming}
                   toolCalls={toolCalls}
+                  isLoadingMessages={messagesLoading}
                 />
               </div>
               <div className="shrink-0 pb-6 pt-2">

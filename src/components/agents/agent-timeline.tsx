@@ -17,6 +17,7 @@ interface AgentTimelineProps {
   streamingContent: string;
   isStreaming: boolean;
   toolCalls: ToolCallEvent[];
+  isLoadingMessages?: boolean;
 }
 
 function CodeBlock({ language, children }: { language: string; children: string }) {
@@ -217,7 +218,35 @@ function MessageContent({ content }: { content: ChatMessage["content"] }) {
   );
 }
 
-export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls }: AgentTimelineProps) {
+function MessageSkeleton({ role }: { role: "user" | "assistant" }) {
+  return (
+    <div className={cn("flex gap-4 min-w-0", role === "user" ? "flex-row-reverse" : "flex-row")}>
+      <div className={cn(
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border/10",
+        role === "user" ? "bg-purple-500/10" : "bg-white dark:bg-zinc-900",
+        "animate-pulse"
+      )} />
+      <div className={cn(
+        "flex flex-col gap-2 min-w-0",
+        role === "user" ? "items-end max-w-[80%]" : "items-start w-full"
+      )}>
+        <div className={cn(
+          "rounded-2xl px-4 py-3 animate-pulse",
+          role === "user"
+            ? "bg-purple-500/10 rounded-tr-sm"
+            : "dark:bg-white/[0.04] bg-black/[0.04] rounded-tl-sm w-full"
+        )}>
+          <div className="h-3.5 rounded-full bg-current opacity-10 w-48 mb-2" />
+          <div className="h-3.5 rounded-full bg-current opacity-10 w-64 mb-2" />
+          {role === "assistant" && <div className="h-3.5 rounded-full bg-current opacity-10 w-40" />}
+        </div>
+        <div className="h-2.5 w-12 rounded-full bg-current opacity-5 mx-1" />
+      </div>
+    </div>
+  );
+}
+
+export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls, isLoadingMessages = false }: AgentTimelineProps) {
   const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -241,6 +270,17 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
   }, [isStreaming]);
 
   const hasContent = messages.length > 0 || isStreaming;
+
+  if (isLoadingMessages && messages.length === 0) {
+    return (
+      <div className="flex flex-col gap-6">
+        <MessageSkeleton role="user" />
+        <MessageSkeleton role="assistant" />
+        <MessageSkeleton role="user" />
+        <MessageSkeleton role="assistant" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

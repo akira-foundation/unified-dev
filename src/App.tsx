@@ -62,18 +62,20 @@ export default function App() {
           <div className={cn(
             isAgentMode ? "h-full w-full" : "mx-auto min-h-full w-full max-w-7xl"
           )}>
-            {currentPage === "dashboard" && <DashboardPage />}
-            {currentPage === "issues" && <IssuesPage />}
-            {currentPage === "organizations" && <OrganizationsPage />}
-            {currentPage === "organization" && <OrganizationPage />}
-            {currentPage === "import-repositories" && <ImportRepositoriesPage />}
-            {currentPage === "repository" && <RepositoryPage />}
-            {currentPage === "repository-prs" && <RepositoryPRsPage />}
-            {currentPage === "repository-detail" && <RepositoryDetailPage />}
-            {currentPage === "pr-review" && <PrReviewPage />}
-            {currentPage === "settings" && <SettingsPage />}
-            {currentPage === "provider-detail" && <ProviderDetailPage />}
-            {currentPage === "agents" && <AgentWorkspaceLayout />}
+            <div className={cn("h-full w-full", !isAgentMode && "hidden")}>
+              <AgentWorkspaceLayout />
+            </div>
+            {!isAgentMode && currentPage === "dashboard" && <DashboardPage />}
+            {!isAgentMode && currentPage === "issues" && <IssuesPage />}
+            {!isAgentMode && currentPage === "organizations" && <OrganizationsPage />}
+            {!isAgentMode && currentPage === "organization" && <OrganizationPage />}
+            {!isAgentMode && currentPage === "import-repositories" && <ImportRepositoriesPage />}
+            {!isAgentMode && currentPage === "repository" && <RepositoryPage />}
+            {!isAgentMode && currentPage === "repository-prs" && <RepositoryPRsPage />}
+            {!isAgentMode && currentPage === "repository-detail" && <RepositoryDetailPage />}
+            {!isAgentMode && currentPage === "pr-review" && <PrReviewPage />}
+            {!isAgentMode && currentPage === "settings" && <SettingsPage />}
+            {!isAgentMode && currentPage === "provider-detail" && <ProviderDetailPage />}
           </div>
         </main>
         <Toaster richColors />

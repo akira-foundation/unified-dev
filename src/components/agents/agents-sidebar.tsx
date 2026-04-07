@@ -83,6 +83,7 @@ export function AgentsSidebar() {
   const { organizations, isLoading: isLoadingOrganizations } = useOrganizations();
   const {
     repositoryGroups,
+    repositoriesLoaded,
     selectedIssueId,
     setSelectedIssueId,
     activeTab,
@@ -468,6 +469,29 @@ export function AgentsSidebar() {
 
       <SidebarContent className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-y-auto custom-scrollbar py-2">
+          {!repositoriesLoaded ? (
+            <div className="px-4 py-3 flex flex-col gap-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex flex-col gap-1.5 animate-pulse">
+                  <div className="flex items-center gap-2 px-2 py-1.5">
+                    <div className="h-3 w-3 rounded bg-muted-foreground/10" />
+                    <div className="h-4 w-4 rounded bg-muted-foreground/10" />
+                    <div className="h-3 rounded bg-muted-foreground/10" style={{ width: `${[120, 96, 140][i - 1]}px` }} />
+                  </div>
+                  {i < 3 && (
+                    <div className="ml-8 flex flex-col gap-1">
+                      {[0, 1].map((j) => (
+                        <div key={j} className="flex items-center gap-2 px-2 py-1.5 rounded-md">
+                          <div className="h-3 rounded bg-muted-foreground/10" style={{ width: `${[160, 110][j]}px` }} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+          <>
           {repositoryGroups.map((group) => (
             <SidebarGroup key={group.name} className="py-2">
               <SidebarGroupLabel className="flex items-center justify-between px-4 mb-2">
@@ -639,11 +663,18 @@ export function AgentsSidebar() {
                                     </span>
                                   )}
                                   {prUrlByThread[issue.id] && (
-                                    <button
-                                      type="button"
+                                    <div
+                                      role="button"
+                                      tabIndex={0}
                                       onClick={(event) => {
                                         event.stopPropagation();
                                         void openUrl(prUrlByThread[issue.id]!.url);
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.stopPropagation();
+                                          void openUrl(prUrlByThread[issue.id]!.url);
+                                        }
                                       }}
                                       className="shrink-0 cursor-pointer"
                                       title={t("agents.header.viewPr")}
@@ -656,24 +687,32 @@ export function AgentsSidebar() {
                                             : "text-[#A855F7]"
                                         )}
                                       />
-                                    </button>
+                                    </div>
                                   )}
                                 </div>
                                 <div className="hidden group-hover/thread:flex items-center gap-2 shrink-0 ml-auto">
-                                  <button
+                                  <div
+                                    role="button"
+                                    tabIndex={0}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setThreadToRemove({ id: issue.id, title: issue.title, repoId: repo.id });
                                     }}
-                                    disabled={removingThreadId === issue.id}
-                                    className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors disabled:opacity-50"
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.stopPropagation();
+                                        setThreadToRemove({ id: issue.id, title: issue.title, repoId: repo.id });
+                                      }
+                                    }}
+                                    aria-disabled={removingThreadId === issue.id}
+                                    className="p-1 rounded hover:bg-red-500/10 text-muted-foreground/40 hover:text-red-500 transition-colors aria-disabled:opacity-50 cursor-pointer"
                                   >
                                     {removingThreadId === issue.id ? (
                                       <div className="h-3 w-3 border border-red-500/30 border-t-red-500 rounded-full animate-spin" />
                                     ) : (
                                       <Trash2 className="h-3 w-3" />
                                     )}
-                                  </button>
+                                  </div>
                                 </div>
                               </div>
                             </button>
@@ -682,10 +721,12 @@ export function AgentsSidebar() {
                       )}
                     </div>
                   ))}
-                </div>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ))}
+                 </div>
+               </SidebarGroupContent>
+             </SidebarGroup>
+           ))}
+          </>
+          )}
         </div>
 
 

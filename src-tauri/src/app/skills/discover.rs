@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use futures_util::future::join_all;
+use tauri::{AppHandle, Emitter};
 
 #[derive(Debug, Serialize, Clone)]
 pub struct DiscoveredSkill {
@@ -133,14 +134,17 @@ async fn fetch_description(client: &reqwest::Client, source: &str, skill_id: &st
     String::new()
 }
 
-pub async fn fetch_recommended() -> Vec<DiscoveredSkill> {
+pub async fn fetch_recommended(app: AppHandle) {
     let client = match reqwest::Client::builder()
         .user_agent("akira-maintainer/1.0")
         .timeout(std::time::Duration::from_secs(15))
         .build()
     {
         Ok(c) => c,
-        Err(_) => return vec![],
+        Err(_) => {
+            let _ = app.emit("skills:discover:done", ());
+            return;
+        }
     };
 
     let queries = ["er", "on", "ing", "the", "de", "al", "re", "en"];
@@ -178,7 +182,6 @@ pub async fn fetch_recommended() -> Vec<DiscoveredSkill> {
     sorted.sort_by(|a, b| b.installs.cmp(&a.installs));
 
     const BATCH: usize = 30;
-    let mut results: Vec<DiscoveredSkill> = Vec::with_capacity(sorted.len());
 
     for chunk in sorted.chunks(BATCH) {
         let desc_futures = chunk
@@ -191,16 +194,17 @@ pub async fn fetch_recommended() -> Vec<DiscoveredSkill> {
             if description.is_empty() {
                 continue;
             }
-            results.push(DiscoveredSkill {
+            let skill = DiscoveredSkill {
                 uid: entry.id.clone(),
                 id: entry.skill_id.clone(),
                 name: to_display_name(&entry.skill_id),
                 description,
                 repo_url: format!("https://github.com/{}", entry.source),
                 installs: entry.installs,
-            });
+            };
+            let _ = app.emit("skills:discover:skill", &skill);
         }
     }
 
-    results
+    let _ = app.emit("skills:discover:done", ());
 }
