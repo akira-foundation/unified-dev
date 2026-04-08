@@ -37,6 +37,7 @@ use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_s
 use commands::license::{activate_license, checkout_license, clear_license, get_license, verify_license};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills, fetch_skills_from_repo};
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
+use commands::system::check_dependencies;
 use commands::updater::{check_for_updates, install_update};
 use providers::default_registry;
 use app::support::error::AppResult;
@@ -219,6 +220,7 @@ pub fn run() {
             cancel_mcp_connect,
             check_for_updates,
             install_update,
+            check_dependencies,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

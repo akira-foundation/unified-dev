@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod issue;
+pub mod system;
 pub mod license;
 pub mod mcp;
 pub mod organization;

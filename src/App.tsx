@@ -11,6 +11,8 @@ import { AgentWorkspaceLayout } from "./components/agents/agent-workspace-layout
 import { Toaster } from "./components/ui/sonner";
 import { CommandPalette } from "./components/layout/command-palette";
 import { LicenseActivationDialog } from "./components/license-activation-dialog";
+import { OnboardingOverlay } from "./components/onboarding-overlay";
+import { useOnboardingStore } from "./stores/onboarding-store";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationPage } from "./pages/organization";
 import { OrganizationsPage } from "./pages/organizations";
@@ -40,6 +42,7 @@ const navigationItems: NavItem[] = [
 export default function App() {
   const { currentPage, navigateTo } = useNavigation("dashboard");
   const isAgentMode = useNavigationStore((state) => state.isAgentMode);
+  const onboardingCompleted = useOnboardingStore((s) => s.completed);
   const loadRepositories = useAgentsStore((state) => state.loadRepositories);
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
   const [activationSessionId, setActivationSessionId] = useState<string | null>(null);
@@ -95,6 +98,7 @@ export default function App() {
           initialSessionId={activationSessionId ?? ""}
           onClose={() => setActivationSessionId(null)}
         />
+        {!onboardingCompleted && <OnboardingOverlay />}
       </AppContent>
     </AppShell>
   );
