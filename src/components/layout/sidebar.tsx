@@ -31,7 +31,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40 bg-background/50 dark:bg-zinc-950/50 backdrop-blur-xl">
-      <SidebarHeader className="h-16 border-b border-border/10 flex items-center px-4 group-data-[collapsible=icon]:px-0">
+      <SidebarHeader className="h-16 border-b border-border/10 flex items-center px-4 pt-4 group-data-[collapsible=icon]:px-0">
         <div className="flex items-center gap-3 w-full group-data-[collapsible=icon]:justify-center">
           {state === "collapsed" ? (
             <button
@@ -69,9 +69,6 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
       <SidebarContent className="py-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-6 text-[11px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-4 group-data-[collapsible=icon]:hidden">
-            {t("nav.section.primary")}
-          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-1 px-3 group-data-[collapsible=icon]:px-0">
               {items.filter(item => item.id !== "settings").map((item) => (

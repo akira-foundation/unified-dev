@@ -11,7 +11,7 @@ export function PageHeader({ children, className }: PageHeaderProps) {
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col gap-4 border-none bg-transparent py-6 md:flex-row md:items-center md:justify-between",
+        "flex shrink-0 flex-col gap-4 border-none bg-transparent pt-10 pb-6 md:flex-row md:items-center md:justify-between",
         className,
       )}
     >

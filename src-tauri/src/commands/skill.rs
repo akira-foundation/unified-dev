@@ -12,6 +12,11 @@ pub async fn fetch_recommended_skills(app_handle: AppHandle) {
 }
 
 #[tauri::command]
+pub async fn fetch_skills_from_repo(app_handle: AppHandle, repo_url: String, branch: String) {
+    tauri::async_runtime::spawn(skills::fetch_from_repo(app_handle, repo_url, branch));
+}
+
+#[tauri::command]
 pub async fn sync_skills(
     workspace_path: Option<String>,
     app_handle: AppHandle,

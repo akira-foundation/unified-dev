@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Loader2, Link2, Unplug, RefreshCcw } from "lucide-react";
+import { Plus, Trash2, Loader2, Link2, Unplug } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
@@ -52,7 +52,7 @@ export function McpPage() {
   const [connectingId, setConnectingId] = useState<string | null>(null);
   const [quickConnectingId, setQuickConnectingId] = useState<string | null>(null);
 
-  const { data: servers = [], isLoading, refetch } = useQuery({
+  const { data: servers = [], isLoading } = useQuery({
     queryKey: queryKeys.mcpServers(),
     queryFn: () => invoke<McpServer[]>("list_mcp_servers"),
   });
@@ -140,14 +140,6 @@ export function McpPage() {
             </PageHeaderMeta>
           </div>
           <PageHeaderActions className="gap-3">
-            <Button
-              variant="ghost"
-              className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs"
-              onClick={() => refetch()}
-            >
-              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-              Refresh
-            </Button>
             <Button className="gap-1.5" onClick={() => setAddOpen(true)}>
               <Plus className="h-4 w-4" strokeWidth={3} />
               Add Server

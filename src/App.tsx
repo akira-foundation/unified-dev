@@ -64,7 +64,7 @@ export default function App() {
         <AppSidebar items={navigationItems} activeId={currentPage} onSelect={navigateTo} />
       )}
       <AppContent className="flex h-svh flex-col overflow-hidden">
-        {!isAgentMode && <AppHeader />}
+        <AppHeader />
         <main className={cn(
           "flex-1 custom-scrollbar",
           isAgentMode ? "h-full overflow-hidden" : "overflow-y-auto"

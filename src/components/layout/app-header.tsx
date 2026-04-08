@@ -2,6 +2,7 @@ import { Bell, ChevronLeft, Download } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
 import { useUpdater } from "@/hooks/useUpdater";
+import { useAgentsStore } from "@/stores/useAgentsStore";
 import { Button } from "@/components/ui/button";
 import { appVersion } from "@/lib/app-meta";
 import {
@@ -14,6 +15,19 @@ export function AppHeader() {
     const { goBack, canGoBack } = useNavigation("dashboard");
     const { t } = useI18n();
     const { update, installing, install } = useUpdater();
+    const { activeTab, setActiveTab, previousTab } = useAgentsStore();
+
+    const handleBack = () => {
+        if (activeTab === "skill-source") {
+            setActiveTab("skills");
+        } else if (activeTab === "manage-skill") {
+            setActiveTab(previousTab ?? "skills");
+        } else {
+            goBack();
+        }
+    };
+
+    const isBackEnabled = activeTab === "skill-source" || activeTab === "manage-skill" || canGoBack;
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -22,8 +36,8 @@ export function AppHeader() {
                     <Button
                         variant="ghost"
                         size="icon"
-                        onClick={goBack}
-                        disabled={!canGoBack}
+                        onClick={handleBack}
+                        disabled={!isBackEnabled}
                         className="shrink-0"
                     >
                         <ChevronLeft className="h-4 w-4" />

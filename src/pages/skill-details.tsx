@@ -1,4 +1,5 @@
-import { ArrowLeft, Info, Download, Trash2, Loader2, Settings2 } from "lucide-react";
+import { useEffect } from "react";
+import { Info, Download, Trash2, Loader2, Settings2 } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -46,8 +47,13 @@ export function SkillDetailsPage() {
     },
   });
 
+  useEffect(() => {
+    if (!selectedSkill) {
+      setActiveTab("skills");
+    }
+  }, [selectedSkill, setActiveTab]);
+
   if (!selectedSkill) {
-    setActiveTab("skills");
     return null;
   }
 
@@ -93,13 +99,6 @@ export function SkillDetailsPage() {
     <PageLayout scroll>
       <PageHeader className="mx-auto w-full max-w-3xl px-6">
         <div className="flex flex-col gap-4">
-          <button
-            onClick={() => setActiveTab("skills")}
-            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors w-fit group"
-          >
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            <span className="text-sm font-medium">{t("pages.skillDetails.back")}</span>
-          </button>
           <div className="flex items-center gap-4">
             <div className={cn(
               "relative flex h-12 w-12 shrink-0 items-center justify-center rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border font-bold shadow-sm overflow-hidden",

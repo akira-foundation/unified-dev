@@ -1,7 +1,7 @@
 import {
   ChevronDown,
   ChevronRight,
-  CornerUpLeft,
+  Layers,
   Plus,
   Folder,
   Search,
@@ -78,7 +78,7 @@ import type { AgentRepository } from "@/types/agents";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
-  const { toggleSidebar } = useSidebar();
+  const { toggleSidebar, state } = useSidebar();
   const { setIsAgentMode, navigateTo, goBack, canGoBack, setActiveOrganizationId, setActiveRepo } = useNavigationStore();
   const { organizations, isLoading: isLoadingOrganizations } = useOrganizations();
   const {
@@ -388,89 +388,116 @@ export function AgentsSidebar() {
   };
 
   return (
-    <Sidebar className="border-r-0 bg-sidebar backdrop-blur-xl">
-      <SidebarHeader className="h-auto border-b border-white/[0.03] flex flex-col p-4 gap-4">
-        <div className="flex items-center gap-3 w-full">
-          <button
-            onClick={handleBack}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all group"
-            title={t("agents.sidebar.backToDashboard")}
-          >
-            <CornerUpLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" />
-          </button>
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
-            <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold truncate">
-              {t("agents.sidebar.agents")}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
-            title={t("sidebar.collapseSidebar")}
-          >
-            <PanelLeft className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <button
-            onClick={() => setShowAddRepositoryDialog(true)}
-            className="flex items-center gap-3 px-2 py-1.5 rounded-md dark:hover:bg-white/5 hover:bg-black/5 text-xs font-medium text-foreground/80 transition-all group"
-          >
-            <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
-            <span>{t("agents.sidebar.addRepository")}</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('automations')}
-            className={cn(
-              "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
-              activeTab === 'automations'
-                ? "dark:bg-white/10 bg-black/10 text-foreground"
-                : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
-            )}
-          >
-            <Zap className={cn(
-              "h-4 w-4 transition-colors",
-              activeTab === 'automations' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-            )} />
-            <span>{t("agents.sidebar.automations")}</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('skills')}
-            className={cn(
-              "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
-              activeTab === 'skills'
-                ? "dark:bg-white/10 bg-black/10 text-foreground"
-                : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
-            )}
-          >
-            <Lightbulb className={cn(
-              "h-4 w-4 transition-colors",
-              activeTab === 'skills' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-            )} />
-            <span>{t("agents.sidebar.skills")}</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('mcp')}
-            className={cn(
-              "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group",
-              activeTab === 'mcp'
-                ? "dark:bg-white/10 bg-black/10 text-foreground"
-                : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
-            )}
-          >
-            <Link2 className={cn(
-              "h-4 w-4 transition-colors",
-              activeTab === 'mcp' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-            )} />
-            <span>{t("agents.sidebar.mcp")}</span>
-          </button>
+    <Sidebar collapsible="icon" className="border-r-0 bg-sidebar backdrop-blur-xl">
+      <SidebarHeader className="h-16 border-b border-border/10 flex items-center px-4 pt-4 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:pt-0 group-data-[collapsible=icon]:justify-center">
+        <div className="flex items-center gap-3 w-full group-data-[collapsible=icon]:justify-center">
+          {state === "collapsed" ? (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="relative flex h-10 w-10 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-900 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
+              title={t("sidebar.expandSidebar")}
+            >
+              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/toggle:opacity-100 transition-opacity" />
+              <PanelLeft className="h-5 w-5 text-muted-foreground group-hover/toggle:text-primary transition-colors" />
+            </button>
+          ) : (
+            <>
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary shadow-lg shadow-primary/20">
+                <Layers className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
+                <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold truncate">
+                  {t("agents.sidebar.agents")}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
+                title={t("sidebar.collapseSidebar")}
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
+            </>
+          )}
         </div>
       </SidebarHeader>
 
       <SidebarContent className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex flex-col gap-1 px-4 py-2 border-b border-white/[0.03] group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:border-b-0">
+          <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
+            <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+              <SidebarMenuButton
+                onClick={() => setShowAddRepositoryDialog(true)}
+                tooltip={t("agents.sidebar.addRepository")}
+                className="flex items-center gap-3 px-2 py-1.5 rounded-md dark:hover:bg-white/5 hover:bg-black/5 text-xs font-medium text-foreground/80 transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+              >
+                <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0" />
+                <span className="group-data-[collapsible=icon]:hidden">{t("agents.sidebar.addRepository")}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+              <SidebarMenuButton
+                onClick={() => setActiveTab('automations')}
+                isActive={activeTab === 'automations'}
+                tooltip={t("agents.sidebar.automations")}
+                className={cn(
+                  "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                  activeTab === 'automations' ? "dark:bg-white/10 bg-black/10 text-foreground" : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
+                )}
+              >
+                <Zap className={cn("h-4 w-4 transition-colors shrink-0", activeTab === 'automations' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")} />
+                <span className="group-data-[collapsible=icon]:hidden">{t("agents.sidebar.automations")}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+              <SidebarMenuButton
+                onClick={() => setActiveTab('skills')}
+                isActive={activeTab === 'skills'}
+                tooltip={t("agents.sidebar.skills")}
+                className={cn(
+                  "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                  activeTab === 'skills' ? "dark:bg-white/10 bg-black/10 text-foreground" : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
+                )}
+              >
+                <Lightbulb className={cn("h-4 w-4 transition-colors shrink-0", activeTab === 'skills' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")} />
+                <span className="group-data-[collapsible=icon]:hidden">{t("agents.sidebar.skills")}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+              <SidebarMenuButton
+                onClick={() => setActiveTab('mcp')}
+                isActive={activeTab === 'mcp'}
+                tooltip={t("agents.sidebar.mcp")}
+                className={cn(
+                  "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                  activeTab === 'mcp' ? "dark:bg-white/10 bg-black/10 text-foreground" : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
+                )}
+              >
+                <Link2 className={cn("h-4 w-4 transition-colors shrink-0", activeTab === 'mcp' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")} />
+                <span className="group-data-[collapsible=icon]:hidden">{t("agents.sidebar.mcp")}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </div>
+        {state === "collapsed" ? (
+          <div className="flex flex-col items-center pt-2">
+            <SidebarMenu className="gap-1 items-center">
+              <SidebarMenuItem className="flex justify-center">
+                <SidebarMenuButton
+                  onClick={toggleSidebar}
+                  isActive={activeTab === "workspace"}
+                  tooltip={t("agents.sidebar.threads")}
+                  className="size-10 p-0 justify-center"
+                >
+                  <Folder className="h-5 w-5" />
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </div>
+        ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar py-2">
           {!repositoriesLoaded ? (
             <div className="px-4 py-3 flex flex-col gap-3">
@@ -781,8 +808,7 @@ export function AgentsSidebar() {
           </>
           )}
         </div>
-
-
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-border/10">

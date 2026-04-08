@@ -47,8 +47,10 @@ interface AgentsState {
   timelineSteps: AgentTimelineStep[];
   fileChanges: FileChange[];
   selectedFilePath: string | null;
-  activeTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp";
+  activeTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp" | "skill-source";
+  previousTab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp" | "skill-source" | null;
   selectedSkill: any | null;
+  selectedSkillSource: { id: string; name: string; description: string } | null;
   selectedAutomation: any | null;
   aiProviders: AiProviderGroup[];
   selectedModelId: string | null;
@@ -63,8 +65,9 @@ interface AgentsState {
   messageQueueByThread: Record<string, Array<{ content: MessageContent; model: string; options?: SendMessageOptions }>>;
   setSelectedIssueId: (id: string | null) => void;
   setSelectedFilePath: (path: string | null) => void;
-  setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp") => void;
+  setActiveTab: (tab: "workspace" | "skills" | "automations" | "create-automation" | "manage-skill" | "mcp" | "skill-source") => void;
   setSelectedSkill: (skill: any | null) => void;
+  setSelectedSkillSource: (source: { id: string; name: string; description: string } | null) => void;
   setSelectedAutomation: (automation: any | null) => void;
   setSelectedModelId: (id: string) => void;
   setThreadModelId: (threadId: string, modelId: string) => void;
@@ -119,7 +122,9 @@ export const useAgentsStore = create<AgentsState>()(
       fileChanges: [],
       selectedFilePath: null,
       activeTab: "workspace",
+      previousTab: null,
       selectedSkill: null,
+      selectedSkillSource: null,
       selectedAutomation: null,
       aiProviders: [],
       selectedModelId: null,
@@ -164,9 +169,10 @@ export const useAgentsStore = create<AgentsState>()(
       setInstalledSkills: (skills) => set({ installedSkills: skills }),
       setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
       setSelectedFilePath: (path) => set({ selectedFilePath: path }),
-      setActiveTab: (tab) => set({ activeTab: tab }),
-      setSelectedSkill: (skill) => set({ selectedSkill: skill, activeTab: "manage-skill" }),
-      setSelectedAutomation: (automation) => set({ selectedAutomation: automation, activeTab: "create-automation" }),
+      setActiveTab: (tab) => set((state) => ({ previousTab: state.activeTab, activeTab: tab })),
+      setSelectedSkill: (skill) => set((state) => ({ selectedSkill: skill, previousTab: state.activeTab, activeTab: "manage-skill" })),
+      setSelectedSkillSource: (source) => set((state) => ({ selectedSkillSource: source, previousTab: state.activeTab, activeTab: "skill-source" })),
+      setSelectedAutomation: (automation) => set((state) => ({ selectedAutomation: automation, previousTab: state.activeTab, activeTab: "create-automation" })),
       setSelectedModelId: (id) => set({ selectedModelId: id }),
       setThreadModelId: (threadId, modelId) => set((state) => ({
         selectedModelByThread: { ...state.selectedModelByThread, [threadId]: modelId },

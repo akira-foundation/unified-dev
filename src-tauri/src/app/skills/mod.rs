@@ -9,6 +9,7 @@ pub mod types;
 pub mod uninstall;
 
 pub use discover::fetch_recommended;
+pub use discover::fetch_from_repo;
 pub use get::get;
 pub use install::install;
 pub use list_installed::list_installed;

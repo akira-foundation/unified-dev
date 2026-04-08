@@ -134,6 +134,106 @@ async fn fetch_description(client: &reqwest::Client, source: &str, skill_id: &st
     String::new()
 }
 
+#[derive(Debug, Deserialize)]
+struct GithubContentEntry {
+    name: String,
+    #[serde(rename = "type")]
+    entry_type: String,
+}
+
+pub async fn fetch_from_repo(app: AppHandle, repo_url: String, branch: String) {
+    let parts: Vec<&str> = repo_url
+        .trim_end_matches('/')
+        .trim_start_matches("https://github.com/")
+        .splitn(2, '/')
+        .collect();
+
+    if parts.len() != 2 {
+        let _ = app.emit("skills:discover:done", ());
+        return;
+    }
+
+    let (owner, repo) = (parts[0], parts[1]);
+
+    let client = match reqwest::Client::builder()
+        .user_agent("akira-maintainer/1.0")
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => {
+            let _ = app.emit("skills:discover:done", ());
+            return;
+        }
+    };
+
+    let contents_url = format!(
+        "https://api.github.com/repos/{owner}/{repo}/contents?ref={branch}"
+    );
+
+    let entries: Vec<GithubContentEntry> = match client
+        .get(&contents_url)
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+    {
+        Ok(res) if res.status().is_success() => res.json().await.unwrap_or_default(),
+        _ => {
+            let _ = app.emit("skills:discover:done", ());
+            return;
+        }
+    };
+
+    let dirs: Vec<String> = entries
+        .into_iter()
+        .filter(|e| e.entry_type == "dir" && !e.name.starts_with('.'))
+        .map(|e| e.name)
+        .collect();
+
+    let skill_futures = dirs.iter().map(|dir| {
+        let client = client.clone();
+        let owner = owner.to_string();
+        let repo = repo.to_string();
+        let branch = branch.clone();
+        let dir = dir.clone();
+        let repo_url = repo_url.clone();
+        async move {
+            let raw_url = format!(
+                "https://raw.githubusercontent.com/{owner}/{repo}/{branch}/{dir}/SKILL.md"
+            );
+            let res = client.get(&raw_url).send().await.ok()?;
+            if !res.status().is_success() {
+                return None;
+            }
+            let text = res.text().await.ok()?;
+            let description = parse_description(&text).unwrap_or_default();
+            if description.is_empty() {
+                return None;
+            }
+            Some(DiscoveredSkill {
+                uid: format!("{owner}/{repo}/{dir}"),
+                id: dir.clone(),
+                name: to_display_name(&dir),
+                description,
+                repo_url: repo_url.clone(),
+                installs: 0,
+            })
+        }
+    });
+
+    let skills: Vec<DiscoveredSkill> = futures_util::future::join_all(skill_futures)
+        .await
+        .into_iter()
+        .flatten()
+        .collect();
+
+    for skill in skills {
+        let _ = app.emit("skills:discover:skill", &skill);
+    }
+
+    let _ = app.emit("skills:discover:done", ());
+}
+
 pub async fn fetch_recommended(app: AppHandle) {
     let client = match reqwest::Client::builder()
         .user_agent("akira-maintainer/1.0")
