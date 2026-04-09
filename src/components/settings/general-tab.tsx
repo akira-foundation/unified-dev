@@ -83,6 +83,15 @@ export function GeneralTab() {
                   <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
                     <span className="text-zinc-500">–</span> {t("settings.general.account.plan.limit.local")}
                   </li>
+                  <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                    <span className="text-zinc-500">✓</span> {t("settings.general.account.plan.limit.kanban")}
+                  </li>
+                  <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                    <span className="text-zinc-500">✓</span> {t("settings.general.account.plan.limit.pr_review")}
+                  </li>
+                  <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
+                    <span className="text-zinc-500">✓</span> {t("settings.general.account.plan.limit.community")}
+                  </li>
                 </>
               )}
               {currentPlan === "pro" && (
@@ -95,6 +104,15 @@ export function GeneralTab() {
                   </li>
                   <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-400">
                     <span className="text-zinc-500">–</span> {t("settings.general.account.plan.limit.local")}
+                  </li>
+                  <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+                    <span className="text-blue-500">✓</span> {t("settings.general.account.plan.limit.kanban")}
+                  </li>
+                  <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+                    <span className="text-blue-500">✓</span> {t("settings.general.account.plan.limit.pr_review")}
+                  </li>
+                  <li className="flex items-center gap-2 text-[13px] text-zinc-600 dark:text-zinc-300">
+                    <span className="text-blue-500">✓</span> {t("settings.general.account.plan.limit.priority")}
                   </li>
                 </>
               )}
@@ -156,8 +174,8 @@ export function GeneralTab() {
                   {(["free", "pro", "ultimate"] as const).map((key) => {
                     const yearly = billingCycle === "yearly";
                     const planData = {
-                      free:     { price: "0",  period: null, features: [t("upgrade.feature.free.1"), t("upgrade.feature.free.2"), t("upgrade.feature.free.3")] },
-                      pro:      { price: yearly ? "12" : "15",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.pro.1"), t("upgrade.feature.pro.2"), t("upgrade.feature.pro.3")] },
+                      free:     { price: "0",  period: null, features: [t("upgrade.feature.free.1"), t("upgrade.feature.free.2"), t("upgrade.feature.free.3"), t("upgrade.feature.free.4"), t("upgrade.feature.free.5"), t("upgrade.feature.free.6")] },
+                      pro:      { price: yearly ? "12" : "15",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.pro.1"), t("upgrade.feature.pro.2"), t("upgrade.feature.pro.3"), t("upgrade.feature.pro.4"), t("upgrade.feature.pro.5"), t("upgrade.feature.pro.6")] },
                       ultimate: { price: yearly ? "24" : "29",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.ultimate.1"), t("upgrade.feature.ultimate.2"), t("upgrade.feature.ultimate.3"), t("upgrade.feature.ultimate.4")] },
                     }[key];
                     const isFeatured = key === "pro";
