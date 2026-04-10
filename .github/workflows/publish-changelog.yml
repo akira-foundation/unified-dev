@@ -1,0 +1,123 @@
+name: Publish Changelog to Landing Page
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout landing page repo
+        uses: actions/checkout@v4
+        with:
+          repository: kidiatoliny/unified-dev-landing-page
+          token: ${{ secrets.LANDING_PAGE_TOKEN }}
+          path: landing
+
+      - name: Parse changelog and update landing page
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // ── Version & date ────────────────────────────────────────────────
+            const version = context.payload.release.tag_name; // e.g. "v0.5.0"
+            const semver  = version.replace(/^v/, '');
+            const dateStr = new Date().toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric'
+            });
+
+            // ── Parse CHANGELOG.md ────────────────────────────────────────────
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+
+            // Grab the first release block (between first heading and the next)
+            const blockMatch = changelog.match(/^#+ \[[\d.]+\].*\n([\s\S]*?)(?=\n#+ \[|\n## \[|$)/m);
+            if (!blockMatch) core.setFailed('Could not find release block in CHANGELOG.md');
+
+            const block = blockMatch[1];
+
+            function parseSection(sectionName) {
+              const sectionMatch = block.match(
+                new RegExp(`### ${sectionName}\\n([\\s\\S]*?)(?=\\n###|$)`)
+              );
+              if (!sectionMatch) return [];
+
+              const entries = [];
+              const re = /^\* (?:\*\*([^*]+)\*\*: )?(.+?) \([a-f0-9].*\)$/gm;
+              let m;
+              while ((m = re.exec(sectionMatch[1])) !== null) {
+                const scope = m[1] ?? 'general';
+                const text  = m[2].charAt(0).toUpperCase() + m[2].slice(1);
+                entries.push({ scope, text });
+              }
+              return entries;
+            }
+
+            const features = parseSection('Features');
+            const fixes    = parseSection('Bug Fixes');
+
+            console.log(`Parsed ${features.length} features, ${fixes.length} fixes for ${version}`);
+
+            if (features.length === 0 && fixes.length === 0) {
+              console.log('Nothing to publish — skipping.');
+              return;
+            }
+
+            // ── Build JS object string ────────────────────────────────────────
+            const ind = '    ';
+
+            function itemsToJs(items) {
+              if (items.length === 0) return '[]';
+              const lines = items.map(({ scope, text }) =>
+                `${ind}    { scope: '${scope}', text: '${text.replace(/'/g, "\\'")}' },`
+              );
+              return `[\n${lines.join('\n')}\n${ind}]`;
+            }
+
+            const newEntry = [
+              `${ind}{`,
+              `${ind}    version: '${version}',`,
+              `${ind}    date: '${dateStr}',`,
+              `${ind}    latest: true,`,
+              `${ind}    features: ${itemsToJs(features)},`,
+              `${ind}    fixes: ${itemsToJs(fixes)},`,
+              `${ind}},`,
+            ].join('\n');
+
+            // ── Edit changelog.astro ──────────────────────────────────────────
+            const astroPath = path.join('landing', 'src/pages/changelog.astro');
+            let astro = fs.readFileSync(astroPath, 'utf8');
+
+            // Remove `latest: true` from the previous entry
+            astro = astro.replace(/^(\s+latest: true,\n)/m, '\n');
+
+            // Prepend new entry after `const releases = [`
+            astro = astro.replace(
+              /(const releases = \[\n)/,
+              `$1${newEntry}\n`
+            );
+
+            // Update FALLBACK_VERSION in the <script> block
+            astro = astro.replace(
+              /const FALLBACK_VERSION = '[^']+';/,
+              `const FALLBACK_VERSION = '${semver}';`
+            );
+
+            fs.writeFileSync(astroPath, astro, 'utf8');
+            console.log('changelog.astro updated successfully.');
+
+      - name: Commit and push to landing page
+        working-directory: landing
+        run: |
+          git config user.name  "Akira Release Bot"
+          git config user.email "release-bot@akira.foundation"
+          git add src/pages/changelog.astro
+          git commit -m "chore: add ${{ github.event.release.tag_name }} to changelog"
+          git push
