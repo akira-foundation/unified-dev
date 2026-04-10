@@ -191,8 +191,17 @@ export function DiffViewer({ files }: DiffViewerProps) {
 
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-3 text-[10px] font-mono font-bold tracking-tight">
-                      <span className="text-emerald-500/70">+12</span>
-                      <span className="text-red-500/70">-4</span>
+                      {file.diff != null && (() => {
+                        const lines = file.diff.split("\n");
+                        const additions = lines.filter((l) => l.startsWith("+") && !l.startsWith("+++")).length;
+                        const deletions = lines.filter((l) => l.startsWith("-") && !l.startsWith("---")).length;
+                        return (
+                          <>
+                            <span className="text-emerald-500/70">+{additions}</span>
+                            <span className="text-red-500/70">-{deletions}</span>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div
