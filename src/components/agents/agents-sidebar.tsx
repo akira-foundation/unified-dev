@@ -75,6 +75,8 @@ import {
 import type { IssueDto } from "@/types/issue";
 import type { BranchDto, PullRequestDto } from "@/types/organization";
 import type { AgentRepository } from "@/types/agents";
+import { openUpgradeModal } from "@/stores/upgrade-modal-store";
+import { useUsage } from "@/hooks/useUsage";
 
 export function AgentsSidebar() {
   const { t } = useI18n();
@@ -103,6 +105,7 @@ export function AgentsSidebar() {
     setThreadPrInfo,
     loadRepositories,
   } = useAgentsStore();
+  const { count, limit, isFree } = useUsage();
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
   const [isRemovingRepo, setIsRemovingRepo] = useState(false);
@@ -169,7 +172,12 @@ export function AgentsSidebar() {
         toast.error(t("agents.sidebar.toast.invalidResponse"), { id: loadingToast });
       }
     } catch (error) {
-      toast.error(`Error: ${error}`, { id: loadingToast });
+      if (String(error) === "repo_limit_reached") {
+        openUpgradeModal("repo_limit_reached");
+        toast.dismiss(loadingToast);
+      } else {
+        toast.error(`Error: ${error}`, { id: loadingToast });
+      }
     } finally {
       setIsAddingRepo(false);
     }
@@ -223,7 +231,11 @@ export function AgentsSidebar() {
       addThread(repoId, thread);
       setExpandedRepos((prev) => ({ ...prev, [repoId]: true }));
     } catch (error) {
-      toast.error(`Failed to create thread: ${error}`);
+      if (String(error) === "thread_limit_reached") {
+        openUpgradeModal("thread_limit_reached");
+      } else {
+        toast.error(`Failed to create thread: ${error}`);
+      }
     } finally {
       setAddingThreadForRepo(null);
     }
@@ -812,6 +824,22 @@ export function AgentsSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-border/10">
+        {isFree && limit !== null && state !== "collapsed" && (
+          <div className="mb-2 px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-900">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+              {count}/{limit} {t("sidebar.runsToday")}
+            </p>
+            <div className="mt-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div
+                className={cn(
+                  "h-1 rounded-full transition-all",
+                  count >= limit ? "bg-red-500" : "bg-primary"
+                )}
+                style={{ width: `${Math.min((count / limit) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

@@ -18,6 +18,7 @@ import {
 import type { NavItem } from "@/types/navigation";
 import { useI18n } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
+import { useUsage } from "@/hooks/useUsage";
 
 interface AppSidebarProps {
   items: NavItem[];
@@ -28,6 +29,7 @@ interface AppSidebarProps {
 export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const { t } = useI18n();
   const { state, toggleSidebar } = useSidebar();
+  const { count, limit, isFree } = useUsage();
 
   return (
     <Sidebar collapsible="icon" className="border-r border-border/40 bg-background/50 dark:bg-zinc-950/50 backdrop-blur-xl">
@@ -103,6 +105,22 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-border/10">
+        {isFree && limit !== null && state !== "collapsed" && (
+          <div className="mb-2 px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-900">
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
+              {count}/{limit} {t("sidebar.runsToday")}
+            </p>
+            <div className="mt-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
+              <div
+                className={cn(
+                  "h-1 rounded-full transition-all",
+                  count >= limit ? "bg-red-500" : "bg-primary"
+                )}
+                style={{ width: `${Math.min((count / limit) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
         <SidebarMenu>
           {items.filter(item => item.id === "settings").map((item) => (
             <SidebarMenuItem key={item.id}>

@@ -7,6 +7,7 @@ export interface Env {
   GITHUB_PRIVATE_KEY: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
+  USAGE_HMAC_SECRET: string;
   LICENSES: KVNamespace;
 }
 
@@ -44,6 +45,7 @@ export default {
     if (url.pathname === "/github/uninstall-installation") return handleUninstallInstallation(request, env);
     if (url.pathname === "/billing/checkout") return handleBillingCheckout(request, env);
     if (url.pathname === "/billing/activate") return handleBillingActivate(request, env);
+    if (url.pathname === "/billing/usage") return handleBillingUsage(request, env);
 
     return json({ error: "not found" }, 404);
   },
@@ -151,6 +153,98 @@ async function handleBillingActivate(request: Request, env: Env): Promise<Respon
 
   const signature = await signLicense(token, licenseData.plan, licenseData.cycle, licenseData.valid_until, licenseData.email);
   return json({ token, signature, ...licenseData });
+}
+
+async function handleBillingUsage(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request);
+  if (!body) return json({ error: "invalid json" }, 400);
+
+  const machineId = body.machine_id as string | undefined;
+  const token = body.token as string | undefined;
+  const action = body.action as string | undefined;
+  const date = body.date as string | undefined;
+  const createdAtSig = body.created_at_sig as string | undefined;
+
+  if (!machineId || !action || !date) {
+    return json({ error: "machine_id, action, and date are required" }, 400);
+  }
+
+  if (action !== "increment" && action !== "check") {
+    return json({ error: "action must be 'increment' or 'check'" }, 400);
+  }
+
+  const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const ipKey = `ip_rate:${ip}:${date}:${new Date().getUTCHours()}`;
+  const ipCountRaw = await env.LICENSES.get(ipKey);
+  const ipCount = ipCountRaw ? parseInt(ipCountRaw, 10) : 0;
+  const IP_HOURLY_LIMIT = 120;
+  if (ipCount >= IP_HOURLY_LIMIT) {
+    return json({ error: "rate_limit_exceeded" }, 429);
+  }
+  await env.LICENSES.put(ipKey, String(ipCount + 1), { expirationTtl: 7200 });
+
+  const bindingKey = `machine:${machineId}`;
+  const existingToken = await env.LICENSES.get(bindingKey);
+  const effectiveToken = token ?? "";
+
+  if (existingToken === null) {
+    await env.LICENSES.put(bindingKey, effectiveToken);
+  } else if (existingToken !== effectiveToken) {
+    return json({ error: "machine_id_token_mismatch" }, 403);
+  }
+
+  const raw = effectiveToken ? await env.LICENSES.get(`license:${effectiveToken}`) : null;
+  const plan = raw ? (JSON.parse(raw) as LicenseData).plan : "free";
+
+  if (plan === "pro" || plan === "ultimate") {
+    return json({ allowed: true, count: 0, limit: null, created_at_sig: null });
+  }
+
+  const createdAtKey = `created_at:${machineId}`;
+  let storedCreatedAt = await env.LICENSES.get(createdAtKey);
+
+  if (storedCreatedAt === null) {
+    storedCreatedAt = new Date().toISOString();
+    await env.LICENSES.put(createdAtKey, storedCreatedAt);
+  } else if (createdAtSig) {
+    const expectedSig = await hmacSign(env.USAGE_HMAC_SECRET, `${machineId}:${storedCreatedAt}`);
+    if (createdAtSig !== expectedSig) {
+      return json({ error: "created_at_sig_invalid" }, 403);
+    }
+  }
+
+  const newCreatedAtSig = await hmacSign(env.USAGE_HMAC_SECRET, `${machineId}:${storedCreatedAt}`);
+
+  const usageKey = `usage:${machineId}:${date}`;
+  const DAILY_LIMIT = 10;
+
+  const existing = await env.LICENSES.get(usageKey);
+  const count = existing ? parseInt(existing, 10) : 0;
+
+  if (action === "check") {
+    return json({ allowed: count < DAILY_LIMIT, count, limit: DAILY_LIMIT, created_at_sig: newCreatedAtSig });
+  }
+
+  if (count >= DAILY_LIMIT) {
+    return json({ allowed: false, count, limit: DAILY_LIMIT, created_at_sig: newCreatedAtSig });
+  }
+
+  const newCount = count + 1;
+  await env.LICENSES.put(usageKey, String(newCount), { expirationTtl: 172800 });
+
+  return json({ allowed: true, count: newCount, limit: DAILY_LIMIT, created_at_sig: newCreatedAtSig });
+}
+
+async function hmacSign(secret: string, payload: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  return Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function handleBillingStatus(request: Request, env: Env): Promise<Response> {

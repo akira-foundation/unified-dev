@@ -39,6 +39,7 @@ use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
 use commands::updater::{check_for_updates, install_update};
+use commands::usage::get_usage;
 use providers::default_registry;
 use app::support::error::AppResult;
 use app::support::security::{KeyStore, TokenCipher};
@@ -90,7 +91,6 @@ pub fn run() {
 
             setup_result.map_err(|error| Box::new(error) as Box<dyn std::error::Error>)?;
 
-            // Register deep link handler for akira:// scheme
             let app_handle = app.handle().clone();
             app.listen("deep-link://new-url", move |event: tauri::Event| {
                 if let Ok(urls) = serde_json::from_str::<Vec<String>>(event.payload()) {
@@ -221,6 +221,7 @@ pub fn run() {
             check_for_updates,
             install_update,
             check_dependencies,
+            get_usage,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

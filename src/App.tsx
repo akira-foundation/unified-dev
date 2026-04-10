@@ -12,6 +12,7 @@ import { Toaster } from "./components/ui/sonner";
 import { CommandPalette } from "./components/layout/command-palette";
 import { LicenseActivationDialog } from "./components/license-activation-dialog";
 import { OnboardingOverlay } from "./components/onboarding-overlay";
+import { UpgradeModal } from "./components/upgrade-modal";
 import { useOnboardingStore } from "./stores/onboarding-store";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationPage } from "./pages/organization";
@@ -93,6 +94,7 @@ export default function App() {
         </main>
         <Toaster richColors />
         <CommandPalette />
+        <UpgradeModal />
         <LicenseActivationDialog
           open={activationSessionId !== null}
           initialSessionId={activationSessionId ?? ""}

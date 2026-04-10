@@ -5,9 +5,11 @@ use tauri::{AppHandle, State};
 
 use crate::app::chat::session;
 use crate::app::chat::stream::emit_error;
+use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
-use crate::app::support::error::AppResult;
 use tokio::task::JoinHandle;
+
+const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
 
 pub async fn spawn_send_message(
     thread_id: String,
@@ -57,6 +59,43 @@ pub async fn send_message(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> AppResult<()> {
+    let plan = crate::app::license::get_plan(&state.db_pool).await?;
+    if plan == "free" {
+        let token = crate::app::license::get_token(&state.db_pool)
+            .await?
+            .unwrap_or_default();
+        let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
+
+        let mut identity = crate::app::license::machine_id::get_or_create(&app)?;
+
+        let client = reqwest::Client::new();
+        let res = client
+            .post(format!("{AKIRA_API_URL}/billing/usage"))
+            .json(&serde_json::json!({
+                "machine_id": identity.id,
+                "token": token,
+                "action": "increment",
+                "date": date,
+                "created_at_sig": identity.created_at_sig,
+            }))
+            .send()
+            .await
+            .map_err(AppError::Http)?;
+
+        let body: serde_json::Value = res.json().await.map_err(AppError::Http)?;
+
+        if let Some(sig) = body["created_at_sig"].as_str() {
+            if identity.created_at_sig.as_deref() != Some(sig) {
+                identity.created_at_sig = Some(sig.to_string());
+                let _ = crate::app::license::machine_id::save(&app, &identity);
+            }
+        }
+
+        if body["allowed"].as_bool() != Some(true) {
+            return Err(AppError::FreeTierLimit("run_limit_reached".to_string()));
+        }
+    }
+
     spawn_send_message(
         thread_id,
         message,

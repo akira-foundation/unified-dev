@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import type { AgentTimelineStep, FileChange, RepositoryGroup, AgentStatus, MessageContent } from "../types/agents";
 import { serializeContent, contentToText, parseContent } from "../types/agents";
 import type { AiProviderGroup, AiProviderResponse } from "../types/ai-providers";
+import { openUpgradeModal } from "../stores/upgrade-modal-store";
+import { refreshUsage } from "../stores/usage-store";
 
 export interface SendMessageOptions {
   planMode?: boolean;
@@ -623,6 +625,7 @@ export const useAgentsStore = create<AgentsState>()(
             thinkingBudget: options?.thinkingBudget ?? "medium",
             fastMode: options?.fastMode ?? false,
           });
+          refreshUsage();
         } catch (err) {
           unlistenToken();
           unlistenDone();
@@ -633,7 +636,11 @@ export const useAgentsStore = create<AgentsState>()(
             streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
             streamingThreadId: null,
           }));
-          toast.error(`Failed to send message: ${err}`);
+          if (String(err) === "run_limit_reached") {
+            openUpgradeModal("run_limit_reached");
+          } else {
+            toast.error(`Failed to send message: ${err}`);
+          }
         }
       },
       addRepository: (repo, thread) => set((state) => {

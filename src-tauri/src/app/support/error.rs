@@ -24,6 +24,8 @@ pub enum AppError {
     Provider(String),
     #[error("internal error: {0}")]
     Internal(String),
+    #[error("{0}")]
+    FreeTierLimit(String),
 }
 
 pub type AppResult<T> = Result<T, AppError>;

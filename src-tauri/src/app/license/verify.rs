@@ -6,6 +6,24 @@ use super::types::{LicenseDto, WorkerStatusResponse};
 const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
 const GRACE_PERIOD_DAYS: i64 = 5;
 
+pub async fn get_plan(pool: &sqlx::SqlitePool) -> AppResult<String> {
+    let plan = sqlx::query_scalar::<_, String>(
+        "SELECT plan FROM license WHERE id = 'local' LIMIT 1",
+    )
+    .fetch_optional(pool)
+    .await?
+    .unwrap_or_else(|| "free".to_string());
+    Ok(plan)
+}
+
+pub async fn get_token(pool: &sqlx::SqlitePool) -> AppResult<Option<String>> {
+    Ok(sqlx::query_scalar::<_, String>(
+        "SELECT token FROM license WHERE id = 'local' LIMIT 1",
+    )
+    .fetch_optional(pool)
+    .await?)
+}
+
 pub async fn get(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
     let row = sqlx::query_as::<_, LicenseDto>(
         "SELECT token, plan, cycle, email, status, valid_until, activated_at, last_verified_at, signature, 0 as grace_period
@@ -23,7 +41,6 @@ pub async fn verify(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
         return Ok(None);
     };
 
-    // Verify HMAC integrity — reject tampered local data
     if !hmac::verify(
         &license.token,
         &license.plan,
@@ -42,13 +59,11 @@ pub async fn verify(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
 
     let now = chrono::Utc::now();
 
-    // Layer 1 — valid_until not yet passed: trust local cache
     if now < valid_until {
         let last_verified = chrono::DateTime::parse_from_rfc3339(&license.last_verified_at)
             .map(|dt| dt.with_timezone(&chrono::Utc))
             .unwrap_or(chrono::DateTime::<chrono::Utc>::MIN_UTC);
 
-        // Refresh from server every 7 days while still valid
         if now.signed_duration_since(last_verified).num_days() < 7 {
             return Ok(Some(license));
         }
@@ -56,16 +71,13 @@ pub async fn verify(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
         return refresh_from_server(pool, license).await;
     }
 
-    // Layer 2 — valid_until passed: try to verify online first
     let refreshed = refresh_from_server(pool, license.clone()).await?;
     if let Some(ref l) = refreshed {
-        // Online verification succeeded — return updated license
         if l.status == "active" {
             return Ok(refreshed);
         }
     }
 
-    // Offline or expired online — check grace period
     let last_verified = chrono::DateTime::parse_from_rfc3339(&license.last_verified_at)
         .map(|dt| dt.with_timezone(&chrono::Utc))
         .unwrap_or(chrono::DateTime::<chrono::Utc>::MIN_UTC);

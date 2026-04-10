@@ -17,7 +17,6 @@ pub struct ThreadConfig {
     pub created_at: String,
 }
 
-/// Entry point used by the Tauri command — looks up repo paths from the DB.
 pub async fn create(repo_id: String, pool: &sqlx::SqlitePool) -> AppResult<ThreadConfig> {
     let row = sqlx::query_as::<_, (String, String, String, Option<String>)>(
         "SELECT workspace_root, name, source_path, remote_url FROM local_repositories WHERE id = ?",
@@ -156,7 +155,6 @@ pub async fn create_from_pull_request(
     .await
 }
 
-/// Called by workspaces/local.rs and workspaces/remote.rs when paths are already known.
 pub async fn create_with_paths(
     repo_id: String,
     base_repo_path: &Path,
@@ -192,6 +190,18 @@ async fn create_with_options(
     source_commit: Option<String>,
     pool: &sqlx::SqlitePool,
 ) -> AppResult<ThreadConfig> {
+    let plan = crate::app::license::get_plan(pool).await?;
+    if plan == "free" {
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM threads WHERE status != 'closed'",
+        )
+        .fetch_one(pool)
+        .await?;
+        if count >= 3 {
+            return Err(AppError::FreeTierLimit("thread_limit_reached".to_string()));
+        }
+    }
+
     let thread_uuid = Uuid::new_v4();
     let thread_id = thread_uuid.to_string().to_uppercase();
     let thread_branch = format!("thread/{}", thread_id);
@@ -202,8 +212,6 @@ async fn create_with_options(
 
     git::clone_repository(base_repo_path, &workspace_path)?;
 
-    // Propagate the real GitHub remote to the workspace so that `git push origin`
-    // reaches GitHub rather than the local base clone.
     let github_url = remote_url_override
         .or_else(|| git::get_remote_url(source_path, "origin"));
     if let Some(url) = github_url {

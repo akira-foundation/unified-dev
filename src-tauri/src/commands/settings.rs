@@ -4,7 +4,7 @@ use crate::app::settings;
 use crate::app::settings::remote::RemoteSettingsDto;
 use crate::app::settings::request::{SyncSettingsDto, UpsertSyncSettingsRequest};
 use crate::app::settings::visibility::{UpsertVisibilityPreferencesRequest, VisibilityPreferencesDto};
-use crate::app::support::error::AppResult;
+use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 
 #[tauri::command]
@@ -49,6 +49,12 @@ pub async fn get_remote_settings(state: State<'_, AppState>) -> AppResult<Remote
 
 #[tauri::command]
 pub async fn set_remote_enabled(enabled: bool, state: State<'_, AppState>, app: AppHandle) -> AppResult<RemoteSettingsDto> {
+    if enabled {
+        let plan = crate::app::license::get_plan(&state.db_pool).await?;
+        if plan != "ultimate" {
+            return Err(AppError::FreeTierLimit("remote_requires_ultimate".to_string()));
+        }
+    }
     let settings = settings::remote::set_enabled(enabled, state, app).await?;
     Ok(settings)
 }

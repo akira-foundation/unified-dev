@@ -149,6 +149,9 @@ export function ImportRepositoriesPage() {
       queryClient.invalidateQueries({
         queryKey: queryKeys.selectedRepositories(organization!.id),
       });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.allRepositories(),
+      });
       toast.success(t("pages.importRepos.importedCount").replace("{count}", String(payload.length)));
       setSelectedKeys(new Set());
     },

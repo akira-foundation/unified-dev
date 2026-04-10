@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { SettingsSection } from "./settings-section";
 import { SettingsItem } from "./settings-item";
+import { openUpgradeModal } from "@/stores/upgrade-modal-store";
 
 interface RemoteDevice {
   id: string;
@@ -70,9 +71,18 @@ function RemoteTabContent({ settingsPromise }: { settingsPromise: Promise<Remote
 
   const handleToggle = async (checked: boolean) => {
     setOptimisticEnabled(checked);
-    const updated = await invoke<RemoteSettingsDto>("set_remote_enabled", { enabled: checked });
-    setSettings(updated);
-    if (checked) setShowPairingModal(true);
+    try {
+      const updated = await invoke<RemoteSettingsDto>("set_remote_enabled", { enabled: checked });
+      setSettings(updated);
+      if (checked) setShowPairingModal(true);
+    } catch (err) {
+      setOptimisticEnabled(!checked);
+      if (String(err) === "remote_requires_ultimate") {
+        openUpgradeModal("remote_requires_ultimate");
+      } else {
+        toast.error(`Failed to update remote settings: ${err}`);
+      }
+    }
   };
 
   const handleRegeneratePairingCode = async () => {
