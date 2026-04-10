@@ -1,7 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import App from "./App";
 import { initializeTheme } from "./hooks/use-appearance";
 import { I18nProvider } from "./i18n/i18n";
@@ -27,7 +26,6 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <I18nProvider>
         <App />
       </I18nProvider>
-      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   </React.StrictMode>,
 );
