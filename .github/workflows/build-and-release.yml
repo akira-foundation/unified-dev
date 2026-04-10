@@ -308,7 +308,8 @@ jobs:
             --endpoint-url https://nyc3.digitaloceanspaces.com \
             --region us-east-1 \
             --acl public-read \
-            --content-type application/json
+            --content-type application/json \
+            --cache-control "no-cache"
 
           echo "latest.json uploaded"
 
