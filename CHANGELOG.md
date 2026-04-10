@@ -1,5 +1,31 @@
 
 
+# [0.5.0](https://github.com/akira-foundation/unified-dev/compare/v0.4.3...v0.5.0) (2026-04-10)
+
+
+### Bug Fixes
+
+* **security:** patch 50 dependabot CVEs across npm and Rust dependencies ([3bdaad2](https://github.com/akira-foundation/unified-dev/commit/3bdaad2187e1270493f3986fd31af413b26073f1))
+* **settings:** update upgrade plan prices for pro and ultimate tiers ([d01fa57](https://github.com/akira-foundation/unified-dev/commit/d01fa57ac844440cd9da1c24c364abd8580173eb))
+* **terminal:** improve terminal resizing and add environment variables for color support ([7477985](https://github.com/akira-foundation/unified-dev/commit/7477985a62a1ec5c759ca705ca8c99bc3dad9fe7))
+
+
+### Features
+
+* **agenda:** enhance agenda view with organization sync history and weekly summary ([073aaab](https://github.com/akira-foundation/unified-dev/commit/073aaab4aeef42ce0038c8c8ba705132ef90e247))
+* **agents:** add search functionality to agents sidebar with clear filters option ([6eed33e](https://github.com/akira-foundation/unified-dev/commit/6eed33ebb0339283c4cbb5c1641735359da06309))
+* **billing:** add free tier enforcement and usage tracking ([e2f3947](https://github.com/akira-foundation/unified-dev/commit/e2f3947d89fda6b3bd2aa122cd9dae6510eb1f7e))
+* **issues:** add search functionality to issue table ([55e224a](https://github.com/akira-foundation/unified-dev/commit/55e224a9ac487f4e8bd99dd1ace1b2a19bfeee1a))
+* **license:** implement HMAC signature verification for license activation ([9dacc68](https://github.com/akira-foundation/unified-dev/commit/9dacc68c05dc5bf19dac17ef2cc2d04bc51310d2))
+* **onboarding:** add onboarding overlay and dependency check functionality ([61576c6](https://github.com/akira-foundation/unified-dev/commit/61576c63cb6fcad8950ee7d9d2498f5ee2555b86))
+* **organizations:** add manual sync functionality and update sync settings ([3e33c5c](https://github.com/akira-foundation/unified-dev/commit/3e33c5c08df12879174b2703767855387e6e1d08))
+* **plans:** add repos (3) and org (1) limits to free tier plan display ([8ff0cda](https://github.com/akira-foundation/unified-dev/commit/8ff0cda70a0f20a4fb3194d747a4de1e5abd8ec5))
+* **plans:** sync plan features with landing page (kanban, PR review, support tiers) ([0799283](https://github.com/akira-foundation/unified-dev/commit/079928364b24f8a51183bf9f63237a4527e9f496))
+* **settings:** add remote settings tab navigation and state management ([3e89481](https://github.com/akira-foundation/unified-dev/commit/3e89481f0920dc4f4cd68e27ed430f193ef92ebe))
+* **skill-source:** add skill source page and integrate remote skill fetching ([e90f0a4](https://github.com/akira-foundation/unified-dev/commit/e90f0a4536b48ad7049b29b0249423e555a6549b))
+* **skills:** update skill directory handling and enhance filtering logic ([d1c09e4](https://github.com/akira-foundation/unified-dev/commit/d1c09e435566885e554d9f6baf0add22ab24e92c))
+* **sync:** enhance sync functions to update organization settings after sync ([3510d97](https://github.com/akira-foundation/unified-dev/commit/3510d97b098a5d972c236b5e967168b65c9ee068))
+
 ## [0.4.3](https://github.com/akira-foundation/unified-dev/compare/v0.4.2...v0.4.3) (2026-04-07)
 
 
