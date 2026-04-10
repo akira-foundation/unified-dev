@@ -81,7 +81,7 @@ import { useUsage } from "@/hooks/useUsage";
 export function AgentsSidebar() {
   const { t } = useI18n();
   const { toggleSidebar, state } = useSidebar();
-  const { setIsAgentMode, navigateTo, goBack, canGoBack, setActiveOrganizationId, setActiveRepo } = useNavigationStore();
+  const { navigateTo, setActiveOrganizationId, setActiveRepo } = useNavigationStore();
   const { organizations, isLoading: isLoadingOrganizations } = useOrganizations();
   const {
     repositoryGroups,
@@ -137,15 +137,6 @@ export function AgentsSidebar() {
   const isUnsupportedRemoteError = (error: unknown) => {
     const message = String(error).toLowerCase();
     return message.includes("repository is not linked to a supported github remote");
-  };
-
-  const handleBack = () => {
-    setIsAgentMode(false);
-    if (canGoBack) {
-      goBack();
-    } else {
-      navigateTo("dashboard");
-    }
   };
 
   const toggleRepo = (id: string, e: React.MouseEvent) => {
