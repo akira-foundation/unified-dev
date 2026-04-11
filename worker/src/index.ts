@@ -19,9 +19,20 @@ function oauthClientSecret(env: Env): string {
   return env.GITHUB_OAUTH_CLIENT_SECRET || env.GITHUB_CLIENT_SECRET;
 }
 
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    // Handle CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
 
     if (request.method === "POST" && url.pathname === "/billing/webhook") {
       return handleBillingWebhook(request, env);
@@ -29,6 +40,10 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/billing/status") {
       return handleBillingStatus(request, env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/billing/poll") {
+      return handleBillingPoll(request, env);
     }
 
     if (request.method !== "POST") {
@@ -53,12 +68,12 @@ export default {
 
 const PLAN_PRICES: Record<string, Record<string, string>> = {
   pro: {
-    monthly: "price_pro_monthly",
-    yearly: "price_pro_yearly",
+    monthly: "price_1TL0CjG5BiRk58nIjZrZGmX0",
+    yearly: "price_1TL0CkG5BiRk58nINqux9b3h",
   },
   ultimate: {
-    monthly: "price_ultimate_monthly",
-    yearly: "price_ultimate_yearly",
+    monthly: "price_1TL0ClG5BiRk58nIATIxdEoW",
+    yearly: "price_1TL0CmG5BiRk58nIUeFuhAx8",
   },
 };
 
@@ -245,6 +260,27 @@ async function hmacSign(secret: string, payload: string): Promise<string> {
   );
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function handleBillingPoll(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const sessionId = url.searchParams.get("session_id");
+  if (!sessionId) return json({ error: "session_id required" }, 400);
+
+  // If already activated, return paid immediately (no Stripe call needed)
+  const existingToken = await env.LICENSES.get(`session:${sessionId}`);
+  if (existingToken) {
+    return json({ paid: true });
+  }
+
+  const res = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
+    headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+  });
+
+  if (!res.ok) return json({ paid: false });
+
+  const session = await res.json() as { payment_status: string };
+  return json({ paid: session.payment_status === "paid" });
 }
 
 async function handleBillingStatus(request: Request, env: Env): Promise<Response> {
@@ -725,6 +761,6 @@ async function parseBody(request: Request): Promise<Record<string, unknown> | nu
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
 }

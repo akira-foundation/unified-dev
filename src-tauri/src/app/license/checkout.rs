@@ -1,8 +1,9 @@
 use crate::app::support::error::{AppError, AppResult};
+use super::types::CheckoutDto;
 
 const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
 
-pub async fn checkout(plan: String, cycle: String) -> AppResult<String> {
+pub async fn checkout(plan: String, cycle: String) -> AppResult<CheckoutDto> {
     let client = reqwest::Client::new();
     let res = client
         .post(format!("{AKIRA_API_URL}/billing/checkout"))
@@ -22,6 +23,10 @@ pub async fn checkout(plan: String, cycle: String) -> AppResult<String> {
         .as_str()
         .ok_or_else(|| AppError::Internal("No URL in checkout response".into()))?
         .to_string();
+    let session_id = body["session_id"]
+        .as_str()
+        .ok_or_else(|| AppError::Internal("No session_id in checkout response".into()))?
+        .to_string();
 
-    Ok(url)
+    Ok(CheckoutDto { url, session_id })
 }

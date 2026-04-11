@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useI18n } from "@/i18n/i18n";
 import { useLicense } from "@/hooks/useLicense";
+import { useCheckoutPoller } from "@/hooks/useCheckoutPoller";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,15 +13,34 @@ import { cn } from "@/lib/utils";
 import { SettingsSection } from "./settings-section";
 import { SettingsItem } from "./settings-item";
 
+interface CheckoutDto {
+  url: string;
+  sessionId: string;
+}
+
 export function GeneralTab() {
   const { t, locale, setLocale } = useI18n();
-  const { currentPlan, license } = useLicense();
+  const { currentPlan, license, load } = useLicense();
   const [showPlans, toggleShowPlans] = useToggle(false);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
+  const [upgradeError, setUpgradeError] = useState<string | null>(null);
+  const [pollSessionId, setPollSessionId] = useState<string | null>(null);
+
+  useCheckoutPoller(pollSessionId, () => {
+    setPollSessionId(null);
+    void load();
+    toggleShowPlans(false);
+  });
 
   const handleUpgrade = async (plan: "pro" | "ultimate") => {
-    const url = await invoke<string>("checkout_license", { plan, cycle: billingCycle });
-    await openUrl(url);
+    setUpgradeError(null);
+    try {
+      const checkout = await invoke<CheckoutDto>("checkout_license", { plan, cycle: billingCycle });
+      await openUrl(checkout.url);
+      setPollSessionId(checkout.sessionId);
+    } catch {
+      setUpgradeError(t("upgrade.error.checkout"));
+    }
   };
 
   return (
@@ -181,8 +201,8 @@ export function GeneralTab() {
                     const yearly = billingCycle === "yearly";
                     const planData = {
                       free:     { price: "0",  period: null, features: [t("upgrade.feature.free.1"), t("upgrade.feature.free.2"), t("upgrade.feature.free.3"), t("upgrade.feature.free.4"), t("upgrade.feature.free.5"), t("upgrade.feature.free.6"), t("upgrade.feature.free.7"), t("upgrade.feature.free.8")] },
-                      pro:      { price: yearly ? "12" : "15",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.pro.1"), t("upgrade.feature.pro.2"), t("upgrade.feature.pro.3"), t("upgrade.feature.pro.4"), t("upgrade.feature.pro.5"), t("upgrade.feature.pro.6")] },
-                      ultimate: { price: yearly ? "24" : "29",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.ultimate.1"), t("upgrade.feature.ultimate.2"), t("upgrade.feature.ultimate.3"), t("upgrade.feature.ultimate.4")] },
+                      pro:      { price: yearly ? "150" : "15",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.pro.1"), t("upgrade.feature.pro.2"), t("upgrade.feature.pro.3"), t("upgrade.feature.pro.4"), t("upgrade.feature.pro.5"), t("upgrade.feature.pro.6")] },
+                      ultimate: { price: yearly ? "290" : "29",  period: yearly ? t("upgrade.billing.billed_annually") : t("upgrade.billing.monthly"), features: [t("upgrade.feature.ultimate.1"), t("upgrade.feature.ultimate.2"), t("upgrade.feature.ultimate.3"), t("upgrade.feature.ultimate.4")] },
                     }[key];
                     const isFeatured = key === "pro";
                     const isCurrent = currentPlan === key;
@@ -240,6 +260,10 @@ export function GeneralTab() {
                 >
                   {t("common.cancel")}
                 </button>
+
+                {upgradeError && (
+                  <p className="mt-2 text-center text-[11px] text-red-500">{upgradeError}</p>
+                )}
               </div>
             )}
           </div>

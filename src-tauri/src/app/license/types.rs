@@ -21,6 +21,13 @@ pub struct ActivateLicenseRequest {
     pub session_id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckoutDto {
+    pub url: String,
+    pub session_id: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct WorkerLicenseResponse {
     pub token: String,

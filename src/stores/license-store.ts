@@ -21,6 +21,7 @@ export interface LicenseDto {
 interface LicenseState {
   license: LicenseDto | null;
   loading: boolean;
+  activating: boolean;
   load: () => Promise<void>;
   verify: () => Promise<void>;
   activate: (sessionId: string) => Promise<void>;
@@ -31,6 +32,7 @@ interface LicenseState {
 export const useLicenseStore = create<LicenseState>()((set, get) => ({
   license: null,
   loading: false,
+  activating: false,
 
   load: async () => {
     set({ loading: true });
@@ -57,12 +59,14 @@ export const useLicenseStore = create<LicenseState>()((set, get) => ({
   },
 
   activate: async (sessionId: string) => {
-    set({ loading: true });
+    // Prevent concurrent activation from deep link + polling racing
+    if (get().activating) return;
+    set({ activating: true, loading: true });
     try {
       const license = await invoke<LicenseDto>("activate_license", { input: { sessionId } });
       set({ license });
     } finally {
-      set({ loading: false });
+      set({ activating: false, loading: false });
     }
   },
 

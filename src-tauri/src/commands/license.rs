@@ -1,12 +1,12 @@
 use tauri::State;
 
 use crate::app::license;
-use crate::app::license::types::{ActivateLicenseRequest, LicenseDto};
+use crate::app::license::types::{ActivateLicenseRequest, CheckoutDto, LicenseDto};
 use crate::app::support::error::AppResult;
 use crate::state::AppState;
 
 #[tauri::command]
-pub async fn checkout_license(plan: String, cycle: String) -> AppResult<String> {
+pub async fn checkout_license(plan: String, cycle: String) -> AppResult<CheckoutDto> {
     license::checkout(plan, cycle).await
 }
 

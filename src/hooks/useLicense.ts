@@ -13,5 +13,5 @@ export function useLicense() {
   const isPro = currentPlan === "pro" || currentPlan === "ultimate";
   const isUltimate = currentPlan === "ultimate";
 
-  return { license, loading, currentPlan, isActive, isPro, isUltimate };
+  return { license, loading, load, currentPlan, isActive, isPro, isUltimate };
 }
