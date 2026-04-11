@@ -21,12 +21,6 @@ pub struct ActivateLicenseRequest {
     pub session_id: String,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RegisterLicenseRequest {
-    pub token: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutDto {
