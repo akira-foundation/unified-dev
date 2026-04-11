@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CreditCard } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { z } from "zod";
 import { useI18n } from "@/i18n/i18n";
 import { useLicense } from "@/hooks/useLicense";
 import { useLicenseStore } from "@/stores/license-store";
@@ -14,6 +15,7 @@ interface CheckoutDto {
 }
 
 type BillingCycle = "monthly" | "yearly";
+type ClaimStep = "idle" | "sending" | "sent" | "verifying";
 
 const PLAN_PRICE: Record<string, Record<BillingCycle, string>> = {
   free: { monthly: "€0", yearly: "€0" },
@@ -60,6 +62,29 @@ const FEATURE_CHECK_COLOR: Record<string, string> = {
   ultimate: "text-purple-400",
 };
 
+const RESEND_COOLDOWN = 60;
+
+const emailSchema = z.string().email();
+
+function resolveClaimError(err: unknown, t: (key: string, vars?: Record<string, string>) => string): string {
+  const msg = String(err);
+  if (msg.includes("rate_limit")) {
+    const match = msg.match(/rate_limit_exceeded:(\d+)/);
+    if (match) {
+      const seconds = parseInt(match[1], 10);
+      const minutes = Math.ceil(seconds / 60);
+      return t("settings.subscription.claim.error.rate_limit_timed", { minutes: String(minutes) });
+    }
+    return t("settings.subscription.claim.error.rate_limit");
+  }
+  if (msg.includes("otp_invalid")) return t("settings.subscription.claim.error.otp_invalid");
+  if (msg.includes("otp_expired")) return t("settings.subscription.claim.error.otp_expired");
+  if (msg.includes("otp_brute_force")) return t("settings.subscription.claim.error.otp_brute_force");
+  if (msg.includes("license_expired")) return t("settings.subscription.claim.error.license_expired");
+  if (msg.includes("device_limit_reached")) return t("settings.subscription.claim.error.device_limit");
+  return t("settings.subscription.claim.error.generic");
+}
+
 export function SubscriptionTab() {
   const { t } = useI18n();
   const { currentPlan, license } = useLicense();
@@ -69,10 +94,36 @@ export function SubscriptionTab() {
   const [error, setError] = useState<string | null>(null);
   const [pollSessionId, setPollSessionId] = useState<string | null>(null);
 
+  const [claimStep, setClaimStep] = useState<ClaimStep>("idle");
+  const [claimEmail, setClaimEmail] = useState("");
+  const [claimOtp, setClaimOtp] = useState("");
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useCheckoutPoller(pollSessionId, () => {
     setPollSessionId(null);
     void load();
   });
+
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, []);
+
+  function startResendCountdown() {
+    setResendCountdown(RESEND_COOLDOWN);
+    countdownRef.current = setInterval(() => {
+      setResendCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(countdownRef.current!);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
 
   const handleManage = async () => {
     try {
@@ -94,6 +145,53 @@ export function SubscriptionTab() {
     } finally {
       setLoadingPlan(null);
     }
+  };
+
+  const handleSendCode = async () => {
+    const email = claimEmail.trim();
+    if (!email) return;
+
+    const result = emailSchema.safeParse(email);
+    if (!result.success) {
+      setClaimError(t("settings.subscription.claim.error.invalid_email"));
+      return;
+    }
+
+    setClaimStep("sending");
+    setClaimError(null);
+    try {
+      await invoke("claim_license_request", { email });
+      setClaimStep("sent");
+      startResendCountdown();
+    } catch (err) {
+      setClaimError(resolveClaimError(err, t));
+      setClaimStep("idle");
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const email = claimEmail.trim();
+    const otp = claimOtp.trim();
+    if (!email || !otp) return;
+    setClaimStep("verifying");
+    setClaimError(null);
+    try {
+      await invoke("claim_license_verify", { email, otp });
+      await load();
+      setClaimStep("idle");
+      setClaimEmail("");
+      setClaimOtp("");
+    } catch (err) {
+      setClaimError(resolveClaimError(err, t));
+      setClaimStep("sent");
+    }
+  };
+
+  const handleResend = async () => {
+    if (resendCountdown > 0) return;
+    setClaimError(null);
+    setClaimOtp("");
+    await handleSendCode();
   };
 
   const plans = ["free", "pro", "ultimate"] as const;
@@ -129,10 +227,10 @@ export function SubscriptionTab() {
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-1 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/60 w-fit mx-auto mb-5">
+          <div className="flex items-center justify-center gap-1 p-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 w-fit mx-auto mb-5">
             <button
               onClick={() => setCycle("monthly")}
-              className={`px-4 py-1.5 rounded-md text-[12px] font-medium transition-all ${
+              className={`px-4 py-1.5 rounded text-[12px] font-medium transition-all ${
                 cycle === "monthly"
                   ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -142,7 +240,7 @@ export function SubscriptionTab() {
             </button>
             <button
               onClick={() => setCycle("yearly")}
-              className={`px-4 py-1.5 rounded-md text-[12px] font-medium transition-all flex items-center gap-1.5 ${
+              className={`px-4 py-1.5 rounded text-[12px] font-medium transition-all flex items-center gap-1.5 ${
                 cycle === "yearly"
                   ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
                   : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
@@ -166,7 +264,7 @@ export function SubscriptionTab() {
                   className={`relative flex flex-col rounded-lg border bg-white dark:bg-zinc-900 p-4 ${isCurrentPlan ? "border-purple-500/40 ring-1 ring-purple-500/30" : "border-zinc-200 dark:border-zinc-800"}`}
                 >
                   {plan === "pro" && (
-                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500 text-white whitespace-nowrap">
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500 text-white whitespace-nowrap">
                       {t("upgrade.recommended")}
                     </span>
                   )}
@@ -221,6 +319,88 @@ export function SubscriptionTab() {
             <p className="text-center text-[11px] text-red-500 mt-3">{error}</p>
           )}
         </div>
+
+        {currentPlan === "free" && (
+          <div className="px-4 py-4">
+            <p className="text-[12px] font-semibold text-zinc-500 dark:text-zinc-400 mb-3">
+              {t("settings.subscription.claim.title")}
+            </p>
+
+            {claimStep === "idle" || claimStep === "sending" ? (
+              <div className="flex flex-col gap-2">
+                <label className="text-[11px] text-zinc-500">{t("settings.subscription.claim.email_label")}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={claimEmail}
+                    onChange={(e) => setClaimEmail(e.target.value)}
+                    placeholder={t("settings.subscription.claim.email_placeholder")}
+                    className="flex-1 text-[12px] px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-purple-500/50"
+                  />
+                  <button
+                    onClick={() => void handleSendCode()}
+                    disabled={claimStep === "sending" || !claimEmail.trim()}
+                    className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-purple-500 hover:bg-purple-600 text-white transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {claimStep === "sending"
+                      ? t("settings.subscription.claim.sending")
+                      : t("settings.subscription.claim.send_code")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] text-zinc-500">
+                  {t("settings.subscription.claim.code_sent_to")}{" "}
+                  <span className="text-zinc-300 font-medium">{claimEmail}</span>
+                </p>
+                <label className="text-[11px] text-zinc-500">{t("settings.subscription.claim.otp_label")}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={claimOtp}
+                    onChange={(e) => setClaimOtp(e.target.value.replace(/\D/g, ""))}
+                    placeholder={t("settings.subscription.claim.otp_placeholder")}
+                    className="flex-1 text-[12px] px-3 py-1.5 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-purple-500/50 tracking-widest"
+                  />
+                  <button
+                    onClick={() => void handleVerifyOtp()}
+                    disabled={claimStep === "verifying" || claimOtp.length !== 6}
+                    className="text-[12px] font-medium px-3 py-1.5 rounded-md bg-purple-500 hover:bg-purple-600 text-white transition-colors disabled:opacity-50 whitespace-nowrap"
+                  >
+                    {claimStep === "verifying"
+                      ? t("settings.subscription.claim.verifying")
+                      : t("settings.subscription.claim.verify")}
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => void handleResend()}
+                    disabled={resendCountdown > 0}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors disabled:opacity-50"
+                  >
+                    {resendCountdown > 0
+                      ? `${t("settings.subscription.claim.resend_in")} ${resendCountdown}s`
+                      : t("settings.subscription.claim.resend")}
+                  </button>
+                  <span className="text-zinc-700 text-[10px]">·</span>
+                  <button
+                    onClick={() => { setClaimStep("idle"); setClaimOtp(""); setClaimError(null); }}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                  >
+                    {t("settings.subscription.claim.change_email")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {claimError && (
+              <p className="text-[11px] text-red-500 mt-2">{claimError}</p>
+            )}
+          </div>
+        )}
       </SettingsSection>
     </div>
   );

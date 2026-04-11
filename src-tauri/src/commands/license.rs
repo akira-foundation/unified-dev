@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::app::license;
 use crate::app::license::types::{ActivateLicenseRequest, CheckoutDto, LicenseDto};
@@ -11,8 +11,23 @@ pub async fn checkout_license(plan: String, cycle: String) -> AppResult<Checkout
 }
 
 #[tauri::command]
-pub async fn activate_license(input: ActivateLicenseRequest, state: State<'_, AppState>) -> AppResult<LicenseDto> {
-    license::activate(input, &state.db_pool).await
+pub async fn activate_license(input: ActivateLicenseRequest, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
+    license::activate(input, &state.db_pool, &app).await
+}
+
+#[tauri::command]
+pub async fn register_license(token: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
+    license::register(token, &state.db_pool, &app).await
+}
+
+#[tauri::command]
+pub async fn claim_license_request(email: String) -> AppResult<()> {
+    license::request_otp(email).await
+}
+
+#[tauri::command]
+pub async fn claim_license_verify(email: String, otp: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
+    license::verify_otp(email, otp, &state.db_pool, &app).await
 }
 
 #[tauri::command]

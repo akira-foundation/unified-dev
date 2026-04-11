@@ -89,7 +89,7 @@ export function GeneralTab() {
                 </span>
                 {currentPlan !== "free" && (
                   <button
-                    onClick={() => void handleManage()}
+                    onClick={handleManage}
                     className="text-[11px] text-zinc-400 hover:text-zinc-200 underline underline-offset-2 transition-colors"
                   >
                     {t("settings.general.account.plan.manage")}

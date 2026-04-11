@@ -2,6 +2,7 @@ pub mod chat;
 pub mod concerns;
 pub mod license;
 pub mod filesystem;
+pub mod profile;
 pub mod issues;
 pub mod mcp;
 pub mod orgs;

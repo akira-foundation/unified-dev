@@ -4,6 +4,7 @@ pub mod system;
 pub mod license;
 pub mod mcp;
 pub mod organization;
+pub mod profile;
 pub mod prompt;
 pub mod provider;
 pub mod repository;

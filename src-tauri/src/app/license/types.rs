@@ -21,6 +21,12 @@ pub struct ActivateLicenseRequest {
     pub session_id: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RegisterLicenseRequest {
+    pub token: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutDto {
@@ -30,6 +36,30 @@ pub struct CheckoutDto {
 
 #[derive(Debug, Deserialize)]
 pub struct WorkerLicenseResponse {
+    pub token: String,
+    pub plan: String,
+    pub cycle: String,
+    pub email: String,
+    pub status: String,
+    pub valid_until: String,
+    pub activated_at: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WorkerVerifyResponse {
+    pub token: String,
+    pub plan: String,
+    pub cycle: String,
+    pub email: String,
+    pub status: String,
+    pub valid_until: String,
+    pub activated_at: String,
+    pub signature: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WorkerClaimResponse {
     pub token: String,
     pub plan: String,
     pub cycle: String,

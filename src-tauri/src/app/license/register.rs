@@ -2,19 +2,19 @@ use crate::app::support::error::{AppError, AppResult};
 
 use super::hmac;
 use super::machine_id;
-use super::types::{ActivateLicenseRequest, LicenseDto, WorkerLicenseResponse};
+use super::types::{LicenseDto, WorkerVerifyResponse};
 
 const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
 
-pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool, app: &tauri::AppHandle) -> AppResult<LicenseDto> {
+pub async fn register(token: String, pool: &sqlx::SqlitePool, app: &tauri::AppHandle) -> AppResult<LicenseDto> {
     let identity = machine_id::get_or_create(app)?;
 
     let client = reqwest::Client::new();
     let res = client
-        .post(format!("{AKIRA_API_URL}/billing/activate"))
+        .post(format!("{AKIRA_API_URL}/billing/verify"))
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({
-            "session_id": input.session_id,
+            "token": token,
             "machine_id": identity.id,
         }))
         .send()
@@ -22,11 +22,22 @@ pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool, ap
         .map_err(AppError::Http)?;
 
     if !res.status().is_success() {
+        let status = res.status().as_u16();
         let msg = res.text().await.unwrap_or_default();
-        return Err(AppError::Internal(format!("Activation failed: {msg}")));
+        let error_code = serde_json::from_str::<serde_json::Value>(&msg)
+            .ok()
+            .and_then(|v| v["error"].as_str().map(str::to_string))
+            .unwrap_or_else(|| msg.clone());
+
+        return match status {
+            403 => Err(AppError::Internal("device_limit_reached".into())),
+            402 => Err(AppError::Internal("license_expired".into())),
+            404 => Err(AppError::Internal("license_not_found".into())),
+            _ => Err(AppError::Internal(format!("Registration failed: {error_code}"))),
+        };
     }
 
-    let worker_res: WorkerLicenseResponse = res.json().await.map_err(AppError::Http)?;
+    let worker_res: WorkerVerifyResponse = res.json().await.map_err(AppError::Http)?;
 
     if !hmac::verify(
         &worker_res.token,

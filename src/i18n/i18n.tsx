@@ -7,7 +7,7 @@ import { translations } from "./translations";
 type I18nContextValue = {
   locale: Locale;
   setLocale: (locale: Locale) => void;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string>) => string;
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -16,8 +16,10 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const locale = useSettingsStore((state) => state.locale);
   const setLocale = useSettingsStore((state) => state.setLocale);
 
-  const t = (key: string) => {
-    return translations[locale][key] ?? key;
+  const t = (key: string, vars?: Record<string, string>) => {
+    const raw = translations[locale][key] ?? key;
+    if (!vars) return raw;
+    return Object.entries(vars).reduce((str, [k, v]) => str.replace(`{${k}}`, v), raw);
   };
 
   const value = useMemo(() => ({ locale, setLocale, t }), [locale, setLocale]);

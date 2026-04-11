@@ -83,12 +83,13 @@ const FEATURES = [
   },
 ];
 
-const STEPS = ["welcome", "dependencies", "ready"] as const;
+const STEPS = ["welcome", "dependencies", "license", "ready"] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_META: Record<Step, { title: string; subtitle: string }> = {
   welcome: { title: "Welcome", subtitle: "What's inside" },
   dependencies: { title: "Environment", subtitle: "CLI tools" },
+  license: { title: "License", subtitle: "Your profile" },
   ready: { title: "Ready", subtitle: "Let's go" },
 };
 
@@ -100,10 +101,17 @@ export function OnboardingOverlay() {
   useEffect(() => { reset(); }, []);
   const [deps, setDeps] = useState<DependencyStatus[] | null>(null);
   const [checking, setChecking] = useState(false);
+  const [licenseEmail, setLicenseEmail] = useState("");
+  const [licenseEmailSaved, setLicenseEmailSaved] = useState(false);
 
   useEffect(() => {
     if (step === "dependencies" && deps === null) {
       runCheck();
+    }
+    if (step === "license") {
+      void invoke<{ email: string } | null>("get_user_profile").then((p) => {
+        if (p) setLicenseEmail(p.email);
+      });
     }
   }, [step]);
 
@@ -120,6 +128,7 @@ export function OnboardingOverlay() {
   const stepIndex = STEPS.indexOf(step);
 
   function next() {
+    setLicenseEmailSaved(false);
     setStep(STEPS[stepIndex + 1]);
   }
 
@@ -129,6 +138,14 @@ export function OnboardingOverlay() {
 
   const isLast = step === "ready";
   const isFirst = step === "welcome";
+
+  async function handleLicenseSave() {
+    const email = licenseEmail.trim();
+    if (!email) return;
+    await invoke("set_user_profile", { email });
+    setLicenseEmailSaved(true);
+    next();
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md">
@@ -202,6 +219,9 @@ export function OnboardingOverlay() {
             {step === "dependencies" && (
               <DependenciesStep deps={deps} checking={checking} onRecheck={runCheck} />
             )}
+            {step === "license" && (
+              <LicenseStep email={licenseEmail} onEmailChange={setLicenseEmail} saved={licenseEmailSaved} />
+            )}
             {step === "ready" && <ReadyStep />}
           </div>
 
@@ -222,15 +242,24 @@ export function OnboardingOverlay() {
             <div className="flex items-center gap-3">
               {!isLast && (
                 <button
-                  onClick={complete}
+                  onClick={step === "license" ? next : complete}
                   className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
                 >
-                  Skip for now
+                  {step === "license" ? "Skip for now" : "Skip for now"}
                 </button>
               )}
               <Button
-                onClick={isLast ? complete : next}
-                disabled={step === "dependencies" && checking}
+                onClick={
+                  isLast
+                    ? complete
+                    : step === "license"
+                      ? () => void handleLicenseSave()
+                      : next
+                }
+                disabled={
+                  (step === "dependencies" && checking) ||
+                  (step === "license" && !licenseEmail.trim())
+                }
                 className="bg-purple-600 hover:bg-purple-500 text-white gap-2"
               >
                 {step === "dependencies" && checking ? (
@@ -240,7 +269,11 @@ export function OnboardingOverlay() {
                 ) : (
                   <ArrowRight className="h-3.5 w-3.5" />
                 )}
-                {isLast ? "Launch Unified Dev" : "Continue"}
+                {isLast
+                  ? "Launch Unified Dev"
+                  : step === "license"
+                    ? "Save & Continue"
+                    : "Continue"}
               </Button>
             </div>
           </div>
@@ -414,6 +447,53 @@ function DependencyRow({ dep }: { dep: DependencyStatus }) {
           Install →
         </button>
       )}
+    </div>
+  );
+}
+
+function LicenseStep({
+  email,
+  onEmailChange,
+  saved,
+}: {
+  email: string;
+  onEmailChange: (v: string) => void;
+  saved: boolean;
+}) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white leading-tight">
+          Your profile email
+        </h2>
+        <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+          This email is used to activate your license later. You can change it anytime in Settings.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">
+          Profile email
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => onEmailChange(e.target.value)}
+          placeholder="your@email.com"
+          className="text-sm px-3 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-purple-500/60"
+        />
+        {saved && (
+          <p className="text-[11px] text-emerald-400 flex items-center gap-1.5">
+            <CheckCircle2 className="h-3 w-3" /> Saved
+          </p>
+        )}
+      </div>
+
+      <div className="mt-auto pt-6 border-t border-white/6">
+        <p className="text-[11px] text-zinc-600 leading-relaxed">
+          Skipping this step means you won't be able to activate a license until you set a profile email in Settings.
+        </p>
+      </div>
     </div>
   );
 }

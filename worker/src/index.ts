@@ -8,6 +8,8 @@ export interface Env {
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   USAGE_HMAC_SECRET: string;
+  MAILGUN_API_KEY: string;
+  MAILGUN_DOMAIN: string;
   LICENSES: KVNamespace;
 }
 
@@ -60,6 +62,9 @@ export default {
     if (url.pathname === "/github/uninstall-installation") return handleUninstallInstallation(request, env);
     if (url.pathname === "/billing/checkout") return handleBillingCheckout(request, env);
     if (url.pathname === "/billing/activate") return handleBillingActivate(request, env);
+    if (url.pathname === "/billing/verify") return handleBillingVerify(request, env);
+    if (url.pathname === "/billing/claim/request") return handleBillingClaimRequest(request, env);
+    if (url.pathname === "/billing/claim/verify") return handleBillingClaimVerify(request, env);
     if (url.pathname === "/billing/portal") return handleBillingPortal(request, env);
     if (url.pathname === "/billing/usage") return handleBillingUsage(request, env);
 
@@ -125,11 +130,21 @@ async function handleBillingActivate(request: Request, env: Env): Promise<Respon
   const sessionId = body.session_id as string;
   if (!sessionId) return json({ error: "session_id required" }, 400);
 
+  const machineId = body.machine_id as string | undefined;
+
   const existingToken = await env.LICENSES.get(`session:${sessionId}`);
   if (existingToken) {
     const existing = await env.LICENSES.get(`license:${existingToken}`);
     if (existing) {
       const existingData = JSON.parse(existing) as LicenseData;
+      if (!existingData.machines) existingData.machines = [];
+      if (machineId && !existingData.machines.includes(machineId)) {
+        if (existingData.machines.length >= 2) {
+          return json({ error: "device_limit_reached" }, 403);
+        }
+        existingData.machines.push(machineId);
+        await env.LICENSES.put(`license:${existingToken}`, JSON.stringify(existingData));
+      }
       const signature = await signLicense(existingToken, existingData.plan, existingData.cycle, existingData.valid_until, existingData.email);
       return json({ token: existingToken, signature, ...existingData });
     }
@@ -161,14 +176,270 @@ async function handleBillingActivate(request: Request, env: Env): Promise<Respon
     valid_until: nextRenewalDate(cycle),
     status: "active",
     activated_at: new Date().toISOString(),
+    machines: machineId ? [machineId] : [],
   };
 
   await env.LICENSES.put(`license:${token}`, JSON.stringify(licenseData));
   await env.LICENSES.put(`session:${sessionId}`, token);
   await env.LICENSES.put(`email:${email}`, token);
+  if (licenseData.customer_id) {
+    await env.LICENSES.put(`customer:${licenseData.customer_id}`, token);
+  }
 
   const signature = await signLicense(token, licenseData.plan, licenseData.cycle, licenseData.valid_until, licenseData.email);
   return json({ token, signature, ...licenseData });
+}
+
+async function handleBillingVerify(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request);
+  if (!body) return json({ error: "invalid json" }, 400);
+
+  const token = body.token as string | undefined;
+  const machineId = body.machine_id as string | undefined;
+
+  if (!token) return json({ error: "token required" }, 400);
+  if (!machineId) return json({ error: "machine_id required" }, 400);
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return json({ error: "license_not_found" }, 404);
+
+  const license = JSON.parse(raw) as LicenseData;
+
+  if (license.status !== "active") {
+    return json({ error: "license_expired" }, 402);
+  }
+
+  if (!license.machines) license.machines = [];
+
+  if (!license.machines.includes(machineId)) {
+    if (license.machines.length >= 2) {
+      return json({ error: "device_limit_reached" }, 403);
+    }
+    license.machines.push(machineId);
+    await env.LICENSES.put(`license:${token}`, JSON.stringify(license));
+  }
+
+  const signature = await signLicense(token, license.plan, license.cycle, license.valid_until, license.email);
+  return json({ token, signature, ...license });
+}
+
+async function handleBillingClaimRequest(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request);
+  if (!body) return json({ error: "invalid json" }, 400);
+
+  const email = body.email as string | undefined;
+  if (!email) return json({ error: "email required" }, 400);
+
+  const now = new Date();
+  const rateLimitKey = `otp_rate:${email}:${now.getUTCHours()}`;
+  const rateLimitRaw = await env.LICENSES.get(rateLimitKey);
+  const rateCount = rateLimitRaw ? parseInt(rateLimitRaw, 10) : 0;
+  if (rateCount >= 3) {
+    const minutesUntilNextHour = 60 - now.getUTCMinutes();
+    const secondsUntilNextHour = minutesUntilNextHour * 60 - now.getUTCSeconds();
+    return json({ error: "rate_limit_exceeded", retry_after: secondsUntilNextHour }, 429);
+  }
+  await env.LICENSES.put(rateLimitKey, String(rateCount + 1), { expirationTtl: 3600 });
+
+  let token = await env.LICENSES.get(`email:${email}`);
+
+  if (!token) {
+    const recovered = await recoverLicenseFromStripe(email, env);
+    if (!recovered) {
+      return json({ sent: true });
+    }
+    token = recovered;
+  }
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return json({ sent: true });
+
+  const license = JSON.parse(raw) as LicenseData;
+  if (license.status !== "active") return json({ sent: true });
+
+  const otp = String(Math.floor(100000 + Math.random() * 900000));
+  await env.LICENSES.put(`otp:${email}`, otp, { expirationTtl: 600 });
+
+  await sendOtpEmail(email, otp, env);
+
+  return json({ sent: true });
+}
+
+async function recoverLicenseFromStripe(email: string, env: Env): Promise<string | null> {
+  const searchRes = await fetch(
+    `https://api.stripe.com/v1/customers/search?query=email:'${encodeURIComponent(email)}'&limit=5`,
+    { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } },
+  );
+  if (!searchRes.ok) return null;
+
+  const searchData = await searchRes.json() as { data: Array<{ id: string }> };
+  if (!searchData.data.length) return null;
+
+  for (const customer of searchData.data) {
+    const subRes = await fetch(
+      `https://api.stripe.com/v1/subscriptions?customer=${customer.id}&status=active&limit=1&expand[]=data.items.data.price.product`,
+      { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } },
+    );
+    if (!subRes.ok) continue;
+
+    const subData = await subRes.json() as { data: Array<StripeSubscription> };
+    if (!subData.data.length) continue;
+
+    const sub = subData.data[0];
+    const plan = sub.metadata?.plan ?? inferPlanFromSubscription(sub);
+    const cycle = sub.metadata?.cycle ?? inferCycleFromSubscription(sub);
+    const token = crypto.randomUUID().replace(/-/g, "").toUpperCase();
+
+    const licenseData: LicenseData = {
+      plan,
+      cycle,
+      email,
+      customer_id: customer.id,
+      subscription_id: sub.id,
+      valid_until: new Date(sub.current_period_end * 1000).toISOString(),
+      status: "active",
+      activated_at: new Date().toISOString(),
+      machines: [],
+    };
+
+    await env.LICENSES.put(`license:${token}`, JSON.stringify(licenseData));
+    await env.LICENSES.put(`email:${email}`, token);
+    await env.LICENSES.put(`customer:${customer.id}`, token);
+
+    return token;
+  }
+
+  return null;
+}
+
+function inferPlanFromSubscription(sub: StripeSubscription): string {
+  const item = sub.items?.data?.[0];
+  const productName = (item?.price?.product as { name?: string } | undefined)?.name?.toLowerCase() ?? "";
+  if (productName.includes("ultimate")) return "ultimate";
+  return "pro";
+}
+
+function inferCycleFromSubscription(sub: StripeSubscription): string {
+  const item = sub.items?.data?.[0];
+  const interval = item?.price?.recurring?.interval;
+  return interval === "year" ? "yearly" : "monthly";
+}
+
+async function handleBillingClaimVerify(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request);
+  if (!body) return json({ error: "invalid json" }, 400);
+
+  const email = body.email as string | undefined;
+  const otp = body.otp as string | undefined;
+  const machineId = body.machine_id as string | undefined;
+
+  if (!email) return json({ error: "email required" }, 400);
+  if (!otp) return json({ error: "otp required" }, 400);
+  if (!machineId) return json({ error: "machine_id required" }, 400);
+
+  const verifyRateKey = `otp_verify_rate:${email}`;
+  const verifyRateRaw = await env.LICENSES.get(verifyRateKey);
+  const verifyCount = verifyRateRaw ? parseInt(verifyRateRaw, 10) : 0;
+  if (verifyCount >= 5) {
+    await env.LICENSES.delete(`otp:${email}`);
+    return json({ error: "otp_brute_force" }, 429);
+  }
+
+  const storedOtp = await env.LICENSES.get(`otp:${email}`);
+  if (!storedOtp) return json({ error: "otp_expired" }, 410);
+
+  if (storedOtp !== otp) {
+    await env.LICENSES.put(verifyRateKey, String(verifyCount + 1), { expirationTtl: 600 });
+    return json({ error: "otp_invalid" }, 400);
+  }
+
+  await env.LICENSES.delete(`otp:${email}`);
+  await env.LICENSES.delete(verifyRateKey);
+
+  const token = await env.LICENSES.get(`email:${email}`);
+  if (!token) return json({ error: "email_not_found" }, 404);
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return json({ error: "email_not_found" }, 404);
+
+  const license = JSON.parse(raw) as LicenseData;
+  if (license.status !== "active") return json({ error: "license_expired" }, 402);
+
+  if (!license.machines) license.machines = [];
+
+  if (!license.machines.includes(machineId)) {
+    if (license.machines.length >= 2) return json({ error: "device_limit_reached" }, 403);
+    license.machines.push(machineId);
+    await env.LICENSES.put(`license:${token}`, JSON.stringify(license));
+  }
+
+  const signature = await signLicense(token, license.plan, license.cycle, license.valid_until, license.email);
+  return json({ token, signature, ...license });
+}
+
+async function sendOtpEmail(email: string, otp: string, env: Env): Promise<void> {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your activation code</title>
+</head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0a;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;">
+          <tr>
+            <td style="padding-bottom:32px;" align="center">
+              <span style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">Unified Dev</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#141414;border:1px solid #222;border-radius:12px;padding:40px 36px;">
+              <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#a1a1aa;text-transform:uppercase;letter-spacing:0.8px;">License Activation</p>
+              <h1 style="margin:0 0 24px;font-size:22px;font-weight:700;color:#ffffff;line-height:1.3;">Your verification code</h1>
+              <p style="margin:0 0 28px;font-size:14px;color:#71717a;line-height:1.6;">
+                Use the code below to activate your Unified Dev license. It expires in <strong style="color:#a1a1aa;">10 minutes</strong>.
+              </p>
+              <div style="background:#0a0a0a;border:1px solid #333;border-radius:8px;padding:24px;text-align:center;margin-bottom:28px;">
+                <span style="font-size:36px;font-weight:700;color:#ffffff;letter-spacing:10px;font-variant-numeric:tabular-nums;">${otp}</span>
+              </div>
+              <p style="margin:0;font-size:12px;color:#52525b;line-height:1.6;">
+                If you did not request this code, you can safely ignore this email. Someone may have entered your email address by mistake.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding-top:24px;" align="center">
+              <p style="margin:0;font-size:11px;color:#3f3f46;">
+                &copy; ${new Date().getFullYear()} Unified Dev &middot; noreply@akira-io.com
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const form = new URLSearchParams({
+    from: `Unified Dev <noreply@akira-io.com>`,
+    to: email,
+    subject: `Your Unified Dev activation code: ${otp}`,
+    text: `Your Unified Dev license activation code is: ${otp}\n\nThis code expires in 10 minutes.\n\nIf you did not request this, you can safely ignore this email.`,
+    html,
+  });
+
+  await fetch(`https://api.mailgun.net/v3/${env.MAILGUN_DOMAIN}/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: form.toString(),
+  });
 }
 
 async function handleBillingUsage(request: Request, env: Env): Promise<Response> {
@@ -360,7 +631,39 @@ async function handleBillingWebhook(request: Request, env: Env): Promise<Respons
     await updateLicenseBySubscription(sub.id, sub.status, env);
   }
 
+  if (event.type === "invoice.payment_failed") {
+    const invoice = event.data.object as { subscription: string };
+    if (invoice.subscription) {
+      await updateLicenseBySubscription(invoice.subscription, "past_due", env);
+    }
+  }
+
+  if (event.type === "invoice.payment_succeeded") {
+    const invoice = event.data.object as { subscription: string; lines: { data: Array<{ period: { end: number } }> } };
+    if (invoice.subscription) {
+      const periodEnd = invoice.lines?.data?.[0]?.period?.end;
+      await updateLicenseBySubscriptionRenewal(invoice.subscription, periodEnd, env);
+    }
+  }
+
   return json({ received: true });
+}
+
+async function updateLicenseBySubscriptionRenewal(subscriptionId: string, periodEnd: number | undefined, env: Env): Promise<void> {
+  const list = await env.LICENSES.list({ prefix: "license:" });
+  for (const key of list.keys) {
+    const raw = await env.LICENSES.get(key.name);
+    if (!raw) continue;
+    const license = JSON.parse(raw) as LicenseData;
+    if (license.subscription_id === subscriptionId) {
+      license.status = "active";
+      if (periodEnd) {
+        license.valid_until = new Date(periodEnd * 1000).toISOString();
+      }
+      await env.LICENSES.put(key.name, JSON.stringify(license));
+      break;
+    }
+  }
 }
 
 async function updateLicenseBySubscription(subscriptionId: string, status: string, env: Env): Promise<void> {
@@ -509,6 +812,7 @@ interface LicenseData {
   valid_until: string;
   status: "active" | "expired";
   activated_at: string;
+  machines: string[];
 }
 
 async function signLicense(token: string, plan: string, cycle: string, valid_until: string, email: string): Promise<string> {
@@ -522,6 +826,21 @@ async function signLicense(token: string, plan: string, cycle: string, valid_unt
   );
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+interface StripeSubscription {
+  id: string;
+  status: string;
+  current_period_end: number;
+  metadata?: Record<string, string>;
+  items?: {
+    data: Array<{
+      price: {
+        recurring?: { interval: string };
+        product?: unknown;
+      };
+    }>;
+  };
 }
 
 interface StripeCheckoutSession {

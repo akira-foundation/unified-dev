@@ -258,6 +258,7 @@ export function IssueTable({
     () => [
       {
         accessorKey: "title",
+        size: 500,
         header: ({ column }) => (
           <button
             className="flex items-center cursor-pointer"
@@ -316,6 +317,7 @@ export function IssueTable({
       },
       {
         accessorKey: "number",
+        size: 80,
         header: ({ column }) => (
           <button
             className="flex items-center cursor-pointer"
@@ -348,6 +350,7 @@ export function IssueTable({
       },
       {
         accessorKey: "repoName",
+        size: 160,
         header: ({ column }) => (
           <button
             className="flex items-center cursor-pointer"
@@ -368,6 +371,7 @@ export function IssueTable({
       },
       {
         id: "assignees",
+        size: 120,
         accessorFn: (row) => row.assignees.join(", "),
         header: t("issues.table.assignees"),
         cell: ({ row }) => (
@@ -378,6 +382,7 @@ export function IssueTable({
       },
       {
         id: "statusBadge",
+        size: 90,
         accessorKey: "status",
         header: ({ column }) => (
           <button
@@ -405,6 +410,7 @@ export function IssueTable({
       },
       {
         accessorKey: "updatedAt",
+        size: 100,
         header: ({ column }) => (
           <button
             className="flex items-center cursor-pointer"
@@ -422,6 +428,7 @@ export function IssueTable({
       },
       {
         id: "actions",
+        size: 48,
         header: "",
         cell: ({ row }) => (
           <IssueActionsMenu
@@ -448,6 +455,7 @@ export function IssueTable({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    defaultColumn: { minSize: 60 },
   });
 
   const handleConfirmDelete = async () => {
@@ -622,12 +630,12 @@ export function IssueTable({
 
         <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50 px-0">
           <div className="overflow-hidden rounded-xl">
-            <Table>
+            <Table className="table-fixed w-full">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
+                      <TableHead key={header.id} style={{ width: header.getSize() }}>
                         {header.isPlaceholder
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}
@@ -650,7 +658,7 @@ export function IssueTable({
                   table.getRowModel().rows.map((row) => (
                     <TableRow key={row.id}>
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
+                        <TableCell key={cell.id} style={{ width: cell.column.getSize() }}>
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}
