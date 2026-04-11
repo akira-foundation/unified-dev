@@ -29,3 +29,11 @@ pub async fn verify_license(state: State<'_, AppState>) -> AppResult<Option<Lice
 pub async fn clear_license(state: State<'_, AppState>) -> AppResult<()> {
     license::clear(&state.db_pool).await
 }
+
+#[tauri::command]
+pub async fn manage_license(state: State<'_, AppState>) -> AppResult<String> {
+    let token = license::get_token(&state.db_pool)
+        .await?
+        .ok_or_else(|| crate::app::support::error::AppError::Internal("No license found".into()))?;
+    license::portal(token).await
+}

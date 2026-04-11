@@ -60,6 +60,7 @@ export default {
     if (url.pathname === "/github/uninstall-installation") return handleUninstallInstallation(request, env);
     if (url.pathname === "/billing/checkout") return handleBillingCheckout(request, env);
     if (url.pathname === "/billing/activate") return handleBillingActivate(request, env);
+    if (url.pathname === "/billing/portal") return handleBillingPortal(request, env);
     if (url.pathname === "/billing/usage") return handleBillingUsage(request, env);
 
     return json({ error: "not found" }, 404);
@@ -260,6 +261,42 @@ async function hmacSign(secret: string, payload: string): Promise<string> {
   );
   const mac = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(mac)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function handleBillingPortal(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request);
+  if (!body) return json({ error: "invalid json" }, 400);
+
+  const token = body.token as string;
+  if (!token) return json({ error: "token required" }, 400);
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return json({ error: "license not found" }, 404);
+
+  const license = JSON.parse(raw) as LicenseData;
+  if (!license.customer_id) return json({ error: "no customer on file" }, 400);
+
+  const params = new URLSearchParams({
+    customer: license.customer_id,
+    return_url: "akira://settings",
+  });
+
+  const res = await fetch("https://api.stripe.com/v1/billing_portal/sessions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    return json({ error: "stripe error", detail: err }, 500);
+  }
+
+  const session = await res.json() as { url: string };
+  return json({ url: session.url });
 }
 
 async function handleBillingPoll(request: Request, env: Env): Promise<Response> {

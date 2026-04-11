@@ -3,7 +3,7 @@ import { useLicenseStore } from "@/stores/license-store";
 
 const AKIRA_API_URL = "https://akira-github-proxy.kidiatoliny.workers.dev";
 const POLL_INTERVAL_MS = 3000;
-const POLL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 export function useCheckoutPoller(sessionId: string | null, onActivated: () => void) {
   const { activate, activating } = useLicenseStore();
@@ -32,13 +32,11 @@ export function useCheckoutPoller(sessionId: string | null, onActivated: () => v
     const poll = async () => {
       if (doneRef.current) return;
 
-      // Stop if timed out
       if (startedAtRef.current !== null && Date.now() - startedAtRef.current > POLL_TIMEOUT_MS) {
         stop();
         return;
       }
 
-      // The store's activate() guards against concurrent activation
       if (activating) return;
 
       try {
@@ -48,14 +46,12 @@ export function useCheckoutPoller(sessionId: string | null, onActivated: () => v
         const data = await res.json() as { paid: boolean };
         if (!data.paid) return;
 
-        // Payment confirmed — activate once
         doneRef.current = true;
         stop();
 
         await activate(sessionId);
         onActivated();
       } catch {
-        // Network error — keep polling
       }
     };
 

@@ -1,4 +1,4 @@
-import { useState, useTransition, Activity } from "react";
+import { useState, useEffect, useTransition, Activity } from "react";
 import {
   Settings2,
   Palette,
@@ -14,6 +14,7 @@ import {
   FileText,
   Smartphone,
   RefreshCw,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
@@ -38,11 +39,12 @@ import { AdvancedTab } from "@/components/settings/advanced-tab";
 import { VcsProvidersTab } from "@/components/settings/vcs-providers-tab";
 import { WorkspacesTab } from "@/components/settings/workspaces-tab";
 import { PromptsTab } from "@/components/settings/prompts-tab";
+import { SubscriptionTab } from "@/components/settings/subscription-tab";
 
 type TabId =
   | "general" | "appearance" | "behaviour" | "notifications"
   | "integrations" | "agents" | "remote" | "sync" | "shortcuts" | "dictation"
-  | "advanced" | "vcs-providers" | "workspaces" | "prompts";
+  | "advanced" | "vcs-providers" | "workspaces" | "prompts" | "subscription";
 
 import { useNavigationStore } from "@/stores/navigation-store";
 
@@ -53,6 +55,12 @@ export function SettingsPage() {
   const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
   const [activeTab, setActiveTab] = useState<TabId>((settingsTab as TabId) ?? "general");
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (settingsTab && settingsTab !== activeTab) {
+      startTransition(() => setActiveTab(settingsTab as TabId));
+    }
+  }, [settingsTab]);
 
   const handleTabChange = (id: TabId) => {
     startTransition(() => {
@@ -70,6 +78,7 @@ export function SettingsPage() {
         { id: "appearance" as TabId,    label: t("settings.tabs.appearance"),     icon: <Palette className="h-4 w-4" /> },
         { id: "behaviour" as TabId,     label: t("settings.tabs.behaviour"),      icon: <SlidersHorizontal className="h-4 w-4" /> },
         { id: "notifications" as TabId, label: t("settings.tabs.notifications"),  icon: <Bell className="h-4 w-4" /> },
+        { id: "subscription" as TabId,  label: t("settings.tabs.subscription"),   icon: <CreditCard className="h-4 w-4" /> },
       ],
     },
     {
@@ -162,6 +171,7 @@ export function SettingsPage() {
               {id === "vcs-providers" && <VcsProvidersTab />}
               {id === "workspaces"    && <WorkspacesTab />}
               {id === "prompts"       && <PromptsTab />}
+              {id === "subscription"  && <SubscriptionTab />}
             </Activity>
           ))}
         </div>

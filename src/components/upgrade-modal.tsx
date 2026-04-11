@@ -1,17 +1,8 @@
-import { useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { invoke } from "@tauri-apps/api/core";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useUpgradeModalStore, type FreeTierLimitType } from "@/stores/upgrade-modal-store";
 import { useI18n } from "@/i18n/i18n";
-import { useCheckoutPoller } from "@/hooks/useCheckoutPoller";
-import { useLicenseStore } from "@/stores/license-store";
-
-interface CheckoutDto {
-  url: string;
-  sessionId: string;
-}
+import { useNavigationStore } from "@/stores/navigation-store";
 
 const LIMIT_CONFIG: Record<FreeTierLimitType, {
     titleKey: string;
@@ -47,37 +38,16 @@ const LIMIT_CONFIG: Record<FreeTierLimitType, {
 
 export function UpgradeModal() {
     const { open, limitType, closeUpgradeModal } = useUpgradeModalStore();
-    const { load } = useLicenseStore();
     const { t } = useI18n();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [pollSessionId, setPollSessionId] = useState<string | null>(null);
+    const navigateTo = useNavigationStore((s) => s.navigateTo);
+    const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
 
     const config = limitType ? LIMIT_CONFIG[limitType] : null;
 
-    useCheckoutPoller(pollSessionId, () => {
-        setPollSessionId(null);
-        void load();
+    const handleUpgrade = () => {
         closeUpgradeModal();
-    });
-
-    const handleUpgrade = async () => {
-        if (!config) return;
-        setLoading(true);
-        setError(null);
-        try {
-            const checkout = await invoke<CheckoutDto>("checkout_license", {
-                plan: config.targetPlan,
-                cycle: "monthly",
-            });
-            await openUrl(checkout.url);
-            setPollSessionId(checkout.sessionId);
-            closeUpgradeModal();
-        } catch {
-            setError(t("upgrade.error.checkout"));
-        } finally {
-            setLoading(false);
-        }
+        setSettingsTab("subscription");
+        navigateTo("settings");
     };
 
     return (
@@ -95,18 +65,12 @@ export function UpgradeModal() {
                 <div className="flex flex-col gap-2 mt-2">
                     <Button
                         onClick={handleUpgrade}
-                        disabled={loading}
                         className="w-full"
                     >
-                        {loading
-                            ? t("upgrade.cta.loading")
-                            : config?.targetPlan === "ultimate"
+                        {config?.targetPlan === "ultimate"
                             ? t("upgrade.cta.ultimate")
                             : t("upgrade.cta.pro")}
                     </Button>
-                    {error && (
-                        <p className="text-center text-[11px] text-red-500">{error}</p>
-                    )}
                     <Button
                         variant="ghost"
                         onClick={closeUpgradeModal}
