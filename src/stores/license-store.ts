@@ -16,6 +16,9 @@ export interface LicenseDto {
   lastVerifiedAt: string;
   signature: string;
   gracePeriod: boolean;
+  cancelAtPeriodEnd?: boolean;
+  cancelAt?: string | null;
+  targetPlan?: string | null;
 }
 
 interface LicenseState {

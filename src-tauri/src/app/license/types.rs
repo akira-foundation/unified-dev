@@ -13,6 +13,9 @@ pub struct LicenseDto {
     pub last_verified_at: String,
     pub signature: String,
     pub grace_period: bool,
+    pub cancel_at_period_end: Option<bool>,
+    pub cancel_at: Option<String>,
+    pub target_plan: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,40 +44,11 @@ pub struct WorkerLicenseResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct WorkerVerifyResponse {
-    pub token: String,
-    pub plan: String,
-    pub cycle: String,
-    pub email: String,
-    pub status: String,
-    pub valid_until: String,
-    pub activated_at: String,
-    pub signature: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct WorkerClaimResponse {
-    pub token: String,
-    pub plan: String,
-    pub cycle: String,
-    pub email: String,
-    pub status: String,
-    pub valid_until: String,
-    pub activated_at: String,
-    pub signature: String,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct WorkerStatusResponse {
     pub valid: bool,
-    #[allow(dead_code)]
-    pub plan: Option<String>,
-    #[allow(dead_code)]
-    pub cycle: Option<String>,
-    #[allow(dead_code)]
-    pub email: Option<String>,
-    #[allow(dead_code)]
-    pub status: Option<String>,
     pub valid_until: Option<String>,
     pub signature: Option<String>,
+    pub cancel_at_period_end: Option<bool>,
+    pub cancel_at: Option<String>,
+    pub target_plan: Option<String>,
 }

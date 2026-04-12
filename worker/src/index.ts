@@ -63,6 +63,7 @@ export default {
     if (url.pathname === "/billing/checkout") return handleBillingCheckout(request, env);
     if (url.pathname === "/billing/activate") return handleBillingActivate(request, env);
     if (url.pathname === "/billing/verify") return handleBillingVerify(request, env);
+    if (url.pathname === "/billing/downgrade") return handleBillingDowngrade(request, env);
     if (url.pathname === "/billing/claim/request") return handleBillingClaimRequest(request, env);
     if (url.pathname === "/billing/claim/verify") return handleBillingClaimVerify(request, env);
     if (url.pathname === "/billing/portal") return handleBillingPortal(request, env);
@@ -221,6 +222,154 @@ async function handleBillingVerify(request: Request, env: Env): Promise<Response
 
   const signature = await signLicense(token, license.plan, license.cycle, license.valid_until, license.email);
   return json({ token, signature, ...license });
+}
+
+async function handleBillingDowngrade(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request);
+  if (!body) return json({ error: "invalid json" }, 400);
+
+  const token = body.token as string | undefined;
+  if (!token) return json({ error: "token required" }, 400);
+
+  const targetPlan = (body.target_plan as string | undefined) ?? "free";
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return json({ error: "license_not_found" }, 404);
+
+  const license = JSON.parse(raw) as LicenseData;
+  if (!license.subscription_id) return json({ error: "no_subscription" }, 400);
+
+  if (license.cancel_at_period_end && license.target_plan === targetPlan) {
+    return json({
+      cancel_at_period_end: license.cancel_at_period_end,
+      cancel_at: license.cancel_at,
+      target_plan: license.target_plan,
+    });
+  }
+
+  if (targetPlan === "pro") {
+    const cycle = license.cycle ?? "monthly";
+    const newPriceId = PLAN_PRICES["pro"]?.[cycle];
+    if (!newPriceId) return json({ error: "invalid_cycle" }, 400);
+
+    const subRes = await fetch(`https://api.stripe.com/v1/subscriptions/${license.subscription_id}`, {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+    });
+    if (!subRes.ok) return json({ error: "stripe_error" }, 500);
+
+    const sub = await subRes.json() as { current_period_end: number; items: { data: { price: { id: string } }[] }; schedule: string | null };
+    const currentPriceId = sub.items.data[0].price.id;
+    let currentPeriodEnd = sub.current_period_end;
+    let scheduleId = sub.schedule;
+
+    if (!currentPriceId) {
+      return json({ error: "stripe_data_missing" }, 500);
+    }
+
+    if (!scheduleId) {
+      const createRes = await fetch("https://api.stripe.com/v1/subscription_schedules", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          from_subscription: license.subscription_id,
+        }).toString(),
+      });
+
+      if (!createRes.ok) {
+        const err = await createRes.text();
+        return json({ error: "stripe_error", detail: err }, 500);
+      }
+
+      const created = await createRes.json() as { id: string; phases: { end_date: number }[] };
+      scheduleId = created.id;
+      if (!currentPeriodEnd && created.phases?.[0]?.end_date) {
+        currentPeriodEnd = created.phases[0].end_date;
+      }
+    } else if (!currentPeriodEnd) {
+      const schedRes = await fetch(`https://api.stripe.com/v1/subscription_schedules/${scheduleId}`, {
+        headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+      });
+      if (schedRes.ok) {
+        const sched = await schedRes.json() as { phases: { start_date: number; end_date: number }[] };
+        currentPeriodEnd = sched.phases?.[0]?.end_date;
+      }
+    }
+
+    if (!currentPeriodEnd) {
+      return json({ error: "stripe_data_missing" }, 500);
+    }
+
+    const schedFetchRes = await fetch(`https://api.stripe.com/v1/subscription_schedules/${scheduleId}`, {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+    });
+    if (!schedFetchRes.ok) return json({ error: "stripe_error" }, 500);
+    const schedData = await schedFetchRes.json() as { phases: { start_date: number; end_date: number }[] };
+    const phase0StartDate = schedData.phases?.[0]?.start_date;
+
+    const updateRes = await fetch(`https://api.stripe.com/v1/subscription_schedules/${scheduleId}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        end_behavior: "release",
+        "phases[0][items][0][price]": currentPriceId,
+        "phases[0][items][0][quantity]": "1",
+        "phases[0][start_date]": String(phase0StartDate),
+        "phases[0][end_date]": String(currentPeriodEnd),
+        "phases[1][items][0][price]": newPriceId,
+        "phases[1][items][0][quantity]": "1",
+      }).toString(),
+    });
+
+    if (!updateRes.ok) {
+      const err = await updateRes.text();
+      return json({ error: "stripe_error", detail: err }, 500);
+    }
+
+    const cancelAt = new Date(currentPeriodEnd * 1000).toISOString();
+    license.target_plan = "pro";
+    license.cancel_at_period_end = true;
+    license.cancel_at = cancelAt;
+    await env.LICENSES.put(`license:${token}`, JSON.stringify(license));
+
+    return json({
+      cancel_at_period_end: true,
+      cancel_at: cancelAt,
+      target_plan: "pro",
+    });
+  }
+
+  const res = await fetch(`https://api.stripe.com/v1/subscriptions/${license.subscription_id}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({ cancel_at_period_end: "true" }).toString(),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    return json({ error: "stripe_error", detail: err }, 500);
+  }
+
+  const sub = await res.json() as { current_period_end: number; cancel_at_period_end: boolean; cancel_at: number | null };
+
+  license.cancel_at_period_end = sub.cancel_at_period_end;
+  license.cancel_at = sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null;
+  license.target_plan = "free";
+  await env.LICENSES.put(`license:${token}`, JSON.stringify(license));
+
+  return json({
+    cancel_at_period_end: sub.cancel_at_period_end,
+    cancel_at: license.cancel_at,
+    target_plan: "free",
+  });
 }
 
 async function handleBillingClaimRequest(request: Request, env: Env): Promise<Response> {
@@ -606,14 +755,22 @@ async function handleBillingStatus(request: Request, env: Env): Promise<Response
       headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
     });
     if (subRes.ok) {
-      const sub = await subRes.json() as { status: string; current_period_end: number };
+      const sub = await subRes.json() as { status: string; current_period_end: number; cancel_at_period_end: boolean; cancel_at: number | null };
       license.valid_until = new Date(sub.current_period_end * 1000).toISOString();
       license.status = sub.status === "active" || sub.status === "trialing" ? "active" : "expired";
       await env.LICENSES.put(`license:${token}`, JSON.stringify(license));
+      return json({
+        valid: license.status === "active",
+        cancel_at_period_end: sub.cancel_at_period_end,
+        cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
+        target_plan: license.target_plan ?? null,
+        signature: await signLicense(token, license.plan, license.cycle, license.valid_until, license.email),
+        ...license,
+      });
     }
   }
 
-  return json({ valid: license.status === "active", signature: await signLicense(token, license.plan, license.cycle, license.valid_until, license.email), ...license });
+  return json({ valid: license.status === "active", cancel_at_period_end: false, cancel_at: null, target_plan: license.target_plan ?? null, signature: await signLicense(token, license.plan, license.cycle, license.valid_until, license.email), ...license });
 }
 
 async function handleBillingWebhook(request: Request, env: Env): Promise<Response> {
@@ -627,14 +784,15 @@ async function handleBillingWebhook(request: Request, env: Env): Promise<Respons
   const event = JSON.parse(rawBody) as StripeEvent;
 
   if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
-    const sub = event.data.object as { id: string; status: string };
-    await updateLicenseBySubscription(sub.id, sub.status, env);
+    const sub = event.data.object as { id: string; status: string; cancel_at_period_end: boolean; cancel_at: number | null; current_period_end: number; items?: { data: { price: { id: string } }[] } };
+    const newPriceId = sub.items?.data?.[0]?.price?.id;
+    await updateLicenseBySubscription(sub.id, sub.status, sub.cancel_at_period_end, sub.cancel_at, sub.current_period_end, newPriceId, env);
   }
 
   if (event.type === "invoice.payment_failed") {
     const invoice = event.data.object as { subscription: string };
     if (invoice.subscription) {
-      await updateLicenseBySubscription(invoice.subscription, "past_due", env);
+      await updateLicenseBySubscription(invoice.subscription, "past_due", false, null, undefined, undefined, env);
     }
   }
 
@@ -666,14 +824,34 @@ async function updateLicenseBySubscriptionRenewal(subscriptionId: string, period
   }
 }
 
-async function updateLicenseBySubscription(subscriptionId: string, status: string, env: Env): Promise<void> {
+async function updateLicenseBySubscription(subscriptionId: string, status: string, cancelAtPeriodEnd: boolean, cancelAt: number | null | undefined, currentPeriodEnd: number | undefined, newPriceId: string | undefined, env: Env): Promise<void> {
+  const resolvedPlan = newPriceId
+    ? Object.entries(PLAN_PRICES).find(([, cycles]) => Object.values(cycles).includes(newPriceId))?.[0]
+    : undefined;
+
   const list = await env.LICENSES.list({ prefix: "license:" });
   for (const key of list.keys) {
     const raw = await env.LICENSES.get(key.name);
     if (!raw) continue;
     const license = JSON.parse(raw) as LicenseData;
     if (license.subscription_id === subscriptionId) {
-      license.status = status === "active" || status === "trialing" ? "active" : "expired";
+      const newStatus = status === "active" || status === "trialing" ? "active" : "expired";
+      license.status = newStatus;
+      license.cancel_at_period_end = cancelAtPeriodEnd ?? false;
+      license.cancel_at = cancelAt ? new Date(cancelAt * 1000).toISOString() : null;
+      if (currentPeriodEnd) {
+        license.valid_until = new Date(currentPeriodEnd * 1000).toISOString();
+      }
+      if (resolvedPlan && resolvedPlan !== license.plan) {
+        license.plan = resolvedPlan;
+        license.target_plan = null;
+      } else if (!cancelAtPeriodEnd && license.target_plan && license.target_plan !== "free") {
+        license.plan = license.target_plan;
+        license.target_plan = null;
+      }
+      if (newStatus === "expired" && license.target_plan === "free") {
+        license.target_plan = null;
+      }
       await env.LICENSES.put(key.name, JSON.stringify(license));
       break;
     }
@@ -813,6 +991,9 @@ interface LicenseData {
   status: "active" | "expired";
   activated_at: string;
   machines: string[];
+  cancel_at_period_end?: boolean;
+  cancel_at?: string | null;
+  target_plan?: string | null;
 }
 
 async function signLicense(token: string, plan: string, cycle: string, valid_until: string, email: string): Promise<string> {

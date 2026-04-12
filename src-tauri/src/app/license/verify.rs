@@ -26,7 +26,9 @@ pub async fn get_token(pool: &sqlx::SqlitePool) -> AppResult<Option<String>> {
 
 pub async fn get(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
     let row = sqlx::query_as::<_, LicenseDto>(
-        "SELECT token, plan, cycle, email, status, valid_until, activated_at, last_verified_at, signature, 0 as grace_period
+        "SELECT token, plan, cycle, email, status, valid_until, activated_at, last_verified_at, signature, 0 as grace_period,
+                CASE WHEN cancel_at_period_end = 1 THEN 1 ELSE 0 END as cancel_at_period_end,
+                cancel_at, target_plan
          FROM license WHERE id = 'local' LIMIT 1",
     )
     .fetch_optional(pool)
@@ -117,12 +119,17 @@ async fn refresh_from_server(pool: &sqlx::SqlitePool, license: LicenseDto) -> Ap
     let now = chrono::Utc::now().to_rfc3339();
 
     sqlx::query(
-        "UPDATE license SET status = ?, valid_until = COALESCE(?, valid_until), last_verified_at = ?, signature = ? WHERE id = 'local'",
+        "UPDATE license SET status = ?, valid_until = COALESCE(?, valid_until), last_verified_at = ?, signature = ?,
+                cancel_at_period_end = COALESCE(?, cancel_at_period_end), cancel_at = COALESCE(?, cancel_at), target_plan = COALESCE(?, target_plan)
+         WHERE id = 'local'",
     )
     .bind(new_status)
     .bind(status_res.valid_until.as_deref())
     .bind(&now)
     .bind(&new_signature)
+    .bind(status_res.cancel_at_period_end)
+    .bind(status_res.cancel_at.as_deref())
+    .bind(status_res.target_plan.as_deref())
     .execute(pool)
     .await?;
 
@@ -132,6 +139,9 @@ async fn refresh_from_server(pool: &sqlx::SqlitePool, license: LicenseDto) -> Ap
         last_verified_at: now,
         signature: new_signature,
         grace_period: false,
+        cancel_at_period_end: status_res.cancel_at_period_end.or(license.cancel_at_period_end),
+        cancel_at: status_res.cancel_at.or(license.cancel_at),
+        target_plan: status_res.target_plan.or(license.target_plan),
         ..license
     }))
 }

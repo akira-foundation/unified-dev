@@ -93,6 +93,11 @@ export function SubscriptionTab() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pollSessionId, setPollSessionId] = useState<string | null>(null);
+  const [downgrading, setDowngrading] = useState<"free" | "pro" | null>(null);
+
+  const cancelAtPeriodEnd = license?.cancelAtPeriodEnd ?? false;
+  const cancelAt = license?.cancelAt ?? null;
+  const targetPlan = license?.targetPlan ?? null;
 
   const [claimStep, setClaimStep] = useState<ClaimStep>("idle");
   const [claimEmail, setClaimEmail] = useState("");
@@ -130,6 +135,19 @@ export function SubscriptionTab() {
       const url = await invoke<string>("manage_license");
       await openUrl(url);
     } catch {
+    }
+  };
+
+  const handleDowngrade = async (targetPlan: "free" | "pro") => {
+    setDowngrading(targetPlan);
+    setError(null);
+    try {
+      await invoke("downgrade_license", { targetPlan });
+      await load();
+    } catch {
+      setError(t("settings.subscription.downgrade.error"));
+    } finally {
+      setDowngrading(null);
     }
   };
 
@@ -210,9 +228,23 @@ export function SubscriptionTab() {
               <img src="https://github.com/shadcn.png" alt="Avatar" className="object-cover" />
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium self-start border ${PLAN_COLOR[currentPlan]}`}>
-                {t(`settings.general.account.plan.${currentPlan}`)}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium self-start border ${PLAN_COLOR[currentPlan]}`}>
+                  {t(`settings.general.account.plan.${currentPlan}`)}
+                </span>
+                {cancelAtPeriodEnd && cancelAt && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium border bg-amber-500/10 text-amber-400 border-amber-500/20 whitespace-nowrap">
+                    {targetPlan === "pro"
+                      ? t("settings.subscription.downgrade.to_pro") + " · " + new Date(cancelAt).toLocaleDateString()
+                      : t("settings.subscription.downgrade.cancels_on", { date: new Date(cancelAt).toLocaleDateString() })}
+                  </span>
+                )}
+              </div>
+              {license?.validUntil && currentPlan !== "free" && !cancelAtPeriodEnd && (
+                <span className="text-[11px] text-zinc-500">
+                  {t("settings.subscription.downgrade.renews_on", { date: new Date(license.validUntil).toLocaleDateString() })}
+                </span>
+              )}
               {license?.email && (
                 <span className="text-[13px] text-zinc-500">{license.email}</span>
               )}
@@ -308,6 +340,22 @@ export function SubscriptionTab() {
                       className="text-[12px] font-semibold py-1.5 px-3 rounded-md bg-purple-500 hover:bg-purple-600 text-white transition-colors disabled:opacity-60"
                     >
                       {isLoading ? t("upgrade.cta.loading") : t(`upgrade.cta.${plan}`)}
+                    </button>
+                  ) : plan === "pro" && currentPlan === "ultimate" && !cancelAtPeriodEnd ? (
+                    <button
+                      onClick={() => void handleDowngrade("pro")}
+                      disabled={downgrading !== null}
+                      className="text-[12px] font-medium py-1.5 px-3 rounded-md border border-zinc-600 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-60"
+                    >
+                      {downgrading === "pro" ? t("settings.subscription.downgrade.downgrading") : t("settings.subscription.downgrade.to_pro")}
+                    </button>
+                  ) : plan === "free" && currentPlan !== "free" && !cancelAtPeriodEnd ? (
+                    <button
+                      onClick={() => void handleDowngrade("free")}
+                      disabled={downgrading !== null}
+                      className="text-[12px] font-medium py-1.5 px-3 rounded-md border border-zinc-600 text-zinc-400 hover:text-zinc-200 hover:border-zinc-500 transition-colors disabled:opacity-60"
+                    >
+                      {downgrading === "free" ? t("settings.subscription.downgrade.downgrading") : t("settings.subscription.downgrade.confirm")}
                     </button>
                   ) : null}
                 </div>

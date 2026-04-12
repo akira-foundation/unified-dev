@@ -78,5 +78,8 @@ pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool, ap
         last_verified_at: now,
         signature: worker_res.signature,
         grace_period: false,
+        cancel_at_period_end: None,
+        cancel_at: None,
+        target_plan: None,
     })
 }

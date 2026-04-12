@@ -2,7 +2,7 @@ use crate::app::support::error::{AppError, AppResult};
 
 use super::hmac;
 use super::machine_id;
-use super::types::{LicenseDto, WorkerVerifyResponse};
+use super::types::{LicenseDto, WorkerLicenseResponse};
 
 const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
 
@@ -37,7 +37,7 @@ pub async fn register(token: String, pool: &sqlx::SqlitePool, app: &tauri::AppHa
         };
     }
 
-    let worker_res: WorkerVerifyResponse = res.json().await.map_err(AppError::Http)?;
+    let worker_res: WorkerLicenseResponse = res.json().await.map_err(AppError::Http)?;
 
     if !hmac::verify(
         &worker_res.token,
@@ -89,5 +89,8 @@ pub async fn register(token: String, pool: &sqlx::SqlitePool, app: &tauri::AppHa
         last_verified_at: now,
         signature: worker_res.signature,
         grace_period: false,
+        cancel_at_period_end: None,
+        cancel_at: None,
+        target_plan: None,
     })
 }
