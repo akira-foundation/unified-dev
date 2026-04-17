@@ -52,3 +52,33 @@ pub struct WorkerStatusResponse {
     pub cancel_at: Option<String>,
     pub target_plan: Option<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InvoiceDto {
+    pub id: String,
+    pub number: Option<String>,
+    pub amount: i64,
+    pub currency: String,
+    pub date: String,
+    pub period_start: String,
+    pub period_end: String,
+    pub pdf_url: Option<String>,
+    pub hosted_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InvoicesPageDto {
+    pub invoices: Vec<InvoiceDto>,
+    pub has_more: bool,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkerInvoicesResponse {
+    pub invoices: Vec<InvoiceDto>,
+    pub has_more: bool,
+    pub next_cursor: Option<String>,
+}

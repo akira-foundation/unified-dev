@@ -48,6 +48,10 @@ export default {
       return handleBillingPoll(request, env);
     }
 
+    if (request.method === "GET" && url.pathname === "/billing/invoices") {
+      return handleBillingInvoices(request, env);
+    }
+
     if (request.method !== "POST") {
       return json({ error: "method not allowed" }, 405);
     }
@@ -75,12 +79,12 @@ export default {
 
 const PLAN_PRICES: Record<string, Record<string, string>> = {
   pro: {
-    monthly: "price_1TL0CjG5BiRk58nIjZrZGmX0",
-    yearly: "price_1TL0CkG5BiRk58nINqux9b3h",
+    monthly: "price_1TN1Bn5rHPk2eGVSkJf2gmg9",
+    yearly: "price_1TN1Bn5rHPk2eGVStZxBDICB",
   },
   ultimate: {
-    monthly: "price_1TL0ClG5BiRk58nIATIxdEoW",
-    yearly: "price_1TL0CmG5BiRk58nIUeFuhAx8",
+    monthly: "price_1TN1Bo5rHPk2eGVSJe1m6Sk4",
+    yearly: "price_1TN1Bm5rHPk2eGVSnFrv1XfO",
   },
 };
 
@@ -185,6 +189,9 @@ async function handleBillingActivate(request: Request, env: Env): Promise<Respon
   await env.LICENSES.put(`email:${email}`, token);
   if (licenseData.customer_id) {
     await env.LICENSES.put(`customer:${licenseData.customer_id}`, token);
+  }
+  if (licenseData.subscription_id) {
+    await env.LICENSES.put(`subscription:${licenseData.subscription_id}`, token);
   }
 
   const signature = await signLicense(token, licenseData.plan, licenseData.cycle, licenseData.valid_until, licenseData.email);
@@ -454,6 +461,7 @@ async function recoverLicenseFromStripe(email: string, env: Env): Promise<string
     await env.LICENSES.put(`license:${token}`, JSON.stringify(licenseData));
     await env.LICENSES.put(`email:${email}`, token);
     await env.LICENSES.put(`customer:${customer.id}`, token);
+    await env.LICENSES.put(`subscription:${sub.id}`, token);
 
     return token;
   }
@@ -719,12 +727,86 @@ async function handleBillingPortal(request: Request, env: Env): Promise<Response
   return json({ url: session.url });
 }
 
+async function handleBillingInvoices(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const token = url.searchParams.get("token");
+  if (!token) return json({ error: "token required" }, 400);
+
+  const startingAfter = url.searchParams.get("starting_after");
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return json({ error: "license not found" }, 404);
+
+  const license = JSON.parse(raw) as LicenseData;
+  if (!license.email) return json({ invoices: [], hasMore: false, nextCursor: null });
+
+  // Fetch all Stripe customers with this email
+  const customersRes = await fetch(
+    `https://api.stripe.com/v1/customers?email=${encodeURIComponent(license.email)}&limit=100`,
+    { headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` } }
+  );
+  if (!customersRes.ok) {
+    const err = await customersRes.text();
+    return json({ error: `stripe customers error: ${err}` }, 500);
+  }
+  const customersData = await customersRes.json() as { data: Array<{ id: string }> };
+  const customerIds = customersData.data.map(c => c.id);
+  if (customerIds.length === 0) return json({ invoices: [], hasMore: false, nextCursor: null });
+
+  type StripeInvoice = {
+    id: string;
+    number: string | null;
+    amount_paid: number;
+    currency: string;
+    status: string;
+    created: number;
+    invoice_pdf: string | null;
+    hosted_invoice_url: string | null;
+    period_start: number;
+    period_end: number;
+  };
+
+  // Fetch invoices for all customers in parallel (first page only uses startingAfter on primary customer)
+  const pages = await Promise.all(customerIds.map(async (customerId) => {
+    const params = new URLSearchParams({ customer: customerId, limit: "100", status: "paid" });
+    if (startingAfter && customerId === customerIds[0]) params.set("starting_after", startingAfter);
+    const res = await fetch(`https://api.stripe.com/v1/invoices?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}` },
+    });
+    if (!res.ok) return { data: [] as StripeInvoice[], has_more: false };
+    return res.json() as Promise<{ data: StripeInvoice[]; has_more: boolean }>;
+  }));
+
+  // Merge and sort all invoices by date descending
+  const allInvoices = pages.flatMap(p => p.data).filter(inv => inv.amount_paid > 0);
+  allInvoices.sort((a, b) => b.created - a.created);
+
+  const PAGE_SIZE = 10;
+  const offset = 0;
+  const page = allInvoices.slice(offset, PAGE_SIZE);
+  const hasMore = allInvoices.length > PAGE_SIZE;
+  const nextCursor = hasMore ? page[page.length - 1].id : null;
+
+  const invoices = page.map(inv => ({
+    id: inv.id,
+    number: inv.number,
+    amount: inv.amount_paid,
+    currency: inv.currency,
+    date: new Date(inv.created * 1000).toISOString(),
+    periodStart: new Date(inv.period_start * 1000).toISOString(),
+    periodEnd: new Date(inv.period_end * 1000).toISOString(),
+    pdfUrl: inv.invoice_pdf,
+    hostedUrl: inv.hosted_invoice_url,
+  }));
+
+  return json({ invoices, hasMore, nextCursor });
+}
+
 async function handleBillingPoll(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const sessionId = url.searchParams.get("session_id");
   if (!sessionId) return json({ error: "session_id required" }, 400);
 
-  // If already activated, return paid immediately (no Stripe call needed)
   const existingToken = await env.LICENSES.get(`session:${sessionId}`);
   if (existingToken) {
     return json({ paid: true });
@@ -783,6 +865,19 @@ async function handleBillingWebhook(request: Request, env: Env): Promise<Respons
 
   const event = JSON.parse(rawBody) as StripeEvent;
 
+  if (event.type === "invoice.created") {
+    const invoice = event.data.object as { id: string; auto_advance: boolean; subscription: string | null };
+    if (invoice.subscription && invoice.auto_advance === false) {
+      await fetch(`https://api.stripe.com/v1/invoices/${invoice.id}/finalize`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+    }
+  }
+
   if (event.type === "customer.subscription.deleted" || event.type === "customer.subscription.updated") {
     const sub = event.data.object as { id: string; status: string; cancel_at_period_end: boolean; cancel_at: number | null; current_period_end: number; items?: { data: { price: { id: string } }[] } };
     const newPriceId = sub.items?.data?.[0]?.price?.id;
@@ -808,20 +903,20 @@ async function handleBillingWebhook(request: Request, env: Env): Promise<Respons
 }
 
 async function updateLicenseBySubscriptionRenewal(subscriptionId: string, periodEnd: number | undefined, env: Env): Promise<void> {
-  const list = await env.LICENSES.list({ prefix: "license:" });
-  for (const key of list.keys) {
-    const raw = await env.LICENSES.get(key.name);
-    if (!raw) continue;
-    const license = JSON.parse(raw) as LicenseData;
-    if (license.subscription_id === subscriptionId) {
-      license.status = "active";
-      if (periodEnd) {
-        license.valid_until = new Date(periodEnd * 1000).toISOString();
-      }
-      await env.LICENSES.put(key.name, JSON.stringify(license));
-      break;
-    }
+  const token = await env.LICENSES.get(`subscription:${subscriptionId}`);
+  if (!token) return;
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return;
+
+  const license = JSON.parse(raw) as LicenseData;
+  if (license.subscription_id !== subscriptionId) return;
+
+  license.status = "active";
+  if (periodEnd) {
+    license.valid_until = new Date(periodEnd * 1000).toISOString();
   }
+  await env.LICENSES.put(`license:${token}`, JSON.stringify(license));
 }
 
 async function updateLicenseBySubscription(subscriptionId: string, status: string, cancelAtPeriodEnd: boolean, cancelAt: number | null | undefined, currentPeriodEnd: number | undefined, newPriceId: string | undefined, env: Env): Promise<void> {
@@ -829,33 +924,33 @@ async function updateLicenseBySubscription(subscriptionId: string, status: strin
     ? Object.entries(PLAN_PRICES).find(([, cycles]) => Object.values(cycles).includes(newPriceId))?.[0]
     : undefined;
 
-  const list = await env.LICENSES.list({ prefix: "license:" });
-  for (const key of list.keys) {
-    const raw = await env.LICENSES.get(key.name);
-    if (!raw) continue;
-    const license = JSON.parse(raw) as LicenseData;
-    if (license.subscription_id === subscriptionId) {
-      const newStatus = status === "active" || status === "trialing" ? "active" : "expired";
-      license.status = newStatus;
-      license.cancel_at_period_end = cancelAtPeriodEnd ?? false;
-      license.cancel_at = cancelAt ? new Date(cancelAt * 1000).toISOString() : null;
-      if (currentPeriodEnd) {
-        license.valid_until = new Date(currentPeriodEnd * 1000).toISOString();
-      }
-      if (resolvedPlan && resolvedPlan !== license.plan) {
-        license.plan = resolvedPlan;
-        license.target_plan = null;
-      } else if (!cancelAtPeriodEnd && license.target_plan && license.target_plan !== "free") {
-        license.plan = license.target_plan;
-        license.target_plan = null;
-      }
-      if (newStatus === "expired" && license.target_plan === "free") {
-        license.target_plan = null;
-      }
-      await env.LICENSES.put(key.name, JSON.stringify(license));
-      break;
-    }
+  const token = await env.LICENSES.get(`subscription:${subscriptionId}`);
+  if (!token) return;
+
+  const raw = await env.LICENSES.get(`license:${token}`);
+  if (!raw) return;
+
+  const license = JSON.parse(raw) as LicenseData;
+  if (license.subscription_id !== subscriptionId) return;
+
+  const newStatus = status === "active" || status === "trialing" ? "active" : "expired";
+  license.status = newStatus;
+  license.cancel_at_period_end = cancelAtPeriodEnd ?? false;
+  license.cancel_at = cancelAt ? new Date(cancelAt * 1000).toISOString() : null;
+  if (currentPeriodEnd) {
+    license.valid_until = new Date(currentPeriodEnd * 1000).toISOString();
   }
+  if (resolvedPlan && resolvedPlan !== license.plan) {
+    license.plan = resolvedPlan;
+    license.target_plan = null;
+  } else if (!cancelAtPeriodEnd && license.target_plan && license.target_plan !== "free") {
+    license.plan = license.target_plan;
+    license.target_plan = null;
+  }
+  if (newStatus === "expired" && license.target_plan === "free") {
+    license.target_plan = null;
+  }
+  await env.LICENSES.put(`license:${token}`, JSON.stringify(license));
 }
 
 function nextRenewalDate(cycle: string): string {
@@ -874,6 +969,8 @@ async function verifyStripeSignature(payload: string, header: string, secret: st
     const timestamp = parts["t"];
     const signature = parts["v1"];
     if (!timestamp || !signature) return false;
+
+    if (Math.abs(Date.now() / 1000 - parseInt(timestamp, 10)) > 300) return false;
 
     const signedPayload = `${timestamp}.${payload}`;
     const key = await crypto.subtle.importKey(

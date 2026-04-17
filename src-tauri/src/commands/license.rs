@@ -1,7 +1,7 @@
 use tauri::{AppHandle, State};
 
 use crate::app::license;
-use crate::app::license::types::{ActivateLicenseRequest, CheckoutDto, LicenseDto};
+use crate::app::license::types::{ActivateLicenseRequest, CheckoutDto, InvoicesPageDto, LicenseDto};
 use crate::app::license::DowngradeDto;
 use crate::app::support::error::AppResult;
 use crate::state::AppState;
@@ -63,3 +63,12 @@ pub async fn downgrade_license(target_plan: String, state: State<'_, AppState>) 
     license::apply_downgrade(&state.db_pool, &dto).await?;
     Ok(dto)
 }
+
+#[tauri::command]
+pub async fn list_invoices(cursor: Option<String>, state: State<'_, AppState>) -> AppResult<InvoicesPageDto> {
+    let token = license::get_token(&state.db_pool)
+        .await?
+        .ok_or_else(|| crate::app::support::error::AppError::Internal("No license found".into()))?;
+    license::list_invoices(token, cursor).await
+}
+
