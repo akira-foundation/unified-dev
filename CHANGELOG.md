@@ -1,5 +1,18 @@
 
 
+# [0.6.0](https://github.com/akira-foundation/unified-dev/compare/v0.5.0...v0.6.0) (2026-04-17)
+
+
+### Features
+
+* **billing:** add invoice listing functionality and update related components ([fd8b224](https://github.com/akira-foundation/unified-dev/commit/fd8b224d2f784895ea1955caef3e1111fba09525))
+* **billing:** implement plan downgrade with Stripe schedule and local persistence ([0d00d4a](https://github.com/akira-foundation/unified-dev/commit/0d00d4afdc355b6e20e696f6bec1c9ca8c77f6d0))
+* **checkout:** update checkout process to return CheckoutDto and implement polling for session activation ([dc65b39](https://github.com/akira-foundation/unified-dev/commit/dc65b3928833db183e815592a8f8089394b10e20))
+* **gemini:** add Gemini CLI integration and update notification handling ([3a9b928](https://github.com/akira-foundation/unified-dev/commit/3a9b92868d580bb34b70be2dde071e1f240a2f96))
+* **profile:** add user profile management with email verification and license claiming ([cfed98f](https://github.com/akira-foundation/unified-dev/commit/cfed98ff20a539e294dd20b1861fb6e531c94e5d))
+* **subscription:** enhance subscription tab with upcoming plan button and update license verification logic ([5a6279e](https://github.com/akira-foundation/unified-dev/commit/5a6279eeae6c4dcc97e65bad919e4285f855055c))
+* **subscription:** implement subscription management and billing portal integration ([9462ed3](https://github.com/akira-foundation/unified-dev/commit/9462ed37dfaf28f0343b0703dfeda5db25b2d064))
+
 # [0.5.0](https://github.com/akira-foundation/unified-dev/compare/v0.4.3...v0.5.0) (2026-04-10)
 
 
