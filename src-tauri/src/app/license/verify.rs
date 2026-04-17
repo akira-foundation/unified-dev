@@ -55,25 +55,9 @@ pub async fn verify(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
         return Ok(None);
     }
 
-    let valid_until = chrono::DateTime::parse_from_rfc3339(&license.valid_until)
-        .map(|dt| dt.with_timezone(&chrono::Utc))
-        .unwrap_or(chrono::DateTime::<chrono::Utc>::MIN_UTC);
-
-    let now = chrono::Utc::now();
-
-    if now < valid_until {
-        let last_verified = chrono::DateTime::parse_from_rfc3339(&license.last_verified_at)
-            .map(|dt| dt.with_timezone(&chrono::Utc))
-            .unwrap_or(chrono::DateTime::<chrono::Utc>::MIN_UTC);
-
-        if now.signed_duration_since(last_verified).num_days() < 7 {
-            return Ok(Some(license));
-        }
-
-        return refresh_from_server(pool, license).await;
-    }
-
+    // Always refresh from server on explicit verify — no 7-day cache
     let refreshed = refresh_from_server(pool, license.clone()).await?;
+
     if let Some(ref l) = refreshed {
         if l.status == "active" {
             return Ok(refreshed);
@@ -84,7 +68,7 @@ pub async fn verify(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
         .map(|dt| dt.with_timezone(&chrono::Utc))
         .unwrap_or(chrono::DateTime::<chrono::Utc>::MIN_UTC);
 
-    let days_since_verified = now.signed_duration_since(last_verified).num_days();
+    let days_since_verified = chrono::Utc::now().signed_duration_since(last_verified).num_days();
 
     if days_since_verified < GRACE_PERIOD_DAYS {
         return Ok(Some(LicenseDto { grace_period: true, ..license }));
@@ -106,6 +90,10 @@ async fn refresh_from_server(pool: &sqlx::SqlitePool, license: LicenseDto) -> Ap
     };
 
     if !res.status().is_success() {
+        if res.status() == reqwest::StatusCode::NOT_FOUND {
+            clear(pool).await?;
+            return Ok(None);
+        }
         return Ok(Some(license));
     }
 

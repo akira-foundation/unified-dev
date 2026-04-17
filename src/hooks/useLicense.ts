@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { useLicenseStore, type Plan } from "@/stores/license-store";
 
 export function useLicense() {
-  const { license, loading, load, plan } = useLicenseStore();
+  const { license, loading, load, verify, plan } = useLicenseStore();
 
   useEffect(() => {
-    load();
+    verify();
   }, []);
 
   const currentPlan: Plan = plan();

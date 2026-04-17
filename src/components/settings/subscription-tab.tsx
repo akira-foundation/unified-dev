@@ -374,6 +374,13 @@ export function SubscriptionTab() {
                     <div className="text-center text-[12px] font-medium text-purple-400 py-1.5 rounded-md border border-purple-500/30 bg-purple-500/5">
                       {t("upgrade.cta.free")}
                     </div>
+                  ) : plan === "ultimate" && !isCurrentPlan ? (
+                    <button
+                      disabled
+                      className="text-[12px] font-semibold py-1.5 px-3 rounded-md bg-zinc-700/50 text-zinc-500 cursor-not-allowed border border-zinc-700"
+                    >
+                      Coming soon
+                    </button>
                   ) : isUpgradeable ? (
                     <button
                       onClick={() => void handleUpgrade(plan as "pro" | "ultimate")}
