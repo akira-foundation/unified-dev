@@ -11,6 +11,7 @@ use crate::ai::agents::types::AiProviderKind;
 fn kind_key(kind: &AiProviderKind) -> &'static str {
     match kind {
         AiProviderKind::Claude => "claude",
+        AiProviderKind::Gemini => "gemini",
         AiProviderKind::OpenAi => "openai",
         AiProviderKind::Copilot => "copilot",
         AiProviderKind::Ollama => "ollama",

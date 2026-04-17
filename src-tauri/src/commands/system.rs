@@ -46,10 +46,7 @@ fn check_copilot() -> DependencyStatus {
         .args(["copilot", "--version"])
         .output();
 
-    let installed = output
-        .as_ref()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    let installed = output.as_ref().map(|o| o.status.success()).unwrap_or(false);
 
     let version = output.ok().filter(|_| installed).and_then(|o| {
         let raw = String::from_utf8_lossy(&o.stdout).to_string();
@@ -71,6 +68,7 @@ pub fn check_dependencies() -> Vec<DependencyStatus> {
         ("claude", "Claude CLI"),
         ("gh", "GitHub CLI"),
         ("codex", "Codex CLI"),
+        ("gemini", "Gemini CLI"),
     ]
     .iter()
     .map(|(id, label)| {

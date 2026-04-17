@@ -1,5 +1,6 @@
 pub mod anthropic;
 pub mod copilot;
+pub mod google;
 pub mod openai;
 
 use std::sync::Arc;
@@ -14,5 +15,6 @@ pub fn default_registry() -> AiRegistry {
     registry.register(Arc::new(openai::OpenAiCliProvider));
     registry.register(Arc::new(copilot::CopilotChatProvider));
     registry.register(Arc::new(copilot::CopilotResponsesProvider));
+    registry.register(Arc::new(google::GeminiCliProvider));
     registry
 }

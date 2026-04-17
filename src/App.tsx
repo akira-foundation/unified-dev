@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 import { AppContent } from "./components/layout/app-content";
@@ -57,6 +58,21 @@ export default function App() {
     const unlisten = listen<string>("license://activate", (event) => {
       setActivationSessionId(event.payload);
     });
+    return () => { unlisten.then((fn) => fn()); };
+  }, []);
+
+  useEffect(() => {
+    const unlisten = listen<{ tool: string; current: string; latest: string; command: string }>(
+      "app-update-available",
+      (event) => {
+        const { tool, current, latest, command } = event.payload;
+        toast.warning(`${tool} update available: ${current} → ${latest}`, {
+          id: `update-${tool}`,
+          description: `Run: ${command}`,
+          duration: 10000,
+        });
+      }
+    );
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 

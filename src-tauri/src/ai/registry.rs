@@ -5,6 +5,7 @@ use tauri::AppHandle;
 use crate::ai::credentials::{read_copilot_oauth_token, resolve_env_key};
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::providers::anthropic::find_claude_cli;
+use crate::ai::providers::google::{find_gemini_cli, has_gemini_credentials};
 use crate::app::support::error::{AppError, AppResult};
 
 pub struct AiRegistry {
@@ -54,8 +55,16 @@ impl AiRegistry {
             if read_copilot_oauth_token().is_some() {
                 return self.find("copilot_responses").unwrap().complete(request, app).await;
             }
-            eprintln!("[registry] Copilot credentials not found, trying codex CLI for {model}");
             return self.find("openai_cli").unwrap().complete(request, app).await;
+        }
+
+        if model.starts_with("gemini-") || model.starts_with("auto-gemini-") {
+            if find_gemini_cli().is_some() && has_gemini_credentials() {
+                return self.find("gemini_cli").unwrap().complete(request, app).await;
+            }
+            return Err(AppError::Internal(
+                "Gemini CLI not found or not authenticated. Install it with: brew install gemini-cli".to_string(),
+            ));
         }
 
         if let Some(provider) = self.providers.iter().find(|p| p.supports_model(&model)) {

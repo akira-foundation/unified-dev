@@ -23,12 +23,10 @@ pub fn detect_from_config_dirs() -> Vec<AiProviderKind> {
 
     let copilot_paths = [home.join(".config").join("github-copilot")];
 
+    let gemini_paths = [home.join(".gemini").join("oauth_creds.json")];
+
     for path in &claude_paths {
         if path.exists() {
-            eprintln!(
-                "[detector] Detected provider: Claude (config path: {})",
-                path.display()
-            );
             found.push(AiProviderKind::Claude);
             break;
         }
@@ -36,10 +34,6 @@ pub fn detect_from_config_dirs() -> Vec<AiProviderKind> {
 
     for path in &openai_paths {
         if path.exists() {
-            eprintln!(
-                "[detector] Detected provider: OpenAI (config path: {})",
-                path.display()
-            );
             found.push(AiProviderKind::OpenAi);
             break;
         }
@@ -47,11 +41,14 @@ pub fn detect_from_config_dirs() -> Vec<AiProviderKind> {
 
     for path in &copilot_paths {
         if path.exists() {
-            eprintln!(
-                "[detector] Detected provider: Copilot (config path: {})",
-                path.display()
-            );
             found.push(AiProviderKind::Copilot);
+            break;
+        }
+    }
+
+    for path in &gemini_paths {
+        if path.exists() {
+            found.push(AiProviderKind::Gemini);
             break;
         }
     }

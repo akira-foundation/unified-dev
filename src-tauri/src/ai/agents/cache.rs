@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use chrono::{Duration, Utc};
 
-use super::registry::ModelRegistry;
+use super::registry::{ModelRegistry, CACHE_VERSION};
 
 fn cache_path() -> Option<PathBuf> {
     dirs::home_dir().map(|home| home.join(".unifieddev").join("model_registry.json"))
@@ -13,6 +13,10 @@ pub fn load_cached_registry() -> Option<ModelRegistry> {
     let path = cache_path()?;
     let content = fs::read_to_string(&path).ok()?;
     let registry: ModelRegistry = serde_json::from_str(&content).ok()?;
+
+    if registry.cache_version != CACHE_VERSION {
+        return None;
+    }
 
     let age = Utc::now() - registry.last_updated;
     if age < Duration::hours(1) {

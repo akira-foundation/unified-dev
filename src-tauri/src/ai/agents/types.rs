@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AiProviderKind {
     Claude,
+    Gemini,
     OpenAi,
     Copilot,
     Ollama,
@@ -12,6 +13,7 @@ impl AiProviderKind {
     pub fn display_name(&self) -> &str {
         match self {
             AiProviderKind::Claude => "Claude",
+            AiProviderKind::Gemini => "Gemini",
             AiProviderKind::OpenAi => "Codex",
             AiProviderKind::Copilot => "Copilot",
             AiProviderKind::Ollama => "Ollama",

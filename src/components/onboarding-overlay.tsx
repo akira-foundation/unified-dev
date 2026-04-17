@@ -29,13 +29,14 @@ interface DependencyStatus {
   path: string | null;
 }
 
-const OPTIONAL = new Set(["codex", "copilot"]);
+const OPTIONAL = new Set(["codex", "copilot", "gemini"]);
 
 const INSTALL_URLS: Record<string, string> = {
   claude: "https://docs.anthropic.com/en/docs/claude-code",
   gh: "https://cli.github.com",
   codex: "https://github.com/openai/codex",
   copilot: "https://cli.github.com",
+  gemini: "https://github.com/google-gemini/gemini-cli",
 };
 
 const FEATURES = [
@@ -51,7 +52,7 @@ const FEATURES = [
     color: "text-purple-400",
     bg: "bg-purple-500/10",
     title: "AI Agents",
-    description: "Delegate issues to Claude, Codex or Copilot",
+        description: "Delegate issues to Claude, Gemini, Codex or Copilot",
   },
   {
     icon: CircleDot,
@@ -431,11 +432,13 @@ function DependencyRow({ dep }: { dep: DependencyStatus }) {
             )}
           </div>
           <p className="text-[11px] text-zinc-500 mt-0.5 truncate">
-            {dep.installed
+              {dep.installed
               ? dep.version ?? dep.path ?? "installed"
               : dep.id === "copilot"
                 ? "Requires gh CLI — install or update it"
-                : "Not found in PATH"}
+                : dep.id === "gemini"
+                  ? "Optional — needed for Gemini models (Google One)"
+                  : "Not found in PATH"}
           </p>
         </div>
       </div>
