@@ -25,7 +25,7 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
 
     let unique_owners: Vec<String> = {
         let mut seen = std::collections::HashSet::new();
-        repos.iter().filter_map(|r| seen.insert(r.owner.clone()).then(|| r.owner.clone())).collect()
+        repos.iter().filter_map(|r| seen.insert(r.owner.clone()).then_some(r.owner.clone())).collect()
     };
 
     let mut repo_meta: std::collections::HashMap<String, RepoMeta> = std::collections::HashMap::new();

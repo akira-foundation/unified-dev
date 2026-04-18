@@ -153,10 +153,8 @@ async fn process_rename_workspace(
     for line in response_text.lines() {
         if let Some(new_name) = line.trim().strip_prefix("RENAME_WORKSPACE:") {
             let new_name = new_name.trim();
-            if !new_name.is_empty() {
-                if threads::rename_logic(thread_id, new_name, pool).await.is_ok() {
-                    renamed_to = Some(new_name.to_string());
-                }
+            if !new_name.is_empty() && threads::rename_logic(thread_id, new_name, pool).await.is_ok() {
+                renamed_to = Some(new_name.to_string());
             }
             break;
         }

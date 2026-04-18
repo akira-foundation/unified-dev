@@ -24,8 +24,6 @@ pub async fn create_repository(
 
     let kind = credentials.kind.clone();
 
-    // For GitHub App, use the user OAuth token (not installation token) so the
-    // repository is created on behalf of the user, not the app installation.
     let auth = match (&kind, credentials.auth) {
         (ProviderKind::GitHub, ProviderAuth::GitHubApp { oauth_access_token, .. }) => {
             ProviderAuth::PersonalAccessToken { token: oauth_access_token }

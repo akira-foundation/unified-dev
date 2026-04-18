@@ -18,7 +18,7 @@ pub async fn delegate(
 
     let owner = crate::app::issues::resolve_provider::resolve_owner(state, &org_id, &repo_name)
         .await
-        .map_err(|e| AppError::Internal(e))?;
+        .map_err(AppError::Internal)?;
 
     let clone_url = format!("https://github.com/{}/{}", owner, repo_name);
 

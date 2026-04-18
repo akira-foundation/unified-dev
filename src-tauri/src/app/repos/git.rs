@@ -207,7 +207,7 @@ pub fn is_github_url(url: &str) -> bool {
 }
 
 pub fn repo_name_from_url(url: &str) -> Option<String> {
-    let last = url.trim_end_matches('/').split('/').last()?;
+    let last = url.trim_end_matches('/').split('/').next_back()?;
     let name = last.trim_end_matches(".git");
     if name.is_empty() {
         None

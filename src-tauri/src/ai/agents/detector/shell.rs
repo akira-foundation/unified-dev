@@ -58,8 +58,8 @@ fn shell_exports_key(content: &str, key: &str) -> bool {
         if trimmed.starts_with('#') {
             return false;
         }
-        if trimmed.starts_with("export ") {
-            let after_export = trimmed["export ".len()..].trim_start();
+        if let Some(after_export) = trimmed.strip_prefix("export ") {
+            let after_export = after_export.trim_start();
             return after_export.starts_with(key) && after_export[key.len()..].starts_with('=');
         }
         trimmed.starts_with(key) && trimmed[key.len()..].starts_with('=')

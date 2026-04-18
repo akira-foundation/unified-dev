@@ -806,7 +806,7 @@ impl VcsProvider for GitHubDriver {
         Ok(resp
             .check_runs
             .into_iter()
-            .zip(step_results.into_iter())
+            .zip(step_results)
             .map(|(r, steps_result)| {
                 let steps = steps_result
                     .ok()

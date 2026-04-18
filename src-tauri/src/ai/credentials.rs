@@ -30,13 +30,12 @@ pub fn resolve_env_key(key: &str) -> Option<String> {
                 if trimmed.starts_with('#') {
                     continue;
                 }
-                let after_export = if trimmed.starts_with("export ") {
-                    trimmed["export ".len()..].trim_start()
+                let after_export = if let Some(s) = trimmed.strip_prefix("export ") {
+                    s.trim_start()
                 } else {
                     trimmed
                 };
-                if after_export.starts_with(key) {
-                    let rest = &after_export[key.len()..];
+                if let Some(rest) = after_export.strip_prefix(key) {
                     if let Some(val_str) = rest.strip_prefix('=') {
                         let val = val_str.trim().trim_matches('"').trim_matches('\'');
                         if !val.is_empty() {

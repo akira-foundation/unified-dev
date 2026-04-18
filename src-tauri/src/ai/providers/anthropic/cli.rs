@@ -121,7 +121,7 @@ impl AnthropicCliProvider {
             cmd.arg("--mcp-config").arg(&tmp_path);
             cmd.arg("--strict-mcp-config");
             cmd.arg("--dangerously-skip-permissions");
-            let _ = tokio::spawn(async move {
+            tokio::spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                 let _ = std::fs::remove_file(&tmp_path);
             });

@@ -141,7 +141,7 @@ pub async fn list_organizations(state: State<'_, AppState>, provider_id: String)
                             installation.account.login
                         )
                     }),
-                    app_manage_url: is_installed.then(|| installation.html_url),
+                    app_manage_url: is_installed.then_some(installation.html_url),
                 })
             }));
 
