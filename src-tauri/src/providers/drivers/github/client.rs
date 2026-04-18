@@ -96,6 +96,26 @@ impl GitHubDriver {
         Ok(response.json::<T>().await?)
     }
 
+    pub async fn delete(&self, url: String) -> AppResult<()> {
+        let response = self
+            .client
+            .delete(url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::Provider(format!(
+                "GitHub API error: {status} {body}"
+            )));
+        }
+
+        Ok(())
+    }
+
     pub async fn patch_json<B: Serialize + Send + Sync, T: DeserializeOwned>(
         &self,
         url: String,

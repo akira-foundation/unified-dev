@@ -1,9 +1,10 @@
-import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
+import { PageHeader, PageHeaderActions, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "../components/ui/card";
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
 import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
+import { CreateRepositoryDialog } from "@/components/repos/create-repository-dialog";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "../hooks/useOrganizations";
 import { useNavigationStore } from "../stores/navigation-store";
@@ -13,7 +14,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
-import { Activity, Download, Globe2, Lock, Settings2 } from "lucide-react";
+import { Activity, Download, Globe2, Lock, Plus, Settings2 } from "lucide-react";
 import type { OrganizationRepoWithOrg } from "../types/organization";
 import { EmptyState } from "../components/ui/empty-state";
 import { queryKeys } from "../lib/query-keys";
@@ -36,6 +37,7 @@ export function OrganizationPage() {
   const [orgConfigOpen, setOrgConfigOpen] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<OrganizationRepoWithOrg | null>(null);
   const [isRemovingRepo, setIsRemovingRepo] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const organization = useMemo(
     () => organizations.find((item) => item.id === activeOrganizationId) ?? null,
@@ -130,10 +132,33 @@ export function OrganizationPage() {
     },
   });
 
-  const handleRemoveRepo = async () => {
+  const handleRemoveRepo = async (deleteRemote: boolean) => {
     if (!repoToRemove) return;
     try {
       setIsRemovingRepo(true);
+
+      if (deleteRemote) {
+        const org = organizations.find((o) => o.id === repoToRemove.organization_id);
+        if (!org?.provider_id) {
+          toast.error("This organization has no linked provider. Cannot delete repository on GitHub.");
+        } else {
+          try {
+            await invoke("delete_provider_repository", {
+              input: {
+                provider_id: org.provider_id,
+                owner: repoToRemove.owner,
+                repo_name: repoToRemove.repo_name,
+              },
+            });
+            toast.success(`GitHub: ${repoToRemove.owner}/${repoToRemove.repo_name} deleted.`);
+          } catch (remoteError) {
+            const msg = String(remoteError);
+            const clean = msg.startsWith("provider error: ") ? msg.slice("provider error: ".length) : msg;
+            toast.error(`GitHub delete failed: ${clean}`);
+          }
+        }
+      }
+
       await invoke("save_selected_repositories", {
         organizationId: repoToRemove.organization_id,
         repoList: [{
@@ -149,7 +174,7 @@ export function OrganizationPage() {
         }],
       });
       queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(organization!.id) });
-      toast.success(t("agents.sidebar.toast.repoRemoved").replace("{name}", repoToRemove.repo_name));
+      toast.success(`Workspace: ${repoToRemove.repo_name} removed.`);
       setRepoToRemove(null);
     } catch (error) {
       toast.error(`Failed to remove repository: ${error}`);
@@ -185,10 +210,16 @@ export function OrganizationPage() {
           </PageHeaderMeta>
         </div>
         {organization && (
-          <Button onClick={() => navigateTo("import-repositories")}>
-            <Download size={18} />
-            {t("pages.organization.importRepositories")}
-          </Button>
+          <PageHeaderActions>
+            <Button variant="outline" onClick={() => setShowCreateDialog(true)}>
+              <Plus size={18} />
+              {t("dashboard.quick.newRepo")}
+            </Button>
+            <Button onClick={() => navigateTo("import-repositories")}>
+              <Download size={18} />
+              {t("pages.organization.importRepositories")}
+            </Button>
+          </PageHeaderActions>
         )}
       </PageHeader>
       <div className="flex flex-col gap-6">
@@ -287,9 +318,17 @@ export function OrganizationPage() {
       <RemoveRepositoryDialog
         open={!!repoToRemove}
         onOpenChange={(open) => !open && setRepoToRemove(null)}
-        onRemove={() => void handleRemoveRepo()}
+        onRemove={(deleteRemote) => void handleRemoveRepo(deleteRemote)}
         repoName={repoToRemove?.repo_name ?? ""}
         isRemoving={isRemovingRepo}
+      />
+
+      <CreateRepositoryDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        providers={providers}
+        organizations={organizations}
+        defaultOrganizationId={activeOrganizationId ?? undefined}
       />
     </PageLayout>
   );

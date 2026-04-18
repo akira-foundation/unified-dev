@@ -7,6 +7,7 @@ import { FolderGit2, GitPullRequest, Globe2, Lock } from "lucide-react";
 
 import { RepoMetricsTable } from "../components/repos/repo-metrics-table";
 import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
+import { CreateRepositoryDialog } from "@/components/repos/create-repository-dialog";
 import { EmptyState } from "../components/ui/empty-state";
 import {
   PageHeader,
@@ -43,6 +44,7 @@ export function RepositoryPage() {
   const [visibilityRepo, setVisibilityRepo] = useState<OrganizationRepoWithOrg | null>(null);
   const [repoToRemove, setRepoToRemove] = useState<OrganizationRepoWithOrg | null>(null);
   const [isRemovingRepo, setIsRemovingRepo] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const { data: repos = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -136,10 +138,33 @@ export function RepositoryPage() {
     },
   });
 
-  const handleRemoveRepo = async () => {
+   const handleRemoveRepo = async (deleteRemote: boolean) => {
     if (!repoToRemove) return;
     try {
       setIsRemovingRepo(true);
+
+      if (deleteRemote) {
+        const org = organizations.find((o) => o.id === repoToRemove.organization_id);
+        if (!org?.provider_id) {
+          toast.error("This organization has no linked provider. Cannot delete repository on GitHub.");
+        } else {
+          try {
+            await invoke("delete_provider_repository", {
+              input: {
+                provider_id: org.provider_id,
+                owner: repoToRemove.owner,
+                repo_name: repoToRemove.repo_name,
+              },
+            });
+            toast.success(`GitHub: ${repoToRemove.owner}/${repoToRemove.repo_name} deleted.`);
+          } catch (remoteError) {
+            const msg = String(remoteError);
+            const clean = msg.startsWith("provider error: ") ? msg.slice("provider error: ".length) : msg;
+            toast.error(`GitHub delete failed: ${clean}`);
+          }
+        }
+      }
+
       await invoke("save_selected_repositories", {
         organizationId: repoToRemove.organization_id,
         repoList: [{
@@ -155,10 +180,12 @@ export function RepositoryPage() {
         }],
       });
       void refetch();
-      toast.success(t("agents.sidebar.toast.repoRemoved").replace("{name}", repoToRemove.repo_name));
+      toast.success(`Workspace: ${repoToRemove.repo_name} removed.`);
       setRepoToRemove(null);
     } catch (error) {
-      toast.error(`Failed to remove repository: ${error}`);
+      const msg = String(error);
+      const clean = msg.startsWith("provider error: ") ? msg.slice("provider error: ".length) : msg;
+      toast.error(clean);
     } finally {
       setIsRemovingRepo(false);
     }
@@ -176,7 +203,7 @@ export function RepositoryPage() {
           </PageHeaderMeta>
         </div>
         <PageHeaderActions>
-          <Button>
+          <Button onClick={() => setShowCreateDialog(true)}>
             <Plus size={18} />
             {t("dashboard.quick.newRepo")}
           </Button>
@@ -284,9 +311,16 @@ export function RepositoryPage() {
             <RemoveRepositoryDialog
               open={!!repoToRemove}
               onOpenChange={(open) => !open && setRepoToRemove(null)}
-              onRemove={() => void handleRemoveRepo()}
+              onRemove={(deleteRemote) => void handleRemoveRepo(deleteRemote)}
               repoName={repoToRemove?.repo_name ?? ""}
               isRemoving={isRemovingRepo}
+            />
+
+            <CreateRepositoryDialog
+              open={showCreateDialog}
+              onOpenChange={setShowCreateDialog}
+              providers={providers}
+              organizations={organizations}
             />
           </>
         )}
