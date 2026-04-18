@@ -49,6 +49,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -167,13 +177,14 @@ export function AgentsSidebar() {
   const [addingThreadForRepo, setAddingThreadForRepo] = useState<string | null>(null);
   const [removingThreadId, setRemovingThreadId] = useState<string | null>(null);
   const [threadToRemove, setThreadToRemove] = useState<{ id: string; title: string; repoId: string } | null>(null);
+  const [repoClearThreads, setRepoClearThreads] = useState<{ id: string; name: string } | null>(null);
   const [sourcePicker, setSourcePicker] = useState<{ kind: ThreadSourceKind; repoId: string; repoName: string } | null>(null);
   const [sourcePickerItems, setSourcePickerItems] = useState<ThreadSourcePickerItem[]>([]);
   const [sourcePickerLoading, setSourcePickerLoading] = useState(false);
   const [creatingSourceThread, setCreatingSourceThread] = useState(false);
   const [autopilotTarget, setAutopilotTarget] = useState<{ repoId: string; repoName: string } | null>(null);
   const [autopilotPanelOpen, setAutopilotPanelOpen] = useState(false);
-  const { selectedJobId } = useAutopilotStore();
+  const { selectedJobId, jobs, selectJob } = useAutopilotStore();
   const [ghCliError, setGhCliError] = useState<"gh_not_installed" | "gh_not_authenticated" | null>(null);
   const [linkRepoDialog, setLinkRepoDialog] = useState<{
     repoId: string;
@@ -722,10 +733,19 @@ export function AgentsSidebar() {
                               </DropdownMenuLabel>
 
                               <DropdownMenuItem
-                                onClick={() => setAutopilotTarget({ repoId: repo.id, repoName: repo.name })}
+                                onClick={() => {
+                                  const activeJob = Object.values(jobs).find(
+                                    (j) => j.repoId === repo.id && (j.status === "running" || j.status === "waiting"),
+                                  );
+                                  if (activeJob) {
+                                    selectJob(activeJob.id);
+                                  } else {
+                                    setAutopilotTarget({ repoId: repo.id, repoName: repo.name });
+                                  }
+                                }}
                                 className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
                               >
-                                <Rocket className="h-4 w-4 text-foreground/40" />
+                                <Rocket className={cn("h-4 w-4", Object.values(jobs).some((j) => j.repoId === repo.id && (j.status === "running" || j.status === "waiting")) ? "text-purple-500" : "text-foreground/40")} />
                                 <span>{t("agents.sidebar.autopilot")}</span>
                               </DropdownMenuItem>
 
@@ -750,6 +770,14 @@ export function AgentsSidebar() {
                               <DropdownMenuLabel className="px-3 py-2 text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
                                 {t("common.dangerZone")}
                               </DropdownMenuLabel>
+
+                              <DropdownMenuItem
+                                onClick={() => setRepoClearThreads({ id: repo.id, name: repo.name })}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 focus:bg-red-500/10 text-red-500 rounded-md cursor-pointer"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span>{t("agents.sidebar.clearThreads")}</span>
+                              </DropdownMenuItem>
 
                               <DropdownMenuItem
                                 onClick={() => setRepoToRemove({ id: repo.id, name: repo.name })}
@@ -910,6 +938,37 @@ export function AgentsSidebar() {
         threadTitle={threadToRemove?.title || ""}
         isRemoving={!!removingThreadId}
       />
+
+      <AlertDialog open={!!repoClearThreads} onOpenChange={(open) => !open && setRepoClearThreads(null)}>
+        <AlertDialogContent className="max-w-[420px]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("agents.sidebar.clearThreadsConfirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("agents.sidebar.clearThreadsConfirmDesc").replace("{name}", repoClearThreads?.name ?? "")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel size="sm">{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              size="sm"
+              className="flex-1 bg-red-500 text-white hover:bg-red-600"
+              onClick={() => {
+                if (!repoClearThreads) return;
+                const allRepos = useAgentsStore.getState().repositoryGroups.flatMap((g) => g.repositories);
+                const repo = allRepos.find((r) => r.id === repoClearThreads.id);
+                if (repo) {
+                  for (const thread of repo.issues) {
+                    removeThread(repoClearThreads.id, thread.id);
+                  }
+                }
+                setRepoClearThreads(null);
+              }}
+            >
+              {t("agents.sidebar.clearThreadsConfirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {sourcePicker ? (
         <ThreadSourcePickerDialog

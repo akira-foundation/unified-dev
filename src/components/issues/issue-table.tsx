@@ -672,24 +672,27 @@ export function IssueTable({
       </Card>
 
       <AlertDialog open={!!issueToDelete} onOpenChange={(open) => { if (!open) setIssueToDelete(null); }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[420px]">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("issues.table.confirm.title")}</AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div>
-                <p className="mb-2">{t("issues.table.confirm.description").replace("{title}", issueToDelete?.title ?? "")}</p>
-                <ul className="list-disc pl-4 space-y-1 text-sm">
-                  <li>{t("issues.table.confirm.bullet1")}</li>
-                  <li>{t("issues.table.confirm.bullet2")}</li>
-                  <li>{t("issues.table.confirm.bullet3")}</li>
-                </ul>
-              </div>
+            <AlertDialogDescription>
+              {t("issues.table.confirm.description").replace("{title}", issueToDelete?.title ?? "")}
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="px-5 py-4">
+            <ul className="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
+              <li>{t("issues.table.confirm.bullet1")}</li>
+              <li>{t("issues.table.confirm.bullet2")}</li>
+              <li>{t("issues.table.confirm.bullet3")}</li>
+            </ul>
+          </div>
+
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogCancel size="sm">{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              variant="destructive"
+              size="sm"
+              className="flex-1 bg-red-500 text-white hover:bg-red-600"
               disabled={isDeleting}
               onClick={() => void handleConfirmDelete()}
             >

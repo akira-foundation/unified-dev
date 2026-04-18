@@ -145,13 +145,13 @@ export function CreateRepositoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-[420px]">
         <DialogHeader>
           <DialogTitle>{t("dialogs.createRepository.title")}</DialogTitle>
           <DialogDescription>{t("dialogs.createRepository.description")}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-5 py-4 border-t border-border/50">
+        <div className="flex flex-col gap-5 px-5 py-4">
           <div className="flex flex-col gap-2">
             <Label className="text-sm font-medium">{t("dialogs.createRepository.localOrg")}</Label>
             <Select value={localOrgId} onValueChange={setLocalOrgId}>
@@ -171,7 +171,7 @@ export function CreateRepositoryDialog({
           <div className="flex flex-col gap-2">
             <Label className="text-sm font-medium">{t("dialogs.createRepository.owner")}</Label>
             {isLoadingOrgs ? (
-              <div className="h-9 rounded-md border border-input bg-muted animate-pulse" />
+              <div className="h-10 rounded-md border border-zinc-200 bg-zinc-100 animate-pulse dark:border-zinc-700 dark:bg-zinc-800" />
             ) : (
               <Select value={providerOrgLogin} onValueChange={setProviderOrgLogin}>
                 <SelectTrigger>
@@ -229,11 +229,11 @@ export function CreateRepositoryDialog({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-border/50 pt-4">
-          <Button variant="ghost" onClick={() => handleClose(false)} disabled={isSubmitting}>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => handleClose(false)} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={handleSubmit} disabled={!canSubmit}>
+          <Button size="sm" className="flex-1 bg-purple-600 text-white hover:bg-purple-700" onClick={handleSubmit} disabled={!canSubmit}>
             {isSubmitting ? (
               <span className="flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />

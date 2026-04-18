@@ -76,13 +76,13 @@ export function AddProviderDialog({ open, onOpenChange, onSubmit, defaultKind }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-[420px]">
         <DialogHeader>
           <DialogTitle>{t("dialogs.addProvider.title")}</DialogTitle>
           <DialogDescription>{t("dialogs.addProvider.description")}</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit}>
+          <form className="flex flex-col gap-4 px-5 py-4" onSubmit={handleSubmit}>
             <FormField
               control={form.control}
               name="kind"
@@ -141,11 +141,11 @@ export function AddProviderDialog({ open, onOpenChange, onSubmit, defaultKind }:
             <div className="rounded-lg border border-amber-200/60 bg-amber-50/60 p-3 text-xs text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
               {TOKEN_META[form.watch("kind")]?.hint ?? TOKEN_META.github.hint}
             </div>
-            <DialogFooter>
-              <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
+            <DialogFooter className="px-0 pb-0">
+              <Button variant="outline" size="sm" type="button" onClick={() => onOpenChange(false)}>
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
+              <Button size="sm" className="flex-1 bg-purple-600 text-white hover:bg-purple-700" type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? t("common.saving") : t("dialogs.addProvider.save")}
               </Button>
             </DialogFooter>

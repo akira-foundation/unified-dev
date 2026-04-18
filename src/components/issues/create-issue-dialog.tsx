@@ -375,6 +375,7 @@ export function CreateIssueDialog({
         />
       )}
       <DialogContent
+        variant="bare"
         className={
           expanded
             ? "p-0 gap-0 overflow-hidden sm:max-w-none w-[calc(100vw-2rem)] h-[calc(100vh-2rem)] max-h-[calc(100vh-2rem)] flex flex-col shadow-2xl"

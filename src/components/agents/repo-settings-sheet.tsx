@@ -54,7 +54,7 @@ export function RepoSettingsSheet({ repoId, onClose }: RepoSettingsSheetProps) {
   }
 
   return (
-    <Sheet open={!!repo} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Sheet open={!!repo} onOpenChange={(open) => { if (!open) onClose(); }} modal={false}>
       <SheetContent
         side="right"
         className="flex flex-col p-0 overflow-hidden transition-all duration-200 w-full sm:max-w-md"

@@ -29,6 +29,7 @@ import { Bot, Building2, CircleDot, FolderGit2, LayoutDashboard, Settings } from
 import { useNavigation } from "./hooks/useNavigation";
 import { useNavigationStore } from "./stores/navigation-store";
 import { useAgentsStore } from "./stores/useAgentsStore";
+import { useAutopilotStore } from "./stores/useAutopilotStore";
 import { IssuesPage } from "./pages/issues";
 import type { NavItem } from "./types/navigation";
 
@@ -47,11 +48,13 @@ export default function App() {
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
   const loadRepositories = useAgentsStore((state) => state.loadRepositories);
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
+  const loadAutopilotJobs = useAutopilotStore((state) => state.loadJobs);
   const [activationSessionId, setActivationSessionId] = useState<string | null>(null);
 
   useEffect(() => {
     loadRepositories();
     loadAiProviders();
+    loadAutopilotJobs();
   }, []);
 
   useEffect(() => {

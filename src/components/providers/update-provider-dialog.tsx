@@ -71,7 +71,7 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-w-[420px]">
         <DialogHeader>
           <DialogTitle>{t("dialogs.updateProvider.title").replace("{kind}", kindLabel)}</DialogTitle>
           <DialogDescription>
@@ -79,7 +79,7 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, o
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit}>
+          <form className="flex flex-col gap-4 px-5 py-4" onSubmit={handleSubmit}>
             <FormField
               control={form.control}
               name="token"
@@ -93,17 +93,17 @@ export function UpdateProviderDialog({ provider, open, onOpenChange, onSubmit, o
                 </FormItem>
               )}
             />
-            <DialogFooter className="flex-row justify-between sm:justify-between">
+            <DialogFooter className="flex-row justify-between px-0 pb-0 sm:justify-between">
               {onDisconnect && (
-                <Button variant="destructive" type="button" onClick={handleDisconnect} disabled={form.formState.isSubmitting}>
+                <Button variant="destructive" size="sm" type="button" onClick={handleDisconnect} disabled={form.formState.isSubmitting}>
                   {t("common.disconnect")}
                 </Button>
               )}
               <div className="flex gap-2">
-                <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
+                <Button variant="outline" size="sm" type="button" onClick={() => onOpenChange(false)}>
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
+                <Button size="sm" className="bg-purple-600 text-white hover:bg-purple-700" type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? t("common.saving") : t("common.save")}
                 </Button>
               </div>

@@ -27,7 +27,7 @@ export function GhCliErrorDialog({ open, onOpenChange, kind }: GhCliErrorDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-[420px]">
         <DialogHeader>
           <DialogTitle>
             {t(isNotInstalled ? "ghCliError.notInstalled.title" : "ghCliError.notAuthenticated.title")}
@@ -37,7 +37,7 @@ export function GhCliErrorDialog({ open, onOpenChange, kind }: GhCliErrorDialogP
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2 space-y-3">
+         <div className="space-y-3 px-5 py-4">
           <p className="text-sm text-muted-foreground">
             {t(isNotInstalled ? "ghCliError.notInstalled.steps" : "ghCliError.notAuthenticated.steps")}
           </p>
@@ -53,11 +53,11 @@ export function GhCliErrorDialog({ open, onOpenChange, kind }: GhCliErrorDialogP
           )}
         </div>
 
-        <DialogFooter className="mt-6">
-          <Button onClick={() => onOpenChange(false)}>
-            {t("ghCliError.close")}
-          </Button>
-        </DialogFooter>
+         <DialogFooter>
+           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+             {t("ghCliError.close")}
+           </Button>
+         </DialogFooter>
       </DialogContent>
     </Dialog>
   );

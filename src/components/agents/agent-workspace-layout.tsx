@@ -239,43 +239,19 @@ export function AgentWorkspaceLayout() {
       <div className="flex-1 flex flex-col items-center justify-center bg-background h-full relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
 
-        <div className="flex flex-col items-center gap-12 z-10">
-          <div className="flex flex-col items-center gap-6">
-            <div className="relative group">
-              <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-2xl group-hover:bg-primary/30 transition-all duration-500" />
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/10 shadow-2xl">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent opacity-50 rounded-2xl" />
-                <span className="relative text-xl font-black text-white tracking-widest bg-clip-text">UD</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center gap-2">
-              <h2 className="text-[22px] font-bold text-white tracking-tight">{t("app.name")}</h2>
-              <p className="text-[13px] text-zinc-500 font-medium max-w-[280px] text-center leading-relaxed">
-                {t("agents.workspace.emptyDescription")}
-              </p>
+        <div className="flex flex-col items-center gap-6 z-10">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-2xl group-hover:bg-primary/30 transition-all duration-500" />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl overflow-hidden shadow-2xl">
+              <img src="/app-icon.svg" alt="Akira" className="h-16 w-16 object-cover" />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-y-2 w-full max-w-[320px] p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] backdrop-blur-sm">
-            {[
-              { keys: ["⌘", "N"], labelKey: "agents.workspace.shortcut.newThread" },
-              { keys: ["⌘", "1–9"], labelKey: "agents.workspace.shortcut.switchWorkspace" },
-              { keys: ["⌘", "B"], labelKey: "agents.workspace.shortcut.toggleSidebar" },
-              { keys: ["⌘", "D"], labelKey: "agents.workspace.shortcut.toggleDiff" },
-              { keys: ["⌘", "`"], labelKey: "agents.workspace.shortcut.toggleTerminal" },
-            ].map((shortcut, i) => (
-              <div key={i} className="flex items-center justify-between px-2 py-1.5 group/item">
-                <span className="text-[11px] font-medium text-zinc-500 group-hover/item:text-zinc-400 transition-colors">{t(shortcut.labelKey)}</span>
-                <div className="flex items-center gap-1">
-                  {shortcut.keys.map((key, ki) => (
-                    <kbd key={ki} className="min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded bg-white/[0.05] border border-white/[0.1] text-[9px] font-bold text-zinc-400 font-sans uppercase">
-                      {key}
-                    </kbd>
-                  ))}
-                </div>
-              </div>
-            ))}
+          <div className="flex flex-col items-center gap-2">
+            <h2 className="text-[22px] font-bold text-white tracking-tight">{t("app.name")}</h2>
+            <p className="text-[13px] text-zinc-500 font-medium max-w-[280px] text-center leading-relaxed">
+              {t("agents.workspace.emptyDescription")}
+            </p>
           </div>
         </div>
       </div>

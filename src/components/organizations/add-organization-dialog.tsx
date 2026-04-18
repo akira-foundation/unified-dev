@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 
 import type { ProviderSummary } from "../../types/provider";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -55,13 +55,13 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("dialogs.addOrg.title")}</DialogTitle>
-          <DialogDescription>{t("dialogs.addOrg.description")}</DialogDescription>
+      <DialogContent className="max-w-[420px] gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-4">
+          <DialogTitle className="text-base">{t("dialogs.addOrg.title")}</DialogTitle>
+          <p className="mt-1.5 text-sm text-muted-foreground">{t("dialogs.addOrg.description")}</p>
         </DialogHeader>
         <Form {...form}>
-          <form className="mt-4 flex flex-col gap-4" onSubmit={handleSubmit}>
+          <form className="flex flex-col gap-4 px-5 py-4" onSubmit={handleSubmit}>
             <FormField
               control={form.control}
               name="name"
@@ -69,7 +69,11 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
                 <FormItem>
                   <FormLabel>{t("dialogs.addOrg.nameLabel")}</FormLabel>
                   <FormControl>
-                    <Input placeholder={t("dialogs.addOrg.namePlaceholder")} {...field} />
+                    <Input
+                      placeholder={t("dialogs.addOrg.namePlaceholder")}
+                      className="h-10 border-zinc-200 bg-zinc-100 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -83,7 +87,7 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
                   <FormLabel>{t("dialogs.addOrg.providerLabel")}</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger>
+                      <SelectTrigger className="h-10 border-zinc-200 bg-zinc-100 px-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
                         <SelectValue placeholder={t("dialogs.addOrg.providerPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
@@ -99,11 +103,16 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button variant="ghost" type="button" onClick={() => onOpenChange(false)}>
+            <DialogFooter className="flex gap-2 px-0 pb-0 pt-0">
+              <Button variant="outline" size="sm" type="button" onClick={() => onOpenChange(false)}>
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" disabled={!form.formState.isValid || form.formState.isSubmitting}>
+              <Button
+                type="submit"
+                size="sm"
+                className="flex-1 bg-purple-600 text-white hover:bg-purple-700"
+                disabled={!form.formState.isValid || form.formState.isSubmitting}
+              >
                 {form.formState.isSubmitting ? t("common.saving") : t("dialogs.addOrg.save")}
               </Button>
             </DialogFooter>

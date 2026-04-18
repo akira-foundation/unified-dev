@@ -61,28 +61,30 @@ export function ModelPicker({
         ) : (
           <button
             className={cn(
-              "flex items-center gap-1.5 h-8 rounded-md border border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 shrink-0 outline-none hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors",
+              "flex h-8 shrink-0 items-center justify-between gap-1.5 rounded-md border border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 outline-none transition-colors hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700",
               className,
             )}
           >
-            <span className="truncate max-w-[120px]">{displayLabel}</span>
-            {selectedModel && selectedProvider && (
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-normal shrink-0 hidden sm:inline">
-                {selectedProvider.name}
-              </span>
-            )}
-            <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="truncate">{displayLabel}</span>
+              {selectedModel && selectedProvider && (
+                <span className="shrink-0 text-[11px] font-normal text-zinc-500 dark:text-zinc-400">
+                  {selectedProvider.name}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
           </button>
         )}
       </PopoverTrigger>
       <PopoverContent
         align={align}
-        className="w-56 p-0 overflow-hidden flex flex-col"
-        style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
+        className="w-56 p-0 flex flex-col"
+        style={{ maxHeight: "360px" }}
       >
-        <Command>
+        <Command className="flex flex-col">
           <CommandInput placeholder="Search models..." />
-          <CommandList className="max-h-none flex-1">
+          <CommandList style={{ maxHeight: "310px", overflowY: "scroll" }}>
             <CommandEmpty>No models found.</CommandEmpty>
             {noneLabel && (
               <CommandGroup>

@@ -1,3 +1,4 @@
+pub mod autopilot;
 pub mod chat;
 pub mod concerns;
 pub mod license;

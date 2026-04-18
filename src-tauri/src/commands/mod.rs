@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod autopilot;
 pub mod issue;
 pub mod system;
 pub mod license;

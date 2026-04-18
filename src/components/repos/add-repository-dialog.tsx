@@ -4,7 +4,6 @@ import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -68,20 +67,20 @@ export function AddRepositoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("dialogs.addRepository.title")}</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-[420px] gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-4">
+          <DialogTitle className="text-base">{t("dialogs.addRepository.title")}</DialogTitle>
+          <p className="mt-1.5 text-sm text-muted-foreground">
             {t("dialogs.addRepository.description")}
-          </DialogDescription>
+          </p>
         </DialogHeader>
 
         <Tabs
           defaultValue="local"
-          className="w-full mt-4"
+          className="w-full px-5 py-4"
           onValueChange={(v) => setActiveTab(v as "local" | "clone")}
         >
-          <TabsList variant="line" className="h-auto gap-8 mb-6">
+          <TabsList variant="line" className="mb-6 h-auto gap-8">
             <TabsTrigger
               value="local"
               className="px-0 py-2 lowercase first-letter:uppercase"
@@ -102,11 +101,11 @@ export function AddRepositoryDialog({
                 placeholder={t("dialogs.addRepository.pathPlaceholder")}
                 value={localPath}
                 onChange={(e) => setLocalPath(e.target.value)}
-                className="h-10"
+                className="h-10 border-zinc-200 bg-zinc-100 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
               />
               <Button
                 variant="outline"
-                className="gap-2 h-10"
+                className="h-10 gap-2 border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                 onClick={handleBrowse}
               >
                 <Folder className="h-4 w-4" />
@@ -121,10 +120,10 @@ export function AddRepositoryDialog({
                 placeholder="https://github.com/owner/repo.git"
                 value={cloneUrl}
                 onChange={(e) => setCloneUrl(e.target.value)}
-                className="h-10 pr-16"
+                className="h-10 border-zinc-200 bg-zinc-100 pr-16 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
               />
               {protocol && (
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">
                   {protocol}
                 </span>
               )}
@@ -132,16 +131,18 @@ export function AddRepositoryDialog({
           </TabsContent>
         </Tabs>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="flex gap-2 px-5 pb-5 pt-0">
           <Button
-            variant="ghost"
+            variant="outline"
+            size="sm"
             onClick={() => onOpenChange(false)}
           >
             {t("common.cancel")}
           </Button>
           <Button
             onClick={handleAdd}
-            className="px-8"
+            size="sm"
+            className="flex-1 bg-purple-600 text-white hover:bg-purple-700"
             disabled={isAddDisabled}
           >
             {isLoading ? t("dialogs.addRepository.adding") : t("dialogs.addRepository.add")}

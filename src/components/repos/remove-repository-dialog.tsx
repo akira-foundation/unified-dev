@@ -39,7 +39,7 @@ export function RemoveRepositoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-[420px]">
         <DialogHeader>
           <DialogTitle>{t("dialogs.removeRepository.title")}</DialogTitle>
           <DialogDescription>
@@ -48,27 +48,30 @@ export function RemoveRepositoryDialog({
         </DialogHeader>
 
         {!localOnly && (
-          <div className="flex items-center gap-3 py-2">
-            <Switch
-              id="delete-remote"
-              checked={deleteRemote}
-              onCheckedChange={setDeleteRemote}
-              disabled={isRemoving}
-            />
-            <label htmlFor="delete-remote" className="text-sm cursor-pointer select-none">
-              {t("dialogs.removeRepository.deleteRemote")}
-            </label>
+          <div className="px-5 py-4">
+            <div className="flex items-center gap-3 rounded-md border border-border bg-zinc-100/60 px-3 py-3 dark:bg-zinc-800/60">
+              <Switch
+                id="delete-remote"
+                checked={deleteRemote}
+                onCheckedChange={setDeleteRemote}
+                disabled={isRemoving}
+              />
+              <label htmlFor="delete-remote" className="cursor-pointer select-none text-sm">
+                {t("dialogs.removeRepository.deleteRemote")}
+              </label>
+            </div>
+            {deleteRemote && (
+              <p className="mt-3 text-xs text-red-400">
+                {t("dialogs.removeRepository.deleteRemoteWarning").replace("{name}", repoName)}
+              </p>
+            )}
           </div>
         )}
-        {!localOnly && deleteRemote && (
-          <p className="text-xs text-red-400">
-            {t("dialogs.removeRepository.deleteRemoteWarning").replace("{name}", repoName)}
-          </p>
-        )}
 
-        <DialogFooter className="mt-2">
+        <DialogFooter className="border-t border-border pt-4">
           <Button
-            variant="ghost"
+            variant="outline"
+            size="sm"
             onClick={() => handleOpenChange(false)}
             disabled={isRemoving}
           >
@@ -76,7 +79,8 @@ export function RemoveRepositoryDialog({
           </Button>
           <Button
             onClick={() => onRemove(deleteRemote)}
-            className="px-8 bg-red-500 hover:bg-red-600 text-white"
+            size="sm"
+            className="flex-1 bg-red-500 text-white hover:bg-red-600"
             disabled={isRemoving}
           >
             {isRemoving ? (

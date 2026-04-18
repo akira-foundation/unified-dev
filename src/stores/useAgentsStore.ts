@@ -62,6 +62,7 @@ interface AgentsState {
   messagesLoadingByThread: Record<string, boolean>;
   streamingContentByThread: Record<string, string>;
   toolCallsByThread: Record<string, ToolCallEvent[]>;
+  abortRequestedByThread: Record<string, boolean>;
   streamingThreadIds: Record<string, boolean>;
   streamingThreadId: string | null;
   messageQueueByThread: Record<string, Array<{ content: MessageContent; model: string; options?: SendMessageOptions }>>;
@@ -82,6 +83,7 @@ interface AgentsState {
   loadFileChanges: (workspacePath: string) => Promise<void>;
   addRepository: (repo: { name: string, id: string }, thread: { title: string, id: string, workspace_path: string }) => void;
   addThread: (repoId: string, thread: { title: string, id: string, workspace_path: string }) => void;
+  abortThread: (threadId: string) => Promise<void>;
   removeThread: (repoId: string, threadId: string) => void;
   removeRepository: (id: string) => void;
   prUrlByThread: Record<string, { url: string; isDraft: boolean } | null>;
@@ -144,6 +146,7 @@ export const useAgentsStore = create<AgentsState>()(
       messagesLoadingByThread: {},
       streamingContentByThread: {},
       toolCallsByThread: {},
+      abortRequestedByThread: {},
       streamingThreadIds: {},
       streamingThreadId: null,
       messageQueueByThread: {},
@@ -465,6 +468,7 @@ export const useAgentsStore = create<AgentsState>()(
               [threadId]: [...(state.messagesByThread[threadId] ?? []), optimisticUserMessage],
             },
             streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
+            abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
             streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
             streamingThreadId: threadId,
             toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
@@ -472,6 +476,7 @@ export const useAgentsStore = create<AgentsState>()(
         } else {
           set((state) => ({
             streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
+            abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
             streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
             streamingThreadId: threadId,
             toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
@@ -506,6 +511,7 @@ export const useAgentsStore = create<AgentsState>()(
           "agent-stream-token",
           (event) => {
             if (event.payload.thread_id !== threadId) return;
+            if (get().abortRequestedByThread[threadId]) return;
             tokenBuffer += event.payload.token;
             if (!flushTimer) {
               flushTimer = setTimeout(() => {
@@ -527,6 +533,7 @@ export const useAgentsStore = create<AgentsState>()(
           "agent-stream-tool-call",
           (event) => {
             if (event.payload.thread_id !== threadId) return;
+            if (get().abortRequestedByThread[threadId]) return;
             set((state) => {
               const { label, status, output } = event.payload;
               const current = state.toolCallsByThread[threadId] ?? [];
@@ -571,6 +578,7 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenError();
             flushTokenBuffer();
             set((state) => ({
+              abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
               streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
               streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
               streamingThreadId: null,
@@ -606,6 +614,7 @@ export const useAgentsStore = create<AgentsState>()(
             unlistenError();
             flushTokenBuffer();
             set((state) => ({
+              abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
               streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
               streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
               streamingThreadId: null,
@@ -694,53 +703,74 @@ export const useAgentsStore = create<AgentsState>()(
         }));
         return { repositoryGroups: newGroups, selectedIssueId: thread.id };
       }),
-      removeThread: (repoId, threadId) => set((state) => {
-        const newGroups = state.repositoryGroups.map(group => ({
-          ...group,
-          repositories: group.repositories.map(repo => {
-            if (repo.id !== repoId) return repo;
-            return {
-              ...repo,
-              issues: repo.issues.filter(i => i.id !== threadId)
-            };
-          })
+      abortThread: async (threadId) => {
+        set((state) => ({
+          abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: true },
+          streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+          streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
+          streamingThreadId: state.streamingThreadId === threadId ? null : state.streamingThreadId,
+          toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
+          messageQueueByThread: { ...state.messageQueueByThread, [threadId]: [] },
         }));
 
-        const nextSelectedId = state.selectedIssueId === threadId ? null : state.selectedIssueId;
+        await invoke("abort_agent", { threadId }).catch(() => {});
+      },
+      removeThread: (repoId, threadId) => {
+        set((state) => {
+          const newGroups = state.repositoryGroups.map(group => ({
+            ...group,
+            repositories: group.repositories.map(repo => {
+              if (repo.id !== repoId) return repo;
+              return {
+                ...repo,
+                issues: repo.issues.filter(i => i.id !== threadId)
+              };
+            })
+          }));
 
-        const streamingContentByThread = { ...state.streamingContentByThread };
-        const toolCallsByThread = { ...state.toolCallsByThread };
-        const streamingThreadIds = { ...state.streamingThreadIds };
-        const messageQueueByThread = { ...state.messageQueueByThread };
-        const prUrlByThread = { ...state.prUrlByThread };
-        const selectedModelByThread = { ...state.selectedModelByThread };
-        const collapsedFilesByThread = { ...state.collapsedFilesByThread };
-        const messagesByThread = { ...state.messagesByThread };
-        const messagesLoadingByThread = { ...state.messagesLoadingByThread };
-        delete streamingContentByThread[threadId];
-        delete toolCallsByThread[threadId];
-        delete streamingThreadIds[threadId];
-        delete messageQueueByThread[threadId];
-        delete prUrlByThread[threadId];
-        delete selectedModelByThread[threadId];
-        delete collapsedFilesByThread[threadId];
-        delete messagesByThread[threadId];
-        delete messagesLoadingByThread[threadId];
+          const nextSelectedId = state.selectedIssueId === threadId ? null : state.selectedIssueId;
 
-        return {
-          repositoryGroups: newGroups,
-          selectedIssueId: nextSelectedId,
-          streamingContentByThread,
-          toolCallsByThread,
-          streamingThreadIds,
-          messageQueueByThread,
-          prUrlByThread,
-          selectedModelByThread,
-          collapsedFilesByThread,
-          messagesByThread,
-          messagesLoadingByThread,
-        };
-      }),
+          const streamingContentByThread = { ...state.streamingContentByThread };
+          const toolCallsByThread = { ...state.toolCallsByThread };
+          const streamingThreadIds = { ...state.streamingThreadIds };
+          const messageQueueByThread = { ...state.messageQueueByThread };
+          const prUrlByThread = { ...state.prUrlByThread };
+          const selectedModelByThread = { ...state.selectedModelByThread };
+          const collapsedFilesByThread = { ...state.collapsedFilesByThread };
+          const messagesByThread = { ...state.messagesByThread };
+          const messagesLoadingByThread = { ...state.messagesLoadingByThread };
+          const abortRequestedByThread = { ...state.abortRequestedByThread };
+          delete streamingContentByThread[threadId];
+          delete toolCallsByThread[threadId];
+          delete streamingThreadIds[threadId];
+          delete messageQueueByThread[threadId];
+          delete prUrlByThread[threadId];
+          delete selectedModelByThread[threadId];
+          delete collapsedFilesByThread[threadId];
+          delete messagesByThread[threadId];
+          delete messagesLoadingByThread[threadId];
+          delete abortRequestedByThread[threadId];
+
+          return {
+            repositoryGroups: newGroups,
+            selectedIssueId: nextSelectedId,
+            streamingContentByThread,
+            toolCallsByThread,
+            streamingThreadIds,
+            messageQueueByThread,
+            prUrlByThread,
+            selectedModelByThread,
+            collapsedFilesByThread,
+            messagesByThread,
+            messagesLoadingByThread,
+            abortRequestedByThread,
+          };
+        });
+
+        void import("./useAutopilotStore").then(({ useAutopilotStore }) => {
+          useAutopilotStore.getState().removeThreadReference(threadId);
+        });
+      },
       removeRepository: (id) => set((state) => {
         const newGroups = state.repositoryGroups.map(group => ({
           ...group,
