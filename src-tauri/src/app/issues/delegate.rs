@@ -3,6 +3,7 @@ use std::path::Path;
 use uuid::Uuid;
 
 use crate::app::repos::git;
+use crate::app::repos::providers;
 use crate::app::repos::types::{AddLocalRepositoryResponse, LocalRepository};
 use crate::app::threads::create::ThreadConfig;
 use crate::app::support::error::{AppError, AppResult};
@@ -35,8 +36,8 @@ pub async fn delegate(
         let workspace_root = std::path::PathBuf::from(&workspace_root);
         let base_repo_path = workspace_root.join("repo");
 
-        if !base_repo_path.exists() {
-            return Err(AppError::Internal("Base repository clone not found".to_string()));
+        if !git::is_valid_clone(&base_repo_path) {
+            return Err(AppError::Internal("Base repository clone not found or corrupted".to_string()));
         }
 
         let thread = create_thread_with_title(
@@ -68,8 +69,13 @@ pub async fn delegate(
             std::fs::create_dir_all(&workspace_root).map_err(AppError::Io)?;
         }
         let base_repo_path = workspace_root.join("repo");
-        if !base_repo_path.exists() {
-            git::clone_from_url(&clone_url, &base_repo_path)?;
+        if !git::is_valid_clone(&base_repo_path) {
+            if base_repo_path.exists() {
+                std::fs::remove_dir_all(&base_repo_path).map_err(AppError::Io)?;
+            }
+            let (provider, nwo) = providers::detect(&clone_url)
+                .ok_or_else(|| AppError::Internal("Unsupported repository URL".to_string()))?;
+            provider.clone(&nwo, &base_repo_path)?;
         }
         let default_branch = git::get_default_branch(&base_repo_path)?;
 

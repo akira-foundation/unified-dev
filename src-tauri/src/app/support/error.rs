@@ -26,6 +26,10 @@ pub enum AppError {
     Internal(String),
     #[error("{0}")]
     FreeTierLimit(String),
+    #[error("gh_not_installed")]
+    GhNotInstalled,
+    #[error("gh_not_authenticated")]
+    GhNotAuthenticated,
 }
 
 pub type AppResult<T> = Result<T, AppError>;

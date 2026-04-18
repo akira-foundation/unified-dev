@@ -66,6 +66,11 @@ pub async fn list_repositories(state: State<'_, AppState>) -> AppResult<Vec<Repo
 }
 
 #[tauri::command]
+pub async fn get_repo_provider_login(repo_id: String, state: State<'_, AppState>) -> AppResult<Option<String>> {
+    threads::source_picker::get_provider_login(repo_id, state).await
+}
+
+#[tauri::command]
 pub async fn list_thread_source_issues(repo_id: String, state: State<'_, AppState>) -> AppResult<Vec<IssueDto>> {
     threads::source_picker::list_issues(repo_id, state).await
 }

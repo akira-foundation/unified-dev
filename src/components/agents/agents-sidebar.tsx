@@ -64,8 +64,14 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { AddRepositoryDialog } from "@/components/repos/add-repository-dialog";
 import { RemoveRepositoryDialog } from "@/components/repos/remove-repository-dialog";
+import { GhCliErrorDialog } from "@/components/repos/gh-cli-error-dialog";
 import { RemoveThreadDialog } from "@/components/agents/remove-thread-dialog";
 import { RepoSettingsSheet } from "@/components/agents/repo-settings-sheet";
+import { AutopilotDialog } from "@/components/agents/autopilot-dialog";
+import { AutopilotIndicator } from "@/components/agents/autopilot-indicator";
+import { AutopilotJobsPanel } from "@/components/agents/autopilot-jobs-panel";
+import { AutopilotJobDetail } from "@/components/agents/autopilot-job-detail";
+import { useAutopilotStore } from "@/stores/useAutopilotStore";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import {
   ThreadSourcePickerDialog,
@@ -77,6 +83,56 @@ import type { BranchDto, PullRequestDto } from "@/types/organization";
 import type { AgentRepository } from "@/types/agents";
 import { openUpgradeModal } from "@/stores/upgrade-modal-store";
 import { useUsage } from "@/hooks/useUsage";
+
+function RepoStreamingIndicator({ repoIssueIds }: { repoIssueIds: string[] }) {
+  const streamingThreadIds = useAgentsStore((s) => s.streamingThreadIds);
+  const isStreaming = repoIssueIds.some((id) => !!streamingThreadIds[id]);
+  if (!isStreaming) return null;
+  return <div className="h-3 w-3 shrink-0 rounded-full border border-t-foreground/60 border-foreground/20 animate-spin" />;
+}
+
+function ThreadStreamingDots({ threadId }: { threadId: string }) {
+  const isStreaming = useAgentsStore((s) => !!s.streamingThreadIds[threadId]);
+  if (!isStreaming) return null;
+  return (
+    <span className="flex items-center gap-[3px] shrink-0">
+      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:0ms]" />
+      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:150ms]" />
+      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:300ms]" />
+    </span>
+  );
+}
+
+function ThreadPrIcon({ threadId }: { threadId: string }) {
+  const { t } = useI18n();
+  const prInfo = useAgentsStore((s) => s.prUrlByThread[threadId]);
+  if (!prInfo) return null;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={(event) => {
+        event.stopPropagation();
+        void openUrl(prInfo.url);
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.stopPropagation();
+          void openUrl(prInfo.url);
+        }
+      }}
+      className="shrink-0 cursor-pointer"
+      title={t("agents.header.viewPr")}
+    >
+      <GitPullRequest
+        className={cn(
+          "h-3 w-3 shrink-0 transition-opacity hover:opacity-80",
+          prInfo.isDraft ? "text-zinc-500" : "text-[#A855F7]"
+        )}
+      />
+    </div>
+  );
+}
 
 export function AgentsSidebar() {
   const { t } = useI18n();
@@ -98,8 +154,6 @@ export function AgentsSidebar() {
     setShowAddRepositoryDialog,
     expandedRepos,
     setExpandedRepos,
-    streamingThreadIds,
-    prUrlByThread,
     sendMessage,
     selectedModelId,
     setThreadPrInfo,
@@ -117,6 +171,10 @@ export function AgentsSidebar() {
   const [sourcePickerItems, setSourcePickerItems] = useState<ThreadSourcePickerItem[]>([]);
   const [sourcePickerLoading, setSourcePickerLoading] = useState(false);
   const [creatingSourceThread, setCreatingSourceThread] = useState(false);
+  const [autopilotTarget, setAutopilotTarget] = useState<{ repoId: string; repoName: string } | null>(null);
+  const [autopilotPanelOpen, setAutopilotPanelOpen] = useState(false);
+  const { selectedJobId } = useAutopilotStore();
+  const [ghCliError, setGhCliError] = useState<"gh_not_installed" | "gh_not_authenticated" | null>(null);
   const [linkRepoDialog, setLinkRepoDialog] = useState<{
     repoId: string;
     repoName: string;
@@ -166,6 +224,9 @@ export function AgentsSidebar() {
       if (String(error) === "repo_limit_reached") {
         openUpgradeModal("repo_limit_reached");
         toast.dismiss(loadingToast);
+      } else if (String(error) === "gh_not_installed" || String(error) === "gh_not_authenticated") {
+        toast.dismiss(loadingToast);
+        setGhCliError(error as "gh_not_installed" | "gh_not_authenticated");
       } else {
         toast.error(`Error: ${error}`, { id: loadingToast });
       }
@@ -597,9 +658,7 @@ export function AgentsSidebar() {
                           <span className="flex-1 text-left text-[13px] font-medium text-foreground/70 group-hover/repo:text-foreground truncate">
                             {repo.displayName ?? repo.name}
                           </span>
-                          {repo.issues.some((i) => !!streamingThreadIds[i.id]) && (
-                            <div className="h-3 w-3 shrink-0 rounded-full border border-t-foreground/60 border-foreground/20 animate-spin" />
-                          )}
+                          <RepoStreamingIndicator repoIssueIds={repo.issues.map((i) => i.id)} />
                         </button>
 
                         <div className="flex items-center gap-1 opacity-0 group-hover/workspace:opacity-100 transition-opacity">
@@ -662,7 +721,10 @@ export function AgentsSidebar() {
                                 {t("common.manage")}
                               </DropdownMenuLabel>
 
-                              <DropdownMenuItem className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer">
+                              <DropdownMenuItem
+                                onClick={() => setAutopilotTarget({ repoId: repo.id, repoName: repo.name })}
+                                className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-wider p-3 dark:focus:bg-white/5 focus:bg-black/5 rounded-md cursor-pointer"
+                              >
                                 <Rocket className="h-4 w-4 text-foreground/40" />
                                 <span>{t("agents.sidebar.autopilot")}</span>
                               </DropdownMenuItem>
@@ -733,40 +795,8 @@ export function AgentsSidebar() {
                                   )}>
                                     {issue.title}
                                   </span>
-                                  {!!streamingThreadIds[issue.id] && (
-                                    <span className="flex items-center gap-[3px] shrink-0">
-                                      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:0ms]" />
-                                      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:150ms]" />
-                                      <span className="h-[3px] w-[3px] rounded-full dark:bg-white/50 bg-foreground/50 animate-bounce [animation-delay:300ms]" />
-                                    </span>
-                                  )}
-                                  {prUrlByThread[issue.id] && (
-                                    <div
-                                      role="button"
-                                      tabIndex={0}
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        void openUrl(prUrlByThread[issue.id]!.url);
-                                      }}
-                                      onKeyDown={(event) => {
-                                        if (event.key === "Enter" || event.key === " ") {
-                                          event.stopPropagation();
-                                          void openUrl(prUrlByThread[issue.id]!.url);
-                                        }
-                                      }}
-                                      className="shrink-0 cursor-pointer"
-                                      title={t("agents.header.viewPr")}
-                                    >
-                                      <GitPullRequest
-                                        className={cn(
-                                          "h-3 w-3 shrink-0 transition-opacity hover:opacity-80",
-                                          prUrlByThread[issue.id]?.isDraft
-                                            ? "text-zinc-500"
-                                            : "text-[#A855F7]"
-                                        )}
-                                      />
-                                    </div>
-                                  )}
+                                  <ThreadStreamingDots threadId={issue.id} />
+                                  <ThreadPrIcon threadId={issue.id} />
                                 </div>
                                 <div className="hidden group-hover/thread:flex items-center gap-2 shrink-0 ml-auto">
                                   <div
@@ -829,6 +859,12 @@ export function AgentsSidebar() {
         )}
         <SidebarMenu>
           <SidebarMenuItem>
+            <AutopilotIndicator
+              onOpen={() => setAutopilotPanelOpen(true)}
+              collapsed={state === "collapsed"}
+            />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => navigateTo("settings")}
               tooltip={t("nav.settings")}
@@ -852,12 +888,19 @@ export function AgentsSidebar() {
         isLoading={isAddingRepo}
       />
 
+      <GhCliErrorDialog
+        open={!!ghCliError}
+        onOpenChange={(open) => { if (!open) setGhCliError(null); }}
+        kind={ghCliError}
+      />
+
       <RemoveRepositoryDialog
         open={!!repoToRemove}
         onOpenChange={(open) => !open && setRepoToRemove(null)}
         onRemove={handleRemoveRepo}
         repoName={repoToRemove?.name || ""}
         isRemoving={isRemovingRepo}
+        localOnly
       />
 
       <RemoveThreadDialog
@@ -980,6 +1023,23 @@ export function AgentsSidebar() {
       <RepoSettingsSheet
         repoId={repoSettingsTarget}
         onClose={() => setRepoSettingsTarget(null)}
+      />
+
+      <AutopilotDialog
+        open={!!autopilotTarget}
+        onOpenChange={(open) => { if (!open) setAutopilotTarget(null); }}
+        repoId={autopilotTarget?.repoId ?? ""}
+        repoName={autopilotTarget?.repoName ?? ""}
+      />
+
+      <AutopilotJobsPanel
+        open={autopilotPanelOpen}
+        onOpenChange={setAutopilotPanelOpen}
+      />
+
+      <AutopilotJobDetail
+        open={!!selectedJobId}
+        onOpenChange={(open) => { if (!open) useAutopilotStore.getState().selectJob(null); }}
       />
     </Sidebar>
   );

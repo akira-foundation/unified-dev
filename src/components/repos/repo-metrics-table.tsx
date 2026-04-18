@@ -6,12 +6,13 @@ import {
   useReactTable,
   flexRender,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { OrganizationRepoWithOrg } from "../../types/organization";
 import { ArrowUpDown, ChevronDown, ChevronUp, Eye, Filter, FolderGit2, GitPullRequest, MoreVertical, Plus, RefreshCw, RotateCw, Search, Trash2 } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 import { cn } from "@/lib/utils";
 import { useRepoActions } from "../../hooks/useRepoActions";
+import { GhCliErrorDialog } from "./gh-cli-error-dialog";
 import { useFiltersStore } from "../../stores/filters-store";
 
 import { Badge } from "../ui/badge";
@@ -33,6 +34,87 @@ import { MultiSelectFilterSection } from "../filters/multi-select-filter-section
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+
+interface RowActionsProps {
+  row: OrganizationRepoWithOrg;
+  syncingRepoId?: string;
+  onVisibilitySettings?: (repo: OrganizationRepoWithOrg) => void;
+  onSyncRepo?: (repo: OrganizationRepoWithOrg) => void;
+  onRemoveRepo?: (repo: OrganizationRepoWithOrg) => void;
+  handleViewRepo: (repo: OrganizationRepoWithOrg) => void;
+  handleViewPrs: (repo: OrganizationRepoWithOrg) => void;
+  handleNewTask: (repo: OrganizationRepoWithOrg) => void;
+}
+
+const RowActions = memo(function RowActions({
+  row,
+  syncingRepoId,
+  onVisibilitySettings,
+  onSyncRepo,
+  onRemoveRepo,
+  handleViewRepo,
+  handleViewPrs,
+  handleNewTask,
+}: RowActionsProps) {
+  const { t } = useI18n();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.open")}</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => handleViewRepo(row)}>
+          <Eye className="mr-2 h-4 w-4" />
+          {t("common.viewRepo")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => handleViewPrs(row)}>
+          <GitPullRequest className="mr-2 h-4 w-4" />
+          {t("pages.repository.stats.openPrs")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => void handleNewTask(row)}>
+          <Plus className="mr-2 h-4 w-4" />
+          {t("common.newTask")}
+        </DropdownMenuItem>
+        {(onVisibilitySettings || onSyncRepo) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.manage")}</DropdownMenuLabel>
+          </>
+        )}
+        {onVisibilitySettings && (
+          <DropdownMenuItem onSelect={() => onVisibilitySettings(row)}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {t("common.configureSync")}
+          </DropdownMenuItem>
+        )}
+        {onSyncRepo && (
+          <DropdownMenuItem
+            onSelect={() => onSyncRepo(row)}
+            disabled={syncingRepoId === String(row.id)}
+          >
+            <RotateCw className={cn("mr-2 h-4 w-4", syncingRepoId === String(row.id) && "animate-spin")} />
+            {t("common.sync")}
+          </DropdownMenuItem>
+        )}
+        {onRemoveRepo && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onSelect={() => onRemoveRepo(row)}
+              className="text-red-500 focus:text-red-500"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t("common.remove")}
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+});
 
 interface RepoMetricsTableProps {
   repos: OrganizationRepoWithOrg[];
@@ -74,7 +156,7 @@ export function RepoMetricsTable({
   hideOrganization,
 }: RepoMetricsTableProps) {
   const { t } = useI18n();
-  const { handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask } = useRepoActions();
+  const { handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask, ghCliError, setGhCliError } = useRepoActions();
   const [sorting, setSorting] = useState<SortingState>([]);
   const [search, setSearch] = useState("");
 
@@ -273,61 +355,16 @@ export function RepoMetricsTable({
         id: "actions",
         header: "",
         cell: ({ row }) => (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.open")}</DropdownMenuLabel>
-              <DropdownMenuItem onSelect={() => handleViewRepo(row.original)}>
-                <Eye className="mr-2 h-4 w-4" />
-                {t("common.viewRepo")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => handleViewPrs(row.original)}>
-                <GitPullRequest className="mr-2 h-4 w-4" />
-                {t("pages.repository.stats.openPrs")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void handleNewTask(row.original)}>
-                <Plus className="mr-2 h-4 w-4" />
-                {t("common.newTask")}
-              </DropdownMenuItem>
-              {(onVisibilitySettings || onSyncRepo) && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.manage")}</DropdownMenuLabel>
-                </>
-              )}
-              {onVisibilitySettings && (
-                <DropdownMenuItem onSelect={() => onVisibilitySettings(row.original)}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  {t("common.configureSync")}
-                </DropdownMenuItem>
-              )}
-              {onSyncRepo && (
-                <DropdownMenuItem
-                  onSelect={() => onSyncRepo(row.original)}
-                  disabled={syncingRepoId === String(row.original.id)}
-                >
-                  <RotateCw className={cn("mr-2 h-4 w-4", syncingRepoId === String(row.original.id) && "animate-spin")} />
-                  {t("common.sync")}
-                </DropdownMenuItem>
-              )}
-              {onRemoveRepo && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => onRemoveRepo(row.original)}
-                    className="text-red-500 focus:text-red-500"
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {t("common.remove")}
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <RowActions
+            row={row.original}
+            syncingRepoId={syncingRepoId}
+            onVisibilitySettings={onVisibilitySettings}
+            onSyncRepo={onSyncRepo}
+            onRemoveRepo={onRemoveRepo}
+            handleViewRepo={handleViewRepo}
+            handleViewPrs={handleViewPrs}
+            handleNewTask={handleNewTask}
+          />
         ),
         enableSorting: false,
       },
@@ -346,6 +383,7 @@ export function RepoMetricsTable({
   });
 
   return (
+    <>
     <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
       <div className="flex flex-row items-center justify-between px-6 py-6 pb-6">
         <div className="flex flex-row items-center gap-4">
@@ -502,5 +540,12 @@ export function RepoMetricsTable({
         </div>
       </CardContent>
     </Card>
+
+    <GhCliErrorDialog
+      open={!!ghCliError}
+      onOpenChange={(open) => { if (!open) setGhCliError(null); }}
+      kind={ghCliError}
+    />
+    </>
   );
 }

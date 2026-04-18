@@ -1,8 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
 import { toast } from "sonner";
 import { useAgentsStore } from "../stores/useAgentsStore";
 import { useNavigationStore } from "../stores/navigation-store";
 import { useI18n } from "../i18n/i18n";
+import { openUpgradeModal } from "../stores/upgrade-modal-store";
 import type { OrganizationRepoWithOrg } from "../types/organization";
 
 interface AddRemoteRepositoryResponse {
@@ -14,6 +16,7 @@ export function useRepoActions() {
   const { t } = useI18n();
   const { repositoryGroups, addThread, addRepository, setSelectedIssueId } = useAgentsStore();
   const { navigateTo, setActiveRepo, setTargetPrScope, setTargetRepoTab } = useNavigationStore();
+  const [ghCliError, setGhCliError] = useState<"gh_not_installed" | "gh_not_authenticated" | null>(null);
 
   const handleViewRepo = (repo: OrganizationRepoWithOrg) => {
     setActiveRepo({ name: repo.repo_name, owner: repo.owner, organizationId: repo.organization_id });
@@ -49,7 +52,12 @@ export function useRepoActions() {
         navigateTo("agents");
         toast.success(t("agents.sidebar.toast.repoAdded").replace("{name}", existing.name), { id: loadingToast });
       } catch (error) {
-        toast.error(`Failed to create task: ${error}`, { id: loadingToast });
+        if (String(error) === "thread_limit_reached") {
+          openUpgradeModal("thread_limit_reached");
+          toast.dismiss(loadingToast);
+        } else {
+          toast.error(`Failed to create task: ${error}`, { id: loadingToast });
+        }
       }
     } else {
       const url = `https://github.com/${repo.owner}/${repo.repo_name}`;
@@ -65,10 +73,17 @@ export function useRepoActions() {
           toast.error(t("agents.sidebar.toast.invalidResponse"), { id: loadingToast });
         }
       } catch (error) {
-        toast.error(`Error: ${error}`, { id: loadingToast });
+        toast.dismiss(loadingToast);
+        if (String(error) === "repo_limit_reached") {
+          openUpgradeModal("repo_limit_reached");
+        } else if (String(error) === "gh_not_installed" || String(error) === "gh_not_authenticated") {
+          setGhCliError(error as "gh_not_installed" | "gh_not_authenticated");
+        } else {
+          toast.error(`Error: ${error}`);
+        }
       }
     }
   };
 
-  return { handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask };
+  return { handleViewRepo, handleViewPrs, handleViewIssues, handleNewTask, ghCliError, setGhCliError };
 }

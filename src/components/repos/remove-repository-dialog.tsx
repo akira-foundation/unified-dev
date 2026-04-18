@@ -18,6 +18,7 @@ interface RemoveRepositoryDialogProps {
   onRemove: (deleteRemote: boolean) => void;
   repoName: string;
   isRemoving?: boolean;
+  localOnly?: boolean;
 }
 
 export function RemoveRepositoryDialog({
@@ -25,7 +26,8 @@ export function RemoveRepositoryDialog({
   onOpenChange,
   onRemove,
   repoName,
-  isRemoving
+  isRemoving,
+  localOnly = false,
 }: RemoveRepositoryDialogProps) {
   const { t } = useI18n();
   const [deleteRemote, setDeleteRemote] = useState(false);
@@ -45,18 +47,20 @@ export function RemoveRepositoryDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-3 py-2">
-          <Switch
-            id="delete-remote"
-            checked={deleteRemote}
-            onCheckedChange={setDeleteRemote}
-            disabled={isRemoving}
-          />
-          <label htmlFor="delete-remote" className="text-sm cursor-pointer select-none">
-            {t("dialogs.removeRepository.deleteRemote")}
-          </label>
-        </div>
-        {deleteRemote && (
+        {!localOnly && (
+          <div className="flex items-center gap-3 py-2">
+            <Switch
+              id="delete-remote"
+              checked={deleteRemote}
+              onCheckedChange={setDeleteRemote}
+              disabled={isRemoving}
+            />
+            <label htmlFor="delete-remote" className="text-sm cursor-pointer select-none">
+              {t("dialogs.removeRepository.deleteRemote")}
+            </label>
+          </div>
+        )}
+        {!localOnly && deleteRemote && (
           <p className="text-xs text-red-400">
             {t("dialogs.removeRepository.deleteRemoteWarning").replace("{name}", repoName)}
           </p>

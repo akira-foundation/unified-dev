@@ -7,6 +7,7 @@ pub mod delete_local;
 pub mod discard_changes;
 pub mod git;
 pub mod link_organization;
+pub mod providers;
 pub mod set_remote;
 pub mod types;
 

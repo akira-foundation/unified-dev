@@ -29,7 +29,7 @@ use commands::terminal::{
 use commands::repository::{add_local_repository, add_remote_repository, delete_local_repository, link_local_repository_to_organization, set_local_repository_remote};
 use commands::thread::{
     create_thread, create_thread_from_branch, create_thread_from_pull_request, create_thread_with_title, delete_thread,
-    list_repositories, list_thread_source_branches, list_thread_source_issues,
+    get_repo_provider_login, list_repositories, list_thread_source_branches, list_thread_source_issues,
     list_thread_source_pull_requests, rename_thread, set_thread_pr_url, update_repository_settings,
 };
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
@@ -166,6 +166,7 @@ pub fn run() {
             delete_thread,
             rename_thread,
             set_thread_pr_url,
+            get_repo_provider_login,
             list_thread_source_issues,
             list_thread_source_pull_requests,
             list_thread_source_branches,

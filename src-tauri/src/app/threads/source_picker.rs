@@ -54,9 +54,22 @@ pub async fn resolve_context(repo_id: &str, state: &State<'_, AppState>) -> AppR
     })
 }
 
+pub async fn get_provider_login(repo_id: String, state: State<'_, AppState>) -> AppResult<Option<String>> {
+    let context = resolve_context(&repo_id, &state).await?;
+
+    let row = sqlx::query_as::<_, (Option<String>,)>(
+        "SELECT p.account_login FROM organizations o LEFT JOIN providers p ON p.id = o.provider_id WHERE o.id = ? LIMIT 1",
+    )
+    .bind(&context.organization_id)
+    .fetch_optional(&state.db_pool)
+    .await?;
+
+    Ok(row.and_then(|(login,)| login))
+}
+
 pub async fn list_issues(repo_id: String, state: State<'_, AppState>) -> AppResult<Vec<IssueDto>> {
     let context = resolve_context(&repo_id, &state).await?;
-    crate::app::issues::list(state, context.organization_id, context.repo_name, None, None)
+    crate::app::issues::list(state, context.organization_id, context.repo_name, Some("all_open".to_string()), None)
         .await
         .map_err(AppError::Internal)
 }
