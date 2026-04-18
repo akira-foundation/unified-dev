@@ -1,13 +1,16 @@
-import { useState, useMemo } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { useState } from "react";
+import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 interface ModelPickerProps {
   value: string | null;
@@ -29,7 +32,6 @@ export function ModelPicker({
   className,
 }: ModelPickerProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const { aiProviders } = useAgentsStore();
 
   const allModels = aiProviders.flatMap((p) => p.models);
@@ -38,30 +40,14 @@ export function ModelPicker({
 
   const displayLabel = selectedModel?.label ?? emptyLabel ?? noneLabel ?? "Select model";
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return aiProviders;
-    return aiProviders
-      .map((p) => ({
-        ...p,
-        models: p.models.filter(
-          (m) =>
-            m.label.toLowerCase().includes(q) ||
-            p.name.toLowerCase().includes(q),
-        ),
-      }))
-      .filter((p) => p.models.length > 0);
-  }, [search, aiProviders]);
-
   function handleSelect(modelId: string | null) {
     onChange(modelId);
     setOpen(false);
-    setSearch("");
   }
 
   return (
-    <DropdownMenu open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(""); }}>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         {variant === "text" ? (
           <button className={cn("flex items-center gap-2 hover:text-foreground transition-colors group outline-none", className)}>
             <span className="text-[13px] font-medium">{displayLabel}</span>
@@ -88,71 +74,49 @@ export function ModelPicker({
             <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
           </button>
         )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
+      </PopoverTrigger>
+      <PopoverContent
         align={align}
-        className="w-56 p-0"
+        className="w-56 p-0 overflow-hidden flex flex-col"
+        style={{ maxHeight: "var(--radix-popover-content-available-height)" }}
       >
-        <div className="flex items-center gap-2 px-3 border-b dark:border-white/[0.05] border-border sticky top-0 bg-popover z-10">
-          <Search className="h-3.5 w-3.5 text-zinc-500 shrink-0" />
-          <input
-            autoFocus
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.stopPropagation()}
-            placeholder="Search models..."
-            className="h-9 w-full bg-transparent text-[13px] text-foreground placeholder:text-zinc-500 outline-none border-0"
-          />
-        </div>
-
-        <div className="p-1">
-          {noneLabel && (
-            <DropdownMenuPrimitive.Item
-              onSelect={() => handleSelect(null)}
-              className={cn(
-                "flex w-full items-center gap-2 px-2 py-1.5 rounded-md text-[13px] font-medium cursor-pointer transition-colors outline-none select-none",
-                !value
-                  ? "bg-purple-500/10 text-purple-400"
-                  : "text-foreground/70 focus:bg-white/5",
-              )}
-            >
-              <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", !value ? "bg-purple-400" : "bg-zinc-500")} />
-              <span>{noneLabel}</span>
-              {!value && <Check className="ml-auto h-3.5 w-3.5 text-purple-400 shrink-0" />}
-            </DropdownMenuPrimitive.Item>
-          )}
-
-          {filtered.length === 0 && (
-            <p className="py-6 text-center text-[12px] text-zinc-500">No models found.</p>
-          )}
-          {filtered.map((provider) => (
-            <div key={provider.name}>
-              {filtered.length > 1 && (
-                <p className="px-2 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-zinc-500">
-                  {provider.name}
-                </p>
-              )}
-              {provider.models.map((model) => (
-                <DropdownMenuPrimitive.Item
-                  key={model.id}
-                  onSelect={() => handleSelect(model.id)}
-                  className={cn(
-                    "flex w-full items-center gap-2 px-2 py-1.5 rounded-md text-[13px] font-medium cursor-pointer transition-colors outline-none select-none",
-                    value === model.id
-                      ? "bg-purple-500/10 text-purple-400"
-                      : "text-foreground/70 focus:bg-white/5",
-                  )}
+        <Command>
+          <CommandInput placeholder="Search models..." />
+          <CommandList className="max-h-none flex-1">
+            <CommandEmpty>No models found.</CommandEmpty>
+            {noneLabel && (
+              <CommandGroup>
+                <CommandItem
+                  value={noneLabel}
+                  onSelect={() => handleSelect(null)}
+                  className={cn(!value && "text-purple-400")}
                 >
-                  <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", value === model.id ? "bg-purple-400" : "bg-zinc-500")} />
-                  <span>{model.label}</span>
-                  <span className="text-[11px] text-muted-foreground font-normal">{provider.name}</span>
-                  {value === model.id && <Check className="ml-auto h-3.5 w-3.5 text-purple-400 shrink-0" />}
-                </DropdownMenuPrimitive.Item>
-              ))}
-            </div>
-          ))}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                  <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", !value ? "bg-purple-400" : "bg-zinc-500")} />
+                  <span>{noneLabel}</span>
+                  {!value && <Check className="ml-auto h-3.5 w-3.5 text-purple-400 shrink-0" />}
+                </CommandItem>
+              </CommandGroup>
+            )}
+            {aiProviders.map((provider) => (
+              <CommandGroup key={provider.name} heading={provider.name}>
+                {provider.models.map((model) => (
+                  <CommandItem
+                    key={model.id}
+                    value={`${model.label} ${provider.name}`}
+                    onSelect={() => handleSelect(model.id)}
+                    className={cn(value === model.id && "text-purple-400")}
+                  >
+                    <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", value === model.id ? "bg-purple-400" : "bg-zinc-500")} />
+                    <span>{model.label}</span>
+                    <span className="text-[11px] text-muted-foreground font-normal">{provider.name}</span>
+                    {value === model.id && <Check className="ml-auto h-3.5 w-3.5 text-purple-400 shrink-0" />}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
