@@ -3,6 +3,7 @@ import { Wrench, Shield, Trash2, AlertTriangle } from "lucide-react";
 import { useI18n } from "@/i18n/i18n";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { ComingSoon } from "@/components/ui/coming-soon";
 import {
   Dialog,
   DialogContent,
@@ -42,41 +43,47 @@ export function AdvancedTab() {
   return (
     <div className="animate-in fade-in duration-300">
       <SettingsSection title={t("settings.advanced.title")} description={t("settings.advanced.description")} icon={Wrench}>
-        <SettingsItem
-          label={t("settings.advanced.debug.label")}
-          description={t("settings.advanced.debug.description")}
-          action={<Switch />}
-        />
+        <ComingSoon>
+          <SettingsItem
+            label={t("settings.advanced.debug.label")}
+            description={t("settings.advanced.debug.description")}
+            action={<Switch />}
+          />
+        </ComingSoon>
       </SettingsSection>
       <SettingsSection
         title={t("settings.section.privacy")}
         description={t("settings.advanced.privacy.description")}
         icon={Shield}
       >
-        <SettingsItem
-          label={t("settings.privacy.clearHistory")}
-          description={t("settings.privacy.clearHistoryDesc")}
-          action={
-            <button
-              onClick={handleClearHistory}
-              className="text-sm font-bold text-purple-500 hover:text-purple-400 transition-colors"
-            >
-              {t("settings.privacy.clear")}
-            </button>
-          }
-        />
-        <SettingsItem
-          label={t("settings.privacy.clearSaved")}
-          description={t("settings.privacy.clearSavedDesc")}
-          action={
-            <button
-              onClick={handleClearSaved}
-              className="text-sm font-bold text-rose-500 hover:text-rose-400 transition-colors"
-            >
-              {t("settings.privacy.clearAll")}
-            </button>
-          }
-        />
+        <ComingSoon>
+          <SettingsItem
+            label={t("settings.privacy.clearHistory")}
+            description={t("settings.privacy.clearHistoryDesc")}
+            action={
+              <button
+                onClick={handleClearHistory}
+                className="text-sm font-bold text-purple-500 hover:text-purple-400 transition-colors"
+              >
+                {t("settings.privacy.clear")}
+              </button>
+            }
+          />
+        </ComingSoon>
+        <ComingSoon>
+          <SettingsItem
+            label={t("settings.privacy.clearSaved")}
+            description={t("settings.privacy.clearSavedDesc")}
+            action={
+              <button
+                onClick={handleClearSaved}
+                className="text-sm font-bold text-rose-500 hover:text-rose-400 transition-colors"
+              >
+                {t("settings.privacy.clearAll")}
+              </button>
+            }
+          />
+        </ComingSoon>
         <SettingsItem
           label={t("settings.privacy.reset")}
           description={t("settings.privacy.resetDesc")}

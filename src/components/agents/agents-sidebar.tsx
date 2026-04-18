@@ -443,16 +443,12 @@ export function AgentsSidebar() {
             </SidebarMenuItem>
             <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
               <SidebarMenuButton
-                onClick={() => setActiveTab('automations')}
-                isActive={activeTab === 'automations'}
                 tooltip={t("agents.sidebar.automations")}
-                className={cn(
-                  "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
-                  activeTab === 'automations' ? "dark:bg-white/10 bg-black/10 text-foreground" : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
-                )}
+                className="flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center opacity-40 cursor-not-allowed"
               >
-                <Zap className={cn("h-4 w-4 transition-colors shrink-0", activeTab === 'automations' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")} />
+                <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="group-data-[collapsible=icon]:hidden">{t("agents.sidebar.automations")}</span>
+                <span className="ml-auto group-data-[collapsible=icon]:hidden text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60 border border-muted-foreground/20 rounded px-1 py-0.5">Soon</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">

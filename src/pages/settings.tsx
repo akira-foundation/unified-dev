@@ -46,6 +46,8 @@ type TabId =
   | "integrations" | "agents" | "remote" | "sync" | "shortcuts" | "dictation"
   | "advanced" | "vcs-providers" | "workspaces" | "prompts" | "subscription";
 
+const COMING_SOON_TABS: TabId[] = ["notifications", "integrations", "agents", "dictation", "workspaces", "remote", "shortcuts", "advanced"];
+
 import { useNavigationStore } from "@/stores/navigation-store";
 
 export function SettingsPage() {
@@ -128,27 +130,37 @@ export function SettingsPage() {
                 {group.group}
               </h3>
               <div className="flex flex-col gap-0.5">
-                {group.items.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => handleTabChange(tab.id)}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-all duration-200",
-                      activeTab === tab.id
-                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm"
-                        : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/30",
-                      isPending && activeTab !== tab.id && "opacity-70",
-                    )}
-                  >
-                    <div className={cn(
-                      "transition-colors duration-200",
-                      activeTab === tab.id ? "text-purple-500" : "text-zinc-400 dark:text-zinc-500",
-                    )}>
-                      {tab.icon}
-                    </div>
-                    {tab.label}
-                  </button>
-                ))}
+                {group.items.map((tab) => {
+                  const isComingSoon = COMING_SOON_TABS.includes(tab.id);
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => !isComingSoon && handleTabChange(tab.id)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-all duration-200 w-full",
+                        isComingSoon
+                          ? "opacity-40 cursor-not-allowed"
+                          : activeTab === tab.id
+                          ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white font-semibold shadow-sm"
+                          : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-50 dark:hover:bg-zinc-800/30",
+                        isPending && activeTab !== tab.id && "opacity-70",
+                      )}
+                    >
+                      <div className={cn(
+                        "transition-colors duration-200",
+                        isComingSoon ? "text-zinc-500" : activeTab === tab.id ? "text-purple-500" : "text-zinc-400 dark:text-zinc-500",
+                      )}>
+                        {tab.icon}
+                      </div>
+                      <span className="flex-1 text-left">{tab.label}</span>
+                      {isComingSoon && (
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-500 border border-zinc-700/50 rounded px-1 py-px">
+                          Soon
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}

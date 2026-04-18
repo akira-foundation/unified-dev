@@ -52,6 +52,10 @@ export default {
       return handleBillingInvoices(request, env);
     }
 
+    if (request.method === "GET" && url.pathname === "/download") {
+      return handleDownload(request, env);
+    }
+
     if (request.method !== "POST") {
       return json({ error: "method not allowed" }, 405);
     }
@@ -1390,6 +1394,26 @@ async function parseBody(request: Request): Promise<Record<string, unknown> | nu
   } catch {
     return null;
   }
+}
+
+async function handleDownload(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const arch = url.searchParams.get("arch");
+
+  const cdnArch = arch === "intel" ? "x86_64" : "aarch64";
+  const kvKey = arch === "intel" ? "download:intel" : "download:arm";
+
+  const latestRes = await fetch("https://unified-dev.nyc3.cdn.digitaloceanspaces.com/releases/latest.json", { cf: { cacheEverything: true, cacheTtl: 300 } } as RequestInit);
+  if (!latestRes.ok) return new Response("Could not resolve latest version", { status: 502 });
+  const { version } = await latestRes.json() as { version: string };
+
+  const cdnUrl = `https://unified-dev.nyc3.cdn.digitaloceanspaces.com/releases/v${version}/unified_dev_${version}_${cdnArch}.dmg`;
+
+  const current = await env.LICENSES.get(kvKey);
+  const count = parseInt(current ?? "0", 10) + 1;
+  await env.LICENSES.put(kvKey, String(count));
+
+  return Response.redirect(cdnUrl, 302);
 }
 
 function json(data: unknown, status = 200): Response {

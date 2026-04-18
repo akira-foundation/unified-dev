@@ -5,6 +5,7 @@ import { useLicenseStore } from "@/stores/license-store";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ComingSoon } from "@/components/ui/coming-soon";
 import { SettingsSection } from "./settings-section";
 import { SettingsItem } from "./settings-item";
 
@@ -121,11 +122,13 @@ export function GeneralTab() {
           </div>
         )}
 
-        <SettingsItem
-          label={t("settings.general.launchAtLogin.label")}
-          description={t("settings.general.launchAtLogin.description")}
-          action={<Switch />}
-        />
+        <ComingSoon>
+          <SettingsItem
+            label={t("settings.general.launchAtLogin.label")}
+            description={t("settings.general.launchAtLogin.description")}
+            action={<Switch />}
+          />
+        </ComingSoon>
 
         <SettingsItem
           label={t("settings.general.language")}
