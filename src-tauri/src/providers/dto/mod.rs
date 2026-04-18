@@ -13,5 +13,5 @@ pub use issue::{IssueDto, VcsIssue};
 pub use pr_comment::{PrCommentDto, VcsPrComment};
 pub use pr_file::{PrFileDto, VcsPrFile};
 pub use provider_org::ProviderOrg;
-pub use provider_repo::ProviderRepo;
+pub use provider_repo::{CreatedRepo, ProviderRepo};
 pub use pull_request::{PullRequestDto, VcsPullRequest};

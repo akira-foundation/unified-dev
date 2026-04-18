@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::providers::dto::{ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsIssue, VcsPrComment, VcsPrFile, VcsPullRequest};
+use crate::providers::dto::{CreatedRepo, ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsIssue, VcsPrComment, VcsPrFile, VcsPullRequest};
 use crate::providers::enums::{PrMergeStrategy, PrReviewEvent, ProviderKind};
 use crate::app::support::error::AppResult;
 
@@ -12,6 +12,8 @@ pub trait VcsProvider: Send + Sync {
     async fn list_organizations(&self) -> AppResult<Vec<ProviderOrg>>;
     async fn list_repositories(&self) -> AppResult<Vec<ProviderRepo>>;
     async fn list_organization_repositories(&self, organization: &str) -> AppResult<Vec<ProviderRepo>>;
+    async fn create_repository(&self, org_login: Option<&str>, name: &str, description: Option<&str>, private: bool) -> AppResult<CreatedRepo>;
+    async fn delete_repository(&self, owner: &str, repo_name: &str) -> AppResult<()>;
     async fn list_pull_requests(&self, owner: &str, repository: &str) -> AppResult<Vec<VcsPullRequest>>;
     async fn list_branches(&self, owner: &str, repository: &str) -> AppResult<Vec<VcsBranch>>;
     async fn create_branch(&self, owner: &str, repository: &str, branch_name: &str, sha: &str) -> AppResult<VcsBranch>;

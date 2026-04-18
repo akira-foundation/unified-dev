@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::app::concerns::{ProviderDriverFactory, VcsProvider};
-use crate::providers::dto::{ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue};
+use crate::providers::dto::{CreatedRepo, ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue};
 use crate::providers::enums::{ProviderAuth, ProviderKind, ProviderOrgKind, PrMergeStrategy, PrReviewEvent};
 use crate::app::support::error::{AppError, AppResult};
 
@@ -93,6 +93,14 @@ impl VcsProvider for GitLabDriver {
             .await?;
 
         Ok(projects.into_iter().map(project_to_provider).collect())
+    }
+
+    async fn create_repository(&self, _org_login: Option<&str>, _name: &str, _description: Option<&str>, _private: bool) -> AppResult<CreatedRepo> {
+        Err(AppError::Provider("Repository creation not yet supported for GitLab".to_string()))
+    }
+
+    async fn delete_repository(&self, _owner: &str, _repo_name: &str) -> AppResult<()> {
+        Err(AppError::Provider("Repository deletion not yet supported for GitLab".to_string()))
     }
 
     async fn list_pull_requests(&self, owner: &str, repository: &str) -> AppResult<Vec<VcsPullRequest>> {

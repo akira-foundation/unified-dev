@@ -1,4 +1,13 @@
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CreatedRepo {
+    pub name: String,
+    pub full_name: String,
+    pub html_url: String,
+    pub private: bool,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ProviderRepo {
     pub id: String,
     pub owner: String,

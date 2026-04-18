@@ -5,8 +5,8 @@ use serde::Deserialize;
 use crate::app::providers;
 use crate::app::providers::request::{CreateProviderRequest, TestProviderConnectionRequest, UpdateProviderAuthRequest};
 use crate::app::providers::{CreateRepositoryInput, DeleteRepositoryInput, RateLimitDto};
-use crate::app::providers::create_repository::CreatedRepository;use crate::database::records::ProviderSummary;
-use crate::providers::dto::{ProviderOrg, ProviderRepo};
+use crate::providers::dto::{CreatedRepo, ProviderOrg, ProviderRepo};
+use crate::database::records::ProviderSummary;
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -85,7 +85,7 @@ pub async fn get_rate_limit(state: State<'_, AppState>) -> Result<Vec<RateLimitD
 }
 
 #[tauri::command]
-pub async fn create_provider_repository(state: State<'_, AppState>, input: CreateRepositoryInput) -> Result<CreatedRepository, String> {
+pub async fn create_provider_repository(state: State<'_, AppState>, input: CreateRepositoryInput) -> Result<CreatedRepo, String> {
     providers::create_repository(state, input).await
 }
 

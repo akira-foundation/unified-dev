@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use serde::Deserialize;
 
 use crate::app::concerns::{ProviderDriverFactory, VcsProvider};
-use crate::providers::dto::{ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsCiCheckStep, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue};
+use crate::providers::dto::{CreatedRepo, ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsCiCheckStep, VcsPrComment, VcsPrFile, VcsPullRequest, VcsIssue};
 use crate::providers::enums::{ProviderAuth, ProviderKind, ProviderOrgKind, PrMergeStrategy, PrReviewEvent, PullRequestState};
 use crate::app::support::error::{AppError, AppResult};
 
@@ -433,6 +433,65 @@ impl VcsProvider for GitHubDriver {
         ).await?;
 
         Ok(repos)
+    }
+
+    async fn create_repository(&self, org_login: Option<&str>, name: &str, description: Option<&str>, private: bool) -> AppResult<CreatedRepo> {
+        #[derive(serde::Serialize)]
+        struct Payload<'a> {
+            name: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            description: Option<&'a str>,
+            private: bool,
+            auto_init: bool,
+        }
+
+        #[derive(Deserialize)]
+        struct Response {
+            name: String,
+            full_name: String,
+            html_url: String,
+            private: bool,
+            description: Option<String>,
+        }
+
+        let payload = Payload { name, description, private, auto_init: true };
+        let url = match org_login {
+            Some(login) if !login.is_empty() => format!("{GITHUB_API}/orgs/{login}/repos"),
+            _ => format!("{GITHUB_API}/user/repos"),
+        };
+
+        let result: Response = self.post_json(url, &payload).await.map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("403") && msg.contains("Resource not accessible by integration") {
+                AppError::Provider("The GitHub App does not have permission to create repositories. If you recently added Administration permissions to the app, each organization must approve the updated permissions.".to_string())
+            } else if msg.contains("422") {
+                AppError::Provider("Repository name is already taken or invalid. Please choose a different name.".to_string())
+            } else {
+                e
+            }
+        })?;
+
+        Ok(CreatedRepo {
+            name: result.name,
+            full_name: result.full_name,
+            html_url: result.html_url,
+            private: result.private,
+            description: result.description,
+        })
+    }
+
+    async fn delete_repository(&self, owner: &str, repo_name: &str) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repo_name}");
+        self.delete(url).await.map_err(|e| {
+            let msg = e.to_string();
+            if msg.contains("403") {
+                AppError::Provider("Permission denied. Make sure the GitHub App has Administration write permission.".to_string())
+            } else if msg.contains("404") {
+                AppError::Provider("Repository not found on GitHub.".to_string())
+            } else {
+                e
+            }
+        })
     }
 
     async fn list_pull_requests(
