@@ -42,6 +42,7 @@ pub async fn create(state: State<'_, AppState>, input: CreateProviderRequest) ->
         id,
         name: input.name,
         kind: input.kind,
+        auth_type: record.auth_type,
         created_at,
         account_login: input.account_login,
         account_type: input.account_type,

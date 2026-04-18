@@ -46,6 +46,9 @@ export const providerService = {
   async connectGithub(): Promise<ProviderSummary> {
     return invoke<ProviderSummary>("connect_github");
   },
+  async reconnectGithub(providerId: string): Promise<ProviderSummary> {
+    return invoke<ProviderSummary>("reconnect_github", { providerId });
+  },
   async installGithubApp(): Promise<void> {
     await invoke<void>("install_github_app");
   },

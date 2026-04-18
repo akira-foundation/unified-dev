@@ -15,6 +15,7 @@ export interface ProviderSummary {
   id: string;
   name: string;
   kind: ProviderKind;
+  auth_type: string;
   created_at: string;
   account_login?: string;
   account_type?: string;

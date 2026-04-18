@@ -112,6 +112,7 @@ export function ProviderDetailPage() {
   const browserHandoffToast = useBrowserHandoffToast();
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [keepOrganizations, setKeepOrganizations] = useState(true);
 
   const provider = providers.find((p) => p.id === activeProviderId) ?? null;
@@ -192,9 +193,20 @@ export function ProviderDetailPage() {
 
       <div className="mx-auto w-full max-w-3xl px-6 pb-24 flex flex-col">
         <SettingsSection title={t("pages.providerDetail.details.title")} description={t("pages.providerDetail.details.description")} icon={KindIcon}>
-          <SettingsItem label={t("pages.providerDetail.details.name")} description={provider.name} />
-          <SettingsItem label={t("pages.providerDetail.details.kind")} description={kindLabel} />
-          <SettingsItem label={t("pages.providerDetail.details.connectedSince")} description={new Date(provider.created_at).toLocaleDateString()} />
+          <div className="grid grid-cols-3 px-0">
+            <div className="flex flex-col gap-1 px-6 py-5">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("pages.providerDetail.details.name")}</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">{provider.name}</p>
+            </div>
+            <div className="flex flex-col gap-1 px-6 py-5">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("pages.providerDetail.details.kind")}</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">{kindLabel}</p>
+            </div>
+            <div className="flex flex-col gap-1 px-6 py-5">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("pages.providerDetail.details.connectedSince")}</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">{new Date(provider.created_at).toLocaleDateString()}</p>
+            </div>
+          </div>
         </SettingsSection>
 
         <SettingsSection title={t("pages.providerDetail.auth.title")} description={t("pages.providerDetail.auth.description").replace("{label}", meta.label.toLowerCase()).replace("{kind}", kindLabel)} icon={KeyRound}>
@@ -247,6 +259,33 @@ export function ProviderDetailPage() {
                   }}
                 >
                   <ExternalLink size={16} /> Install
+                </Button>
+              }
+            />
+            <SettingsItem
+              label={t("pages.providerDetail.reconnect.label")}
+              description={t("pages.providerDetail.reconnect.description")}
+              action={
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isReconnecting}
+                  onClick={async () => {
+                    setIsReconnecting(true);
+                    const toastId = toast.loading(t("pages.providerDetail.toast.reconnecting"));
+                    try {
+                      const updated = await providerService.reconnectGithub(provider.id);
+                      await queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
+                      toast.success(t("pages.providerDetail.toast.reconnected") + (updated.account_login ? ` (${updated.account_login})` : ""), { id: toastId });
+                    } catch (error) {
+                      const message = typeof error === "string" ? error : error instanceof Error ? error.message : t("pages.providerDetail.toast.reconnectFailed");
+                      toast.error(message, { id: toastId });
+                    } finally {
+                      setIsReconnecting(false);
+                    }
+                  }}
+                >
+                  {t("pages.providerDetail.reconnect.button")}
                 </Button>
               }
             />

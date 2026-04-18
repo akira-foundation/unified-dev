@@ -4,8 +4,8 @@ use serde::Deserialize;
 
 use crate::app::providers;
 use crate::app::providers::request::{CreateProviderRequest, TestProviderConnectionRequest, UpdateProviderAuthRequest};
-use crate::app::providers::{RateLimitDto};
-use crate::database::records::ProviderSummary;
+use crate::app::providers::{CreateRepositoryInput, DeleteRepositoryInput, RateLimitDto};
+use crate::app::providers::create_repository::CreatedRepository;use crate::database::records::ProviderSummary;
 use crate::providers::dto::{ProviderOrg, ProviderRepo};
 use crate::state::AppState;
 
@@ -47,6 +47,11 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
 }
 
 #[tauri::command]
+pub async fn reconnect_github(state: State<'_, AppState>, app: tauri::AppHandle, provider_id: String) -> Result<ProviderSummary, String> {
+    providers::reconnect_github(state, app, provider_id).await
+}
+
+#[tauri::command]
 pub async fn install_github_app(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
     providers::install_github_app(state, app).await
 }
@@ -77,4 +82,14 @@ pub async fn list_provider_repositories(state: State<'_, AppState>, input: Provi
 #[tauri::command]
 pub async fn get_rate_limit(state: State<'_, AppState>) -> Result<Vec<RateLimitDto>, String> {
     providers::get_rate_limit(state).await
+}
+
+#[tauri::command]
+pub async fn create_provider_repository(state: State<'_, AppState>, input: CreateRepositoryInput) -> Result<CreatedRepository, String> {
+    providers::create_repository(state, input).await
+}
+
+#[tauri::command]
+pub async fn delete_provider_repository(state: State<'_, AppState>, input: DeleteRepositoryInput) -> Result<(), String> {
+    providers::delete_repository(state, input).await
 }

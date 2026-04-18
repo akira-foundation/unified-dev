@@ -17,6 +17,7 @@ pub struct ProviderSummary {
     pub id: String,
     pub name: String,
     pub kind: String,
+    pub auth_type: String,
     pub created_at: String,
     pub account_login: Option<String>,
     pub account_type: Option<String>,

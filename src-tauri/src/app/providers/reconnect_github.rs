@@ -5,10 +5,13 @@ use crate::providers::drivers::github::oauth;
 use crate::providers::enums::ProviderAuth;
 use crate::state::AppState;
 
-pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<ProviderSummary, String> {
+pub async fn reconnect_github(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+    provider_id: String,
+) -> Result<ProviderSummary, String> {
     use tauri_plugin_opener::OpenerExt;
 
-    let app_slug = option_env!("GITHUB_APP_SLUG").unwrap_or("akira-apps-unified-dev");
     let api_url = env!("AKIRA_API_URL");
     let oauth_state = uuid::Uuid::new_v4().to_string();
 
@@ -32,15 +35,9 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         .await
         .map_err(|e| e.to_string())?;
 
-    let auth = fetch_installation_token(api_url, &result.access_token, result.refresh_token.clone(), result.expires_at).await.map_err(|error| {
-        if error.contains("app not installed for this user") {
-            let install_url = format!("https://github.com/apps/{app_slug}/installations/select_target");
-            let _ = app.opener().open_url(&install_url, None::<&str>);
-            return "GitHub App installation required. Complete the installation in the browser, then click Connect again.".to_string();
-        }
-
-        error
-    })?;
+    let auth = fetch_installation_token(api_url, &result.access_token, result.refresh_token.clone(), result.expires_at)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let api_token = result.access_token.clone();
 
@@ -51,35 +48,37 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
     let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
         .map_err(|e| e.to_string())?;
 
-    let id = uuid::Uuid::new_v4().to_string();
-    let created_at = time::OffsetDateTime::now_utc()
+    let updated_at = time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_default();
 
-    sqlx::query(
-        "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    let rows = sqlx::query(
+        "UPDATE providers SET auth_type = ?, auth_payload = ?, account_login = ?, account_type = ? WHERE id = ? AND kind = 'github'",
     )
-    .bind(&id)
-    .bind(&account_login)
-    .bind("github")
     .bind(&auth_type)
     .bind(&auth_payload)
-    .bind(&created_at)
     .bind(&account_login)
     .bind(&account_type)
+    .bind(&provider_id)
     .execute(&state.db_pool)
     .await
-    .map_err(|e| format!("DB insert failed: {e}"))?;
+    .map_err(|e| format!("DB update failed: {e}"))?;
 
-    Ok(crate::database::records::ProviderSummary {
-        id,
-        name: account_login.clone(),
-        kind: "github".to_string(),
-        auth_type: auth_type.clone(),
-        created_at,
-        account_login: Some(account_login),
-        account_type: Some(account_type),
-    })
+    if rows.rows_affected() == 0 {
+        return Err("Provider not found".to_string());
+    }
+
+    let provider = sqlx::query_as::<_, crate::database::records::ProviderSummary>(
+        "SELECT id, name, kind, auth_type, auth_payload, created_at, account_login, account_type FROM providers WHERE id = ?",
+    )
+    .bind(&provider_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| format!("DB fetch failed: {e}"))?;
+
+    let _ = updated_at;
+
+    Ok(provider)
 }
 
 async fn fetch_installation_token(
