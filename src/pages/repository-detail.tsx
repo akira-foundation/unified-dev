@@ -148,7 +148,7 @@ export function RepositoryDetailPage() {
     },
     onSuccess: () => {
         queryClient.invalidateQueries({
-          queryKey: queryKeys.pullRequests(activeRepo!.organizationId, activeRepo!.name),
+          queryKey: ["pull-requests", activeRepo!.organizationId, activeRepo!.name],
         });
     },
   });
@@ -376,11 +376,18 @@ export function RepositoryDetailPage() {
           scope: issueScope,
           currentLogin,
         }),
+        invoke("sync_pull_requests", {
+          organizationId: activeRepo!.organizationId,
+          repoName: activeRepo!.name,
+          scope: prScope,
+          currentLogin,
+        }),
       ]),
     onMutate: () => toast.loading(t("agents.sidebar.toast.syncingRepo").replace("{name}", activeRepo!.name)),
     onSuccess: (_data, _vars, loadingToast) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
       queryClient.invalidateQueries({ queryKey: ["issues", activeRepo!.organizationId, activeRepo!.name] });
+      queryClient.invalidateQueries({ queryKey: ["pull-requests", activeRepo!.organizationId, activeRepo!.name] });
       toast.success(t("agents.sidebar.toast.repoSynced").replace("{name}", activeRepo!.name), { id: loadingToast as string });
     },
     onError: (_err, _vars, loadingToast) => {
