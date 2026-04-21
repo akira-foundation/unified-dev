@@ -580,7 +580,7 @@ impl VcsProvider for GitHubDriver {
         }
         #[derive(Deserialize)]
         struct CommitConnection {
-            nodes: Vec<CommitNode>,
+            nodes: Vec<Option<CommitNode>>,
         }
         #[derive(Deserialize)]
         struct CommitNode {
@@ -641,6 +641,7 @@ impl VcsProvider for GitHubDriver {
                 };
                 let items = conn.nodes.into_iter().map(|pr| {
                     let ci_status = pr.commits.nodes.into_iter().next()
+                        .and_then(|c| c)
                         .and_then(|c| c.commit.status_check_rollup)
                         .map(|s| match s.state.as_str() {
                             "SUCCESS" => "success".to_string(),

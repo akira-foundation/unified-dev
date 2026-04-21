@@ -202,13 +202,15 @@ impl GitHubDriver {
             .send()
             .await?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+
+        if !status.is_success() {
             return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
         }
 
-        let result: GraphQlResponse<T> = response.json().await?;
+        let result: GraphQlResponse<T> = serde_json::from_str(&body)
+            .map_err(|e| AppError::Provider(format!("GitHub GraphQL decode failed: {e} — body: {body}")))?;
 
         if let Some(errors) = result.errors {
             if !errors.is_empty() {
@@ -259,21 +261,29 @@ impl GitHubDriver {
                 .send()
                 .await?;
 
-            if !response.status().is_success() {
-                let status = response.status();
-                let body = response.text().await.unwrap_or_default();
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+
+            if !status.is_success() {
                 return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
             }
 
-            let result: GraphQlResponse<R> = response.json().await?;
+            let result: GraphQlResponse<R> = serde_json::from_str(&body)
+                .map_err(|e| AppError::Provider(format!("GitHub GraphQL decode failed: {e} — body: {body}")))?;
 
             if let Some(errors) = result.errors {
-                if !errors.is_empty() {
+                let fatal: Vec<_> = errors.iter().filter(|e| {
+                    e.get("type").and_then(|t| t.as_str()) != Some("FORBIDDEN")
+                }).collect();
+                if !fatal.is_empty() {
                     return Err(AppError::Provider(format_graphql_errors(&errors)));
                 }
             }
 
-            let data = result.data.ok_or_else(|| AppError::Provider("GitHub GraphQL: no data returned".to_string()))?;
+            let data = match result.data {
+                Some(d) => d,
+                None => break,
+            };
             let (items, has_next, end_cursor) = extract(data);
             all_items.extend(items);
 

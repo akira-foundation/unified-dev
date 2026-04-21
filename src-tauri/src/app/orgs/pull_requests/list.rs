@@ -27,17 +27,21 @@ pub async fn list(
     let scope = scope.unwrap_or_else(|| "mine_or_review_requested".to_string());
     let login = current_login.map(|v| v.to_lowercase());
 
-    Ok(records
-        .into_iter()
-        .map(record_to_dto)
-        .filter(|pr| match scope.as_str() {
-            "all_open" => true,
-            _ => login.as_ref().map(|current| {
-                pr.author.as_ref().map(|a| a.to_lowercase() == *current).unwrap_or(false)
-                    || pr.reviewers.iter().any(|r| r.to_lowercase() == *current)
-            }).unwrap_or(true),
-        })
-        .collect())
+    let dtos: Vec<PullRequestDto> = records.into_iter().map(record_to_dto).collect();
+
+    let filtered: Vec<PullRequestDto> = dtos.iter().filter(|pr| match scope.as_str() {
+        "all_open" => true,
+        _ => login.as_ref().map(|current| {
+            pr.author.as_ref().map(|a| a.to_lowercase() == *current).unwrap_or(false)
+                || pr.reviewers.iter().any(|r| r.to_lowercase() == *current)
+        }).unwrap_or(true),
+    }).cloned().collect();
+
+    if filtered.is_empty() && scope != "all_open" {
+        return Ok(dtos);
+    }
+
+    Ok(filtered)
 }
 
 fn record_to_dto(r: PullRequestRecord) -> PullRequestDto {

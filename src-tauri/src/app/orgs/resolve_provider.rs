@@ -61,13 +61,15 @@ pub async fn resolve_provider_for_repo_owner(
                     .await
                     .map_err(|e| e.to_string())?;
 
-                if !response.status().is_success() {
-                    let status = response.status();
-                    let body = response.text().await.map_err(|e| e.to_string())?;
+                let status = response.status();
+                let body = response.text().await.map_err(|e| e.to_string())?;
+
+                if !status.is_success() {
                     return Err(format!("installation token request failed: {status} — {body}"));
                 }
 
-                let result: InstallationTokenResponse = response.json().await.map_err(|e| e.to_string())?;
+                let result: InstallationTokenResponse = serde_json::from_str(&body)
+                    .map_err(|e| format!("installation token decode failed: {e} — body: {body}"))?;
                 result.token
             };
 

@@ -363,12 +363,8 @@ export function RepositoryDetailPage() {
   });
 
   const syncRepoMutation = useMutation({
-    mutationFn: () =>
-      Promise.all([
-        invoke("sync_single_repo_stats", {
-          organizationId: activeRepo!.organizationId,
-          repoName: activeRepo!.name,
-        }),
+    mutationFn: async () => {
+      await Promise.all([
         invoke("sync_issues", {
           orgId: activeRepo!.organizationId,
           owner: activeRepo!.owner,
@@ -382,7 +378,12 @@ export function RepositoryDetailPage() {
           scope: prScope,
           currentLogin,
         }),
-      ]),
+      ]);
+      await invoke("sync_single_repo_stats", {
+        organizationId: activeRepo!.organizationId,
+        repoName: activeRepo!.name,
+      });
+    },
     onMutate: () => toast.loading(t("agents.sidebar.toast.syncingRepo").replace("{name}", activeRepo!.name)),
     onSuccess: (_data, _vars, loadingToast) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
@@ -390,8 +391,8 @@ export function RepositoryDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["pull-requests", activeRepo!.organizationId, activeRepo!.name] });
       toast.success(t("agents.sidebar.toast.repoSynced").replace("{name}", activeRepo!.name), { id: loadingToast as string });
     },
-    onError: (_err, _vars, loadingToast) => {
-      toast.error(t("agents.sidebar.toast.syncFailed").replace("{name}", activeRepo!.name), { id: loadingToast as string });
+    onError: (err, _vars, loadingToast) => {
+      toast.error(err instanceof Error ? err.message : String(err), { id: loadingToast as string });
     },
   });
 

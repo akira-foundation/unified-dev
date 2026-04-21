@@ -13,7 +13,7 @@ pub async fn sync(
     current_login: Option<String>,
 ) -> Result<Vec<PullRequestDto>, String> {
     let _ = owner;
-    let (effective_owner, effective_repo, provider) = super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let (effective_owner, effective_repo, provider, is_upstream) = super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
     let provider_kind = provider.kind().to_string();
 
     let prs = provider
@@ -81,28 +81,30 @@ pub async fn sync(
         .map_err(|e| e.to_string())?;
     }
 
-    let remote_ids: std::collections::HashSet<i64> = prs.iter().map(|pr| pr.number as i64).collect();
-    let local_numbers: Vec<i64> = sqlx::query_scalar::<_, i64>(
-        "SELECT number FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
-    )
-    .bind(&organization_id)
-    .bind(&repo_name)
-    .fetch_all(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    if !prs.is_empty() && !is_upstream {
+        let remote_ids: std::collections::HashSet<i64> = prs.iter().map(|pr| pr.number as i64).collect();
+        let local_numbers: Vec<i64> = sqlx::query_scalar::<_, i64>(
+            "SELECT number FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
+        )
+        .bind(&organization_id)
+        .bind(&repo_name)
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
 
-    for number in local_numbers {
-        if !remote_ids.contains(&number) {
-            sqlx::query(
-                "UPDATE pull_requests SET state = 'closed', synced_at = ? WHERE org_id = ? AND repo_name = ? AND number = ?",
-            )
-            .bind(&now)
-            .bind(&organization_id)
-            .bind(&repo_name)
-            .bind(number)
-            .execute(&state.db_pool)
-            .await
-            .map_err(|e| e.to_string())?;
+        for number in local_numbers {
+            if !remote_ids.contains(&number) {
+                sqlx::query(
+                    "UPDATE pull_requests SET state = 'closed', synced_at = ? WHERE org_id = ? AND repo_name = ? AND number = ?",
+                )
+                .bind(&now)
+                .bind(&organization_id)
+                .bind(&repo_name)
+                .bind(number)
+                .execute(&state.db_pool)
+                .await
+                .map_err(|e| e.to_string())?;
+            }
         }
     }
 
