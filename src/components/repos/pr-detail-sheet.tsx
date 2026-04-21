@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n/i18n";
 import {
@@ -10,6 +11,7 @@ import {
   FileText,
   GitBranch,
   GitMerge,
+  Loader2,
   Maximize2,
   MessageSquare,
   Minimize2,
@@ -77,6 +79,7 @@ export function PrDetailSheet({
   const [commentBody, setCommentBody] = useState("");
   const [mergeStrategy, setMergeStrategy] = useState<PrMergeStrategy>("merge");
   const [mergeError, setMergeError] = useState<string | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const commentRef = useRef<HTMLTextAreaElement>(null);
 
@@ -113,8 +116,10 @@ export function PrDetailSheet({
   };
 
   const handleMerge = async () => {
-    if (!pr) return;
+    if (!pr || isMerging) return;
     setMergeError(null);
+    setIsMerging(true);
+    const toastId = toast.loading(`Merging #${pr.number}…`);
     try {
       await invoke("merge_pr", {
         organizationId,
@@ -122,10 +127,14 @@ export function PrDetailSheet({
         prNumber: pr.number,
         strategy: mergeStrategy,
       });
+      toast.success(`PR #${pr.number} merged successfully`, { id: toastId });
       onMerged();
       onOpenChange(false);
     } catch (err) {
+      toast.dismiss(toastId);
       setMergeError(String(err));
+    } finally {
+      setIsMerging(false);
     }
   };
 
@@ -377,9 +386,13 @@ export function PrDetailSheet({
             <Button
               className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
               onClick={handleMerge}
+              disabled={isMerging}
             >
-              <GitMerge className="h-4 w-4 mr-1.5" />
-              {strategyLabels[mergeStrategy]}
+              {isMerging
+                ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                : <GitMerge className="h-4 w-4 mr-1.5" />
+              }
+              {isMerging ? "Merging…" : strategyLabels[mergeStrategy]}
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -387,6 +400,7 @@ export function PrDetailSheet({
                   variant="outline"
                   size="icon"
                   className="shrink-0 border-purple-200 dark:border-purple-500/30"
+                  disabled={isMerging}
                 >
                   <ChevronDown className="h-4 w-4" />
                 </Button>

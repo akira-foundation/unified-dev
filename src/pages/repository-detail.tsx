@@ -420,7 +420,10 @@ export function RepositoryDetailPage() {
 
   const handleMerged = () => {
     queryClient.invalidateQueries({
-      queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
+      queryKey: ["pull-requests", activeRepo?.organizationId ?? "", activeRepo?.name ?? ""],
+    });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.allRepositories(),
     });
   };
 
@@ -692,7 +695,7 @@ export function RepositoryDetailPage() {
                 label: t(prScopeLabelKey(scope)),
                 onSelect: () => syncPrsMutation.mutate(scope),
               }))}
-              onMerged={() => queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(activeRepo!.organizationId, activeRepo!.name) })}
+              onMerged={() => queryClient.invalidateQueries({ queryKey: ["pull-requests", activeRepo!.organizationId, activeRepo!.name] })}
             />
           )}
         </TabsContent>

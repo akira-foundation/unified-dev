@@ -547,7 +547,7 @@ impl VcsProvider for GitHubDriver {
             #[serde(rename = "reviewRequests")]
             review_requests: ReviewRequestConnection,
             #[serde(rename = "commits")]
-            commits: CommitConnection,
+            commits: Option<CommitConnection>,
         }
         #[derive(Deserialize)]
         struct Actor {
@@ -640,7 +640,8 @@ impl VcsProvider for GitHubDriver {
                     None => return (vec![], false, None),
                 };
                 let items = conn.nodes.into_iter().map(|pr| {
-                    let ci_status = pr.commits.nodes.into_iter().next()
+                    let ci_status = pr.commits
+                        .and_then(|c| c.nodes.into_iter().next())
                         .and_then(|c| c)
                         .and_then(|c| c.commit.status_check_rollup)
                         .map(|s| match s.state.as_str() {
