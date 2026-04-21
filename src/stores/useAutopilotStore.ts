@@ -24,7 +24,7 @@ export interface AutopilotThreadResult {
   issueNumber: number;
   issueTitle: string;
   threadId: string | null;
-  status: "pending" | "creating" | "streaming" | "done" | "error";
+  status: "pending" | "creating" | "streaming" | "idle" | "done" | "error";
 }
 
 export interface AutopilotJob {
@@ -39,6 +39,18 @@ export interface AutopilotJob {
   startedAt: string;
   finishedAt: string | null;
   threads: AutopilotThreadResult[];
+}
+
+export function getAutopilotCompletedCount(
+  threads: AutopilotThreadResult[],
+  prUrlByThread: Record<string, { url: string; isDraft: boolean } | null>,
+  streamingThreadIds: Record<string, boolean>,
+): number {
+  return threads.filter((thread) => {
+    if (thread.status === "done" || thread.status === "error") return true;
+    if (!thread.threadId) return false;
+    return Boolean(prUrlByThread[thread.threadId]?.url) && !streamingThreadIds[thread.threadId];
+  }).length;
 }
 
 const cancelTokens: Record<string, { cancelled: boolean }> = {};
@@ -80,45 +92,54 @@ function watchThread(
   _get: () => AutopilotState,
   set: (fn: (s: AutopilotState) => Partial<AutopilotState>) => void,
 ) {
-  const key = `${jobId}:${threadId}`;
-  const unsubscribe = useAgentsStore.subscribe((state) => {
-    if (!state.streamingThreadIds[threadId]) {
-      unsubscribe();
-      delete threadWatchers[key];
-      set((s) => ({
-        jobs: {
-          ...s.jobs,
-          [jobId]: {
-            ...s.jobs[jobId],
-            threads: s.jobs[jobId]?.threads.map((t) =>
-              t.threadId === threadId && t.status === "streaming" ? { ...t, status: "done" } : t,
-            ) ?? [],
-          },
-        },
-      }));
-      invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: threadId, status: "done" } }).catch(() => {});
-      dbLog(jobId, "streaming_done", { threadRowId, repoName });
-    }
-  });
-  threadWatchers[key] = unsubscribe;
+  function syncThreadCompletion() {
+    const agentsState = useAgentsStore.getState();
+    const hasPr = Boolean(agentsState.prUrlByThread[threadId]?.url);
+    const isStreaming = Boolean(agentsState.streamingThreadIds[threadId]);
+    const nextStatus: AutopilotThreadResult["status"] = hasPr && !isStreaming ? "done" : !isStreaming ? "idle" : "streaming";
 
-  const { streamingThreadIds } = useAgentsStore.getState();
-  if (!streamingThreadIds[threadId]) {
-    unsubscribe();
-    delete threadWatchers[key];
     set((s) => ({
       jobs: {
         ...s.jobs,
         [jobId]: {
           ...s.jobs[jobId],
           threads: s.jobs[jobId]?.threads.map((t) =>
-            t.threadId === threadId && t.status === "streaming" ? { ...t, status: "done" } : t,
+            t.threadId === threadId && (t.status === "streaming" || t.status === "idle" || t.status === "done")
+              ? { ...t, status: nextStatus }
+              : t,
           ) ?? [],
         },
       },
     }));
-    invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: threadId, status: "done" } }).catch(() => {});
-    dbLog(jobId, "streaming_done", { threadRowId, repoName });
+    invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: threadId, status: nextStatus } }).catch(() => {});
+
+    const job = _get().jobs[jobId];
+    if (!job || job.status === "stopped" || job.status === "stopping" || job.status === "done") return;
+
+    const currentAgentsState = useAgentsStore.getState();
+    const allCompleted = getAutopilotCompletedCount(job.threads, currentAgentsState.prUrlByThread, currentAgentsState.streamingThreadIds) === job.threads.length;
+    if (allCompleted) {
+      finalizeJob(jobId, false, _get, set);
+    }
+  }
+
+  const key = `${jobId}:${threadId}`;
+  const unsubscribe = useAgentsStore.subscribe((state) => {
+    if (!state.streamingThreadIds[threadId] || state.prUrlByThread[threadId]?.url) {
+      unsubscribe();
+      delete threadWatchers[key];
+      syncThreadCompletion();
+      dbLog(jobId, state.prUrlByThread[threadId]?.url ? "thread_completed" : "streaming_done", { threadRowId, repoName });
+    }
+  });
+  threadWatchers[key] = unsubscribe;
+
+  const { streamingThreadIds } = useAgentsStore.getState();
+  if (!streamingThreadIds[threadId] || useAgentsStore.getState().prUrlByThread[threadId]?.url) {
+    unsubscribe();
+    delete threadWatchers[key];
+    syncThreadCompletion();
+    dbLog(jobId, useAgentsStore.getState().prUrlByThread[threadId]?.url ? "thread_completed" : "streaming_done", { threadRowId, repoName });
   }
 }
 
@@ -140,37 +161,6 @@ function filterIssues(issues: IssueDto[], filter: AutopilotFilter, assignedToLog
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function watchAgentsAndFinalize(
-  jobId: string,
-  threadIds: string[],
-  get: () => AutopilotState,
-  set: (fn: (s: AutopilotState) => Partial<AutopilotState>) => void,
-) {
-  if (threadIds.length === 0) {
-    finalizeJob(jobId, false, get, set);
-    return;
-  }
-
-  const unsubscribe = useAgentsStore.subscribe((state) => {
-    const stillStreaming = threadIds.some((id) => state.streamingThreadIds[id]);
-    if (!stillStreaming) {
-      unsubscribe();
-      delete agentWatchers[jobId];
-      finalizeJob(jobId, false, get, set);
-    }
-  });
-
-  agentWatchers[jobId] = unsubscribe;
-
-  const { streamingThreadIds } = useAgentsStore.getState();
-  const stillStreaming = threadIds.some((id) => streamingThreadIds[id]);
-  if (!stillStreaming) {
-    unsubscribe();
-    delete agentWatchers[jobId];
-    finalizeJob(jobId, false, get, set);
-  }
 }
 
 function finalizeJob(
@@ -212,8 +202,6 @@ async function runJob(
   set: (fn: (s: AutopilotState) => Partial<AutopilotState>) => void,
 ) {
   const token = cancelTokens[jobId];
-  const createdThreadIds: string[] = [];
-
   for (let i = 0; i < issues.length; i++) {
     if (token?.cancelled) break;
 
@@ -265,8 +253,6 @@ async function runJob(
         if (modelId) {
           const message = `Implement the following issue:\n\n**${issue.title}**\n\n${issue.body ?? ""}`;
           await sendMessage(thread.id, message, modelId, false);
-          createdThreadIds.push(thread.id);
-
           set((s) => ({
             jobs: {
               ...s.jobs,
@@ -293,12 +279,12 @@ async function runJob(
                 ...s.jobs[jobId],
                 created: s.jobs[jobId].created + 1,
                 threads: s.jobs[jobId].threads.map((t) =>
-                  t.issueId === issue.id ? { ...t, threadId: thread.id, status: "done" } : t,
+                  t.issueId === issue.id ? { ...t, threadId: thread.id, status: "idle" } : t,
                 ),
               },
             },
           }));
-          invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: thread.id, status: "done" } }).catch(() => {});
+          invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: thread.id, status: "idle" } }).catch(() => {});
           invoke("autopilot_update_job", { input: { id: jobId, created: get().jobs[jobId]?.created ?? 0, status: "running", finished_at: null } }).catch(() => {});
         }
       } else {
@@ -309,12 +295,12 @@ async function runJob(
               ...s.jobs[jobId],
               created: s.jobs[jobId].created + 1,
               threads: s.jobs[jobId].threads.map((t) =>
-                t.issueId === issue.id ? { ...t, threadId: thread.id, status: "done" } : t,
+                t.issueId === issue.id ? { ...t, threadId: thread.id, status: "idle" } : t,
               ),
             },
           },
         }));
-        invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: thread.id, status: "done" } }).catch(() => {});
+        invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: thread.id, status: "idle" } }).catch(() => {});
         invoke("autopilot_update_job", { input: { id: jobId, created: get().jobs[jobId]?.created ?? 0, status: "running", finished_at: null } }).catch(() => {});
       }
     } catch (e) {
@@ -352,19 +338,12 @@ async function runJob(
   const job = get().jobs[jobId];
   if (!job) return;
 
-  if (createdThreadIds.length === 0 || !job.config.autoSend) {
-    finalizeJob(jobId, false, get, set);
-    return;
-  }
-
   set((s) => ({
     jobs: {
       ...s.jobs,
       [jobId]: { ...s.jobs[jobId], status: "waiting" },
     },
   }));
-
-  watchAgentsAndFinalize(jobId, createdThreadIds, get, set);
 }
 
 function cleanupJobTracking(job: AutopilotJob, abortActiveThreads: boolean) {
@@ -400,7 +379,7 @@ function deriveJobState(threads: AutopilotThreadResult[]): Pick<AutopilotJob, "t
   const created = threads.filter((thread) => thread.threadId !== null).length;
   const hasCreating = threads.some((thread) => thread.status === "creating");
   const hasStreaming = threads.some((thread) => thread.status === "streaming");
-  const hasPending = threads.some((thread) => thread.status === "pending");
+  const hasPending = threads.some((thread) => thread.status === "pending" || thread.status === "idle");
   const hasOnlyErrors = threads.length > 0 && threads.every((thread) => thread.status === "error");
 
   const status: AutopilotJobStatus = hasCreating
@@ -432,6 +411,7 @@ interface AutopilotState {
   startThread: (jobId: string, issueId: string) => Promise<void>;
   cancelThread: (jobId: string, issueId: string) => void;
   removeJob: (jobId: string, options?: { removeThreads?: boolean }) => Promise<void>;
+  removeJobsForRepo: (repoId: string) => Promise<void>;
   removeThreadReference: (threadId: string) => void;
   clearCompleted: () => void;
 }
@@ -604,17 +584,41 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
     const job = get().jobs[jobId];
     if (!job || job.status === "stopping" || job.status === "stopped") return;
 
+    const hasRunToken = Boolean(cancelTokens[jobId]);
+    const nextStatus: AutopilotJobStatus = hasRunToken ? "stopping" : "stopped";
+    const finishedAt = nextStatus === "stopped" ? new Date().toISOString() : null;
+
     set((s) => ({
       jobs: {
         ...s.jobs,
         [jobId]: {
           ...s.jobs[jobId],
-          status: "stopping",
-          finishedAt: null,
+          status: nextStatus,
+          finishedAt,
+          threads: s.jobs[jobId].threads.map((thread) => {
+            if (thread.status === "creating") {
+              return { ...thread, status: "pending" };
+            }
+
+            if (thread.status === "streaming") {
+              return { ...thread, status: thread.threadId ? "idle" : "pending" };
+            }
+
+            return thread;
+          }),
         },
       },
     }));
-    invoke("autopilot_update_job", { input: { id: jobId, created: job.created, status: "stopping", finished_at: null, issues: null, total: null } }).catch(() => {});
+    invoke("autopilot_update_job", {
+      input: {
+        id: jobId,
+        created: job.created,
+        status: nextStatus,
+        finished_at: finishedAt,
+        issues: null,
+        total: null,
+      },
+    }).catch(() => {});
 
     if (cancelTokens[jobId]) {
       cancelTokens[jobId].cancelled = true;
@@ -631,12 +635,30 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
           delete threadWatchers[key];
         }
       }
+
+      if (thread.status === "creating") {
+        invoke("autopilot_update_thread", {
+          input: { id: thread.rowId, thread_id: thread.threadId, status: "pending" },
+        }).catch(() => {});
+      }
+
+      if (thread.status === "streaming") {
+        invoke("autopilot_update_thread", {
+          input: { id: thread.rowId, thread_id: thread.threadId, status: thread.threadId ? "idle" : "pending" },
+        }).catch(() => {});
+      }
     }
 
     if (agentWatchers[jobId]) {
       agentWatchers[jobId]();
       delete agentWatchers[jobId];
       finalizeJob(jobId, true, get, set);
+      return;
+    }
+
+    if (!hasRunToken) {
+      dbLog(jobId, "job_stopped", { repoName: job.repoName, detail: `${job.created}/${job.total}` });
+      toast.info(`Autopilot stopped — ${job.created} / ${job.total} threads created`);
     }
   },
 
@@ -718,17 +740,17 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
               ...s.jobs[jobId],
               created: s.jobs[jobId].created + 1,
               threads: s.jobs[jobId].threads.map((t) =>
-                t.issueId === issueId ? { ...t, threadId: agentThread.id, status: "done" } : t,
-              ),
+                  t.issueId === issueId ? { ...t, threadId: agentThread.id, status: "idle" } : t,
+                ),
+              },
             },
-          },
-        }));
-        invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: agentThread.id, status: "done" } }).catch(() => {});
+          }));
+        invoke("autopilot_update_thread", { input: { id: threadRowId, thread_id: agentThread.id, status: "idle" } }).catch(() => {});
 
         const nextJob = get().jobs[jobId];
         if (!nextJob) return;
 
-        const hasPending = nextJob.threads.some((t) => t.status === "pending");
+        const hasPending = nextJob.threads.some((t) => t.status === "pending" || t.status === "idle");
         if (hasPending) {
           const finishedAt = new Date().toISOString();
           set((s) => ({
@@ -816,7 +838,7 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
 
     if (!removeThreads) return;
 
-    const { removeThread, abortThread } = useAgentsStore.getState();
+    const { removeThread, abortThread, loadRepositories } = useAgentsStore.getState();
     const threadIds = job.threads
       .filter((thread) => thread.threadId)
       .map((thread) => ({ id: thread.threadId!, status: thread.status }));
@@ -829,11 +851,39 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
       removeThread(job.repoId, thread.id);
     }
 
-    await Promise.all(
+    const results = await Promise.allSettled(
       threadIds.map(async (thread) => {
-        await invoke("delete_thread", { threadId: thread.id }).catch(() => {});
+        await invoke("delete_thread", { threadId: thread.id });
       }),
     );
+
+    await loadRepositories();
+
+    if (results.some((result) => result.status === "rejected")) {
+      toast.error("Some autopilot threads could not be deleted.");
+    }
+  },
+
+  removeJobsForRepo: async (repoId) => {
+    const repoJobs = Object.values(get().jobs).filter((job) => job.repoId === repoId);
+    if (repoJobs.length === 0) return;
+
+    for (const job of repoJobs) {
+      cleanupJobTracking(job, false);
+      invoke("autopilot_delete_job", { jobId: job.id }).catch(() => {});
+    }
+
+    set((state) => {
+      const nextJobs = { ...state.jobs };
+      for (const job of repoJobs) {
+        delete nextJobs[job.id];
+      }
+
+      return {
+        jobs: nextJobs,
+        selectedJobId: state.selectedJobId && !nextJobs[state.selectedJobId] ? null : state.selectedJobId,
+      };
+    });
   },
 
   removeThreadReference: (threadId) => {

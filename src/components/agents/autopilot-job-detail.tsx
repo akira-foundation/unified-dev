@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Square, CheckCircle2, XCircle, Rocket, Clock, ExternalLink, CircleDot, Loader2, Play } from "lucide-react";
+import { Square, CheckCircle2, XCircle, Rocket, Clock, ExternalLink, CircleDot, Loader2, Play, Trash2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AutopilotRemoveDialog } from "@/components/agents/autopilot-remove-dialog";
+import { RemoveThreadDialog } from "@/components/agents/remove-thread-dialog";
 import { cn } from "@/lib/utils";
-import { useAutopilotStore, type AutopilotThreadResult } from "@/stores/useAutopilotStore";
+import { getAutopilotCompletedCount, useAutopilotStore, type AutopilotThreadResult } from "@/stores/useAutopilotStore";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
+import { toast } from "sonner";
+import { invoke } from "@tauri-apps/api/core";
 
 interface AutopilotJobDetailProps {
   open: boolean;
@@ -19,6 +22,8 @@ function statusIcon(status: AutopilotThreadResult["status"]) {
       return <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500" />;
     case "error":
       return <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />;
+    case "idle":
+      return <CircleDot className="h-3.5 w-3.5 shrink-0 text-zinc-400" />;
     case "creating":
       return <CircleDot className="h-3.5 w-3.5 shrink-0 text-purple-500 animate-pulse" />;
     case "streaming":
@@ -91,10 +96,12 @@ function formatDuration(startIso: string, endIso: string | null): string {
 
 export function AutopilotJobDetail({ open, onOpenChange }: AutopilotJobDetailProps) {
   const { t } = useI18n();
-  const { jobs, selectedJobId, selectJob, cancelJob, resumeJob, startThread, cancelThread, removeJob } = useAutopilotStore();
-  const { setSelectedIssueId, getEffectiveModelId } = useAgentsStore();
+  const { jobs, selectedJobId, selectJob, cancelJob, resumeJob, startThread, cancelThread, removeJob, removeThreadReference } = useAutopilotStore();
+  const { setSelectedIssueId, getEffectiveModelId, removeThread, loadRepositories, prUrlByThread, streamingThreadIds } = useAgentsStore();
   const aiProviders = useAgentsStore((s) => s.aiProviders);
   const [removeOpen, setRemoveOpen] = useState(false);
+  const [threadToRemove, setThreadToRemove] = useState<AutopilotThreadResult | null>(null);
+  const [isRemovingThread, setIsRemovingThread] = useState(false);
 
   const job = selectedJobId ? jobs[selectedJobId] : null;
 
@@ -117,7 +124,8 @@ export function AutopilotJobDetail({ open, onOpenChange }: AutopilotJobDetailPro
 
   if (!job) return null;
 
-  const pct = job.total > 0 ? Math.round((job.created / job.total) * 100) : 0;
+  const completed = getAutopilotCompletedCount(job.threads, prUrlByThread, streamingThreadIds);
+  const pct = job.total > 0 ? Math.round((completed / job.total) * 100) : 0;
   const currentBatch = Math.ceil(job.created / job.config.batchSize);
   const totalBatches = Math.ceil(job.total / job.config.batchSize);
 
@@ -129,6 +137,27 @@ export function AutopilotJobDetail({ open, onOpenChange }: AutopilotJobDetailPro
   function handleGoToThread(threadId: string) {
     setSelectedIssueId(threadId);
     handleClose();
+  }
+
+  async function handleRemoveThread() {
+    if (!threadToRemove?.threadId) return;
+
+    const toastId = toast.loading(t("agents.sidebar.toast.removingThread"));
+    const repoId = job!.repoId;
+
+    try {
+      setIsRemovingThread(true);
+      await invoke("delete_thread", { threadId: threadToRemove.threadId });
+      removeThread(repoId, threadToRemove.threadId);
+      removeThreadReference(threadToRemove.threadId);
+      await loadRepositories();
+      toast.success(t("agents.sidebar.toast.threadRemoved"), { id: toastId });
+      setThreadToRemove(null);
+    } catch (error) {
+      toast.error(String(error), { id: toastId });
+    } finally {
+      setIsRemovingThread(false);
+    }
   }
 
   return (
@@ -203,7 +232,7 @@ export function AutopilotJobDetail({ open, onOpenChange }: AutopilotJobDetailPro
               <span>
                 {job.status === "running"
                   ? t("autopilot.detail.progress")
-                      .replace("{created}", String(job.created))
+                      .replace("{created}", String(completed))
                       .replace("{total}", String(job.total))
                   : job.status === "waiting"
                     ? t("autopilot.detail.waiting").replace("{total}", String(job.total))
@@ -252,7 +281,7 @@ export function AutopilotJobDetail({ open, onOpenChange }: AutopilotJobDetailPro
               <div
                 key={thread.issueId}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-sm transition-colors",
+                  "group flex items-center gap-2.5 rounded-lg border border-transparent px-2.5 py-2 text-sm transition-colors",
                   (thread.status === "creating" || thread.status === "streaming") && "border-purple-500/10 bg-purple-500/5",
                   thread.threadId && "cursor-pointer hover:bg-accent",
                 )}
@@ -266,10 +295,23 @@ export function AutopilotJobDetail({ open, onOpenChange }: AutopilotJobDetailPro
                 />
                 <span className={cn(
                   "flex-1 truncate text-[12px]",
-                  thread.status === "pending" ? "text-muted-foreground" : "text-foreground",
+                  thread.status === "pending" || thread.status === "idle" ? "text-muted-foreground" : thread.status === "error" ? "text-red-400" : "text-foreground",
                 )}>
                   #{thread.issueNumber} {thread.issueTitle}
                 </span>
+                {thread.threadId && (
+                  <button
+                    type="button"
+                    className="opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-red-500"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setThreadToRemove(thread);
+                    }}
+                    title={t("dialogs.removeThread.remove")}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
                 {thread.threadId && (
                   <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
                 )}
@@ -284,10 +326,30 @@ export function AutopilotJobDetail({ open, onOpenChange }: AutopilotJobDetailPro
         onOpenChange={setRemoveOpen}
         repoName={job.repoName}
         onConfirm={async ({ removeThreads }) => {
-          await removeJob(job.id, { removeThreads });
+          const toastId = toast.loading(t("autopilot.remove.removing"));
+          try {
+            await removeJob(job.id, { removeThreads });
+            toast.success(
+              removeThreads ? t("autopilot.remove.removedWithThreads") : t("autopilot.remove.removed"),
+              { id: toastId },
+            );
+          } catch (error) {
+            toast.error(t("autopilot.remove.failed"), { id: toastId });
+            throw error;
+          }
           setRemoveOpen(false);
           handleClose();
         }}
+      />
+
+      <RemoveThreadDialog
+        open={!!threadToRemove}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setThreadToRemove(null);
+        }}
+        onRemove={() => void handleRemoveThread()}
+        threadTitle={threadToRemove?.issueTitle ?? ""}
+        isRemoving={isRemovingThread}
       />
     </Sheet>
   );

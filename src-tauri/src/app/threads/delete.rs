@@ -16,9 +16,9 @@ pub async fn delete(thread_id: String, pool: &sqlx::SqlitePool) -> AppResult<()>
     let path = Path::new(&workspace_path);
     if path.exists() {
         if path.is_dir() {
-            std::fs::remove_dir_all(path).map_err(AppError::Io)?;
+            let _ = std::fs::remove_dir_all(path);
         } else {
-            std::fs::remove_file(path).map_err(AppError::Io)?;
+            let _ = std::fs::remove_file(path);
         }
     }
 

@@ -4,8 +4,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { AutopilotRemoveDialog } from "@/components/agents/autopilot-remove-dialog";
 import { cn } from "@/lib/utils";
-import { useAutopilotStore, type AutopilotJob } from "@/stores/useAutopilotStore";
+import { getAutopilotCompletedCount, useAutopilotStore, type AutopilotJob } from "@/stores/useAutopilotStore";
+import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
+import { toast } from "sonner";
 
 interface AutopilotJobsPanelProps {
   open: boolean;
@@ -20,13 +22,15 @@ function JobRow({ job, onSelect, onStop, onResume, onRemove }: {
   onRemove: () => void;
 }) {
   const { t } = useI18n();
-  const pct = job.total > 0 ? Math.round((job.created / job.total) * 100) : 0;
+  const prUrlByThread = useAgentsStore((s) => s.prUrlByThread);
+  const streamingThreadIds = useAgentsStore((s) => s.streamingThreadIds);
+  const completed = getAutopilotCompletedCount(job.threads, prUrlByThread, streamingThreadIds);
+  const pct = job.total > 0 ? Math.round((completed / job.total) * 100) : 0;
 
   return (
-    <button
-      type="button"
+    <div
       onClick={onSelect}
-      className="w-full text-left rounded-lg border border-border bg-background/50 p-3 hover:bg-accent transition-colors group"
+      className="w-full text-left rounded-lg border border-border bg-background/50 p-3 hover:bg-accent transition-colors group cursor-pointer"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -106,18 +110,18 @@ function JobRow({ job, onSelect, onStop, onResume, onRemove }: {
         </div>
         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
           <span>
-            {job.status === "running"
-              ? t("autopilot.panel.progress").replace("{created}", String(job.created)).replace("{total}", String(job.total))
-              : job.status === "stopping"
-                ? t("autopilot.panel.stopping")
-              : job.status === "done"
+              {job.status === "running"
+                ? t("autopilot.panel.progress").replace("{created}", String(completed)).replace("{total}", String(job.total))
+                : job.status === "stopping"
+                  ? t("autopilot.panel.stopping")
+                : job.status === "done"
                 ? t("autopilot.panel.done").replace("{total}", String(job.total))
                 : t("autopilot.panel.stopped").replace("{created}", String(job.created)).replace("{total}", String(job.total))}
           </span>
           <span>{pct}%</span>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -191,7 +195,17 @@ export function AutopilotJobsPanel({ open, onOpenChange }: AutopilotJobsPanelPro
         repoName={jobToRemove?.repoName ?? ""}
         onConfirm={async ({ removeThreads }) => {
           if (!jobToRemove) return;
-          await removeJob(jobToRemove.id, { removeThreads });
+          const toastId = toast.loading(t("autopilot.remove.removing"));
+          try {
+            await removeJob(jobToRemove.id, { removeThreads });
+            toast.success(
+              removeThreads ? t("autopilot.remove.removedWithThreads") : t("autopilot.remove.removed"),
+              { id: toastId },
+            );
+          } catch (error) {
+            toast.error(t("autopilot.remove.failed"), { id: toastId });
+            throw error;
+          }
           setJobToRemove(null);
         }}
       />

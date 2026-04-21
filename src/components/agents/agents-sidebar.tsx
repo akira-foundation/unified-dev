@@ -184,7 +184,7 @@ export function AgentsSidebar() {
   const [creatingSourceThread, setCreatingSourceThread] = useState(false);
   const [autopilotTarget, setAutopilotTarget] = useState<{ repoId: string; repoName: string } | null>(null);
   const [autopilotPanelOpen, setAutopilotPanelOpen] = useState(false);
-  const { selectedJobId, jobs, selectJob } = useAutopilotStore();
+  const { selectedJobId, jobs, selectJob, removeJobsForRepo, removeThreadReference } = useAutopilotStore();
   const [ghCliError, setGhCliError] = useState<"gh_not_installed" | "gh_not_authenticated" | null>(null);
   const [linkRepoDialog, setLinkRepoDialog] = useState<{
     repoId: string;
@@ -307,14 +307,18 @@ export function AgentsSidebar() {
   const handleRemoveThread = async () => {
     if (!threadToRemove) return;
 
+    const toastId = toast.loading(t("agents.sidebar.toast.removingThread"));
+
     try {
       setRemovingThreadId(threadToRemove.id);
       await invoke("delete_thread", { threadId: threadToRemove.id });
       removeThread(threadToRemove.repoId, threadToRemove.id);
-      toast.success(t("agents.sidebar.toast.threadRemoved"));
+      removeThreadReference(threadToRemove.id);
+      await loadRepositories();
+      toast.success(t("agents.sidebar.toast.threadRemoved"), { id: toastId });
       setThreadToRemove(null);
     } catch (error) {
-      toast.error(`Failed to remove thread: ${error}`);
+      toast.error(String(error), { id: toastId });
     } finally {
       setRemovingThreadId(null);
     }
@@ -952,14 +956,31 @@ export function AgentsSidebar() {
             <AlertDialogAction
               size="sm"
               className="flex-1 bg-red-500 text-white hover:bg-red-600"
-              onClick={() => {
+              onClick={async () => {
                 if (!repoClearThreads) return;
+                const toastId = toast.loading(t("agents.sidebar.toast.clearingThreads"));
                 const allRepos = useAgentsStore.getState().repositoryGroups.flatMap((g) => g.repositories);
                 const repo = allRepos.find((r) => r.id === repoClearThreads.id);
                 if (repo) {
+                  await removeJobsForRepo(repoClearThreads.id);
+
+                  const results = await Promise.allSettled(
+                    repo.issues.map((thread) => invoke("delete_thread", { threadId: thread.id })),
+                  );
+
                   for (const thread of repo.issues) {
                     removeThread(repoClearThreads.id, thread.id);
                   }
+
+                  await loadRepositories();
+
+                  if (results.some((result) => result.status === "rejected")) {
+                    toast.error(t("agents.sidebar.toast.clearThreadsFailed"), { id: toastId });
+                  } else {
+                    toast.success(t("agents.sidebar.toast.threadsCleared"), { id: toastId });
+                  }
+                } else {
+                  toast.success(t("agents.sidebar.toast.threadsCleared"), { id: toastId });
                 }
                 setRepoClearThreads(null);
               }}
