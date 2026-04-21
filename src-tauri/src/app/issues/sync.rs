@@ -12,8 +12,6 @@ pub async fn sync(
     scope: Option<String>,
     current_login: Option<String>,
 ) -> Result<Vec<IssueDto>, String> {
-    let provider = super::resolve_provider::get_provider(&state, &org_id).await?;
-    let provider_kind = provider.kind().to_string();
     let scope = scope.unwrap_or_else(|| "my_queue".to_string());
     let state_param = match scope.as_str() {
         "all" => Some("all"),
@@ -21,6 +19,14 @@ pub async fn sync(
     };
 
     let (effective_owner, effective_repo) = resolve_upstream(&state, &org_id, &owner, &repo_name).await;
+
+    let (provider, _) = crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(
+        &state,
+        &org_id,
+        &effective_owner,
+    )
+    .await?;
+    let provider_kind = provider.kind().to_string();
 
     let issues = provider
         .list_issues(&effective_owner, &effective_repo, state_param)

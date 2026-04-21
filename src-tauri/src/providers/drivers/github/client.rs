@@ -5,6 +5,22 @@ use crate::app::support::error::{AppError, AppResult};
 
 pub const GITHUB_API: &str = "https://api.github.com";
 
+fn format_graphql_errors(errors: &[serde_json::Value]) -> String {
+    let messages: Vec<String> = errors
+        .iter()
+        .map(|e| {
+            let msg = e.get("message").and_then(|m| m.as_str()).unwrap_or("unknown error");
+            let kind = e.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            match kind {
+                "NOT_FOUND" => format!("{msg} Make sure your GitHub token has access to this private repository or organization."),
+                "FORBIDDEN" => format!("{msg} Your GitHub token does not have permission to perform this action."),
+                _ => msg.to_string(),
+            }
+        })
+        .collect();
+    messages.join("; ")
+}
+
 pub struct GitHubDriver {
     pub client: reqwest::Client,
     pub token: String,
@@ -196,10 +212,7 @@ impl GitHubDriver {
 
         if let Some(errors) = result.errors {
             if !errors.is_empty() {
-                return Err(AppError::Provider(format!(
-                    "GitHub GraphQL errors: {}",
-                    serde_json::to_string(&errors).unwrap_or_default()
-                )));
+                return Err(AppError::Provider(format_graphql_errors(&errors)));
             }
         }
 
@@ -256,10 +269,7 @@ impl GitHubDriver {
 
             if let Some(errors) = result.errors {
                 if !errors.is_empty() {
-                    return Err(AppError::Provider(format!(
-                        "GitHub GraphQL errors: {}",
-                        serde_json::to_string(&errors).unwrap_or_default()
-                    )));
+                    return Err(AppError::Provider(format_graphql_errors(&errors)));
                 }
             }
 
