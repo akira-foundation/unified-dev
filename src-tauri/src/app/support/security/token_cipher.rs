@@ -19,7 +19,7 @@ impl TokenCipher {
     pub fn encrypt(&self, plaintext: &str) -> AppResult<String> {
         let cipher = Aes256Gcm::new_from_slice(&self.key).map_err(|_| AppError::Crypto)?;
         let mut nonce_bytes = [0u8; NONCE_LENGTH];
-        rand::rngs::OsRng.fill_bytes(&mut nonce_bytes);
+        rand::rng().fill_bytes(&mut nonce_bytes);
         let nonce = Nonce::from_slice(&nonce_bytes);
         let ciphertext = cipher
             .encrypt(nonce, plaintext.as_bytes())
