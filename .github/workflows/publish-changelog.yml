@@ -113,11 +113,21 @@ jobs:
             fs.writeFileSync(astroPath, astro, 'utf8');
             console.log('changelog.astro updated successfully.');
 
+            // ── Also update FALLBACK_VERSION in index.astro ───────────────────
+            const indexPath = path.join('landing', 'src/pages/index.astro');
+            let indexAstro = fs.readFileSync(indexPath, 'utf8');
+            indexAstro = indexAstro.replace(
+              /const FALLBACK_VERSION = '[^']+';/,
+              `const FALLBACK_VERSION = '${semver}';`
+            );
+            fs.writeFileSync(indexPath, indexAstro, 'utf8');
+            console.log('index.astro FALLBACK_VERSION updated to', semver);
+
       - name: Commit and push to landing page
         working-directory: landing
         run: |
           git config user.name  "Akira Release Bot"
           git config user.email "release-bot@akira.foundation"
-          git add src/pages/changelog.astro
+          git add src/pages/changelog.astro src/pages/index.astro
           git commit -m "chore: add ${{ github.event.release.tag_name }} to changelog"
           git push
