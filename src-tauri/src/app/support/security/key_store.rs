@@ -55,7 +55,7 @@ fn decode_key(encoded: &str) -> AppResult<[u8; 32]> {
 
 fn generate_key() -> [u8; 32] {
     let mut key = [0u8; 32];
-    rand::rngs::OsRng.fill_bytes(&mut key);
+    rand::rng().fill_bytes(&mut key);
     key
 }
 

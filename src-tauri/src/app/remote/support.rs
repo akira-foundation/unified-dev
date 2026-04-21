@@ -47,8 +47,8 @@ pub fn internal_error(error: impl ToString) -> (StatusCode, String) {
 }
 
 pub fn random_token() -> String {
-    rand::thread_rng()
-        .sample_iter(&rand::distributions::Alphanumeric)
+    rand::rng()
+        .sample_iter(&rand::distr::Alphanumeric)
         .take(48)
         .map(char::from)
         .collect()
