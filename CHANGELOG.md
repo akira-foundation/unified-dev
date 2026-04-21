@@ -1,5 +1,25 @@
 
 
+# [0.7.0](https://github.com/akira-foundation/unified-dev/compare/v0.6.0...v0.7.0) (2026-04-21)
+
+
+### Bug Fixes
+
+* **model-picker:** use Popover + Command for proper scroll with available height ([8819e02](https://github.com/akira-foundation/unified-dev/commit/8819e0293fac4fc33e05ef1bd896b2d98d263555))
+* **repos:** use LEFT JOIN so repos without a provider appear in global list ([227b28d](https://github.com/akira-foundation/unified-dev/commit/227b28df6b9d503882f876c24527545211bd3543))
+* resolve private repo clone auth, dropdown closing, and git PATH issues ([943bb03](https://github.com/akira-foundation/unified-dev/commit/943bb03db1066e9c3c8fe2e2f9868f576bd09494))
+
+
+### Features
+
+* **autopilot:** enhance thread management with removal functionality and status updates ([65ddf87](https://github.com/akira-foundation/unified-dev/commit/65ddf87ec32548c9235c9b7c12efdc7f5e5f011f))
+* **autopilot:** persist jobs and align management flows ([e939ead](https://github.com/akira-foundation/unified-dev/commit/e939ead99211ea1741ef6d64a8c47267ed372887))
+* **graphql:** improve error handling for GitHub GraphQL responses ([e56b396](https://github.com/akira-foundation/unified-dev/commit/e56b3965ae136e0c6e6ec4ba0fa4e7c72e92cc2f))
+* **i18n:** add EN/PT translations for create repo, delete remote, and reconnect GitHub ([9646eee](https://github.com/akira-foundation/unified-dev/commit/9646eee35943f1005fc8f5499edb8f6b14f00eae))
+* **providers:** expose auth_type in ProviderSummary and add reconnect GitHub ([2c3785f](https://github.com/akira-foundation/unified-dev/commit/2c3785f291b8ef4b6bfae79313f052d2e23907dd))
+* **repos:** add create and delete GitHub repository ([294409b](https://github.com/akira-foundation/unified-dev/commit/294409b453e6186907145c49e88ac58ec2b79a0d))
+* **settings:** add "Coming Soon" indicator for various settings items ([230c007](https://github.com/akira-foundation/unified-dev/commit/230c007ed649224ed46a941b2546318a8817308f))
+
 # [0.6.0](https://github.com/akira-foundation/unified-dev/compare/v0.5.0...v0.6.0) (2026-04-17)
 
 
