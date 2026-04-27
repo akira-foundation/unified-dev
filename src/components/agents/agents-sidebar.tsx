@@ -738,6 +738,10 @@ export function AgentsSidebar() {
 
                               <DropdownMenuItem
                                 onClick={() => {
+                                  if (isFree) {
+                                    openUpgradeModal("autopilot_requires_pro");
+                                    return;
+                                  }
                                   const activeJob = Object.values(jobs).find(
                                     (j) => j.repoId === repo.id && (j.status === "running" || j.status === "waiting"),
                                   );

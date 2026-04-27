@@ -5,7 +5,7 @@ use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 
 const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
-const FREE_RUN_LIMIT: u32 = 10;
+const FREE_RUN_LIMIT: u32 = 5;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -61,10 +61,11 @@ pub async fn get_usage(state: State<'_, AppState>, app: AppHandle) -> AppResult<
     }
 
     let run_count = body["count"].as_u64().unwrap_or(0) as u32;
+    let run_limit = body["limit"].as_u64().map(|v| v as u32).unwrap_or(FREE_RUN_LIMIT);
 
     Ok(UsageDto {
         run_count,
-        run_limit: Some(FREE_RUN_LIMIT),
+        run_limit: Some(run_limit),
         date,
         is_free: true,
     })

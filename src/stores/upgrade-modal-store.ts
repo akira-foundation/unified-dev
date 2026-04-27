@@ -5,7 +5,8 @@ export type FreeTierLimitType =
     | "thread_limit_reached"
     | "repo_limit_reached"
     | "org_limit_reached"
-    | "remote_requires_ultimate";
+    | "remote_requires_ultimate"
+    | "autopilot_requires_pro";
 
 interface UpgradeModalStore {
     open: boolean;

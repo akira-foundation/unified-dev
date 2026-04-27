@@ -2,7 +2,14 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useAgentsStore } from "./useAgentsStore";
+import { openUpgradeModal } from "./upgrade-modal-store";
 import type { IssueDto } from "@/types/issue";
+
+function handleAutopilotError(err: unknown) {
+  if (String(err) === "autopilot_requires_pro") {
+    openUpgradeModal("autopilot_requires_pro");
+  }
+}
 
 export type AutopilotJobStatus = "running" | "waiting" | "stopping" | "done" | "stopped" | "error";
 export type AutopilotModelMode = "current" | "single" | "random";
@@ -532,7 +539,7 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
         total: filtered.length,
         started_at: job.startedAt,
       },
-    }).catch(() => {});
+    }).catch(handleAutopilotError);
 
     for (let i = 0; i < threads.length; i++) {
       const t = threads[i];

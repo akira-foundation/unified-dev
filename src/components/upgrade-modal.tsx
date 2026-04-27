@@ -34,6 +34,11 @@ const LIMIT_CONFIG: Record<FreeTierLimitType, {
         descriptionKey: "upgrade.limit.remote.description",
         targetPlan: "ultimate",
     },
+    autopilot_requires_pro: {
+        titleKey: "upgrade.limit.autopilot.title",
+        descriptionKey: "upgrade.limit.autopilot.description",
+        targetPlan: "pro",
+    },
 };
 
 export function UpgradeModal() {

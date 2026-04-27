@@ -76,6 +76,7 @@ export default {
     if (url.pathname === "/billing/claim/verify") return handleBillingClaimVerify(request, env);
     if (url.pathname === "/billing/portal") return handleBillingPortal(request, env);
     if (url.pathname === "/billing/usage") return handleBillingUsage(request, env);
+    if (url.pathname === "/billing/feature_check") return handleBillingFeatureCheck(request, env);
 
     return json({ error: "not found" }, 404);
   },
@@ -664,7 +665,7 @@ async function handleBillingUsage(request: Request, env: Env): Promise<Response>
   const newCreatedAtSig = await hmacSign(env.USAGE_HMAC_SECRET, `${machineId}:${storedCreatedAt}`);
 
   const usageKey = `usage:${machineId}:${date}`;
-  const DAILY_LIMIT = 10;
+  const DAILY_LIMIT = 5;
 
   const existing = await env.LICENSES.get(usageKey);
   const count = existing ? parseInt(existing, 10) : 0;
@@ -681,6 +682,55 @@ async function handleBillingUsage(request: Request, env: Env): Promise<Response>
   await env.LICENSES.put(usageKey, String(newCount), { expirationTtl: 172800 });
 
   return json({ allowed: true, count: newCount, limit: DAILY_LIMIT, created_at_sig: newCreatedAtSig });
+}
+
+const FEATURE_PLAN_REQUIREMENTS: Record<string, string[]> = {
+  autopilot: ["pro", "ultimate"],
+  remote: ["ultimate"],
+};
+
+async function handleBillingFeatureCheck(request: Request, env: Env): Promise<Response> {
+  const body = await parseBody(request);
+  if (!body) return json({ error: "invalid json" }, 400);
+
+  const machineId = body.machine_id as string | undefined;
+  const token = body.token as string | undefined;
+  const feature = body.feature as string | undefined;
+
+  if (!machineId || !feature) {
+    return json({ error: "machine_id and feature are required" }, 400);
+  }
+
+  const required = FEATURE_PLAN_REQUIREMENTS[feature];
+  if (!required) {
+    return json({ error: "unknown feature" }, 400);
+  }
+
+  const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
+  const ipKey = `ip_rate:${ip}:${new Date().toISOString().slice(0, 10)}:${new Date().getUTCHours()}`;
+  const ipCountRaw = await env.LICENSES.get(ipKey);
+  const ipCount = ipCountRaw ? parseInt(ipCountRaw, 10) : 0;
+  const IP_HOURLY_LIMIT = 240;
+  if (ipCount >= IP_HOURLY_LIMIT) {
+    return json({ error: "rate_limit_exceeded" }, 429);
+  }
+  await env.LICENSES.put(ipKey, String(ipCount + 1), { expirationTtl: 7200 });
+
+  const bindingKey = `machine:${machineId}`;
+  const existingToken = await env.LICENSES.get(bindingKey);
+  const effectiveToken = token ?? "";
+
+  if (existingToken === null) {
+    await env.LICENSES.put(bindingKey, effectiveToken);
+  } else if (existingToken !== effectiveToken) {
+    return json({ error: "machine_id_token_mismatch" }, 403);
+  }
+
+  const raw = effectiveToken ? await env.LICENSES.get(`license:${effectiveToken}`) : null;
+  const plan = raw ? (JSON.parse(raw) as LicenseData).plan : "free";
+
+  const allowed = required.includes(plan);
+  return json({ allowed, plan, feature, required });
 }
 
 async function hmacSign(secret: string, payload: string): Promise<string> {
