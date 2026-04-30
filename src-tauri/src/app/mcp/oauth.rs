@@ -1,7 +1,19 @@
+use base64::Engine;
+use rand::RngCore;
+use sha2::{Digest, Sha256};
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
 
 use crate::app::support::error::{AppError, AppResult};
+
+fn generate_pkce() -> (String, String) {
+    let mut bytes = [0u8; 32];
+    rand::rng().fill_bytes(&mut bytes);
+    let verifier = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(bytes);
+    let digest = Sha256::digest(verifier.as_bytes());
+    let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(digest);
+    (verifier, challenge)
+}
 
 static CALLBACK_ABORT: std::sync::OnceLock<tokio::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>> =
     std::sync::OnceLock::new();
@@ -127,6 +139,7 @@ pub async fn connect(server_url: &str, app: &AppHandle) -> AppResult<OAuthFlowRe
     };
 
     let state = uuid::Uuid::new_v4().to_string();
+    let (code_verifier, code_challenge) = generate_pkce();
 
     let auth_url = reqwest::Url::parse_with_params(
         &auth_endpoint,
@@ -136,11 +149,13 @@ pub async fn connect(server_url: &str, app: &AppHandle) -> AppResult<OAuthFlowRe
             ("redirect_uri", &redirect_uri),
             ("state", &state),
             ("scope", "read write"),
+            ("code_challenge", &code_challenge),
+            ("code_challenge_method", &"S256".to_string()),
         ],
     )
     .map(|u| u.to_string())
     .unwrap_or_else(|_| format!(
-        "{auth_endpoint}?response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&state={state}&scope=read+write"
+        "{auth_endpoint}?response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&state={state}&scope=read+write&code_challenge={code_challenge}&code_challenge_method=S256"
     ));
 
     app.opener()
@@ -209,6 +224,7 @@ pub async fn connect(server_url: &str, app: &AppHandle) -> AppResult<OAuthFlowRe
         code: &'a str,
         redirect_uri: &'a str,
         client_id: &'a str,
+        code_verifier: &'a str,
     }
 
     #[derive(serde::Deserialize)]
@@ -234,6 +250,7 @@ pub async fn connect(server_url: &str, app: &AppHandle) -> AppResult<OAuthFlowRe
             code: &code,
             redirect_uri: &redirect_uri,
             client_id: &client_id,
+            code_verifier: &code_verifier,
         })
         .send()
         .await
