@@ -15,12 +15,15 @@ import {
   CloudUpload,
   ExternalLink,
   GitCommitHorizontal,
+  GitBranch,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useI18n } from "@/i18n/i18n";
+import { usePRChecksPolling } from "@/hooks/usePRChecks";
+import { PrCiToggle } from "@/components/agents/pr-ci-toggle";
 
 interface AgentHeaderProps {
   issue: AgentIssue;
@@ -73,6 +76,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const repoId = repositoryGroups.flatMap((g) => g.repositories).find((r) => r.issues.some((i) => i.id === issue.id))?.id ?? "";
   const effectiveModelId = getEffectiveModelId(repoId, issue.id);
   const prUrl = prUrlByThread[issue.id] ?? null;
+  usePRChecksPolling(issue.id, issue.workspacePath);
 
   const handleAction = async () => {
     if (!effectiveModelId) {
@@ -95,26 +99,31 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   };
 
   return (
-    <header className="h-14 border-b border-border/30 flex items-center px-4 bg-background backdrop-blur-md justify-between shrink-0">
-      <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-[13px] font-medium tracking-tight text-foreground/40 truncate">
-          {issue.repoName}
-        </span>
-        <span className="text-muted-foreground shrink-0">/</span>
-        <span className="text-[13px] font-semibold tracking-tight text-foreground/80 truncate">
-          {issue.title}
+    <header className="border-b border-border/30 flex flex-col gap-1.5 px-4 py-2.5 bg-background backdrop-blur-md shrink-0">
+      <div className="flex items-center gap-1.5 min-w-0 text-[11px] font-medium tracking-tight text-foreground/40">
+        <span className="truncate">{issue.repoName}</span>
+        <span className="shrink-0">/</span>
+        <span className="inline-flex items-center gap-1 shrink-0 font-mono text-[10.5px]">
+          <GitBranch className="h-3 w-3" />
+          <span className="truncate max-w-[200px]">{issue.branchName}</span>
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-3 min-w-0">
+        <span className="text-[14px] font-semibold tracking-tight text-foreground/90 truncate min-w-0 flex-1">
+          {issue.title}
+        </span>
+
+        <div className="flex items-center gap-2 shrink-0">
+        {prUrl && <PrCiToggle threadId={issue.id} />}
         {prUrl && (
           <Button
             variant="ghost"
             onClick={() => openUrl(prUrl.url)}
-            className="h-8 px-3 text-[#A855F7] text-[12px] font-semibold gap-2 rounded-md hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
+            title={t("agents.header.viewPr")}
+            className="h-8 w-8 p-0 text-[#A855F7] rounded-md hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
           >
             <ExternalLink className="h-3.5 w-3.5" />
-            <span>{t("agents.header.viewPr")}</span>
           </Button>
         )}
         {fileChanges.length > 0 && (
@@ -184,7 +193,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
             )}
           </div>
         )}
-
+        </div>
       </div>
     </header>
   );

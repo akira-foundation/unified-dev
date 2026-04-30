@@ -4,6 +4,7 @@ import { useNavigationStore } from "@/stores/navigation-store";
 import { useI18n } from "@/i18n/i18n";
 import { AgentHeader } from "./agent-header";
 import { AgentTimeline } from "./agent-timeline";
+import { PrCiCard } from "./pr-ci-card";
 import { DiffViewer } from "./diff-viewer";
 import { AgentChatInput } from "./agent-chat-input";
 import { AgentStatusBar } from "./agent-status-bar";
@@ -270,6 +271,7 @@ export function AgentWorkspaceLayout() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col overflow-hidden max-w-5xl mx-auto w-full px-6">
+              <PrCiCard threadId={selectedIssue.id} className="mt-3" />
               <div className="flex-1 overflow-y-auto py-8" style={{ scrollbarWidth: "none" }}>
                 <AgentTimeline
                   steps={timelineSteps}

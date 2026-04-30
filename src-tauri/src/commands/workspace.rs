@@ -1,5 +1,5 @@
 pub use crate::app::filesystem::FileNode;
-pub use crate::app::repos::{FileChange, PrInfo};
+pub use crate::app::repos::{FileChange, PrCiStatus, PrInfo};
 
 #[tauri::command]
 pub async fn list_files(workspace_path: String, directory_path: String) -> Result<Vec<FileNode>, String> {
@@ -34,6 +34,11 @@ pub async fn discard_file_changes(workspace_path: String, filename: String) -> R
 #[tauri::command]
 pub async fn check_pr_url(workspace_path: String) -> Result<PrInfo, String> {
     crate::app::repos::check_pr(workspace_path).await
+}
+
+#[tauri::command]
+pub async fn check_pr_ci(workspace_path: String) -> Result<PrCiStatus, String> {
+    crate::app::repos::check_pr_ci(workspace_path).await
 }
 
 #[tauri::command]

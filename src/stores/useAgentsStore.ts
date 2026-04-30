@@ -26,6 +26,24 @@ export interface InstalledSkill {
   scope: "global" | "project";
 }
 
+export interface PrCheck {
+  name: string;
+  state: string;
+  bucket: "pass" | "fail" | "pending" | "skipping" | "cancel" | string;
+  link?: string | null;
+  workflow?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+}
+
+export interface PrCiStatus {
+  checks: PrCheck[];
+  total: number;
+  passing: number;
+  failing: number;
+  pending: number;
+}
+
 export interface ChatMessage {
   id: string;
   thread_id: string;
@@ -89,6 +107,11 @@ interface AgentsState {
   prUrlByThread: Record<string, { url: string; isDraft: boolean } | null>;
   setThreadPrInfo: (threadId: string, prInfo: { url: string; isDraft: boolean } | null) => void;
   loadPrUrl: (threadId: string, workspacePath: string) => Promise<void>;
+  prCiByThread: Record<string, PrCiStatus | null>;
+  prCiCardOpenByThread: Record<string, boolean>;
+  toggleCiCard: (threadId: string) => void;
+  setCiCardOpen: (threadId: string, open: boolean) => void;
+  loadPrCi: (threadId: string, workspacePath: string) => Promise<void>;
   isFilesAllExpanded: boolean;
   setIsFilesAllExpanded: (expanded: boolean) => void;
   showAddRepositoryDialog: boolean;
@@ -141,6 +164,17 @@ export const useAgentsStore = create<AgentsState>()(
       prUrlByThread: {},
       setThreadPrInfo: (threadId, prInfo) => set((state) => ({
         prUrlByThread: { ...state.prUrlByThread, [threadId]: prInfo },
+      })),
+      prCiByThread: {},
+      prCiCardOpenByThread: {},
+      toggleCiCard: (threadId) => set((state) => ({
+        prCiCardOpenByThread: {
+          ...state.prCiCardOpenByThread,
+          [threadId]: !state.prCiCardOpenByThread[threadId],
+        },
+      })),
+      setCiCardOpen: (threadId, open) => set((state) => ({
+        prCiCardOpenByThread: { ...state.prCiCardOpenByThread, [threadId]: open },
       })),
       messagesByThread: {},
       messagesLoadingByThread: {},
@@ -324,6 +358,16 @@ export const useAgentsStore = create<AgentsState>()(
           set({ fileChanges: [] });
         }
       },
+      loadPrCi: async (threadId: string, workspacePath: string) => {
+        try {
+          const status = await invoke<PrCiStatus>("check_pr_ci", { workspacePath });
+          set((state) => ({
+            prCiByThread: { ...state.prCiByThread, [threadId]: status },
+          }));
+        } catch {
+          // non-fatal
+        }
+      },
       loadPrUrl: async (threadId: string, workspacePath: string) => {
         try {
           const info = await invoke<{ url: string; is_draft: boolean }>("check_pr_url", { workspacePath });
@@ -342,6 +386,7 @@ export const useAgentsStore = create<AgentsState>()(
               prUrl: info.url,
               prIsDraft: info.is_draft,
             }).catch(() => {/* non-fatal */});
+            await get().loadPrCi(threadId, workspacePath);
           }
         } catch {
           set((state) => ({

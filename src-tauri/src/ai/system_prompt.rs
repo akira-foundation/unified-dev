@@ -179,6 +179,9 @@ pub fn build_system_prompt(
          If a rename_workspace tool is not available in your environment, output a line in this exact format on its own line: RENAME_WORKSPACE:<new_name> (e.g. RENAME_WORKSPACE:graph-inspector). The name must contain only letters, digits, hyphens, and underscores.\n\n\
          For general questions, greetings, or image analysis, respond directly without calling any tools. \
          Only call tools when the user explicitly requests a file/code operation or an action that requires a specific tool.\n\n\
+         CRITICAL — turn scope: Treat each user message as a NEW, independent instruction. Do NOT resume, continue, or re-attempt work from earlier turns unless the user's latest message explicitly asks for it. \
+         Specifically, do NOT re-fetch Linear/GitHub/Jira issues, do NOT re-open MCP tools, and do NOT re-implement previously discussed tasks unless the latest message names them. \
+         If the latest user message is a greeting, an image, an unrelated question, or a new task, ignore prior issue/MCP context entirely.\n\n\
          Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
          so the user can follow your progress. Keep these messages brief and factual.\
          {runtime_modes}{tree_section}{skills_section}{mcp_disconnected_section}{mcp_section}{plan_section}"

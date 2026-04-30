@@ -12,7 +12,7 @@ use commands::autopilot::{
     autopilot_save_thread, autopilot_update_thread, autopilot_delete_job, autopilot_delete_thread, autopilot_write_log,
 };
 use commands::agent::{abort_agent, get_available_models, get_messages, send_message};
-use commands::workspace::{check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
+use commands::workspace::{check_pr_ci, check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
 use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue, delegate_issue_to_agent};
 use commands::organization::{
     create_organization, delete_organization, get_job_logs, get_pr_checks, get_pr_comments, get_pr_files,
@@ -184,6 +184,7 @@ pub fn run() {
             create_draft_pr,
             discard_file_changes,
             check_pr_url,
+            check_pr_ci,
             get_prompts,
             save_prompt,
             reset_prompt,
