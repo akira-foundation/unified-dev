@@ -12,6 +12,7 @@ import {
   MoreVertical,
   CircleDot,
   GitPullRequest,
+  GitMerge,
   GitBranch,
   CheckCircle2,
   XCircle,
@@ -118,7 +119,9 @@ function ThreadStreamingDots({ threadId }: { threadId: string }) {
 
 function ThreadPrCiBadge({ threadId }: { threadId: string }) {
   const ci = useAgentsStore((s) => s.prCiByThread[threadId]);
+  const prInfo = useAgentsStore((s) => s.prUrlByThread[threadId]);
   if (!ci || ci.total === 0) return null;
+  if (prInfo?.state === "MERGED") return null;
 
   const failing = ci.failing > 0;
   const pending = ci.pending > 0;
@@ -168,12 +171,16 @@ function ThreadPrIcon({ threadId }: { threadId: string }) {
       className="shrink-0 cursor-pointer"
       title={t("agents.header.viewPr")}
     >
-      <GitPullRequest
-        className={cn(
-          "h-3 w-3 shrink-0 transition-opacity hover:opacity-80",
-          prInfo.isDraft ? "text-zinc-500" : "text-[#A855F7]"
-        )}
-      />
+      {prInfo.state === "MERGED" ? (
+        <GitMerge className="h-3 w-3 shrink-0 text-emerald-400 transition-opacity hover:opacity-80" />
+      ) : (
+        <GitPullRequest
+          className={cn(
+            "h-3 w-3 shrink-0 transition-opacity hover:opacity-80",
+            prInfo.isDraft ? "text-zinc-500" : "text-[#A855F7]"
+          )}
+        />
+      )}
     </div>
   );
 }

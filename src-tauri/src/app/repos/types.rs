@@ -28,4 +28,6 @@ pub struct FileChange {
 pub struct PrInfo {
     pub url: String,
     pub is_draft: bool,
+    pub state: String,
+    pub merged_at: Option<String>,
 }

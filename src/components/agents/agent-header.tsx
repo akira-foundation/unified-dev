@@ -16,6 +16,7 @@ import {
   ExternalLink,
   GitCommitHorizontal,
   GitBranch,
+  GitMerge,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { toast } from "sonner";
@@ -115,8 +116,19 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
         </span>
 
         <div className="flex items-center gap-2 shrink-0">
-        {prUrl && <PrCiToggle threadId={issue.id} />}
-        {prUrl && (
+        {prUrl && prUrl.state !== "MERGED" && <PrCiToggle threadId={issue.id} />}
+        {prUrl?.state === "MERGED" && (
+          <Button
+            variant="ghost"
+            onClick={() => openUrl(prUrl.url)}
+            title={prUrl.mergedAt ? `Merged ${new Date(prUrl.mergedAt).toLocaleString()}` : "Merged"}
+            className="h-8 inline-flex items-center gap-1.5 px-2.5 text-[12px] font-semibold text-emerald-400 rounded-md hover:bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/50 transition-all cursor-pointer"
+          >
+            <GitMerge className="h-3.5 w-3.5" />
+            <span>Merged</span>
+          </Button>
+        )}
+        {prUrl && prUrl.state !== "MERGED" && (
           <Button
             variant="ghost"
             onClick={() => openUrl(prUrl.url)}

@@ -104,11 +104,13 @@ interface AgentsState {
   abortThread: (threadId: string) => Promise<void>;
   removeThread: (repoId: string, threadId: string) => void;
   removeRepository: (id: string) => void;
-  prUrlByThread: Record<string, { url: string; isDraft: boolean } | null>;
-  setThreadPrInfo: (threadId: string, prInfo: { url: string; isDraft: boolean } | null) => void;
+  prUrlByThread: Record<string, { url: string; isDraft: boolean; state?: string; mergedAt?: string | null } | null>;
+  setThreadPrInfo: (threadId: string, prInfo: { url: string; isDraft: boolean; state?: string; mergedAt?: string | null } | null) => void;
   loadPrUrl: (threadId: string, workspacePath: string) => Promise<void>;
   prCiByThread: Record<string, PrCiStatus | null>;
   prCiCardOpenByThread: Record<string, boolean>;
+  mergedBannerDismissedByThread: Record<string, boolean>;
+  dismissMergedBanner: (threadId: string) => void;
   toggleCiCard: (threadId: string) => void;
   setCiCardOpen: (threadId: string, open: boolean) => void;
   loadPrCi: (threadId: string, workspacePath: string) => Promise<void>;
@@ -167,6 +169,10 @@ export const useAgentsStore = create<AgentsState>()(
       })),
       prCiByThread: {},
       prCiCardOpenByThread: {},
+      mergedBannerDismissedByThread: {},
+      dismissMergedBanner: (threadId) => set((state) => ({
+        mergedBannerDismissedByThread: { ...state.mergedBannerDismissedByThread, [threadId]: true },
+      })),
       toggleCiCard: (threadId) => set((state) => ({
         prCiCardOpenByThread: {
           ...state.prCiCardOpenByThread,
@@ -291,7 +297,7 @@ export const useAgentsStore = create<AgentsState>()(
             remote_url: string | null;
             threads: Array<{ id: string; title: string; branch: string; workspace_path: string; status: string; created_at: string; pr_url: string | null; pr_is_draft: boolean }>;
           }>>("list_repositories");
-          const prUrlByThread: Record<string, { url: string; isDraft: boolean } | null> = {};
+          const prUrlByThread: Record<string, { url: string; isDraft: boolean; state?: string; mergedAt?: string | null } | null> = {};
           const repositories = rows.map((row) => ({
             id: row.id,
             name: row.name,
@@ -370,12 +376,12 @@ export const useAgentsStore = create<AgentsState>()(
       },
       loadPrUrl: async (threadId: string, workspacePath: string) => {
         try {
-          const info = await invoke<{ url: string; is_draft: boolean }>("check_pr_url", { workspacePath });
+          const info = await invoke<{ url: string; is_draft: boolean; state: string; merged_at: string | null }>("check_pr_url", { workspacePath });
           set((state) => ({
             prUrlByThread: {
               ...state.prUrlByThread,
               [threadId]: info.url
-                ? { url: info.url, isDraft: info.is_draft }
+                ? { url: info.url, isDraft: info.is_draft, state: info.state, mergedAt: info.merged_at }
                 : (state.prUrlByThread[threadId] ?? null),
             },
           }));

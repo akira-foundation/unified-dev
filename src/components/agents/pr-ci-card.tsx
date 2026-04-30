@@ -35,9 +35,11 @@ function resolveCheckLink(link: string | null | undefined, prUrl: string | null)
 
 export function PrCiCard({ threadId, className }: PrCiCardProps) {
   const ci = useAgentsStore((s) => s.prCiByThread[threadId]);
-  const prUrl = useAgentsStore((s) => s.prUrlByThread[threadId]?.url ?? null);
+  const prInfo = useAgentsStore((s) => s.prUrlByThread[threadId]);
+  const prUrl = prInfo?.url ?? null;
   const isOpen = useAgentsStore((s) => s.prCiCardOpenByThread[threadId]);
   if (!ci || ci.total === 0) return null;
+  if (prInfo?.state === "MERGED") return null;
 
   const autoShow = ci.failing > 0 || ci.pending > 0;
   if (!autoShow && !isOpen) return null;

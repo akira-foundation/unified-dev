@@ -5,6 +5,7 @@ import { useI18n } from "@/i18n/i18n";
 import { AgentHeader } from "./agent-header";
 import { AgentTimeline } from "./agent-timeline";
 import { PrCiCard } from "./pr-ci-card";
+import { PrMergedBanner } from "./pr-merged-banner";
 import { DiffViewer } from "./diff-viewer";
 import { AgentChatInput } from "./agent-chat-input";
 import { AgentStatusBar } from "./agent-status-bar";
@@ -283,6 +284,7 @@ export function AgentWorkspaceLayout() {
                 />
               </div>
               <div className="shrink-0 pb-6 pt-2">
+                <PrMergedBanner threadId={selectedIssue.id} threadTitle={selectedIssue.title} className="mb-3" />
                 <AgentChatInput />
               </div>
             </div>
