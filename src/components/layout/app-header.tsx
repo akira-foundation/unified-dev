@@ -31,20 +31,20 @@ export function AppHeader() {
 
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-14 items-center justify-between px-4 md:px-6">
-                <div className="flex items-center gap-3">
+            <div className="flex h-9 items-center justify-between px-3 md:px-4">
+                <div className="flex items-center gap-2">
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={handleBack}
                         disabled={!isBackEnabled}
-                        className="shrink-0"
+                        className="shrink-0 h-7 w-7"
                     >
-                        <ChevronLeft className="h-4 w-4" />
+                        <ChevronLeft className="h-3.5 w-3.5" />
                     </Button>
-                    <div className="flex flex-col">
-                        <span className="text-sm font-bold tracking-tight text-foreground leading-none">{t("app.name")}</span>
-                        <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="text-[12px] font-semibold tracking-tight text-foreground/80 leading-none">{t("app.name")}</span>
+                        <div className="flex items-center gap-1">
                             <span className="text-[10px] text-muted-foreground leading-none">v{appVersion}</span>
                             {update && (
                                 <Tooltip>
@@ -88,8 +88,8 @@ export function AppHeader() {
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <button className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                        <Bell className="h-4 w-4" />
+                    <button className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                        <Bell className="h-3.5 w-3.5" />
                     </button>
                 </div>
             </div>

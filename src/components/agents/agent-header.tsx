@@ -100,21 +100,16 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   };
 
   return (
-    <header className="border-b border-border/30 flex flex-col gap-1.5 px-4 py-2.5 bg-background backdrop-blur-md shrink-0">
-      <div className="flex items-center gap-1.5 min-w-0 text-[11px] font-medium tracking-tight text-foreground/40">
-        <span className="truncate">{issue.repoName}</span>
-        <span className="shrink-0">/</span>
-        <span className="inline-flex items-center gap-1 shrink-0 font-mono text-[10.5px]">
-          <GitBranch className="h-3 w-3" />
-          <span className="truncate max-w-[200px]">{issue.branchName}</span>
-        </span>
-      </div>
-
+    <header className="border-b border-border/30 flex flex-col gap-0.5 px-4 py-2 bg-background backdrop-blur-md shrink-0">
       <div className="flex items-center justify-between gap-3 min-w-0">
-        <span className="text-[14px] font-semibold tracking-tight text-foreground/90 truncate min-w-0 flex-1">
-          {issue.title}
-        </span>
-
+        <div className="flex items-center gap-1.5 min-w-0 text-[11px] font-medium tracking-tight text-foreground/40 flex-1">
+          <span className="truncate">{issue.repoName}</span>
+          <span className="shrink-0">/</span>
+          <span className="inline-flex items-center gap-1 shrink-0 font-mono text-[10.5px]">
+            <GitBranch className="h-3 w-3" />
+            <span className="truncate max-w-[280px]">{issue.branchName}</span>
+          </span>
+        </div>
         <div className="flex items-center gap-2 shrink-0">
         {prUrl && prUrl.state !== "MERGED" && <PrCiToggle threadId={issue.id} />}
         {prUrl?.state === "MERGED" && (
@@ -207,6 +202,9 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
         )}
         </div>
       </div>
+      <span className="text-[15px] font-semibold tracking-tight text-foreground/90 truncate min-w-0">
+        {issue.title}
+      </span>
     </header>
   );
 }
