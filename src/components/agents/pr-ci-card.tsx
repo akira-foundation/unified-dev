@@ -1,7 +1,11 @@
-import { CheckCircle2, XCircle, Loader2, CircleDashed, ExternalLink } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, CircleDashed, ExternalLink, Eye } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
+import { useNavigationStore, type ActiveRepo } from "@/stores/navigation-store";
+import type { PullRequestDto } from "@/types/organization";
 
 interface PrCiCardProps {
   threadId: string;
@@ -31,6 +35,45 @@ function resolveCheckLink(link: string | null | undefined, prUrl: string | null)
   } catch {
     return prUrl ?? link;
   }
+}
+
+function OpenInAppButton({ threadId, checkName }: { threadId: string; checkName?: string }) {
+  const setActivePr = useNavigationStore((s) => s.setActivePr);
+  const setActiveRepo = useNavigationStore((s) => s.setActiveRepo);
+  const setTargetCheckName = useNavigationStore((s) => s.setTargetCheckName);
+  const navigateTo = useNavigationStore((s) => s.navigateTo);
+
+  const handleClick = async () => {
+    try {
+      const ctx = await invoke<{
+        repo: { name: string; owner: string; organization_id: string };
+        pr: PullRequestDto;
+      }>("get_thread_pr_review_context", { threadId });
+      const repo: ActiveRepo = {
+        name: ctx.repo.name,
+        owner: ctx.repo.owner,
+        organizationId: ctx.repo.organization_id,
+      };
+      setActiveRepo(repo);
+      setActivePr(ctx.pr);
+      setTargetCheckName(checkName ?? null);
+      navigateTo("pr-review");
+    } catch (err) {
+      toast.error(`Failed to open PR review: ${err}`);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="text-foreground/40 hover:text-[#A855F7] transition-colors"
+      title="View check in app"
+      aria-label="View check in app"
+    >
+      <Eye className="h-3 w-3" />
+    </button>
+  );
 }
 
 export function PrCiCard({ threadId, className }: PrCiCardProps) {
@@ -74,6 +117,7 @@ export function PrCiCard({ threadId, className }: PrCiCardProps) {
       <ul className="space-y-1.5">
         {ci.checks.map((c) => {
           const { Icon, color } = bucketIcon(c.bucket);
+          const target = resolveCheckLink(c.link, prUrl);
           return (
             <li
               key={`${c.workflow ?? ""}-${c.name}`}
@@ -84,20 +128,18 @@ export function PrCiCard({ threadId, className }: PrCiCardProps) {
                 {c.workflow ? `${c.workflow} / ` : ""}
                 {c.name}
               </span>
-              {(() => {
-                const target = resolveCheckLink(c.link, prUrl);
-                if (!target) return null;
-                return (
-                  <button
-                    type="button"
-                    onClick={() => openUrl(target)}
-                    className="text-foreground/40 hover:text-foreground/80 transition-colors"
-                    aria-label="Open check"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                  </button>
-                );
-              })()}
+              <OpenInAppButton threadId={threadId} checkName={c.name} />
+              {target && (
+                <button
+                  type="button"
+                  onClick={() => openUrl(target)}
+                  className="text-foreground/40 hover:text-foreground/80 transition-colors"
+                  aria-label="Open check on provider"
+                  title="Open on provider"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                </button>
+              )}
             </li>
           );
         })}

@@ -17,14 +17,18 @@ import {
   GitCommitHorizontal,
   GitBranch,
   GitMerge,
+  Eye,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useI18n } from "@/i18n/i18n";
 import { usePRChecksPolling } from "@/hooks/usePRChecks";
 import { PrCiToggle } from "@/components/agents/pr-ci-toggle";
+import { PrDetailSheet } from "@/components/repos/pr-detail-sheet";
+import type { PullRequestDto } from "@/types/organization";
 
 interface AgentHeaderProps {
   issue: AgentIssue;
@@ -69,7 +73,13 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   };
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
   const [isActioning, setIsActioning] = useState(false);
-  const { fileChanges, sendMessage, repositoryGroups, getEffectiveModelId, prUrlByThread } = useAgentsStore();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetCtx, setSheetCtx] = useState<{ pr: PullRequestDto; orgId: string; repo: string; owner: string } | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
+  const ci = useAgentsStore((s) => s.prCiByThread[issue.id]);
+  const allChecksPass = !!ci && ci.total > 0 && ci.passing === ci.total && ci.failing === 0 && ci.pending === 0;
+  const { fileChanges, sendMessage, repositoryGroups, getEffectiveModelId, prUrlByThread, loadPrUrl, setThreadPrInfo } = useAgentsStore();
+  const isStreaming = useAgentsStore((s) => !!s.streamingThreadIds[issue.id]);
   const { getPrompt } = useSettingsStore();
 
   const currentAction = ACTION_CONFIGS[selectedAction];
@@ -78,6 +88,58 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const effectiveModelId = getEffectiveModelId(repoId, issue.id);
   const prUrl = prUrlByThread[issue.id] ?? null;
   usePRChecksPolling(issue.id, issue.workspacePath);
+
+  const fetchContext = async () => {
+    if (sheetCtx) return sheetCtx;
+    const ctx = await invoke<{
+      repo: { name: string; owner: string; organization_id: string };
+      pr: PullRequestDto;
+    }>("get_thread_pr_review_context", { threadId: issue.id });
+    const next = {
+      pr: ctx.pr,
+      orgId: ctx.repo.organization_id,
+      repo: ctx.repo.name,
+      owner: ctx.repo.owner,
+    };
+    setSheetCtx(next);
+    return next;
+  };
+
+  const handleMergePr = async () => {
+    if (isMerging) return;
+    setIsMerging(true);
+    const toastId = toast.loading("Merging PR…");
+    try {
+      const ctx = await fetchContext();
+      await invoke("merge_pr", {
+        organizationId: ctx.orgId,
+        repoName: ctx.repo,
+        prNumber: ctx.pr.number,
+        strategy: "merge",
+      });
+      toast.success(`PR #${ctx.pr.number} merged`, { id: toastId });
+      setThreadPrInfo(issue.id, {
+        url: ctx.pr.url,
+        isDraft: false,
+        state: "MERGED",
+        mergedAt: new Date().toISOString(),
+      });
+      void loadPrUrl(issue.id, issue.workspacePath);
+    } catch (err) {
+      toast.error(String(err), { id: toastId });
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  const handleOpenSheet = async () => {
+    try {
+      await fetchContext();
+      setSheetOpen(true);
+    } catch (err) {
+      toast.error(`Failed to open PR sheet: ${err}`);
+    }
+  };
 
   const handleAction = async () => {
     if (!effectiveModelId) {
@@ -89,7 +151,12 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
     try {
       const actionKey = prUrl ? "merge_commit" : selectedAction;
       const basePrompt = getPrompt(actionKey);
-      const issueContext = `\n\nContext about this thread:\n- Thread title: ${issue.title}\n- Branch: ${issue.branchName}\n- Repository: ${issue.repoName}\n\nUse the thread title as the basis for the PR title and body. The PR title should clearly reflect what was done.`;
+      const linearMatch = issue.title.match(/^([a-z]+)-(\d+)-/i);
+      const linearId = linearMatch ? `${linearMatch[1].toUpperCase()}-${linearMatch[2]}` : null;
+      const linkingNote = linearId
+        ? `\n- Linear/Issue identifier: ${linearId}\n\nIMPORTANT: include "Closes ${linearId}" on its own line at the end of the PR body so the issue auto-links and the provider posts a backlink.`
+        : "";
+      const issueContext = `\n\nContext about this thread:\n- Thread title: ${issue.title}\n- Branch: ${issue.branchName}\n- Repository: ${issue.repoName}${linkingNote}\n\nUse the thread title as the basis for the PR title and body. The PR title should clearly reflect what was done.`;
       const prompt = basePrompt + issueContext;
       await sendMessage(issue.id, prompt, effectiveModelId, true);
     } catch (err) {
@@ -112,6 +179,26 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
         {prUrl && prUrl.state !== "MERGED" && <PrCiToggle threadId={issue.id} />}
+        {prUrl && prUrl.state !== "MERGED" && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              onClick={handleOpenSheet}
+              title="Open PR sheet"
+              className="h-8 w-8 p-0 text-sky-400 rounded-md hover:bg-sky-500/10 border border-sky-500/20 hover:border-sky-500/40 transition-all cursor-pointer"
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => openUrl(prUrl.url)}
+              title={t("agents.header.viewPr")}
+              className="h-8 w-8 p-0 text-[#A855F7] rounded-md hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
         {prUrl?.state === "MERGED" && (
           <Button
             variant="ghost"
@@ -123,17 +210,21 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
             <span>Merged</span>
           </Button>
         )}
-        {prUrl && prUrl.state !== "MERGED" && (
-          <Button
-            variant="ghost"
-            onClick={() => openUrl(prUrl.url)}
-            title={t("agents.header.viewPr")}
-            className="h-8 w-8 p-0 text-[#A855F7] rounded-md hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-          </Button>
+        {prUrl && prUrl.state !== "MERGED" && allChecksPass && (
+          <div className="ml-1 pl-2 border-l border-border/40">
+            <Button
+              variant="ghost"
+              onClick={handleMergePr}
+              disabled={isMerging}
+              title="Merge PR"
+              className="h-8 inline-flex items-center gap-1.5 px-2.5 text-[12px] font-semibold text-emerald-400 rounded-md hover:bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/50 transition-all cursor-pointer disabled:opacity-60"
+            >
+              <GitMerge className="h-3.5 w-3.5" />
+              <span>{isMerging ? "Merging…" : "Merge"}</span>
+            </Button>
+          </div>
         )}
-        {fileChanges.length > 0 && (
+        {fileChanges.length > 0 && !isStreaming && (
           <div className="flex items-center dark:bg-[#0F0F0F] bg-secondary rounded-xl dark:border-white/5 border-border border shadow-2xl overflow-hidden transition-all duration-300">
             <Button
               variant="ghost"
@@ -205,6 +296,18 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
       <span className="text-[15px] font-semibold tracking-tight text-foreground/90 truncate min-w-0">
         {issue.title}
       </span>
+      {sheetCtx && (
+        <PrDetailSheet
+          pr={sheetCtx.pr}
+          open={sheetOpen}
+          organizationId={sheetCtx.orgId}
+          repoName={sheetCtx.repo}
+          owner={sheetCtx.owner}
+          onOpenChange={setSheetOpen}
+          onOpenUrl={(url) => openUrl(url)}
+          onMerged={() => setSheetOpen(false)}
+        />
+      )}
     </header>
   );
 }
