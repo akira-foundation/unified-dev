@@ -44,6 +44,14 @@ pub async fn set_thread_pr_url(thread_id: String, pr_url: String, pr_is_draft: b
 }
 
 #[tauri::command]
+pub async fn get_thread_pr_review_context(
+    thread_id: String,
+    state: State<'_, AppState>,
+) -> Result<threads::get_pr_review_context::PrReviewContext, String> {
+    threads::get_pr_review_context::get_pr_review_context(thread_id, state).await
+}
+
+#[tauri::command]
 pub async fn update_repository_settings(
     repo_id: String,
     display_name: Option<String>,

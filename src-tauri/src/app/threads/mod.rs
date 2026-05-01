@@ -1,6 +1,7 @@
 pub mod agents;
 pub mod create;
 pub mod delete;
+pub mod get_pr_review_context;
 pub mod list_repos;
 pub mod rename;
 pub mod set_pr_url;

@@ -21,6 +21,7 @@ interface NavigationState {
   activeIssue: IssueDto | null;
   targetPrNumber: number | null;
   targetPrScope: PullRequestScope | null;
+  targetCheckName: string | null;
   targetRepoTab: "prs" | "issues" | "branches" | null;
   history: AppPage[];
   canGoBack: boolean;
@@ -37,6 +38,7 @@ interface NavigationState {
   setActiveIssue: (issue: IssueDto | null) => void;
   setTargetPrNumber: (n: number | null) => void;
   setTargetPrScope: (scope: PullRequestScope | null) => void;
+  setTargetCheckName: (name: string | null) => void;
   setTargetRepoTab: (tab: "prs" | "issues" | "branches" | null) => void;
   setDashboardTab: (tab: string) => void;
   settingsTab: string;
@@ -54,6 +56,7 @@ export const useNavigationStore = create<NavigationState>()(
       activeIssue: null,
       targetPrNumber: null,
       targetPrScope: null,
+      targetCheckName: null,
       targetRepoTab: null,
       history: [],
       canGoBack: false,
@@ -107,6 +110,7 @@ export const useNavigationStore = create<NavigationState>()(
       setActiveIssue: (issue) => set({ activeIssue: issue }),
       setTargetPrNumber: (n) => set({ targetPrNumber: n }),
       setTargetPrScope: (scope) => set({ targetPrScope: scope }),
+      setTargetCheckName: (name) => set({ targetCheckName: name }),
       setTargetRepoTab: (tab) => set({ targetRepoTab: tab }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
       setSettingsTab: (tab) => set({ settingsTab: tab }),
