@@ -246,6 +246,16 @@ function MessageSkeleton({ role }: { role: "user" | "assistant" }) {
   );
 }
 
+function formatElapsed(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  if (m < 60) return s === 0 ? `${m}m` : `${m}m ${s}s`;
+  const h = Math.floor(m / 60);
+  const remM = m % 60;
+  return `${h}h ${remM}m`;
+}
+
 export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls, isLoadingMessages = false }: AgentTimelineProps) {
   const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -416,7 +426,7 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500" />
               </span>
-              {t("agents.timeline.working")} {elapsedSeconds}s
+              {t("agents.timeline.working")} {formatElapsed(elapsedSeconds)}
             </span>
           </div>
         </div>
