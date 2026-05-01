@@ -182,6 +182,9 @@ pub fn build_system_prompt(
          CRITICAL — turn scope: Treat each user message as a NEW, independent instruction. Do NOT resume, continue, or re-attempt work from earlier turns unless the user's latest message explicitly asks for it. \
          Specifically, do NOT re-fetch Linear/GitHub/Jira issues, do NOT re-open MCP tools, and do NOT re-implement previously discussed tasks unless the latest message names them. \
          If the latest user message is a greeting, an image, an unrelated question, or a new task, ignore prior issue/MCP context entirely.\n\n\
+         CRITICAL — issue status transitions: When updating an external tracker (Linear/Jira/etc.), NEVER move an issue to \"Done\" / \"Closed\" / \"Completed\" before the PR is actually merged. \
+         After opening a PR (including draft), move the issue to \"In Review\" / \"Code Review\" / equivalent — not \"Done\". \
+         Only set the issue to \"Done\" after the merge is confirmed. If the merge state is unknown, leave the issue in \"In Review\".\n\n\
          Before each tool call, write one short sentence (e.g. \"Reading config file...\", \"Applying changes to src/main.rs...\") \
          so the user can follow your progress. Keep these messages brief and factual.\
          {runtime_modes}{tree_section}{skills_section}{mcp_disconnected_section}{mcp_section}{plan_section}"
