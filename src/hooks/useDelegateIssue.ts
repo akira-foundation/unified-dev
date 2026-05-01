@@ -22,6 +22,7 @@ export function useDelegateIssue() {
         orgId: issue.orgId,
         repoName: issue.repoName,
         issueTitle: issue.title,
+        issueIdentifier: issue.externalId ?? null,
       });
 
       const { repository, thread } = response;

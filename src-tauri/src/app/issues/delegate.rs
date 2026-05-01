@@ -14,6 +14,7 @@ pub async fn delegate(
     org_id: String,
     repo_name: String,
     issue_title: String,
+    issue_identifier: Option<String>,
 ) -> AppResult<AddLocalRepositoryResponse> {
     let pool = &state.db_pool;
 
@@ -23,7 +24,7 @@ pub async fn delegate(
 
     let clone_url = format!("https://github.com/{}/{}", owner, repo_name);
 
-    let thread_title = build_thread_title(&issue_title, &repo_name, pool).await?;
+    let thread_title = build_thread_title(&issue_title, issue_identifier.as_deref(), &repo_name, pool).await?;
 
     let existing: Option<(String, String, String)> = sqlx::query_as(
         "SELECT id, name, workspace_root FROM local_repositories WHERE source_path = ? LIMIT 1",
@@ -119,10 +120,24 @@ pub async fn delegate(
 
 async fn build_thread_title(
     issue_title: &str,
+    issue_identifier: Option<&str>,
     repo_name: &str,
     pool: &sqlx::SqlitePool,
 ) -> AppResult<String> {
-    let base = to_kebab_case(issue_title);
+    let kebab_title = to_kebab_case(issue_title);
+    let base = match issue_identifier {
+        Some(id) if !id.is_empty() => {
+            let prefix = to_kebab_case(id);
+            if prefix.is_empty() {
+                kebab_title
+            } else if kebab_title.starts_with(&format!("{}-", prefix)) || kebab_title == prefix {
+                kebab_title
+            } else {
+                format!("{}-{}", prefix, kebab_title)
+            }
+        }
+        _ => kebab_title,
+    };
 
     let repo_id: Option<(String,)> =
         sqlx::query_as("SELECT id FROM local_repositories WHERE name = ? LIMIT 1")

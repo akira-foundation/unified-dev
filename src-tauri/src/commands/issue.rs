@@ -90,8 +90,9 @@ pub async fn delegate_issue_to_agent(
     org_id: String,
     repo_name: String,
     issue_title: String,
+    issue_identifier: Option<String>,
 ) -> Result<AddLocalRepositoryResponse, String> {
-    issues::delegate(&state, org_id, repo_name, issue_title)
+    issues::delegate(&state, org_id, repo_name, issue_title, issue_identifier)
         .await
         .map_err(|e| e.to_string())
 }
