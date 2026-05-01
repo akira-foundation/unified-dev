@@ -107,7 +107,7 @@ export function PrReviewPage() {
         </PageHeader>
 
         <div className="flex flex-col">
-          <Tabs defaultValue="files" className="flex w-full flex-col">
+          <Tabs defaultValue="checks" className="flex w-full flex-col">
             <div className="shrink-0 mb-4">
               <TabsList variant="line">
                 <TabsTrigger value="files">{filesTabLabel}</TabsTrigger>

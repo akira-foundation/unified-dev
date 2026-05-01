@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, Clock, MinusCircle, SkipForward, Timer, ChevronD
 import { Card, CardContent } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
+import { useNavigationStore } from "../../stores/navigation-store";
 import { useI18n } from "../../i18n/i18n";
 import { queryKeys } from "../../lib/query-keys";
 import { cache } from "../../config/cache";
@@ -156,13 +157,15 @@ function CheckItem({
   check,
   orgId,
   repoName,
+  defaultOpen = false,
 }: {
   check: CiCheckDto;
   orgId: string;
   repoName: string;
+  defaultOpen?: boolean;
 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const duration = formatDuration(check.started_at, check.completed_at);
   const visibleSteps = check.steps.filter((step) => !HIDDEN_STEP_NAMES.has(step.name));
   const hasSteps = visibleSteps.length > 0;
@@ -266,11 +269,17 @@ export function PrChecksView({
     );
   }
 
+  const targetCheckName = useNavigationStore((s) => s.targetCheckName);
+
   return (
     <div className="flex flex-col gap-2 p-3">
-      {checks.map((check) => (
-        <CheckItem key={check.id} check={check} orgId={orgId} repoName={repoName} />
-      ))}
+      {checks.map((check) => {
+        const matchTarget = targetCheckName != null && check.name === targetCheckName;
+        const open = matchTarget || (targetCheckName == null && checks.length === 1);
+        return (
+          <CheckItem key={check.id} check={check} orgId={orgId} repoName={repoName} defaultOpen={open} />
+        );
+      })}
     </div>
   );
 }
