@@ -318,7 +318,7 @@ export function PrDetailSheet({
             </Collapsible>
 
             {/* Comments card */}
-            <Collapsible>
+            <Collapsible defaultOpen={comments.length > 0}>
               <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
                 <CollapsibleTrigger className="w-full cursor-pointer">
                   <div className="flex flex-row items-center gap-3 px-4 py-3">
