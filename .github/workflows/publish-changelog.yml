@@ -50,7 +50,8 @@ jobs:
               if (!sectionMatch) return [];
 
               const entries = [];
-              const re = /^\* (?:\*\*([^*]+)\*\*: )?(.+?) \([a-f0-9].*\)$/gm;
+              // Commit refs appear as ([abc123](url)) or (abc123...) — match either
+              const re = /^\* (?:\*\*([^*]+)\*\*: )?(.+?) \(\[?[a-f0-9]/gm;
               let m;
               while ((m = re.exec(sectionMatch[1])) !== null) {
                 const scope = m[1] ?? 'general';
@@ -129,5 +130,5 @@ jobs:
           git config user.name  "Akira Release Bot"
           git config user.email "release-bot@akira.foundation"
           git add src/pages/changelog.astro src/pages/index.astro
-          git commit -m "chore: add ${{ github.event.release.tag_name }} to changelog"
-          git push
+          git diff --staged --quiet && echo "No changes to commit." || git commit -m "chore: add ${{ github.event.release.tag_name }} to changelog"
+          git diff --staged --quiet || git push
