@@ -1,5 +1,32 @@
 
 
+# [0.8.0](https://github.com/akira-foundation/unified-dev/compare/v0.7.0...v0.8.0) (2026-05-04)
+
+
+### Bug Fixes
+
+* **deps:** upgrade rand to 0.9 to resolve unsoundness with custom logger using rand-rng ([aca2dfa](https://github.com/akira-foundation/unified-dev/commit/aca2dfa4ac96ce4ff8305b0504f7205f6281b6c0))
+* **pr-detail-sheet:** expand comments section by default when present ([ee68463](https://github.com/akira-foundation/unified-dev/commit/ee68463fc90d21ef309c69dc5c89f127e8189952))
+* **pr-review:** default to checks tab and auto-expand targeted/single check ([0f49fe8](https://github.com/akira-foundation/unified-dev/commit/0f49fe8b143962410420074c205f4f20fe4238f4))
+
+
+### Features
+
+* **agent-header:** add PR sheet, merge button, in-app CI navigation ([dbe7d49](https://github.com/akira-foundation/unified-dev/commit/dbe7d49976f7dc1b5ff2fa636a55387ab9974528))
+* **autopilot:** implement feature check for autopilot and update free run limits ([818aa97](https://github.com/akira-foundation/unified-dev/commit/818aa9774f84bc0bd27c3902b0bd1ee41e5289d1))
+* **delegate:** prefix thread title with issue identifier ([94a1dd9](https://github.com/akira-foundation/unified-dev/commit/94a1dd94a35de1974bb64475add0fec87a88726c))
+* **headers:** improve layout and styling of agent and app headers ([3d502ab](https://github.com/akira-foundation/unified-dev/commit/3d502abf46f51ea6cbd2bdf0310e92930067692b))
+* **merge:** update merge function to use effective repo name and log merge timestamps ([0e9a239](https://github.com/akira-foundation/unified-dev/commit/0e9a2397de8546a38633da474e318f154a47f646))
+* **oauth:** implement PKCE support with code verifier and challenge in OAuth flow ([99f0aaa](https://github.com/akira-foundation/unified-dev/commit/99f0aaab72bdbc08b58a1fcf3c0c265b31eecba1))
+* **pr-ci:** add CI checks integration with PR status display and polling ([f856cb1](https://github.com/akira-foundation/unified-dev/commit/f856cb16b0f11bbbc2259f16be22b43a5c834807))
+* **pr-detail:** improve merge handling with loading state and toast notifications ([618cf69](https://github.com/akira-foundation/unified-dev/commit/618cf69452d245f807446766519874a138430692))
+* **pr-merged-banner:** add banner for merged PRs with removal option ([27a0b19](https://github.com/akira-foundation/unified-dev/commit/27a0b1907ae3c35b081243262aa8e79d558d22e0))
+* **pr-review:** add backend cmd to resolve thread PR review context ([65d1f63](https://github.com/akira-foundation/unified-dev/commit/65d1f63a7baee42ef7284ee116c31973c421a84c))
+* **profile:** add get and set functions for user profile management ([3cff3b8](https://github.com/akira-foundation/unified-dev/commit/3cff3b8f77f2467de7eb27465ae57c89084cf816))
+* **prompt:** tighten turn scope and issue status transition rules ([068fe5a](https://github.com/akira-foundation/unified-dev/commit/068fe5a2d0df76dc0b07a52299412f4c50d70fbb))
+* **provider:** include upstream status in provider resolution and improve error handling ([df26d7b](https://github.com/akira-foundation/unified-dev/commit/df26d7b0d1ab2eae4bd0eef4aa762db1c0bb70cd))
+* **repository:** enhance pull request synchronization and query invalidation ([9416048](https://github.com/akira-foundation/unified-dev/commit/9416048cef430b947d2e47a3ddbbb15f42d25585))
+
 # [0.7.0](https://github.com/akira-foundation/unified-dev/compare/v0.6.0...v0.7.0) (2026-04-21)
 
 
