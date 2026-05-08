@@ -25,18 +25,20 @@ import { RepositoryDetailPage } from "./pages/repository-detail";
 import { PrReviewPage } from "./pages/pr-review";
 import { SettingsPage } from "./pages/settings";
 import { ProviderDetailPage } from "./pages/provider-detail";
-import { Bot, Building2, CircleDot, FolderGit2, LayoutDashboard, Settings } from "lucide-react";
+import { Bot, Building2, CircleDot, FolderGit2, GitFork, LayoutDashboard, Settings } from "lucide-react";
 import { useNavigation } from "./hooks/useNavigation";
 import { useNavigationStore } from "./stores/navigation-store";
 import { useAgentsStore } from "./stores/useAgentsStore";
 import { useAutopilotStore } from "./stores/useAutopilotStore";
 import { IssuesPage } from "./pages/issues";
+import { OpenSourcePage } from "./pages/open-source";
 import type { NavItem } from "./types/navigation";
 
 const navigationItems: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { id: "agents", label: "Agents", icon: <Bot className="h-4 w-4" /> },
   { id: "issues", label: "Issues", icon: <CircleDot className="h-4 w-4" /> },
+  { id: "open-source", label: "Open Source", icon: <GitFork className="h-4 w-4" /> },
   { id: "repository", label: "Repositories", icon: <FolderGit2 className="h-4 w-4" /> },
   { id: "organizations", label: "Organizations", icon: <Building2 className="h-4 w-4" /> },
   { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
@@ -100,6 +102,7 @@ export default function App() {
             </div>
             {!isAgentMode && currentPage === "dashboard" && <DashboardPage />}
             {!isAgentMode && currentPage === "issues" && <IssuesPage />}
+            {!isAgentMode && currentPage === "open-source" && <OpenSourcePage />}
             {!isAgentMode && currentPage === "organizations" && <OrganizationsPage />}
             {!isAgentMode && currentPage === "organization" && <OrganizationPage />}
             {!isAgentMode && currentPage === "import-repositories" && <ImportRepositoriesPage />}

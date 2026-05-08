@@ -6,6 +6,7 @@ pub mod filesystem;
 pub mod profile;
 pub mod issues;
 pub mod mcp;
+pub mod open_source;
 pub mod orgs;
 pub mod prompts;
 pub mod providers;
