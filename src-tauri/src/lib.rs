@@ -14,6 +14,15 @@ use commands::autopilot::{
 use commands::agent::{abort_agent, get_available_models, get_messages, send_message};
 use commands::workspace::{check_pr_ci, check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
 use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue, delegate_issue_to_agent};
+use commands::open_source::{
+    fetch_github_contribution_summary,
+    fetch_github_contributed_repositories,
+    fetch_github_pull_requests,
+    fetch_github_issues,
+    fetch_github_reviews,
+    fetch_github_contribution_calendar,
+    sync_github_open_source_contributions,
+};
 use commands::organization::{
     create_organization, delete_organization, get_job_logs, get_pr_checks, get_pr_comments, get_pr_files,
     list_all_selected_repositories, list_organizations, list_organizations_by_provider,
@@ -242,6 +251,13 @@ pub fn run() {
             get_usage,
             get_user_profile,
             set_user_profile,
+            fetch_github_contribution_summary,
+            fetch_github_contributed_repositories,
+            fetch_github_pull_requests,
+            fetch_github_issues,
+            fetch_github_reviews,
+            fetch_github_contribution_calendar,
+            sync_github_open_source_contributions,
             autopilot_list_jobs,
             autopilot_save_job,
             autopilot_update_job,

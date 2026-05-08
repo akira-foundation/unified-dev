@@ -23,4 +23,10 @@ export const queryKeys = {
     ["issue-detail", orgId, repo, number] as const,
   branches: (orgId: string, repo: string) => ["branches", orgId, repo] as const,
   rateLimits: () => ["rate-limits"] as const,
+  ossSummary: () => ["oss", "summary"] as const,
+  ossRepos: (filters: unknown) => ["oss", "repos", filters] as const,
+  ossPullRequests: (filters: unknown) => ["oss", "prs", filters] as const,
+  ossIssues: (filters: unknown) => ["oss", "issues", filters] as const,
+  ossReviews: (filters: unknown) => ["oss", "reviews", filters] as const,
+  ossCalendar: (year?: number) => ["oss", "calendar", year] as const,
 };
