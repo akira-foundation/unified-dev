@@ -22,6 +22,19 @@ export interface OssStreaks {
   best: number;
 }
 
+export interface OssOrgSummary {
+  login: string;
+  avatarUrl?: string | null;
+  url: string;
+}
+
+export interface ActivityBreakdown {
+  commits: number;
+  pullRequests: number;
+  issues: number;
+  codeReview: number;
+}
+
 export interface ContributionSummary {
   profile: OssProfile;
   totals: OssTotals;
@@ -30,6 +43,11 @@ export interface ContributionSummary {
   mostActiveRepo?: string | null;
   lastSyncedAt?: string | null;
   connected: boolean;
+  years: number[];
+  organizationsList: OssOrgSummary[];
+  activityBreakdown: ActivityBreakdown;
+  contributedReposPreview: string[];
+  contributedReposTotal: number;
 }
 
 export interface ContributedRepo {
@@ -106,6 +124,14 @@ export interface OssFilters {
   repo?: string;
   type?: OssContributionType;
   state?: string;
+}
+
+export interface YearOverview {
+  year: number;
+  breakdown: ActivityBreakdown;
+  organizations: OssOrgSummary[];
+  reposPreview: string[];
+  reposTotal: number;
 }
 
 export interface OssSyncResult {

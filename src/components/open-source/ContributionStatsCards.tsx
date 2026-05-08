@@ -1,12 +1,7 @@
 import {
-  BookOpen,
-  Building2,
-  Calendar,
   Code2,
   Flame,
-  GitMerge,
-  GitPullRequest,
-  History,
+  FolderGit2,
   MessageSquare,
   Star,
   Trophy,
@@ -26,63 +21,74 @@ export function ContributionStatsCards({ summary }: ContributionStatsCardsProps)
   const totals = summary.totals;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
       <StatCard
         label={t("openSource.stats.repositories")}
-        value={totals.repositories.toLocaleString()}
-        icon={BookOpen}
-      />
-      <StatCard
-        label={t("openSource.stats.pullRequests")}
-        value={totals.pullRequests.toLocaleString()}
-        icon={GitPullRequest}
-      />
-      <StatCard
-        label={t("openSource.stats.mergedPullRequests")}
-        value={totals.mergedPullRequests.toLocaleString()}
-        icon={GitMerge}
-      />
-      <StatCard
-        label={t("openSource.stats.commits")}
-        value={totals.commits.toLocaleString()}
-        icon={History}
+        value={totals.repositories}
+        sub="contributed to"
+        icon={FolderGit2}
+        color="text-indigo-500"
+        bg="bg-indigo-500/10"
       />
       <StatCard
         label={t("openSource.stats.issues")}
-        value={totals.issues.toLocaleString()}
+        value={totals.issues}
+        sub="issues opened"
         icon={MessageSquare}
+        color="text-amber-500"
+        bg="bg-amber-500/10"
       />
       <StatCard
         label={t("openSource.stats.reviews")}
-        value={totals.reviews.toLocaleString()}
+        value={totals.reviews}
+        sub="reviews submitted"
         icon={Star}
-      />
-      <StatCard
-        label={t("openSource.stats.organizations")}
-        value={totals.organizations.toLocaleString()}
-        icon={Building2}
+        color="text-yellow-500"
+        bg="bg-yellow-500/10"
       />
       <StatCard
         label={t("openSource.stats.currentStreak")}
         value={`${summary.streaks.current}d`}
+        sub={`best ${summary.streaks.best}d`}
         icon={Flame}
-        hint={t("openSource.stats.bestStreak") + `: ${summary.streaks.best}d`}
+        color="text-rose-500"
+        bg="bg-rose-500/10"
       />
       <StatCard
         label={t("openSource.stats.bestStreak")}
         value={`${summary.streaks.best}d`}
+        sub="longest run"
         icon={Trophy}
+        color="text-emerald-500"
+        bg="bg-emerald-500/10"
       />
       <StatCard
         label={t("openSource.stats.language")}
         value={summary.mostActiveLanguage ?? "—"}
+        sub="top language"
         icon={Code2}
+        color="text-purple-500"
+        bg="bg-purple-500/10"
       />
-      <StatCard
-        label={t("openSource.stats.topRepo")}
-        value={summary.mostActiveRepo ?? "—"}
-        icon={Calendar}
-      />
+    </div>
+  );
+}
+
+export function ContributionStatsCardsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: 7 }).map((_, i) => (
+        <StatCard
+          key={i}
+          label="—"
+          value={0}
+          sub="—"
+          icon={Trophy}
+          color="text-zinc-500"
+          bg="bg-zinc-500/10"
+          loading
+        />
+      ))}
     </div>
   );
 }

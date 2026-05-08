@@ -4,9 +4,11 @@ import {
   PageHeaderMeta,
   PageHeaderTitle,
 } from "@/components/layout/page-header";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useI18n } from "@/i18n/i18n";
+import { useDateLabel } from "@/hooks/use-date-label";
 import type { ContributionSummary } from "@/types/openSource";
+
+import { OpenSourceSyncButton } from "./OpenSourceSyncButton";
 
 function formatRelative(iso: string, locale: string): string {
   const then = new Date(iso).getTime();
@@ -20,14 +22,13 @@ function formatRelative(iso: string, locale: string): string {
   return rtf.format(Math.round(diffSec / 86400), "day");
 }
 
-import { OpenSourceSyncButton } from "./OpenSourceSyncButton";
-
 interface OpenSourceHeaderProps {
   summary?: ContributionSummary;
 }
 
 export function OpenSourceHeader({ summary }: OpenSourceHeaderProps) {
   const { t, locale } = useI18n();
+  const dateLabel = useDateLabel(locale);
 
   const lastSyncedLabel = summary?.lastSyncedAt
     ? t("openSource.sync.last", { value: formatRelative(summary.lastSyncedAt, locale) })
@@ -35,21 +36,15 @@ export function OpenSourceHeader({ summary }: OpenSourceHeaderProps) {
 
   return (
     <PageHeader>
-      <div className="flex items-center gap-4">
-        {summary?.profile.avatarUrl ? (
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={summary.profile.avatarUrl} alt={summary.profile.login} />
-            <AvatarFallback>{summary.profile.login.slice(0, 2).toUpperCase()}</AvatarFallback>
-          </Avatar>
-        ) : null}
-        <div>
-          <PageHeaderTitle>{t("openSource.title")}</PageHeaderTitle>
-          <PageHeaderMeta>
-            <span>{summary?.profile.name ?? summary?.profile.login ?? t("openSource.subtitle")}</span>
-            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span>{lastSyncedLabel}</span>
-          </PageHeaderMeta>
-        </div>
+      <div>
+        <PageHeaderTitle>{t("openSource.title")}</PageHeaderTitle>
+        <PageHeaderMeta>
+          <span>{t("app.name")}</span>
+          <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+          <span>{dateLabel}</span>
+          <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+          <span>{lastSyncedLabel}</span>
+        </PageHeaderMeta>
       </div>
       <PageHeaderActions>
         <OpenSourceSyncButton />

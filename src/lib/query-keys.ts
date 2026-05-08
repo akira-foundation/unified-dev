@@ -29,4 +29,5 @@ export const queryKeys = {
   ossIssues: (filters: unknown) => ["oss", "issues", filters] as const,
   ossReviews: (filters: unknown) => ["oss", "reviews", filters] as const,
   ossCalendar: (year?: number) => ["oss", "calendar", year] as const,
+  ossYearOverview: (year: number) => ["oss", "year-overview", year] as const,
 };

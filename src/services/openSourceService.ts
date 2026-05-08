@@ -9,6 +9,7 @@ import type {
   OssPullRequest,
   OssReview,
   OssSyncResult,
+  YearOverview,
 } from "@/types/openSource";
 
 export const openSourceService = {
@@ -29,6 +30,9 @@ export const openSourceService = {
 
   fetchCalendar: (year?: number) =>
     invoke<ContributionCalendarDay[]>("fetch_github_contribution_calendar", { year }),
+
+  fetchYearOverview: (year: number) =>
+    invoke<YearOverview>("fetch_github_year_overview", { year }),
 
   sync: () => invoke<OssSyncResult>("sync_github_open_source_contributions"),
 };

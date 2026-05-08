@@ -1,84 +1,94 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Github, Loader2 } from "lucide-react";
+
 import { PageLayout } from "@/components/layout/page-layout";
 import { ContributedRepositoriesTable } from "@/components/open-source/ContributedRepositoriesTable";
-import { ContributionCalendar } from "@/components/open-source/ContributionCalendar";
-import { ContributionStatsCards } from "@/components/open-source/ContributionStatsCards";
-import { ContributionTimeline } from "@/components/open-source/ContributionTimeline";
+import { ContributionPanel } from "@/components/open-source/ContributionPanel";
+import {
+  ContributionStatsCards,
+  ContributionStatsCardsSkeleton,
+} from "@/components/open-source/ContributionStatsCards";
 import { GithubNotConnectedState } from "@/components/open-source/GithubNotConnectedState";
 import { GithubRateLimitedState } from "@/components/open-source/GithubRateLimitedState";
-import { IssuesTable } from "@/components/open-source/IssuesTable";
-import { OpenSourceFilters } from "@/components/open-source/OpenSourceFilters";
 import { OpenSourceHeader } from "@/components/open-source/OpenSourceHeader";
-import { PullRequestsTable } from "@/components/open-source/PullRequestsTable";
-import { ReviewsTable } from "@/components/open-source/ReviewsTable";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n/i18n";
-import { useOssSummary } from "@/hooks/useOpenSource";
+import { useOssAutoSync, useOssSummary, useOssSync } from "@/hooks/useOpenSource";
+import { useOpenSourceFiltersStore } from "@/stores/useOpenSourceFiltersStore";
 
-function detectErrorKind(error: unknown): "not_connected" | "rate_limited" | null {
+function detectErrorKind(error: unknown): "not_connected" | "rate_limited" | "not_synced" | null {
   if (!error) return null;
   const message = error instanceof Error ? error.message : String(error);
   if (message.includes("github_not_connected")) return "not_connected";
+  if (message.includes("github_not_synced")) return "not_synced";
   if (message.includes("github_rate_limited") || message.includes("rate limit")) return "rate_limited";
   return null;
 }
 
-export function OpenSourcePage() {
+function FirstSyncState() {
   const { t } = useI18n();
+  const sync = useOssSync();
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center justify-center gap-4 p-12 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-900/5 text-zinc-700 dark:bg-zinc-50/10 dark:text-zinc-200">
+          <Github className="h-6 w-6" />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="text-base font-semibold">{t("openSource.firstSync.title")}</span>
+          <span className="max-w-md text-sm text-zinc-500 dark:text-zinc-400">
+            {t("openSource.firstSync.description")}
+          </span>
+        </div>
+        <Button onClick={() => sync.mutate()} disabled={sync.isPending}>
+          {sync.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {sync.isPending ? t("openSource.sync.inProgress") : t("openSource.sync.now")}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function OpenSourcePage() {
   const { data: summary, isLoading, error } = useOssSummary();
+  const filterYear = useOpenSourceFiltersStore((s) => s.year);
+  const setYear = useOpenSourceFiltersStore((s) => s.setYear);
+
+  useOssAutoSync(summary?.lastSyncedAt, summary?.connected ?? false);
 
   const errorKind = detectErrorKind(error);
   if (errorKind === "not_connected") return <GithubNotConnectedState />;
   if (errorKind === "rate_limited") return <GithubRateLimitedState />;
+  if (errorKind === "not_synced") return <FirstSyncState />;
+
+  const calendarYear = filterYear ?? new Date().getFullYear();
 
   return (
     <PageLayout>
       <OpenSourceHeader summary={summary} />
 
-      <div className="flex items-center justify-between">
-        <OpenSourceFilters />
+      <div className="flex flex-col gap-10 px-4 pb-10 md:px-6">
+        {isLoading || !summary ? (
+          <ContributionStatsCardsSkeleton />
+        ) : (
+          <ContributionStatsCards summary={summary} />
+        )}
+
+        {summary ? (
+          <ContributionPanel
+            summary={summary}
+            year={calendarYear}
+            years={summary.years}
+            onYearChange={setYear}
+          />
+        ) : (
+          <Skeleton className="h-72 w-full" />
+        )}
+
+        <ContributedRepositoriesTable />
       </div>
-
-      {isLoading || !summary ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full" />
-          ))}
-        </div>
-      ) : (
-        <ContributionStatsCards summary={summary} />
-      )}
-
-      <ContributionCalendar />
-
-      <Tabs defaultValue="overview" className="w-full">
-        <TabsList>
-          <TabsTrigger value="overview">{t("openSource.tabs.overview")}</TabsTrigger>
-          <TabsTrigger value="repos">{t("openSource.tabs.repos")}</TabsTrigger>
-          <TabsTrigger value="prs">{t("openSource.tabs.prs")}</TabsTrigger>
-          <TabsTrigger value="merged">{t("openSource.tabs.merged")}</TabsTrigger>
-          <TabsTrigger value="issues">{t("openSource.tabs.issues")}</TabsTrigger>
-          <TabsTrigger value="reviews">{t("openSource.tabs.reviews")}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="overview">
-          <ContributionTimeline />
-        </TabsContent>
-        <TabsContent value="repos">
-          <ContributedRepositoriesTable />
-        </TabsContent>
-        <TabsContent value="prs">
-          <PullRequestsTable />
-        </TabsContent>
-        <TabsContent value="merged">
-          <PullRequestsTable onlyMerged />
-        </TabsContent>
-        <TabsContent value="issues">
-          <IssuesTable />
-        </TabsContent>
-        <TabsContent value="reviews">
-          <ReviewsTable />
-        </TabsContent>
-      </Tabs>
     </PageLayout>
   );
 }
