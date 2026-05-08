@@ -1,12 +1,14 @@
 pub mod calendar;
+pub mod graphql;
 pub mod issues;
-pub mod mocks;
 pub mod models;
+pub mod provider;
 pub mod pull_requests;
 pub mod repositories;
 pub mod reviews;
 pub mod summary;
 pub mod sync;
+pub mod year_overview;
 
 pub use calendar::fetch_calendar;
 pub use issues::list_issues;

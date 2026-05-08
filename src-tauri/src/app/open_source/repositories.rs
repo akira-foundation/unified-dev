@@ -3,7 +3,6 @@ use tauri::State;
 
 use crate::state::AppState;
 
-use super::mocks;
 use super::models::*;
 
 pub async fn list_repositories(
@@ -19,10 +18,6 @@ pub async fn list_repositories(
     .fetch_all(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;
-
-    if rows.is_empty() {
-        return Ok(filter_repositories(mocks::repositories(), &filters));
-    }
 
     let repos = rows
         .into_iter()

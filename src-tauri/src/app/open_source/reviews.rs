@@ -3,7 +3,6 @@ use tauri::State;
 
 use crate::state::AppState;
 
-use super::mocks;
 use super::models::*;
 
 pub async fn list_reviews(
@@ -19,22 +18,19 @@ pub async fn list_reviews(
     .await
     .map_err(|e| e.to_string())?;
 
-    let items = if rows.is_empty() {
-        mocks::reviews()
-    } else {
-        rows.into_iter()
-            .map(|row| OssReviewDto {
-                id: row.try_get("id").unwrap_or_default(),
-                repo_id: row.try_get("repo_id").unwrap_or_default(),
-                name_with_owner: row.try_get("name_with_owner").unwrap_or_default(),
-                pr_number: row.try_get::<i64, _>("pr_number").unwrap_or(0),
-                pr_title: row.try_get("pr_title").ok(),
-                state: row.try_get("state").unwrap_or_default(),
-                url: row.try_get("url").unwrap_or_default(),
-                submitted_at: row.try_get("submitted_at").unwrap_or_default(),
-            })
-            .collect()
-    };
+    let items: Vec<OssReviewDto> = rows
+        .into_iter()
+        .map(|row| OssReviewDto {
+            id: row.try_get("id").unwrap_or_default(),
+            repo_id: row.try_get("repo_id").unwrap_or_default(),
+            name_with_owner: row.try_get("name_with_owner").unwrap_or_default(),
+            pr_number: row.try_get::<i64, _>("pr_number").unwrap_or(0),
+            pr_title: row.try_get("pr_title").ok(),
+            state: row.try_get("state").unwrap_or_default(),
+            url: row.try_get("url").unwrap_or_default(),
+            submitted_at: row.try_get("submitted_at").unwrap_or_default(),
+        })
+        .collect();
 
     Ok(items
         .into_iter()

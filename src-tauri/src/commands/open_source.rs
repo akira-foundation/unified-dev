@@ -52,6 +52,14 @@ pub async fn fetch_github_contribution_calendar(
 }
 
 #[tauri::command]
+pub async fn fetch_github_year_overview(
+    state: State<'_, AppState>,
+    year: i32,
+) -> Result<open_source::year_overview::YearOverviewDto, String> {
+    open_source::year_overview::fetch_year_overview(state, year).await
+}
+
+#[tauri::command]
 pub async fn sync_github_open_source_contributions(
     state: State<'_, AppState>,
 ) -> Result<OssSyncResultDto, String> {

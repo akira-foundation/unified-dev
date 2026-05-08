@@ -32,6 +32,23 @@ pub struct OssStreaksDto {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct OssOrgSummaryDto {
+    pub login: String,
+    pub avatar_url: Option<String>,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivityBreakdownDto {
+    pub commits: f64,
+    pub pull_requests: f64,
+    pub issues: f64,
+    pub code_review: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ContributionSummaryDto {
     pub profile: OssProfileDto,
     pub totals: OssTotalsDto,
@@ -40,6 +57,11 @@ pub struct ContributionSummaryDto {
     pub most_active_repo: Option<String>,
     pub last_synced_at: Option<String>,
     pub connected: bool,
+    pub years: Vec<i32>,
+    pub organizations_list: Vec<OssOrgSummaryDto>,
+    pub activity_breakdown: ActivityBreakdownDto,
+    pub contributed_repos_preview: Vec<String>,
+    pub contributed_repos_total: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

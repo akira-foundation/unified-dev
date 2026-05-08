@@ -21,6 +21,7 @@ use commands::open_source::{
     fetch_github_issues,
     fetch_github_reviews,
     fetch_github_contribution_calendar,
+    fetch_github_year_overview,
     sync_github_open_source_contributions,
 };
 use commands::organization::{
@@ -257,6 +258,7 @@ pub fn run() {
             fetch_github_issues,
             fetch_github_reviews,
             fetch_github_contribution_calendar,
+            fetch_github_year_overview,
             sync_github_open_source_contributions,
             autopilot_list_jobs,
             autopilot_save_job,
