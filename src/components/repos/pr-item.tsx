@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Clock, ExternalLink, FileCode, MoreVertical, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Clock, ExternalLink, FileCode, MoreVertical, Rocket, XCircle } from "lucide-react";
 
 import { useI18n } from "../../i18n/i18n";
 import { Badge } from "../ui/badge";
@@ -41,11 +41,13 @@ export function PrItem({
   onOpen,
   onViewDetail,
   onReview,
+  onNewTask,
 }: {
   pr: PullRequestDto;
   onOpen: (url: string) => void;
   onViewDetail: (pr: PullRequestDto) => void;
   onReview: (pr: PullRequestDto) => void;
+  onNewTask?: (pr: PullRequestDto) => void;
 }) {
   const { t } = useI18n();
   return (
@@ -124,6 +126,12 @@ export function PrItem({
               <FileCode className="mr-2 h-4 w-4" />
               {t("components.prDetail.review")}
             </DropdownMenuItem>
+            {onNewTask ? (
+              <DropdownMenuItem onSelect={() => onNewTask(pr)}>
+                <Rocket className="mr-2 h-4 w-4" />
+                {t("components.prDetail.newTask")}
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

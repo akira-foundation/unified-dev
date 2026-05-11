@@ -764,7 +764,46 @@ impl VcsProvider for GitHubDriver {
             PrMergeStrategy::Rebase => "rebase",
         };
         let payload = serde_json::json!({ "merge_method": merge_method });
-        self.put_json(url, &payload).await
+
+        let response = self
+            .client
+            .put(&url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .json(&payload)
+            .send()
+            .await?;
+
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+
+        if !status.is_success() {
+            let msg = serde_json::from_str::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|v| v.get("message").and_then(|m| m.as_str()).map(|s| s.to_string()))
+                .unwrap_or_else(|| body.clone());
+            return Err(crate::app::support::error::AppError::Provider(format!(
+                "GitHub merge failed: {status} {msg}"
+            )));
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| crate::app::support::error::AppError::Provider(format!(
+                "GitHub merge decode failed: {e} — body: {body}"
+            )))?;
+
+        let merged = parsed.get("merged").and_then(|v| v.as_bool()).unwrap_or(false);
+        if !merged {
+            let msg = parsed
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("merge not applied");
+            return Err(crate::app::support::error::AppError::Provider(format!(
+                "GitHub merge not applied: {msg}"
+            )));
+        }
+
+        Ok(())
     }
 
     async fn list_pull_request_files(

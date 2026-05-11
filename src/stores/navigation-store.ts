@@ -17,6 +17,7 @@ interface NavigationState {
   activeProviderId: string | null;
   activeOrganizationId: string | null;
   activeRepo: ActiveRepo | null;
+  recentRepos: ActiveRepo[];
   activePr: PullRequestDto | null;
   activeIssue: IssueDto | null;
   targetPrNumber: number | null;
@@ -52,6 +53,7 @@ export const useNavigationStore = create<NavigationState>()(
       activeProviderId: null,
       activeOrganizationId: null,
       activeRepo: null,
+      recentRepos: [],
       activePr: null,
       activeIssue: null,
       targetPrNumber: null,
@@ -105,7 +107,21 @@ export const useNavigationStore = create<NavigationState>()(
       },
       setActiveProviderId: (providerId) => set({ activeProviderId: providerId }),
       setActiveOrganizationId: (organizationId) => set({ activeOrganizationId: organizationId }),
-      setActiveRepo: (repo) => set({ activeRepo: repo }),
+      setActiveRepo: (repo) => {
+        if (!repo) {
+          set({ activeRepo: null });
+          return;
+        }
+        const { recentRepos } = get();
+        const key = `${repo.organizationId}:${repo.name}`;
+        const next = [
+          repo,
+          ...recentRepos.filter(
+            (r) => `${r.organizationId}:${r.name}` !== key,
+          ),
+        ].slice(0, 5);
+        set({ activeRepo: repo, recentRepos: next });
+      },
       setActivePr: (pr) => set({ activePr: pr }),
       setActiveIssue: (issue) => set({ activeIssue: issue }),
       setTargetPrNumber: (n) => set({ targetPrNumber: n }),
@@ -123,6 +139,7 @@ export const useNavigationStore = create<NavigationState>()(
         activeProviderId: state.activeProviderId,
         activeOrganizationId: state.activeOrganizationId,
         activeRepo: state.activeRepo,
+        recentRepos: state.recentRepos,
         history: state.history,
         isAgentMode: state.isAgentMode,
         dashboardTab: state.dashboardTab,

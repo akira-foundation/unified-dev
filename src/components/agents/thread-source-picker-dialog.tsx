@@ -72,23 +72,23 @@ export function ThreadSourcePickerDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{t(titleKey)}</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="max-w-2xl gap-0 overflow-hidden p-0">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-4">
+          <DialogTitle className="text-base">{t(titleKey)}</DialogTitle>
+          <DialogDescription className="mt-1.5 text-sm text-muted-foreground">
             {t(descriptionKey).replace("{repo}", repoName)}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="mt-4 space-y-4">
+        <div className="space-y-4 px-5 py-4">
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t(searchKey)}
-            className="h-10"
+            className="h-10 border-zinc-200 bg-zinc-100 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
           />
 
-          <div className="max-h-[420px] overflow-y-auto rounded-xl border border-border bg-background/60">
+          <div className="max-h-[420px] overflow-y-auto rounded-md border border-zinc-200 bg-background/60 dark:border-zinc-800">
             {isLoading ? (
               <div className="flex items-center justify-center gap-2 px-4 py-12 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />

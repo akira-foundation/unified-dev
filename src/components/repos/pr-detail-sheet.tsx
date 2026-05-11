@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useI18n } from "../../i18n/i18n";
 import {
+  AlertTriangle,
   ArrowRight,
   Check,
   ChevronDown,
@@ -15,8 +16,10 @@ import {
   Maximize2,
   MessageSquare,
   Minimize2,
+  Sparkles,
 } from "lucide-react";
 import { useNavigationStore } from "../../stores/navigation-store";
+import { useAgentsStore } from "../../stores/useAgentsStore";
 import {
   Collapsible,
   CollapsibleContent,
@@ -70,7 +73,18 @@ export function PrDetailSheet({
 }) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const { navigateTo, setActivePr, setActiveRepo } = useNavigationStore();
+  const { navigateTo, setActivePr, setActiveRepo, setIsAgentMode } = useNavigationStore();
+  const {
+    addThread: agentsAddThread,
+    sendMessage: agentsSendMessage,
+    selectedModelId: agentsSelectedModelId,
+    setThreadPrInfo: agentsSetThreadPrInfo,
+    setExpandedRepos: agentsSetExpandedRepos,
+    loadRepositories: agentsLoadRepositories,
+    setSelectedIssueId: agentsSetSelectedIssueId,
+    setActiveTab: agentsSetActiveTab,
+  } = useAgentsStore();
+  const [isResolvingWithAI, setIsResolvingWithAI] = useState(false);
   const strategyLabels: Record<PrMergeStrategy, string> = {
     merge: t("components.prDetail.mergeCommit"),
     squash: t("components.prDetail.mergeSquash"),
@@ -115,6 +129,77 @@ export function PrDetailSheet({
     await postComment.mutateAsync();
   };
 
+  const handleResolveWithAI = async () => {
+    if (!pr || isResolvingWithAI) return;
+    const errorText = mergeError ?? "";
+    setIsResolvingWithAI(true);
+    const toastId = toast.loading(t("components.prDetail.resolveWithAi.delegating"));
+    try {
+      const target = `${owner}/${repoName}`.toLowerCase();
+      const repoOnly = repoName.toLowerCase();
+      const findRepo = () =>
+        useAgentsStore.getState().repositoryGroups
+          .flatMap((g) => g.repositories)
+          .find((r) => {
+            if (r.displayName?.toLowerCase() === target) return true;
+            if (r.remoteUrl) {
+              const m = r.remoteUrl.match(/github\.com[:/]([^/]+\/[^/]+?)(?:\.git)?$/i);
+              if (m && m[1].toLowerCase() === target) return true;
+            }
+            const n = r.name.toLowerCase();
+            return n === target || n.endsWith(`/${repoOnly}`) || n === repoOnly;
+          });
+
+      let repo = findRepo();
+
+      if (!repo) {
+        toast.loading(t("components.prDetail.resolveWithAi.registering"), { id: toastId });
+        const cloneUrl = `https://github.com/${owner}/${repoName}.git`;
+        await invoke("add_remote_repository", { url: cloneUrl });
+        await agentsLoadRepositories();
+        repo = findRepo();
+        if (!repo) {
+          toast.error(t("pages.repositoryDetail.toast.repoNotInAgent"), { id: toastId });
+          return;
+        }
+        toast.loading(t("components.prDetail.resolveWithAi.delegating"), { id: toastId });
+      }
+
+      const thread = await invoke<{ id: string; title: string; workspace_path: string }>(
+        "create_thread_from_pull_request",
+        { repoId: repo.id, title: pr.title, headSha: pr.head_sha },
+      );
+      await invoke("set_thread_pr_url", {
+        threadId: thread.id,
+        prUrl: pr.url,
+        prIsDraft: pr.is_draft,
+      });
+      agentsSetThreadPrInfo(thread.id, { url: pr.url, isDraft: pr.is_draft });
+      agentsAddThread(repo.id, thread);
+      await agentsLoadRepositories();
+      agentsSetExpandedRepos((prev) => ({ ...prev, [repo.id]: true }));
+
+      const prompt = t("components.prDetail.resolveWithAi.prompt", {
+        number: String(pr.number),
+        title: pr.title,
+        error: errorText,
+      });
+      agentsSetActiveTab("workspace");
+      agentsSetSelectedIssueId(thread.id);
+      setIsAgentMode(true);
+      navigateTo("agents");
+      onOpenChange(false);
+      if (agentsSelectedModelId) {
+        await agentsSendMessage(thread.id, prompt, agentsSelectedModelId, false);
+      }
+      toast.success(t("components.prDetail.resolveWithAi.delegated"), { id: toastId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err), { id: toastId });
+    } finally {
+      setIsResolvingWithAI(false);
+    }
+  };
+
   const handleMerge = async () => {
     if (!pr || isMerging) return;
     setMergeError(null);
@@ -128,6 +213,24 @@ export function PrDetailSheet({
         strategy: mergeStrategy,
       });
       toast.success(`PR #${pr.number} merged successfully`, { id: toastId });
+      const allThreads = useAgentsStore.getState().repositoryGroups
+        .flatMap((g) => g.repositories)
+        .flatMap((r) => r.issues);
+      const prInfos = useAgentsStore.getState().prUrlByThread;
+      const mergedAt = new Date().toISOString();
+      for (const thread of allThreads) {
+        const info = prInfos[thread.id];
+        if (info?.url === pr.url) {
+          agentsSetThreadPrInfo(thread.id, {
+            ...info,
+            state: "MERGED",
+            mergedAt,
+          });
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(organizationId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(organizationId, repoName) });
       onMerged();
       onOpenChange(false);
     } catch (err) {
@@ -318,7 +421,7 @@ export function PrDetailSheet({
             </Collapsible>
 
             {/* Comments card */}
-            <Collapsible defaultOpen={comments.length > 0}>
+            <Collapsible open={comments.length > 0 ? true : undefined} defaultOpen={comments.length > 0}>
               <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
                 <CollapsibleTrigger className="w-full cursor-pointer">
                   <div className="flex flex-row items-center gap-3 px-4 py-3">
@@ -378,8 +481,27 @@ export function PrDetailSheet({
         {/* Footer — merge button */}
         <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 shrink-0 flex flex-col gap-2">
           {mergeError && (
-            <div className="rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 px-3 py-2 text-sm text-red-700 dark:text-red-400">
-              {mergeError}
+            <div className="flex flex-col gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 dark:border-red-500/20 dark:bg-red-500/10">
+              <div className="flex items-start gap-2 text-sm text-red-700 dark:text-red-400">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="flex-1">{mergeError}</span>
+              </div>
+              {pr ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="self-start border-red-300 bg-white text-red-700 hover:bg-red-50 dark:border-red-500/40 dark:bg-transparent dark:text-red-300 dark:hover:bg-red-500/10"
+                  onClick={handleResolveWithAI}
+                  disabled={isResolvingWithAI}
+                >
+                  {isResolvingWithAI ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {t("components.prDetail.resolveWithAi")}
+                </Button>
+              ) : null}
             </div>
           )}
           <div className="flex gap-2">

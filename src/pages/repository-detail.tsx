@@ -22,6 +22,7 @@ import {
 } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
 import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
+import { PrNewTaskDialog } from "../components/repos/pr-new-task-dialog";
 import { PrListCard } from "../components/repos/pr-list-card";
 import { IssueTable } from "../components/issues/issue-table";
 import { IssueDetailSheet } from "../components/issues/issue-detail-sheet";
@@ -78,6 +79,8 @@ export function RepositoryDetailPage() {
     resolveIssueScope,
     resolvePrScope,
     assignIssuesToSelfByDefault,
+    setRepositoryPrScope,
+    setRepositoryIssueScope,
   } = useSettingsStore();
   const queryClient = useQueryClient();
 
@@ -100,6 +103,9 @@ export function RepositoryDetailPage() {
   const [tab, setTab] = useState<"prs" | "issues" | "branches">("prs");
   const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
   const [prSheetOpen, setPrSheetOpen] = useState(false);
+  const [newTaskPr, setNewTaskPr] = useState<PullRequestDto | null>(null);
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+
   const [issueSheetOpen, setIssueSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createBranchOpen, setCreateBranchOpen] = useState(false);
@@ -693,9 +699,16 @@ export function RepositoryDetailPage() {
                 "all_open",
               ] as PullRequestScope[]).map((scope) => ({
                 label: t(prScopeLabelKey(scope)),
-                onSelect: () => syncPrsMutation.mutate(scope),
+                onSelect: () => {
+                  setRepositoryPrScope(activeRepo!.organizationId, activeRepo!.name, scope);
+                  syncPrsMutation.mutate(scope);
+                },
               }))}
               onMerged={() => queryClient.invalidateQueries({ queryKey: ["pull-requests", activeRepo!.organizationId, activeRepo!.name] })}
+              onNewTask={(pr) => {
+                setNewTaskPr(pr);
+                setNewTaskOpen(true);
+              }}
             />
           )}
         </TabsContent>
@@ -729,7 +742,10 @@ export function RepositoryDetailPage() {
                  "all",
                ] as IssueScope[]).map((scope) => ({
                  label: t(issueScopeLabelKey(scope)),
-                 onSelect: () => syncIssuesMutation.mutate(scope),
+                 onSelect: () => {
+                   setRepositoryIssueScope(activeRepo!.organizationId, activeRepo!.name, scope);
+                   syncIssuesMutation.mutate(scope);
+                 },
                }))}
                isSyncing={syncIssuesMutation.isPending}
                 onOpenUrl={handleOpenUrl}
@@ -937,6 +953,13 @@ export function RepositoryDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PrNewTaskDialog
+        pr={newTaskPr}
+        repoNameWithOwner={activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : null}
+        open={newTaskOpen}
+        onOpenChange={setNewTaskOpen}
+      />
     </PageLayout>
   );
 }

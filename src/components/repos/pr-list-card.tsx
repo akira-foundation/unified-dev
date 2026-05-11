@@ -42,6 +42,7 @@ interface PrListCardProps {
   onSync?: () => void;
   syncOptions?: Array<{ label: string; onSelect: () => void }>;
   onMerged?: () => void;
+  onNewTask?: (pr: PullRequestDto) => void;
 }
 
 function toggleItem(arr: string[], item: string): string[] {
@@ -58,6 +59,7 @@ export function PrListCard({
   onSync,
   syncOptions,
   onMerged,
+  onNewTask,
 }: PrListCardProps) {
   const { t } = useI18n();
   const { navigateTo, setActivePr, setActiveRepo } = useNavigationStore();
@@ -312,6 +314,7 @@ export function PrListCard({
               onOpen={handleOpenUrl}
               onViewDetail={handleViewDetail}
               onReview={handleReview}
+              onNewTask={onNewTask}
             />
           ))}
         </CardContent>

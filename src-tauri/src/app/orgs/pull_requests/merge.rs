@@ -37,5 +37,24 @@ pub async fn merge(
     .await
     .map_err(|e| e.to_string())?;
 
+    let open_prs_count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
+    )
+    .bind(&organization_id)
+    .bind(&repo_name)
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
+    sqlx::query(
+        "UPDATE organization_repos SET open_prs_count = ? WHERE organization_id = ? AND repo_name = ?",
+    )
+    .bind(open_prs_count)
+    .bind(&organization_id)
+    .bind(&repo_name)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?;
+
     Ok(())
 }

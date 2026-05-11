@@ -97,13 +97,17 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     return groups;
   }, [items]);
 
-  const recentRepos = useMemo(
-    () =>
-      [...allRepos]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 5),
-    [allRepos],
-  );
+  const recentNavRepos = useNavigationStore((s) => s.recentRepos);
+
+  const recentRepos = useMemo(() => {
+    const byKey = new Map(
+      allRepos.map((r) => [`${r.organization_id}:${r.repo_name}`, r]),
+    );
+    return recentNavRepos
+      .map((r) => byKey.get(`${r.organizationId}:${r.name}`))
+      .filter((r): r is OrganizationRepoWithOrg => Boolean(r))
+      .slice(0, 5);
+  }, [allRepos, recentNavRepos]);
 
   function badgeFor(item: NavItem): NavBadge | undefined {
     if (item.badge) return item.badge;
@@ -206,7 +210,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                               owner: repo.owner,
                               organizationId: repo.organization_id,
                             });
-                            navigateTo("repository-prs");
+                            navigateTo("repository-detail");
                           }}
                           tooltip={repo.repo_name}
                           className="h-9 rounded-xl px-3 text-zinc-600 transition-colors hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
