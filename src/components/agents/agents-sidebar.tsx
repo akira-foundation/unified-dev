@@ -508,8 +508,15 @@ export function AgentsSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0 bg-sidebar backdrop-blur-xl">
-      <SidebarHeader className="h-16 border-b border-border/10 flex items-center px-4 pt-4 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:pt-0 group-data-[collapsible=icon]:justify-center">
+    <Sidebar
+      collapsible="icon"
+      variant="floating"
+      className="bg-transparent [&_[data-sidebar=sidebar]]:bg-white/70 [&_[data-sidebar=sidebar]]:backdrop-blur-2xl dark:[&_[data-sidebar=sidebar]]:bg-zinc-950/70"
+    >
+      <SidebarHeader
+        data-tauri-drag-region
+        className="flex h-20 items-end px-3 pt-12 pb-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:pt-12 group-data-[collapsible=icon]:justify-center [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag]"
+      >
         <div className="flex items-center gap-3 w-full group-data-[collapsible=icon]:justify-center">
           {state === "collapsed" ? (
             <button
@@ -545,14 +552,14 @@ export function AgentsSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex flex-col gap-1 px-4 py-2 border-b border-white/[0.03] group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:border-b-0">
+      <SidebarContent className="flex-1 flex flex-col overflow-hidden gap-1 pt-4 pb-2">
+        <div className="flex flex-col gap-1 px-2 group-data-[collapsible=icon]:px-0">
           <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
             <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
               <SidebarMenuButton
                 onClick={() => setShowAddRepositoryDialog(true)}
                 tooltip={t("agents.sidebar.addRepository")}
-                className="flex items-center gap-3 px-2 py-1.5 rounded-md dark:hover:bg-white/5 hover:bg-black/5 text-xs font-medium text-foreground/80 transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
+                className="flex items-center gap-3 h-10 px-3 rounded-xl text-[13px] font-medium text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40 transition-colors duration-150 group group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center"
               >
                 <Plus className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0" />
                 <span className="group-data-[collapsible=icon]:hidden">{t("agents.sidebar.addRepository")}</span>
@@ -561,7 +568,7 @@ export function AgentsSidebar() {
             <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
               <SidebarMenuButton
                 tooltip={t("agents.sidebar.automations")}
-                className="flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center opacity-40 cursor-not-allowed"
+                className="flex items-center gap-3 h-10 px-3 rounded-xl text-[13px] font-medium text-zinc-600 dark:text-zinc-400 transition-colors group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center opacity-40 cursor-not-allowed"
               >
                 <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
                 <span className="group-data-[collapsible=icon]:hidden">{t("agents.sidebar.automations")}</span>
@@ -574,8 +581,10 @@ export function AgentsSidebar() {
                 isActive={activeTab === 'skills'}
                 tooltip={t("agents.sidebar.skills")}
                 className={cn(
-                  "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
-                  activeTab === 'skills' ? "dark:bg-white/10 bg-black/10 text-foreground" : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
+                  "flex items-center gap-3 h-10 px-3 rounded-xl text-[13px] font-medium transition-colors duration-150 group group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                  activeTab === 'skills'
+                    ? "bg-white/70 text-zinc-900 shadow-sm shadow-black/5 dark:bg-zinc-800/70 dark:text-white"
+                    : "text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
                 )}
               >
                 <Lightbulb className={cn("h-4 w-4 transition-colors shrink-0", activeTab === 'skills' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")} />
@@ -588,8 +597,10 @@ export function AgentsSidebar() {
                 isActive={activeTab === 'mcp'}
                 tooltip={t("agents.sidebar.mcp")}
                 className={cn(
-                  "flex items-center gap-3 px-2 py-1.5 rounded-md text-xs font-medium transition-all group h-auto group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
-                  activeTab === 'mcp' ? "dark:bg-white/10 bg-black/10 text-foreground" : "dark:hover:bg-white/5 hover:bg-black/5 text-foreground/80"
+                  "flex items-center gap-3 h-10 px-3 rounded-xl text-[13px] font-medium transition-colors duration-150 group group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center",
+                  activeTab === 'mcp'
+                    ? "bg-white/70 text-zinc-900 shadow-sm shadow-black/5 dark:bg-zinc-800/70 dark:text-white"
+                    : "text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
                 )}
               >
                 <Link2 className={cn("h-4 w-4 transition-colors shrink-0", activeTab === 'mcp' ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")} />
@@ -640,7 +651,7 @@ export function AgentsSidebar() {
           <>
           {repositoryGroups.map((group) => (
             <SidebarGroup key={group.name} className="py-2">
-              <SidebarGroupLabel className="flex items-center justify-between px-4 mb-2">
+              <SidebarGroupLabel className="flex items-center justify-between px-4 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                 {searchOpen ? (
                   <div className="flex-1 relative group min-w-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-600 group-focus-within:text-purple-500/50 transition-colors" />
@@ -918,7 +929,7 @@ export function AgentsSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="p-3 border-t border-border/10">
+      <SidebarFooter className="p-2">
         {isFree && limit !== null && state !== "collapsed" && (
           <div className="mb-2 px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-900">
             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">

@@ -30,8 +30,14 @@ export function AppHeader() {
     const isBackEnabled = activeTab === "skill-source" || activeTab === "manage-skill" || canGoBack;
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex h-9 items-center justify-between px-3 md:px-4">
+        <header
+            data-tauri-drag-region
+            className="sticky top-0 z-50 w-full pt-2 [-webkit-app-region:drag]"
+        >
+            <div
+                data-tauri-drag-region
+                className="flex h-9 items-center justify-between px-3 md:px-4 [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag]"
+            >
                 <div className="flex items-center gap-2">
                     <Button
                         variant="ghost"
