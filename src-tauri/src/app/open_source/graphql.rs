@@ -84,10 +84,6 @@ pub struct ContributionsCollection {
     pub total_issue_contributions: i64,
     pub total_pull_request_contributions: i64,
     pub total_pull_request_review_contributions: i64,
-    pub total_repositories_with_contributed_commits: i64,
-    pub total_repositories_with_contributed_issues: i64,
-    pub total_repositories_with_contributed_pull_requests: i64,
-    pub total_repositories_with_contributed_pull_request_reviews: i64,
     pub contribution_calendar: ContributionCalendar,
     pub commit_contributions_by_repository: Vec<CommitContributionByRepo>,
 }
@@ -117,14 +113,12 @@ pub struct CalendarDay {
 #[serde(rename_all = "camelCase")]
 pub struct CommitContributionByRepo {
     pub repository: RepoRef,
-    pub contributions: TotalCount,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoRef {
     pub name_with_owner: String,
-    pub url: String,
 }
 
 pub const REPOS_CONTRIBUTED_QUERY: &str = r#"
@@ -171,7 +165,6 @@ pub struct ReposViewer {
 #[serde(rename_all = "camelCase")]
 pub struct ReposConnection {
     pub page_info: PageInfo,
-    pub total_count: i64,
     pub nodes: Vec<Option<RepoNode>>,
 }
 

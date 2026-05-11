@@ -21,9 +21,6 @@ pub struct YearOverviewDto {
 
 struct RepoAccumulator {
     name_with_owner: String,
-    owner_login: String,
-    owner_avatar: Option<String>,
-    owner_url: String,
     total: i64,
 }
 
@@ -83,9 +80,6 @@ pub async fn fetch_year_overview(
                 .and_modify(|r| r.total += count)
                 .or_insert(RepoAccumulator {
                     name_with_owner: nwo,
-                    owner_login: owner_login.clone(),
-                    owner_avatar: owner_avatar.clone(),
-                    owner_url: owner_url.clone(),
                     total: count,
                 });
 

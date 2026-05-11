@@ -157,31 +157,6 @@ impl GitHubDriver {
         Ok(response.json::<T>().await?)
     }
 
-    pub async fn put_json<B: Serialize + Send + Sync>(
-        &self,
-        url: String,
-        payload: &B,
-    ) -> AppResult<()> {
-        let response = self
-            .client
-            .put(url)
-            .bearer_auth(&self.token)
-            .header("Accept", "application/vnd.github+json")
-            .json(payload)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
-        }
-
-        Ok(())
-    }
-
     pub async fn graphql<T: DeserializeOwned>(&self, query: &str, variables: serde_json::Value) -> AppResult<T> {
         #[derive(Serialize)]
         struct GraphQlRequest<'a> {
