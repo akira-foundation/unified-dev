@@ -1,5 +1,17 @@
 
 
+# [0.9.0](https://github.com/akira-foundation/unified-dev/compare/v0.8.0...v0.9.0) (2026-05-11)
+
+
+### Features
+
+* **open-source:** add Open Source Contributions module ([cf2fac8](https://github.com/akira-foundation/unified-dev/commit/cf2fac82f76e0186c244a05950883d0d9abadcd0))
+* **open-source:** real GitHub GraphQL sync ([e141af3](https://github.com/akira-foundation/unified-dev/commit/e141af3a06b6c55748d75a3098a6e3f87f40e005))
+* **open-source:** UI refactor with contribution panel ([20538c2](https://github.com/akira-foundation/unified-dev/commit/20538c2211a85e62f16561849bbd2f1c9eb949dd))
+* **pr:** add AI task resolution and new task dialog for pull requests ([9927d82](https://github.com/akira-foundation/unified-dev/commit/9927d82a66d827e7b32f309592b239d4c1c89e6b))
+* **sidebar:** redesign sidebars in floating Tahoe-island style ([a23aa1e](https://github.com/akira-foundation/unified-dev/commit/a23aa1ec37d7bd88bd755046a139758bcd920d3a))
+* **window:** integrate native macOS title bar into sidebar island ([67eb44b](https://github.com/akira-foundation/unified-dev/commit/67eb44b3897163c6b09226f47486a1204de473fc))
+
 # [0.8.0](https://github.com/akira-foundation/unified-dev/compare/v0.7.0...v0.8.0) (2026-05-04)
 
 
