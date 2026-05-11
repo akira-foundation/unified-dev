@@ -1,22 +1,16 @@
-import { Layers, PanelLeft } from "lucide-react";
 import { useMemo } from "react";
 
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
-  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
+import { BaseSidebar } from "@/components/layout/base-sidebar";
 import { cache } from "@/config/cache";
 import { useI18n } from "@/i18n/i18n";
-import { useUsage } from "@/hooks/useUsage";
 import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
@@ -62,8 +56,6 @@ function ToneDot({ tone }: { tone: NavBadgeTone }) {
 
 export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const { t } = useI18n();
-  const { state, toggleSidebar } = useSidebar();
-  const { count, limit, isFree } = useUsage();
   const setActiveRepo = useNavigationStore((s) => s.setActiveRepo);
   const navigateTo = useNavigationStore((s) => s.navigateTo);
   const { organizations } = useOrganizations();
@@ -96,14 +88,11 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   });
 
   const itemsBySection = useMemo(() => {
-    const groups: Record<string, NavItem[]> = { workspace: [], browse: [], footer: [] };
+    const groups: Record<string, NavItem[]> = { workspace: [], browse: [] };
     for (const item of items) {
-      if (item.id === "settings") {
-        groups.footer.push(item);
-      } else {
-        const key = item.section ?? "workspace";
-        groups[key]?.push(item);
-      }
+      if (item.id === "settings") continue;
+      const key = item.section ?? "workspace";
+      groups[key]?.push(item);
     }
     return groups;
   }, [items]);
@@ -172,55 +161,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   }
 
   return (
-    <Sidebar
-      collapsible="icon"
-      variant="floating"
-      className="bg-transparent [&_[data-sidebar=sidebar]]:bg-white/70 [&_[data-sidebar=sidebar]]:backdrop-blur-2xl dark:[&_[data-sidebar=sidebar]]:bg-zinc-950/70"
-    >
-        <SidebarHeader
-          data-tauri-drag-region
-          className="flex h-20 items-end px-3 pt-12 pb-2 group-data-[collapsible=icon]:px-0 [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag]"
-        >
-          <div
-            data-tauri-drag-region
-            className="flex w-full items-center gap-3 group-data-[collapsible=icon]:justify-center"
-          >
-            {state === "collapsed" ? (
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100 transition-all hover:bg-zinc-200 active:scale-95 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-                title={t("sidebar.expandSidebar")}
-              >
-                <PanelLeft className="h-5 w-5 text-zinc-500" />
-              </button>
-            ) : (
-              <>
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-600 shadow-md shadow-purple-600/30">
-                  <Layers className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex flex-1 flex-col overflow-hidden">
-                  <span className="truncate text-sm font-bold tracking-tight text-zinc-900 dark:text-white">
-                    {t("app.name")}
-                  </span>
-                  <span className="truncate text-[9px] font-bold uppercase tracking-widest text-zinc-500">
-                    {t("app.workspace")}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleSidebar}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition-all hover:bg-zinc-200/60 hover:text-zinc-900 dark:hover:bg-zinc-800/60 dark:hover:text-white"
-                  title={t("sidebar.collapseSidebar")}
-                >
-                  <PanelLeft className="h-4 w-4" />
-                </button>
-              </>
-            )}
-          </div>
-        </SidebarHeader>
-
-        <SidebarContent className="custom-scrollbar gap-1 pt-4 pb-2">
+    <BaseSidebar>
           {itemsBySection.workspace.length > 0 ? (
             <SidebarGroup>
               <SidebarGroupLabel className="px-4 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-data-[collapsible=icon]:hidden">
@@ -285,27 +226,6 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
               </SidebarGroupContent>
             </SidebarGroup>
           ) : null}
-        </SidebarContent>
-
-        <SidebarFooter className="p-2">
-          {isFree && limit !== null && state !== "collapsed" && (
-            <div className="mb-2 rounded-xl bg-zinc-100/80 px-3 py-2 dark:bg-zinc-900/60">
-              <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                {count}/{limit} {t("sidebar.runsToday")}
-              </p>
-              <div className="mt-1 h-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
-                <div
-                  className={cn(
-                    "h-1 rounded-full transition-all",
-                    count >= limit ? "bg-rose-500" : "bg-purple-500",
-                  )}
-                  style={{ width: `${Math.min((count / limit) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
-          )}
-          <SidebarMenu>{itemsBySection.footer.map(renderItem)}</SidebarMenu>
-        </SidebarFooter>
-    </Sidebar>
+    </BaseSidebar>
   );
 }

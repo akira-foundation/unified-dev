@@ -1,9 +1,10 @@
-import { Bell, ChevronLeft, Download } from "lucide-react";
+import { Bell, ChevronLeft, Download, PanelLeft } from "lucide-react";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
 import { useUpdater } from "@/hooks/useUpdater";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 import { appVersion } from "@/lib/app-meta";
 import {
     Tooltip,
@@ -16,6 +17,7 @@ export function AppHeader() {
     const { t } = useI18n();
     const { update, installing, install } = useUpdater();
     const { activeTab, setActiveTab, previousTab } = useAgentsStore();
+    const { state: sidebarState, toggleSidebar } = useSidebar();
 
     const handleBack = () => {
         if (activeTab === "skill-source") {
@@ -36,9 +38,20 @@ export function AppHeader() {
         >
             <div
                 data-tauri-drag-region
-                className="flex h-9 items-center justify-between px-3 md:px-4 [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag]"
+                className={`flex h-9 items-center justify-between pr-4 [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag] ${sidebarState === "collapsed" ? "pl-24" : "pl-3 md:pl-4"}`}
             >
                 <div className="flex items-center gap-2">
+                    {sidebarState === "collapsed" ? (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={toggleSidebar}
+                            className="shrink-0 h-7 w-7"
+                            title={t("sidebar.expandSidebar")}
+                        >
+                            <PanelLeft className="h-3.5 w-3.5" />
+                        </Button>
+                    ) : null}
                     <Button
                         variant="ghost"
                         size="icon"

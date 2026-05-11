@@ -1,7 +1,6 @@
 import {
   ChevronDown,
   ChevronRight,
-  Layers,
   Plus,
   Folder,
   Search,
@@ -20,7 +19,6 @@ import {
   Settings,
   Trash2,
   Rocket,
-  PanelLeft,
   ExternalLink,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -30,10 +28,6 @@ import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
@@ -42,6 +36,7 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { BaseSidebar } from "@/components/layout/base-sidebar";
 
 import {
   DropdownMenu,
@@ -83,6 +78,7 @@ import { RemoveThreadDialog } from "@/components/agents/remove-thread-dialog";
 import { RepoSettingsSheet } from "@/components/agents/repo-settings-sheet";
 import { AutopilotDialog } from "@/components/agents/autopilot-dialog";
 import { AutopilotIndicator } from "@/components/agents/autopilot-indicator";
+import { useUsage } from "@/hooks/useUsage";
 import { AutopilotJobsPanel } from "@/components/agents/autopilot-jobs-panel";
 import { AutopilotJobDetail } from "@/components/agents/autopilot-job-detail";
 import { useAutopilotStore } from "@/stores/useAutopilotStore";
@@ -96,7 +92,6 @@ import type { IssueDto } from "@/types/issue";
 import type { BranchDto, PullRequestDto } from "@/types/organization";
 import type { AgentRepository } from "@/types/agents";
 import { openUpgradeModal } from "@/stores/upgrade-modal-store";
-import { useUsage } from "@/hooks/useUsage";
 
 function RepoStreamingIndicator({ repoIssueIds }: { repoIssueIds: string[] }) {
   const streamingThreadIds = useAgentsStore((s) => s.streamingThreadIds);
@@ -210,7 +205,7 @@ export function AgentsSidebar() {
     setThreadPrInfo,
     loadRepositories,
   } = useAgentsStore();
-  const { count, limit, isFree } = useUsage();
+  const { isFree } = useUsage();
   const [isAddingRepo, setIsAddingRepo] = useState(false);
   const [repoToRemove, setRepoToRemove] = useState<{ id: string; name: string } | null>(null);
   const [isRemovingRepo, setIsRemovingRepo] = useState(false);
@@ -507,52 +502,24 @@ export function AgentsSidebar() {
     }
   };
 
-  return (
-    <Sidebar
-      collapsible="icon"
-      variant="floating"
-      className="bg-transparent [&_[data-sidebar=sidebar]]:bg-white/70 [&_[data-sidebar=sidebar]]:backdrop-blur-2xl dark:[&_[data-sidebar=sidebar]]:bg-zinc-950/70"
-    >
-      <SidebarHeader
-        data-tauri-drag-region
-        className="flex h-20 items-end px-3 pt-12 pb-2 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:items-center group-data-[collapsible=icon]:pt-12 group-data-[collapsible=icon]:justify-center [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag]"
-      >
-        <div className="flex items-center gap-3 w-full group-data-[collapsible=icon]:justify-center">
-          {state === "collapsed" ? (
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="relative flex h-10 w-10 items-center justify-center rounded-md bg-zinc-100 dark:bg-zinc-900 transition-all hover:bg-zinc-200 dark:hover:bg-zinc-800 active:scale-95 group/toggle overflow-hidden"
-              title={t("sidebar.expandSidebar")}
-            >
-              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover/toggle:opacity-100 transition-opacity" />
-              <PanelLeft className="h-5 w-5 text-muted-foreground group-hover/toggle:text-primary transition-colors" />
-            </button>
-          ) : (
-            <>
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary shadow-lg shadow-primary/20">
-                <Layers className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <span className="text-sm font-bold tracking-tight text-foreground dark:text-white truncate">{t("app.name")}</span>
-                <span className="text-[9px] uppercase tracking-widest text-muted-foreground font-bold truncate">
-                  {t("agents.sidebar.agents")}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-foreground dark:hover:text-white transition-all"
-                title={t("sidebar.collapseSidebar")}
-              >
-                <PanelLeft className="h-4 w-4" />
-              </button>
-            </>
-          )}
-        </div>
-      </SidebarHeader>
+  const agentsFooterExtra = (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <AutopilotIndicator
+          onOpen={() => setAutopilotPanelOpen(true)}
+          collapsed={state === "collapsed"}
+        />
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
 
-      <SidebarContent className="flex-1 flex flex-col overflow-hidden gap-1 pt-4 pb-2">
+  return (
+    <>
+    <BaseSidebar
+      subtitleKey="agents.sidebar.agents"
+      contentClassName="flex-1 flex flex-col overflow-hidden gap-1 pt-4 pb-2"
+      footerExtra={agentsFooterExtra}
+    >
         <div className="flex flex-col gap-1 px-2 group-data-[collapsible=icon]:px-0">
           <SidebarMenu className="gap-1 group-data-[collapsible=icon]:items-center">
             <SidebarMenuItem className="group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
@@ -927,48 +894,7 @@ export function AgentsSidebar() {
           )}
         </div>
         )}
-      </SidebarContent>
-
-      <SidebarFooter className="p-2">
-        {isFree && limit !== null && state !== "collapsed" && (
-          <div className="mb-2 px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-900">
-            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 font-medium">
-              {count}/{limit} {t("sidebar.runsToday")}
-            </p>
-            <div className="mt-1 h-1 rounded-full bg-zinc-200 dark:bg-zinc-800">
-              <div
-                className={cn(
-                  "h-1 rounded-full transition-all",
-                  count >= limit ? "bg-red-500" : "bg-primary"
-                )}
-                style={{ width: `${Math.min((count / limit) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <AutopilotIndicator
-              onOpen={() => setAutopilotPanelOpen(true)}
-              collapsed={state === "collapsed"}
-            />
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => navigateTo("settings")}
-              tooltip={t("nav.settings")}
-              className="transition-all duration-200 rounded-md h-10 px-3 text-zinc-500 hover:bg-zinc-100/50 dark:hover:bg-zinc-900/50 hover:text-foreground dark:hover:text-zinc-300 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0"
-            >
-              <div className="flex items-center justify-center shrink-0 text-zinc-500">
-                <Settings className="h-4 w-4" />
-              </div>
-              <span className="ml-3 text-[13px] font-medium group-data-[collapsible=icon]:hidden">
-                {t("nav.settings")}
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarFooter>
+    </BaseSidebar>
 
       <AddRepositoryDialog
         open={showAddRepositoryDialog}
@@ -1178,6 +1104,6 @@ export function AgentsSidebar() {
         open={!!selectedJobId}
         onOpenChange={(open) => { if (!open) useAutopilotStore.getState().selectJob(null); }}
       />
-    </Sidebar>
+    </>
   );
 }
