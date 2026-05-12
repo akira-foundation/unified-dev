@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModelPicker } from "@/components/agents/model-picker";
-import { useAutopilotStore, type AutopilotConfig, type AutopilotFilter, type AutopilotModelMode } from "@/stores/useAutopilotStore";
+import { useAutopilotStore, type AutopilotConfig, type AutopilotFilter, type AutopilotModelMode, type AutopilotPrMode } from "@/stores/useAutopilotStore";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
 import type { IssueDto } from "@/types/issue";
@@ -40,6 +40,8 @@ export function AutopilotDialog({ open, onOpenChange, repoId, repoName }: Autopi
   const [singleModelId, setSingleModelId] = useState<string | null>(selectedModelId);
   const [filter, setFilter] = useState<AutopilotFilter>("assigned_to_me");
   const [autoSend, setAutoSend] = useState(true);
+  const [prMode, setPrMode] = useState<AutopilotPrMode>("off");
+  const [resolveConflicts, setResolveConflicts] = useState(true);
 
   useEffect(() => {
     if (!open) return;
@@ -87,6 +89,8 @@ export function AutopilotDialog({ open, onOpenChange, repoId, repoName }: Autopi
       filter,
       assignedToLogin: filter === "assigned_to_me" ? providerLogin : null,
       autoSend,
+      prMode,
+      resolveConflicts,
     };
 
     startJob(repoId, repoName, issues, config);
@@ -203,6 +207,35 @@ export function AutopilotDialog({ open, onOpenChange, repoId, repoName }: Autopi
               <p className="text-[11px] text-muted-foreground">{t("autopilot.dialog.autoSendDesc")}</p>
             </div>
             <Switch checked={autoSend} onCheckedChange={setAutoSend} />
+          </div>
+
+          {/* Finish + PR */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium">{t("autopilot.dialog.prMode")}</p>
+                <p className="text-[11px] text-muted-foreground">{t("autopilot.dialog.prModeDesc")}</p>
+              </div>
+              <Select value={prMode} onValueChange={(v) => setPrMode(v as AutopilotPrMode)}>
+                <SelectTrigger className="h-8 w-32 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="off">{t("autopilot.prMode.off")}</SelectItem>
+                  <SelectItem value="draft">{t("autopilot.prMode.draft")}</SelectItem>
+                  <SelectItem value="ready">{t("autopilot.prMode.ready")}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {prMode !== "off" ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium">{t("autopilot.dialog.resolveConflicts")}</p>
+                  <p className="text-[11px] text-muted-foreground">{t("autopilot.dialog.resolveConflictsDesc")}</p>
+                </div>
+                <Switch checked={resolveConflicts} onCheckedChange={setResolveConflicts} />
+              </div>
+            ) : null}
           </div>
         </div>
 

@@ -14,6 +14,7 @@ function handleAutopilotError(err: unknown) {
 export type AutopilotJobStatus = "running" | "waiting" | "stopping" | "done" | "stopped" | "error";
 export type AutopilotModelMode = "current" | "single" | "random";
 export type AutopilotFilter = "all" | "unassigned" | "no_pr" | "assigned_to_me";
+export type AutopilotPrMode = "off" | "draft" | "ready";
 
 export interface AutopilotConfig {
   batchSize: number;
@@ -23,6 +24,8 @@ export interface AutopilotConfig {
   filter: AutopilotFilter;
   assignedToLogin: string | null;
   autoSend: boolean;
+  prMode: AutopilotPrMode;
+  resolveConflicts: boolean;
 }
 
 export interface AutopilotThreadResult {
@@ -63,6 +66,7 @@ export function getAutopilotCompletedCount(
 const cancelTokens: Record<string, { cancelled: boolean }> = {};
 const agentWatchers: Record<string, () => void> = {};
 const threadWatchers: Record<string, () => void> = {};
+const autoPrDispatched = new Set<string>();
 
 function dbLog(
   jobId: string,
@@ -124,6 +128,35 @@ function watchThread(
     if (!job || job.status === "stopped" || job.status === "stopping" || job.status === "done") return;
 
     const currentAgentsState = useAgentsStore.getState();
+    const hasPrNow = Boolean(currentAgentsState.prUrlByThread[threadId]?.url);
+    const stillStreaming = Boolean(currentAgentsState.streamingThreadIds[threadId]);
+    const autoPrKey = `${jobId}:${threadId}`;
+
+    if (
+      !hasPrNow
+      && !stillStreaming
+      && job.config.prMode !== "off"
+      && !autoPrDispatched.has(autoPrKey)
+    ) {
+      autoPrDispatched.add(autoPrKey);
+      const modelId =
+        job.config.modelMode === "single" && job.config.modelId
+          ? job.config.modelId
+          : currentAgentsState.selectedModelId;
+      if (modelId) {
+        const draft = job.config.prMode === "draft";
+        const conflictHint = job.config.resolveConflicts
+          ? " If there are uncommitted changes, commit them. If the branch has merge conflicts with the default branch, resolve them locally first."
+          : "";
+        const prompt = `When you're done with the task, push the current branch to the remote and open ${draft ? "a draft" : "a"} pull request against the default branch with a clear title and summary referencing the issue.${conflictHint}`;
+        useAgentsStore
+          .getState()
+          .sendMessage(threadId, prompt, modelId, false)
+          .catch(() => {});
+        dbLog(jobId, "auto_pr_dispatched", { threadRowId, repoName, detail: job.config.prMode });
+      }
+    }
+
     const allCompleted = getAutopilotCompletedCount(job.threads, currentAgentsState.prUrlByThread, currentAgentsState.streamingThreadIds) === job.threads.length;
     if (allCompleted) {
       finalizeJob(jobId, false, _get, set);
