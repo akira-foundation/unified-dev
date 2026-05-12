@@ -1,4 +1,4 @@
-use rand::{distributions::Alphanumeric, Rng};
+use rand::{distr::Alphanumeric, Rng};
 use tauri::{AppHandle, State};
 
 use crate::app::support::error::AppResult;
@@ -38,8 +38,8 @@ fn default_host_name() -> String {
 }
 
 fn random_code(prefix: &str, len: usize) -> String {
-    let suffix: String = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
+    let suffix: String = rand::rng()
+        .sample_iter(Alphanumeric)
         .take(len)
         .map(char::from)
         .collect::<String>()

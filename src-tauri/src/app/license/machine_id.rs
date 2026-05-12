@@ -34,7 +34,7 @@ fn encrypt(plaintext: &[u8]) -> AppResult<Vec<u8>> {
     let cipher = Aes256Gcm::new_from_slice(&key).map_err(|e| AppError::Internal(e.to_string()))?;
 
     let mut nonce_bytes = [0u8; 12];
-    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    rand::rng().fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher
