@@ -5,6 +5,9 @@ mod database;
 mod providers;
 mod state;
 
+#[cfg(test)]
+mod test_utils;
+
 use std::sync::Arc;
 
 use commands::autopilot::{

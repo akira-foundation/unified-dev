@@ -35,3 +35,42 @@ pub async fn init_pool(app: &tauri::AppHandle) -> AppResult<SqlitePool> {
 
     Ok(pool)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::test_utils::setup_test_db;
+
+    #[tokio::test]
+    async fn migrations_run_on_empty_db() {
+        let pool = setup_test_db().await;
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='providers'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(count, 1, "providers table must exist after migrations");
+    }
+
+    #[tokio::test]
+    async fn migrations_include_oss_tables() {
+        let pool = setup_test_db().await;
+        for table in [
+            "github_contribution_profiles",
+            "github_contributed_repositories",
+            "github_pull_requests_oss",
+            "github_issues_oss",
+            "github_reviews_oss",
+            "github_contribution_snapshots",
+        ] {
+            let count: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+            )
+            .bind(table)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+            assert_eq!(count, 1, "table {table} must exist after migrations");
+        }
+    }
+}

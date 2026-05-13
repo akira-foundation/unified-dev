@@ -48,5 +48,11 @@ zip = "2"
 axum = "0.8.8"
 
 
+[dev-dependencies]
+tauri = { version = "2.11", features = ["test"] }
+tempfile = "3"
+wiremock = "0.6"
+serial_test = "3"
+
 [lints.clippy]
 too_many_arguments = "allow"
