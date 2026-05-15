@@ -65,6 +65,9 @@ jobs:
         run: |
           echo "AKIRA_API_URL=${{ secrets.AKIRA_API_URL }}" >> .env
           echo "GITHUB_CLIENT_ID=${{ secrets.GH_OAUTH_CLIENT_ID }}" >> .env
+          echo "AKIRA_BILLING_URL=${{ secrets.AKIRA_BILLING_URL }}" >> .env
+          echo "AKIRA_BILLING_SECRET=${{ secrets.AKIRA_BILLING_SECRET }}" >> .env
+          echo "AKIRA_LICENSE_PUBKEY=${{ secrets.AKIRA_LICENSE_PUBKEY }}" >> .env
 
       - name: Build application
         env:
@@ -189,6 +192,9 @@ jobs:
         run: |
           echo "AKIRA_API_URL=${{ secrets.AKIRA_API_URL }}" >> .env
           echo "GITHUB_CLIENT_ID=${{ secrets.GH_OAUTH_CLIENT_ID }}" >> .env
+          echo "AKIRA_BILLING_URL=${{ secrets.AKIRA_BILLING_URL }}" >> .env
+          echo "AKIRA_BILLING_SECRET=${{ secrets.AKIRA_BILLING_SECRET }}" >> .env
+          echo "AKIRA_LICENSE_PUBKEY=${{ secrets.AKIRA_LICENSE_PUBKEY }}" >> .env
 
       - name: Build application
         env:
