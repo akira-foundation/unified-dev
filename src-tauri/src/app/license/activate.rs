@@ -1,85 +1,109 @@
+use akira_billing::types::LicenseActivatePayload;
+use tauri::State;
+
+use crate::app::billing::PRODUCT_SLUG;
 use crate::app::support::error::{AppError, AppResult};
+use crate::state::AppState;
 
-use super::hmac;
 use super::machine_id;
-use super::types::{ActivateLicenseRequest, LicenseDto, WorkerLicenseResponse};
+use super::signed_license::{Keyring, SignedLicenseEnvelope};
+use super::types::{ActivateLicenseRequest, LicenseDto};
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
-
-pub async fn activate(input: ActivateLicenseRequest, pool: &sqlx::SqlitePool, app: &tauri::AppHandle) -> AppResult<LicenseDto> {
+pub async fn activate(
+    input: ActivateLicenseRequest,
+    state: State<'_, AppState>,
+    app: &tauri::AppHandle,
+) -> AppResult<LicenseDto> {
     let identity = machine_id::get_or_create(app)?;
+    let platform = std::env::consts::OS;
+    let app_version = env!("CARGO_PKG_VERSION");
+    let device_name = input.device_name.as_deref();
 
-    let client = reqwest::Client::new();
-    let res = client
-        .post(format!("{AKIRA_API_URL}/billing/activate"))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "session_id": input.session_id,
-            "machine_id": identity.id,
-        }))
-        .send()
-        .await
-        .map_err(AppError::Http)?;
+    let response = {
+        let billing = state.billing.read().await;
+        billing
+            .inner()
+            .license_activate(LicenseActivatePayload {
+                product: PRODUCT_SLUG,
+                device_type: "desktop",
+                platform: Some(platform),
+                device_name,
+                app_version: Some(app_version),
+                fingerprint: &identity.id,
+            })
+            .await
+            .map_err(|e| translate_billing_error(e, "license_activate"))?
+    };
 
-    if !res.status().is_success() {
-        let msg = res.text().await.unwrap_or_default();
-        return Err(AppError::Internal(format!("Activation failed: {msg}")));
-    }
+    let envelope = SignedLicenseEnvelope {
+        key_id: response.license.key_id.clone(),
+        algorithm: response.license.algorithm.clone(),
+        payload: response.license.payload.clone(),
+        signature: response.license.signature.clone(),
+    };
 
-    let worker_res: WorkerLicenseResponse = res.json().await.map_err(AppError::Http)?;
+    let keyring = Keyring::from_build_env()?;
+    let payload = keyring.verify(&envelope)?;
 
-    if !hmac::verify(
-        &worker_res.token,
-        &worker_res.plan,
-        &worker_res.cycle,
-        &worker_res.valid_until,
-        &worker_res.email,
-        &worker_res.signature,
-    ) {
-        return Err(AppError::Internal("License signature verification failed".into()));
+    if payload.fingerprint_hash != identity.id {
+        return Err(AppError::Internal(format!(
+            "license fingerprint mismatch: payload={} device={}",
+            payload.fingerprint_hash, identity.id
+        )));
     }
 
     let now = chrono::Utc::now().to_rfc3339();
+    let features_json = serde_json::to_string(&response.features).unwrap_or_default();
 
     sqlx::query(
-        "INSERT INTO license (id, token, plan, cycle, email, status, valid_until, activated_at, last_verified_at, signature)
-         VALUES ('local', ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           token = excluded.token,
-           plan = excluded.plan,
-           cycle = excluded.cycle,
-           email = excluded.email,
-           status = excluded.status,
-           valid_until = excluded.valid_until,
-           activated_at = excluded.activated_at,
-           last_verified_at = excluded.last_verified_at,
-           signature = excluded.signature",
+        "UPDATE license SET
+            plan = ?, status = ?, valid_until = ?, activated_at = ?,
+            last_verified_at = ?, license_key_id = ?, license_algorithm = ?,
+            license_payload = ?, license_signature = ?, features_json = ?,
+            device_id = ?
+         WHERE id = 'local'",
     )
-    .bind(&worker_res.token)
-    .bind(&worker_res.plan)
-    .bind(&worker_res.cycle)
-    .bind(&worker_res.email)
-    .bind(&worker_res.status)
-    .bind(&worker_res.valid_until)
-    .bind(&worker_res.activated_at)
+    .bind(&response.plan)
+    .bind("active")
+    .bind(&payload.valid_until)
+    .bind(&payload.issued_at)
     .bind(&now)
-    .bind(&worker_res.signature)
-    .execute(pool)
+    .bind(&envelope.key_id)
+    .bind(&envelope.algorithm)
+    .bind(&envelope.payload)
+    .bind(&envelope.signature)
+    .bind(&features_json)
+    .bind(&response.device.id)
+    .execute(&state.db_pool)
     .await?;
 
     Ok(LicenseDto {
-        token: worker_res.token,
-        plan: worker_res.plan,
-        cycle: worker_res.cycle,
-        email: worker_res.email,
-        status: worker_res.status,
-        valid_until: worker_res.valid_until,
-        activated_at: worker_res.activated_at,
+        token: String::new(),
+        plan: response.plan,
+        cycle: String::new(),
+        email: payload.customer_id,
+        status: "active".to_string(),
+        valid_until: payload.valid_until,
+        activated_at: payload.issued_at,
         last_verified_at: now,
-        signature: worker_res.signature,
+        signature: envelope.signature,
         grace_period: false,
         cancel_at_period_end: None,
         cancel_at: None,
         target_plan: None,
     })
+}
+
+fn translate_billing_error(err: akira_billing::Error, context: &str) -> AppError {
+    use akira_billing::Error as BErr;
+    match err {
+        BErr::Api { status, code } => {
+            if !code.is_empty() {
+                AppError::Internal(code)
+            } else {
+                AppError::Internal(format!("billing {context} failed: HTTP {status}"))
+            }
+        }
+        other => AppError::Internal(format!("billing {context}: {other}")),
+    }
 }

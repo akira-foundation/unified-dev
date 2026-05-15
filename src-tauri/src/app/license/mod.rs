@@ -7,6 +7,7 @@ pub mod invoices;
 pub mod machine_id;
 pub mod portal;
 pub mod register;
+pub mod signed_license;
 pub mod types;
 pub mod verify;
 

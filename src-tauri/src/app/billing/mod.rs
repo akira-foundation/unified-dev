@@ -1,3 +1,3 @@
 pub mod client;
 
-pub use client::BillingClient;
+pub use client::{BillingClient, PRODUCT_SLUG};

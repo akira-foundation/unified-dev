@@ -13,7 +13,7 @@ pub async fn checkout_license(plan: String, cycle: String) -> AppResult<Checkout
 
 #[tauri::command]
 pub async fn activate_license(input: ActivateLicenseRequest, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
-    license::activate(input, &state.db_pool, &app).await
+    license::activate(input, state, &app).await
 }
 
 #[tauri::command]

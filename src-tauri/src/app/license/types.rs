@@ -21,7 +21,7 @@ pub struct LicenseDto {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActivateLicenseRequest {
-    pub session_id: String,
+    pub device_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
