@@ -1,4 +1,5 @@
 pub mod autopilot;
+pub mod billing;
 pub mod chat;
 pub mod concerns;
 pub mod license;

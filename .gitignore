@@ -27,3 +27,4 @@ dist-ssr
 
 # Claude Code session/worktrees
 .claude/
+/marketing

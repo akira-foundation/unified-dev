@@ -46,6 +46,8 @@ tauri-plugin-updater = "2"
 regex = "1"
 zip = "2"
 axum = "0.8.8"
+akira-billing = { git = "https://github.com/akira-io/billing-sdk-rust", branch = "main" }
+ed25519-dalek = { version = "2", features = ["pkcs8"] }
 
 
 [dev-dependencies]
