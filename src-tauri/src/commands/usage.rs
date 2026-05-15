@@ -1,11 +1,13 @@
+use akira_billing::types::UsagePayload;
 use serde::Serialize;
 use tauri::{AppHandle, State};
 
+use crate::app::billing::PRODUCT_SLUG;
+use crate::app::license;
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
-const FREE_RUN_LIMIT: u32 = 5;
+const DEFAULT_FEATURE: &str = "agent_run";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -18,7 +20,24 @@ pub struct UsageDto {
 
 #[tauri::command]
 pub async fn get_usage(state: State<'_, AppState>, app: AppHandle) -> AppResult<UsageDto> {
-    let plan = crate::app::license::get_plan(&state.db_pool).await?;
+    check_feature(&state, &app, DEFAULT_FEATURE).await
+}
+
+#[tauri::command]
+pub async fn get_feature_usage(
+    feature: String,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> AppResult<UsageDto> {
+    check_feature(&state, &app, &feature).await
+}
+
+async fn check_feature(
+    state: &State<'_, AppState>,
+    app: &AppHandle,
+    feature: &str,
+) -> AppResult<UsageDto> {
+    let plan = license::get_plan(&state.db_pool).await?;
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
     if plan != "free" {
@@ -30,43 +49,51 @@ pub async fn get_usage(state: State<'_, AppState>, app: AppHandle) -> AppResult<
         });
     }
 
-    let token = crate::app::license::get_token(&state.db_pool)
+    let identity = license::machine_id::get_or_create(app)?;
+    let has_token = license::load_customer_token(&state.db_pool, &state.token_cipher)
         .await?
-        .unwrap_or_default();
+        .is_some();
+    let payload = UsagePayload {
+        product: PRODUCT_SLUG,
+        feature,
+        date: &date,
+        device_fp: &identity.id,
+        action: "check",
+    };
 
-    let identity = crate::app::license::machine_id::get_or_create(&app)?;
-
-    let client = reqwest::Client::new();
-    let res = client
-        .post(format!("{AKIRA_API_URL}/billing/usage"))
-        .json(&serde_json::json!({
-            "machine_id": identity.id,
-            "token": token,
-            "action": "check",
-            "date": date,
-            "created_at_sig": identity.created_at_sig,
-        }))
-        .send()
-        .await
-        .map_err(AppError::Http)?;
-
-    let body: serde_json::Value = res.json().await.map_err(AppError::Http)?;
-
-    if let Some(sig) = body["created_at_sig"].as_str() {
-        if identity.created_at_sig.as_deref() != Some(sig) {
-            let mut updated = identity.clone();
-            updated.created_at_sig = Some(sig.to_string());
-            let _ = crate::app::license::machine_id::save(&app, &updated);
-        }
-    }
-
-    let run_count = body["count"].as_u64().unwrap_or(0) as u32;
-    let run_limit = body["limit"].as_u64().map(|v| v as u32).unwrap_or(FREE_RUN_LIMIT);
+    let billing = state.billing.read().await;
+    let response = if has_token {
+        billing
+            .inner()
+            .track_usage(payload)
+            .await
+            .map_err(|e| translate_billing_error(e, "track_usage"))?
+    } else {
+        billing
+            .inner()
+            .track_anonymous_usage(payload)
+            .await
+            .map_err(|e| translate_billing_error(e, "track_anonymous_usage"))?
+    };
 
     Ok(UsageDto {
-        run_count,
-        run_limit: Some(run_limit),
+        run_count: response.count,
+        run_limit: response.limit,
         date,
         is_free: true,
     })
+}
+
+fn translate_billing_error(err: akira_billing::Error, context: &str) -> AppError {
+    use akira_billing::Error as BErr;
+    match err {
+        BErr::Api { status, code } => {
+            if !code.is_empty() {
+                AppError::Internal(code)
+            } else {
+                AppError::Internal(format!("billing {context} failed: HTTP {status}"))
+            }
+        }
+        other => AppError::Internal(format!("billing {context}: {other}")),
+    }
 }

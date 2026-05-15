@@ -55,7 +55,7 @@ dependencies = [
 [[package]]
 name = "akira-billing"
 version = "0.1.0"
-source = "git+https://github.com/akira-io/billing-sdk-rust?branch=main#b248a37e3db14476dca674e453111c24ee5cc865"
+source = "git+https://github.com/akira-io/billing-sdk-rust?tag=v0.1.1#ea2079d8cbbd40f7503392b053420ee95112f3d9"
 dependencies = [
  "hex",
  "hmac",
@@ -2092,6 +2092,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "rustls",
+ "rustls-native-certs",
  "tokio",
  "tokio-rustls",
  "tower-service",
@@ -3814,6 +3815,7 @@ dependencies = [
  "pin-project-lite",
  "quinn",
  "rustls",
+ "rustls-native-certs",
  "rustls-pki-types",
  "serde",
  "serde_json",

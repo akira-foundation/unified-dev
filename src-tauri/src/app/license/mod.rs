@@ -18,4 +18,4 @@ pub use downgrade::{apply_downgrade, downgrade, DowngradeDto};
 pub use invoices::list_invoices;
 pub use portal::portal;
 pub use register::register;
-pub use verify::{clear, get, get_plan, get_token, verify};
+pub use verify::{clear, get, get_plan, get_token, load_customer_token, verify};

@@ -1,4 +1,13 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { invoke } from "@tauri-apps/api/core";
+import { useEffect, useState } from "react";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useUpgradeModalStore, type FreeTierLimitType } from "@/stores/upgrade-modal-store";
 import { useI18n } from "@/i18n/i18n";
@@ -8,26 +17,31 @@ const LIMIT_CONFIG: Record<FreeTierLimitType, {
     titleKey: string;
     descriptionKey: string;
     targetPlan: "pro" | "ultimate";
+    featureKey?: string;
 }> = {
     run_limit_reached: {
         titleKey: "upgrade.limit.runs.title",
         descriptionKey: "upgrade.limit.runs.description",
         targetPlan: "pro",
+        featureKey: "agent_run",
     },
     thread_limit_reached: {
         titleKey: "upgrade.limit.threads.title",
         descriptionKey: "upgrade.limit.threads.description",
         targetPlan: "pro",
+        featureKey: "threads",
     },
     repo_limit_reached: {
         titleKey: "upgrade.limit.repos.title",
         descriptionKey: "upgrade.limit.repos.description",
         targetPlan: "pro",
+        featureKey: "repos",
     },
     org_limit_reached: {
         titleKey: "upgrade.limit.orgs.title",
         descriptionKey: "upgrade.limit.orgs.description",
         targetPlan: "pro",
+        featureKey: "orgs",
     },
     remote_requires_ultimate: {
         titleKey: "upgrade.limit.remote.title",
@@ -41,13 +55,46 @@ const LIMIT_CONFIG: Record<FreeTierLimitType, {
     },
 };
 
+interface UsageSnapshot {
+    runCount: number;
+    runLimit: number | null;
+}
+
 export function UpgradeModal() {
-    const { open, limitType, closeUpgradeModal } = useUpgradeModalStore();
+    const { open, limitType, context, closeUpgradeModal } = useUpgradeModalStore();
     const { t } = useI18n();
     const navigateTo = useNavigationStore((s) => s.navigateTo);
     const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
+    const [usage, setUsage] = useState<UsageSnapshot | null>(null);
 
     const config = limitType ? LIMIT_CONFIG[limitType] : null;
+    const featureKey = config?.featureKey;
+
+    useEffect(() => {
+        if (!open || !featureKey) {
+            setUsage(null);
+            return;
+        }
+        let active = true;
+        invoke<UsageSnapshot>("get_feature_usage", { feature: featureKey })
+            .then((res) => {
+                if (active) setUsage(res);
+            })
+            .catch(() => {
+                if (active) setUsage(null);
+            });
+        return () => {
+            active = false;
+        };
+    }, [open, featureKey]);
+
+    const vars: Record<string, string> = {};
+    if (featureKey) {
+        const count = context.count ?? usage?.runCount ?? 0;
+        const limit = context.limit ?? usage?.runLimit ?? 0;
+        vars.count = String(count);
+        vars.limit = String(limit);
+    }
 
     const handleUpgrade = () => {
         closeUpgradeModal();
@@ -57,33 +104,24 @@ export function UpgradeModal() {
 
     return (
         <Dialog open={open} onOpenChange={(v) => !v && closeUpgradeModal()}>
-            <DialogContent className="max-w-sm">
+            <DialogContent>
                 <DialogHeader>
-                    <DialogTitle className="text-base font-semibold">
-                        {config ? t(config.titleKey) : ""}
-                    </DialogTitle>
-                    <DialogDescription className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">
-                        {config ? t(config.descriptionKey) : ""}
+                    <DialogTitle>{config ? t(config.titleKey) : ""}</DialogTitle>
+                    <DialogDescription>
+                        {config ? t(config.descriptionKey, vars) : ""}
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="flex flex-col gap-2 mt-2">
-                    <Button
-                        onClick={handleUpgrade}
-                        className="w-full"
-                    >
+                <DialogFooter>
+                    <Button variant="outline" onClick={closeUpgradeModal}>
+                        {t("common.cancel")}
+                    </Button>
+                    <Button onClick={handleUpgrade}>
                         {config?.targetPlan === "ultimate"
                             ? t("upgrade.cta.ultimate")
                             : t("upgrade.cta.pro")}
                     </Button>
-                    <Button
-                        variant="ghost"
-                        onClick={closeUpgradeModal}
-                        className="w-full text-zinc-500"
-                    >
-                        {t("common.cancel")}
-                    </Button>
-                </div>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
     );

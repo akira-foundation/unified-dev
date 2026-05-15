@@ -24,6 +24,27 @@ pub async fn get_token(pool: &sqlx::SqlitePool) -> AppResult<Option<String>> {
     .await?)
 }
 
+pub async fn load_customer_token(
+    pool: &sqlx::SqlitePool,
+    cipher: &crate::app::support::security::TokenCipher,
+) -> AppResult<Option<String>> {
+    let cipher_blob = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT customer_token_cipher FROM license WHERE id = 'local' LIMIT 1",
+    )
+    .fetch_optional(pool)
+    .await?
+    .flatten();
+
+    let Some(blob) = cipher_blob else {
+        return Ok(None);
+    };
+    if blob.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(cipher.decrypt(&blob)?))
+}
+
 pub async fn get(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
     let row = sqlx::query_as::<_, LicenseDto>(
         "SELECT token, plan, cycle, email, status, valid_until, activated_at, last_verified_at, signature, 0 as grace_period,

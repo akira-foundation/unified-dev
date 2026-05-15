@@ -25,7 +25,7 @@ tauri = { version = "2.11", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls-native-roots", "stream"] }
 futures-util = "0.3"
 aes-gcm = "0.10"
 async-trait = "0.1"
@@ -46,7 +46,7 @@ tauri-plugin-updater = "2"
 regex = "1"
 zip = "2"
 axum = "0.8.8"
-akira-billing = { git = "https://github.com/akira-io/billing-sdk-rust", branch = "main" }
+akira-billing = { git = "https://github.com/akira-io/billing-sdk-rust", tag = "v0.1.1" }
 ed25519-dalek = { version = "2", features = ["pkcs8"] }
 
 

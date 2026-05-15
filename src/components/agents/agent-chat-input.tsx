@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useChatHistory } from "@/hooks/useChatHistory";
 import { useI18n } from "@/i18n/i18n";
 import { useToggle } from "@uidotdev/usehooks";
 import { useAgentsStore } from "@/stores/useAgentsStore";
@@ -141,6 +142,7 @@ export function AgentChatInput() {
   const [fastMode, toggleFastMode] = useToggle(false);
   const [attachedImages, setAttachedImages] = useState<ImagePart[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const history = useChatHistory();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
@@ -316,6 +318,9 @@ export function AgentChatInput() {
   const handleSend = async () => {
     if (!canSend) return;
     const text = message.trim();
+    if (text) {
+      history.pushEntry(text);
+    }
     setMessage("");
     setAttachedImages([]);
     setSlashOpen(false);
@@ -367,6 +372,49 @@ export function AgentChatInput() {
       setSlashOpen(false);
       return;
     }
+
+    const target = e.currentTarget;
+    const cursorAtStart = target.selectionStart === 0 && target.selectionEnd === 0;
+    const onFirstLine = !target.value.slice(0, target.selectionStart).includes("\n");
+    const onLastLine = !target.value.slice(target.selectionEnd).includes("\n");
+
+    if (e.key === "ArrowUp" && cursorAtStart && onFirstLine) {
+      const prev = history.navigatePrev(message);
+      if (prev !== null) {
+        e.preventDefault();
+        setMessage(prev);
+        requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = prev.length;
+            textareaRef.current.selectionEnd = prev.length;
+          }
+        });
+      }
+      return;
+    }
+
+    if (e.key === "ArrowDown" && history.isNavigating && onLastLine) {
+      const next = history.navigateNext();
+      if (next !== null) {
+        e.preventDefault();
+        setMessage(next);
+        requestAnimationFrame(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = next.length;
+            textareaRef.current.selectionEnd = next.length;
+          }
+        });
+      }
+      return;
+    }
+
+    if (e.key === "Escape" && history.isNavigating) {
+      e.preventDefault();
+      history.reset();
+      setMessage("");
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();

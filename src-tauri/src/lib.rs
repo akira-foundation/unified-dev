@@ -57,7 +57,7 @@ use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
 use commands::updater::{check_for_updates, install_update};
-use commands::usage::get_usage;
+use commands::usage::{get_feature_usage, get_usage};
 use commands::profile::{get_user_profile, set_user_profile};
 use providers::default_registry;
 use app::support::error::AppResult;
@@ -86,6 +86,14 @@ pub fn run() {
                     cipher,
                     pool.clone(),
                 ));
+
+                {
+                    let app_state = app.state::<AppState>();
+                    if let Some(token) = app::license::load_customer_token(&app_state.db_pool, &app_state.token_cipher).await? {
+                        let mut billing = app_state.billing.write().await;
+                        billing.inner_mut().set_customer_token(token);
+                    }
+                }
 
                 let app_state = app.state::<AppState>();
                 if let Ok(remote_settings) = app::settings::remote::get(app_state).await {
@@ -253,6 +261,7 @@ pub fn run() {
             install_update,
             check_dependencies,
             get_usage,
+            get_feature_usage,
             get_user_profile,
             set_user_profile,
             fetch_github_contribution_summary,
