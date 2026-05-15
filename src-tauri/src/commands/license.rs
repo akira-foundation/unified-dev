@@ -22,13 +22,13 @@ pub async fn register_license(token: String, state: State<'_, AppState>, app: Ap
 }
 
 #[tauri::command]
-pub async fn claim_license_request(email: String) -> AppResult<()> {
-    license::request_otp(email).await
+pub async fn claim_license_request(email: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<()> {
+    license::request_otp(email, state, &app).await
 }
 
 #[tauri::command]
 pub async fn claim_license_verify(email: String, otp: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
-    license::verify_otp(email, otp, &state.db_pool, &app).await
+    license::verify_otp(email, otp, state, &app).await
 }
 
 #[tauri::command]
