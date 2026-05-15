@@ -1,3 +1,4 @@
+use akira_billing::types::LicenseCheckPayload;
 use tauri::{AppHandle, State};
 
 use crate::app::autopilot;
@@ -5,14 +6,13 @@ use crate::app::autopilot::dto::{
     AutopilotJobDto, DeleteThreadRequest, SaveJobRequest, SaveThreadRequest, UpdateJobRequest, UpdateThreadRequest,
     WriteLogRequest,
 };
+use crate::app::billing::PRODUCT_SLUG;
 use crate::app::support::error::AppError;
 use crate::state::AppState;
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
-
 async fn require_feature(
     state: &State<'_, AppState>,
-    app: &AppHandle,
+    _app: &AppHandle,
     feature: &str,
     fallback_limit_code: &str,
 ) -> Result<(), String> {
@@ -24,30 +24,20 @@ async fn require_feature(
         return Ok(());
     }
 
-    let token = crate::app::license::get_token(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?
-        .unwrap_or_default();
+    let allowed = {
+        let billing = state.billing.read().await;
+        billing
+            .inner()
+            .license_check(LicenseCheckPayload {
+                product: PRODUCT_SLUG,
+                feature,
+            })
+            .await
+            .map(|res| res.allowed)
+            .unwrap_or(false)
+    };
 
-    let identity = crate::app::license::machine_id::get_or_create(app)
-        .map_err(|e| e.to_string())?;
-
-    let client = reqwest::Client::new();
-    let res = client
-        .post(format!("{AKIRA_API_URL}/billing/feature_check"))
-        .json(&serde_json::json!({
-            "machine_id": identity.id,
-            "token": token,
-            "feature": feature,
-            "created_at_sig": identity.created_at_sig,
-        }))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let body: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
-
-    if body["allowed"].as_bool() != Some(true) {
+    if !allowed {
         return Err(AppError::FreeTierLimit(fallback_limit_code.to_string()).to_string());
     }
     Ok(())
