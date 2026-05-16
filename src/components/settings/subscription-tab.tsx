@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CreditCard } from "lucide-react";
+import { CreditCard, User } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { z } from "zod";
@@ -7,6 +7,7 @@ import { useI18n } from "@/i18n/i18n";
 import { useLicense } from "@/hooks/useLicense";
 import { useLicenseStore } from "@/stores/license-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
+import { useAvatar } from "@/hooks/useAvatar";
 import { useCheckoutPoller } from "@/hooks/useCheckoutPoller";
 import { SettingsSection } from "./settings-section";
 
@@ -134,6 +135,7 @@ export function SubscriptionTab() {
   const { t, locale } = useI18n();
   const { currentPlan, license } = useLicense();
   const { load } = useLicenseStore();
+  const avatarUrl = useAvatar(license?.email);
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -314,7 +316,13 @@ export function SubscriptionTab() {
         <div className="px-4 py-5 border-b border-zinc-100 dark:border-zinc-800/50">
           <div className="flex items-center gap-3 mb-4">
             <div className="h-9 w-9 rounded-full bg-zinc-800 overflow-hidden shrink-0">
-              <img src="https://github.com/shadcn.png" alt="Avatar" className="object-cover" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-zinc-500">
+                  <User className="h-4 w-4" />
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-0.5">
               <div className="flex items-center gap-1.5">

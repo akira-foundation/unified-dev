@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/i18n";
 import { useLicense } from "@/hooks/useLicense";
 import { useLicenseStore } from "@/stores/license-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
+import { useAvatar } from "@/hooks/useAvatar";
 // import { useNavigationStore } from "@/stores/navigation-store";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -54,6 +55,7 @@ const PLAN_COLOR: Record<string, string> = {
 export function GeneralTab() {
   const { t, locale, setLocale } = useI18n();
   const { currentPlan, license, load } = useLicense();
+  const avatarUrl = useAvatar(license?.email);
   const { clear } = useLicenseStore();
   // const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
 
@@ -80,7 +82,13 @@ export function GeneralTab() {
         <div className="px-4 py-5 border-b border-zinc-100 dark:border-zinc-800/50">
           <div className="flex items-center gap-3 mb-5">
             <div className="h-9 w-9 rounded-full bg-zinc-800 overflow-hidden shrink-0">
-              <img src="https://github.com/shadcn.png" alt="Avatar" className="object-cover" />
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-zinc-500">
+                  <User className="h-4 w-4" />
+                </div>
+              )}
             </div>
             <div className="flex flex-col gap-0.5">
               <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium self-start ${PLAN_COLOR[currentPlan]}`}>
