@@ -1,5 +1,6 @@
-use tauri::State;
+use akira_billing::types::GithubInstallationTokenPayload;
 use serde::Deserialize;
+use tauri::State;
 
 use crate::app::concerns::VcsProvider;
 use crate::providers::dto::ProviderRepo;
@@ -14,39 +15,29 @@ pub struct ProviderReposInput {
     pub organization_login: Option<String>,
 }
 
-async fn fetch_github_installation_token(oauth_access_token: &str, target_login: &str) -> Result<String, String> {
-    #[derive(serde::Deserialize)]
-    struct InstallationTokenResponse {
-        token: String,
-    }
-
-    let api_url = env!("AKIRA_API_URL");
-
-    let client = reqwest::Client::builder()
-        .user_agent("UnifiedDev/1.0")
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let response = client
-        .post(format!("{api_url}/github/installation-token"))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "access_token": oauth_access_token,
-            "target_login": target_login,
-        }))
-        .send()
+async fn fetch_installation_token(state: &State<'_, AppState>, installation_id: Option<u64>) -> Result<String, String> {
+    let billing = state.billing.read().await;
+    let response = billing
+        .inner()
+        .github_installation_token(GithubInstallationTokenPayload { installation_id })
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|error| format!("installation token request failed: {error}"))?;
+    Ok(response.token)
+}
 
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.map_err(|e| e.to_string())?;
-        return Err(format!("installation token request failed: {status} — {body}"));
-    }
-
-    let result: InstallationTokenResponse = response.json().await.map_err(|e| e.to_string())?;
-
-    Ok(result.token)
+async fn resolve_installation_id_for_login(state: &State<'_, AppState>, login: &str) -> Result<u64, String> {
+    let billing = state.billing.read().await;
+    let response = billing
+        .inner()
+        .me_github_installations()
+        .await
+        .map_err(|error| format!("list installations failed: {error}"))?;
+    response
+        .installations
+        .iter()
+        .find(|installation| installation.account_login == login)
+        .map(|installation| installation.id)
+        .ok_or_else(|| format!("no installation found for {login}"))
 }
 
 pub async fn list_repos(state: State<'_, AppState>, input: ProviderReposInput) -> Result<Vec<ProviderRepo>, String> {
@@ -55,15 +46,16 @@ pub async fn list_repos(state: State<'_, AppState>, input: ProviderReposInput) -
         .map_err(|error| error.to_string())?;
 
     if credentials.kind == ProviderKind::GitHub {
-        if let ProviderAuth::GitHubApp { oauth_access_token, installation_token, .. } = credentials.auth.clone() {
+        if let ProviderAuth::GitHubApp { installation_token, .. } = credentials.auth.clone() {
             let target_login = match input.scope.as_str() {
                 "personal" => None,
                 "organization" => input.organization_login.clone(),
                 _ => return Err("invalid scope".to_string()),
             };
 
-            let token = if let Some(login) = target_login.as_deref() {
-                fetch_github_installation_token(&oauth_access_token, login).await?
+            let token = if let Some(ref login) = target_login {
+                let org_installation_id = resolve_installation_id_for_login(&state, login).await?;
+                fetch_installation_token(&state, Some(org_installation_id)).await?
             } else {
                 installation_token
             };

@@ -43,12 +43,12 @@ pub async fn test_provider_connection(state: State<'_, AppState>, input: TestPro
 
 #[tauri::command]
 pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<ProviderSummary, String> {
-    providers::connect_github(state, app).await
+    providers::connect_github(state, app).await.map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 pub async fn reconnect_github(state: State<'_, AppState>, app: tauri::AppHandle, provider_id: String) -> Result<ProviderSummary, String> {
-    providers::reconnect_github(state, app, provider_id).await
+    providers::reconnect_github(state, app, provider_id).await.map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -62,8 +62,8 @@ pub async fn uninstall_github_app(state: State<'_, AppState>, provider_id: Strin
 }
 
 #[tauri::command]
-pub async fn list_provider_organizations(state: State<'_, AppState>, provider_id: String) -> Result<Vec<ProviderOrg>, String> {
-    providers::list_organizations(state, provider_id).await
+pub async fn list_provider_organizations(state: State<'_, AppState>, app: tauri::AppHandle, provider_id: String) -> Result<Vec<ProviderOrg>, String> {
+    providers::list_organizations(state, app, provider_id).await
 }
 
 #[tauri::command]

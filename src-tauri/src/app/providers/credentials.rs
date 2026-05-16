@@ -54,7 +54,7 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
         return Ok(auth);
     };
 
-    let api_url = env!("AKIRA_API_URL");
+    let api_url = env!("AKIRA_BILLING_URL");
 
     #[derive(serde::Deserialize)]
     struct RefreshResponse {
@@ -109,72 +109,38 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
 }
 
 pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth: ProviderAuth) -> AppResult<ProviderAuth> {
-    let ProviderAuth::GitHubApp { ref oauth_access_token, ref oauth_refresh_token, oauth_expires_at, installation_id, .. } = auth else {
+    let ProviderAuth::GitHubApp { installation_id, .. } = auth else {
         return Ok(auth);
     };
 
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    let installation_id_u64 = u64::try_from(installation_id)
+        .map_err(|error| AppError::Provider(error.to_string()))?;
 
-    let refreshed_oauth = match (oauth_refresh_token, oauth_expires_at) {
-        (Some(refresh_token), Some(exp)) if now >= exp - 300 => {
-            let oauth_auth = ProviderAuth::GitHubOAuth {
-                access_token: oauth_access_token.clone(),
-                refresh_token: Some(refresh_token.clone()),
-                expires_at: Some(exp),
-            };
-
-            match refresh_github_token(state, provider_id, oauth_auth).await? {
-                ProviderAuth::GitHubOAuth { access_token, refresh_token, expires_at } => (access_token, refresh_token, expires_at),
-                _ => (oauth_access_token.clone(), oauth_refresh_token.clone(), oauth_expires_at),
-            }
-        }
-        _ => (oauth_access_token.clone(), oauth_refresh_token.clone(), oauth_expires_at),
+    let response = {
+        let billing = state.billing.read().await;
+        billing
+            .inner()
+            .github_installation_token(akira_billing::types::GithubInstallationTokenPayload {
+                installation_id: Some(installation_id_u64),
+            })
+            .await
+            .map_err(|error| AppError::Provider(format!("GitHub installation token refresh failed: {error}")))?
     };
 
-    let api_url = env!("AKIRA_API_URL");
-
-    #[derive(serde::Deserialize)]
-    struct InstallationTokenResponse {
-        token: String,
-        expires_at: i64,
-        installation_id: i64,
-    }
-
-    let client = reqwest::Client::builder()
-        .user_agent("UnifiedDev/1.0")
-        .build()
-        .map_err(|e| AppError::Provider(e.to_string()))?;
-
-    let response = client
-        .post(format!("{api_url}/github/installation-token"))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({
-            "access_token": refreshed_oauth.0,
-            "installation_id": installation_id,
-        }))
-        .send()
-        .await
-        .map_err(|e| AppError::Provider(e.to_string()))?;
-
-    if !response.status().is_success() {
-        return Err(AppError::Provider("GitHub installation token refresh failed".to_string()));
-    }
-
-    let result: InstallationTokenResponse = response
-        .json()
-        .await
-        .map_err(|e| AppError::Provider(e.to_string()))?;
+    let expires_at = time::OffsetDateTime::parse(
+        &response.expires_at,
+        &time::format_description::well_known::Rfc3339,
+    )
+    .map_err(|error| AppError::Provider(format!("invalid installation token expiry: {error}")))?
+    .unix_timestamp();
 
     let new_auth = ProviderAuth::GitHubApp {
-        oauth_access_token: refreshed_oauth.0,
-        oauth_refresh_token: refreshed_oauth.1,
-        oauth_expires_at: refreshed_oauth.2,
-        installation_token: result.token,
-        installation_id: result.installation_id,
-        expires_at: result.expires_at,
+        oauth_access_token: String::new(),
+        oauth_refresh_token: None,
+        oauth_expires_at: None,
+        installation_token: response.token,
+        installation_id: response.installation_id,
+        expires_at,
     };
 
     let (auth_type, auth_payload) = serialize_auth(state, &new_auth)?;
@@ -186,7 +152,6 @@ pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth:
         .await
         .map_err(|e| AppError::Provider(e.to_string()))?;
 
-    let _ = installation_id;
     Ok(new_auth)
 }
 

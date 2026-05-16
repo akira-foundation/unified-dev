@@ -3,19 +3,24 @@ use tauri::State;
 use crate::providers::drivers::github::oauth;
 use crate::state::AppState;
 
-pub async fn install_github_app(_state: State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
+pub async fn install_github_app(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
 
-    let app_slug = option_env!("GITHUB_APP_SLUG").unwrap_or("akira-apps-unified-dev");
+    let info = {
+        let billing = state.billing.read().await;
+        billing
+            .inner()
+            .github_app_info()
+            .await
+            .map_err(|error| format!("github app info failed: {error}"))?
+    };
     let oauth_state = uuid::Uuid::new_v4().to_string();
 
     let listener = oauth::bind_callback_listener()
         .await
         .map_err(|e| e.to_string())?;
 
-    let install_url = format!(
-        "https://github.com/apps/{app_slug}/installations/select_target?state={oauth_state}"
-    );
+    let install_url = format!("{}?state={oauth_state}", info.install_url);
 
     app.opener()
         .open_url(&install_url, None::<&str>)

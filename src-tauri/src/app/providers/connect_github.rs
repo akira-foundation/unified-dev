@@ -1,55 +1,66 @@
+use akira_billing::types::GithubInstallationTokenPayload;
 use tauri::State;
+use tauri_plugin_opener::OpenerExt;
 
+use crate::app::support::error::{AppError, AppResult};
 use crate::database::records::ProviderSummary;
-use crate::providers::drivers::github::oauth;
 use crate::providers::enums::ProviderAuth;
 use crate::state::AppState;
 
-pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -> Result<ProviderSummary, String> {
-    use tauri_plugin_opener::OpenerExt;
+const APP_NOT_INSTALLED_CODE: &str = "github_app_not_installed";
 
-    let app_slug = option_env!("GITHUB_APP_SLUG").unwrap_or("akira-apps-unified-dev");
-    let api_url = env!("AKIRA_API_URL");
-    let oauth_state = uuid::Uuid::new_v4().to_string();
+pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -> AppResult<ProviderSummary> {
+    crate::app::auth::ensure_authenticated(state.clone(), &app, "github").await?;
 
-    let listener = oauth::bind_callback_listener()
-        .await
-        .map_err(|e| e.to_string())?;
+    let mut attempt = 0;
+    let response = loop {
+        let result = {
+            let billing = state.billing.read().await;
+            billing
+                .inner()
+                .github_installation_token(GithubInstallationTokenPayload::default())
+                .await
+        };
 
-    let client_id = option_env!("GITHUB_OAUTH_CLIENT_ID").unwrap_or(env!("GITHUB_CLIENT_ID"));
-    let oauth_url = format!(
-        "https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri=http%3A%2F%2Flocalhost%3A4567&scope=repo%2Cread%3Aorg%2Cread%3Auser&state={oauth_state}"
-    );
-    app.opener()
-        .open_url(&oauth_url, None::<&str>)
-        .map_err(|e| format!("Failed to open browser: {e}"))?;
-
-    let code = oauth::await_callback(listener, &oauth_state)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let result = oauth::exchange_code(api_url, &code)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let auth = fetch_installation_token(api_url, &result.access_token, result.refresh_token.clone(), result.expires_at).await.map_err(|error| {
-        if error.contains("app not installed for this user") {
-            let install_url = format!("https://github.com/apps/{app_slug}/installations/select_target");
-            let _ = app.opener().open_url(&install_url, None::<&str>);
-            return "GitHub App installation required. Complete the installation in the browser, then click Connect again.".to_string();
+        match result {
+            Ok(value) => break value,
+            Err(error) => {
+                if is_unauthorized(&error) && attempt == 0 {
+                    attempt += 1;
+                    crate::app::auth::login_with_provider(state.clone(), &app, "github").await?;
+                    continue;
+                }
+                if is_app_not_installed(&error) {
+                    if let Ok(info) = {
+                        let billing = state.billing.read().await;
+                        billing.inner().github_app_info().await
+                    } {
+                        let _ = app.opener().open_url(&info.install_url, None::<&str>);
+                    }
+                    return Err(AppError::Provider(
+                        "GitHub App installation required. Complete the installation in the browser, then click Connect again."
+                            .to_string(),
+                    ));
+                }
+                return Err(translate_billing_error(error));
+            }
         }
+    };
 
-        error
-    })?;
+    let expires_at = parse_rfc3339_to_unix(&response.expires_at)
+        .ok_or_else(|| AppError::Provider("invalid installation token expiry".to_string()))?;
 
-    let api_token = result.access_token.clone();
-
-    let (account_login, account_type) = oauth::fetch_viewer(&api_token)
-        .await
-        .map_err(|e| e.to_string())?;
+    let auth = ProviderAuth::GitHubApp {
+        oauth_access_token: String::new(),
+        oauth_refresh_token: None,
+        oauth_expires_at: None,
+        installation_token: response.token,
+        installation_id: response.installation_id,
+        expires_at,
+    };
 
     let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
-        .map_err(|e| e.to_string())?;
+        .map_err(|error| AppError::Provider(error.to_string()))?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let created_at = time::OffsetDateTime::now_utc()
@@ -60,68 +71,54 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
-    .bind(&account_login)
+    .bind(&response.account_login)
     .bind("github")
     .bind(&auth_type)
     .bind(&auth_payload)
     .bind(&created_at)
-    .bind(&account_login)
-    .bind(&account_type)
+    .bind(&response.account_login)
+    .bind(&response.account_type)
     .execute(&state.db_pool)
     .await
-    .map_err(|e| format!("DB insert failed: {e}"))?;
+    .map_err(|error| AppError::Provider(format!("DB insert failed: {error}")))?;
 
-    Ok(crate::database::records::ProviderSummary {
+    Ok(ProviderSummary {
         id,
-        name: account_login.clone(),
+        name: response.account_login.clone(),
         kind: "github".to_string(),
-        auth_type: auth_type.clone(),
+        auth_type,
         created_at,
-        account_login: Some(account_login),
-        account_type: Some(account_type),
+        account_login: Some(response.account_login),
+        account_type: Some(response.account_type),
     })
 }
 
-async fn fetch_installation_token(
-    api_url: &str,
-    oauth_access_token: &str,
-    oauth_refresh_token: Option<String>,
-    oauth_expires_at: Option<i64>,
-) -> Result<ProviderAuth, String> {
-    #[derive(serde::Deserialize)]
-    struct InstallationTokenResponse {
-        token: String,
-        expires_at: i64,
-        installation_id: i64,
+fn is_app_not_installed(error: &akira_billing::Error) -> bool {
+    matches!(
+        error,
+        akira_billing::Error::Api { status: 412, code } if code == APP_NOT_INSTALLED_CODE
+    )
+}
+
+fn is_unauthorized(error: &akira_billing::Error) -> bool {
+    matches!(error, akira_billing::Error::Api { status: 401, .. })
+}
+
+fn translate_billing_error(error: akira_billing::Error) -> AppError {
+    use akira_billing::Error as BErr;
+    match error {
+        BErr::Api { status, code } if !code.is_empty() => {
+            AppError::Provider(format!("github_installation_token failed ({status}): {code}"))
+        }
+        BErr::Api { status, .. } => {
+            AppError::Provider(format!("github_installation_token failed: HTTP {status}"))
+        }
+        other => AppError::Provider(format!("github_installation_token: {other}")),
     }
+}
 
-    let client = reqwest::Client::builder()
-        .user_agent("UnifiedDev/1.0")
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let response = client
-        .post(format!("{api_url}/github/installation-token"))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "access_token": oauth_access_token }))
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.text().await.map_err(|e| e.to_string())?;
-        return Err(format!("installation token request failed: {status} — {body}"));
-    }
-
-    let data: InstallationTokenResponse = response.json().await.map_err(|e| e.to_string())?;
-
-    Ok(ProviderAuth::GitHubApp {
-        oauth_access_token: oauth_access_token.to_string(),
-        oauth_refresh_token,
-        oauth_expires_at,
-        installation_token: data.token,
-        installation_id: data.installation_id,
-        expires_at: data.expires_at,
-    })
+fn parse_rfc3339_to_unix(value: &str) -> Option<i64> {
+    time::OffsetDateTime::parse(value, &time::format_description::well_known::Rfc3339)
+        .ok()
+        .map(|dt| dt.unix_timestamp())
 }
