@@ -5,6 +5,7 @@ pub mod downgrade;
 pub mod hmac;
 pub mod invoices;
 pub mod machine_id;
+pub mod plans;
 pub mod portal;
 pub mod register;
 pub mod signed_license;

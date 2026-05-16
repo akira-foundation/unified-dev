@@ -15,6 +15,73 @@ interface CheckoutDto {
   sessionId: string;
 }
 
+interface PlanFeatureDto {
+  key: string;
+  name: string;
+  description: string | null;
+}
+
+interface PlanDto {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  amount: number | null;
+  currency: string | null;
+  billing_interval: string | null;
+  trial_period_days: number;
+  is_coming_soon: boolean;
+  features: PlanFeatureDto[];
+}
+
+interface ProductPlansDto {
+  product: string;
+  name: string;
+  description: string | null;
+  landing_url: string | null;
+  beta_ends_at: string | null;
+  beta_active: boolean;
+  plans: PlanDto[];
+}
+
+function extractTier(key: string): string {
+  return key.replace(/_monthly$|_yearly$/, "");
+}
+
+function findPlan(tier: string, cycle: BillingCycle, plans: PlanDto[]): PlanDto | undefined {
+  if (tier === "free") return plans.find((p) => p.key === "free");
+  const interval = cycle === "yearly" ? "year" : "month";
+  return plans.find((p) => extractTier(p.key) === tier && p.billing_interval === interval);
+}
+
+function formatPrice(amount: number | null | undefined, currency: string | null | undefined, locale: string): string {
+  if (amount == null) return "—";
+  const value = amount / 100;
+  if (currency) {
+    try {
+      return new Intl.NumberFormat(locale, { style: "currency", currency: currency.toUpperCase(), maximumFractionDigits: 0 }).format(value);
+    } catch {
+    }
+  }
+  return value === 0 ? "€0" : `€${value}`;
+}
+
+const TIER_COLOR: Record<string, string> = {
+  free: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
+  pro: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  ultimate: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+};
+
+const TIER_CHECK_COLOR: Record<string, string> = {
+  free: "text-zinc-400",
+  pro: "text-blue-400",
+  ultimate: "text-purple-400",
+};
+
+const TIER_ORDER: Record<string, number> = { free: 0, pro: 1, ultimate: 2 };
+
+const RECOMMENDED_TIER = "pro";
+
 interface InvoiceDto {
   id: string;
   number: string | null;
@@ -34,49 +101,10 @@ interface InvoicesPageDto {
 type BillingCycle = "monthly" | "yearly";
 type ClaimStep = "idle" | "sending" | "sent" | "verifying";
 
-const PLAN_PRICE: Record<string, Record<BillingCycle, string>> = {
-  free: { monthly: "€0", yearly: "€0" },
-  pro: { monthly: "€15", yearly: "€150" },
-  ultimate: { monthly: "€29", yearly: "€290" },
-};
-
-const PLAN_FEATURES: Record<string, string[]> = {
-  free: [
-    "upgrade.feature.free.1",
-    "upgrade.feature.free.2",
-    "upgrade.feature.free.3",
-    "upgrade.feature.free.4",
-    "upgrade.feature.free.5",
-    "upgrade.feature.free.6",
-    "upgrade.feature.free.7",
-    "upgrade.feature.free.8",
-  ],
-  pro: [
-    "upgrade.feature.pro.1",
-    "upgrade.feature.pro.2",
-    "upgrade.feature.pro.3",
-    "upgrade.feature.pro.4",
-    "upgrade.feature.pro.5",
-    "upgrade.feature.pro.6",
-  ],
-  ultimate: [
-    "upgrade.feature.ultimate.1",
-    "upgrade.feature.ultimate.2",
-    "upgrade.feature.ultimate.3",
-    "upgrade.feature.ultimate.4",
-  ],
-};
-
 const PLAN_COLOR: Record<string, string> = {
   free: "bg-zinc-500/10 text-zinc-400 border-zinc-500/20",
   pro: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   ultimate: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-};
-
-const FEATURE_CHECK_COLOR: Record<string, string> = {
-  free: "text-zinc-400",
-  pro: "text-blue-400",
-  ultimate: "text-purple-400",
 };
 
 const RESEND_COOLDOWN = 60;
@@ -103,7 +131,7 @@ function resolveClaimError(err: unknown, t: (key: string, vars?: Record<string, 
 }
 
 export function SubscriptionTab() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { currentPlan, license } = useLicense();
   const { load } = useLicenseStore();
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
@@ -111,6 +139,19 @@ export function SubscriptionTab() {
   const [error, setError] = useState<string | null>(null);
   const [pollSessionId, setPollSessionId] = useState<string | null>(null);
   const [downgrading, setDowngrading] = useState<"free" | "pro" | null>(null);
+  const [productPlans, setProductPlans] = useState<ProductPlansDto | null>(null);
+
+  useEffect(() => {
+    invoke<ProductPlansDto>("get_product_plans")
+      .then(setProductPlans)
+      .catch(() => setProductPlans(null));
+  }, []);
+
+  const tiers = productPlans
+    ? Array.from(new Set(productPlans.plans.map((p) => extractTier(p.key)))).sort(
+        (a, b) => (TIER_ORDER[a] ?? 99) - (TIER_ORDER[b] ?? 99),
+      )
+    : [];
 
   const cancelAtPeriodEnd = license?.cancelAtPeriodEnd ?? false;
   const cancelAt = license?.cancelAt ?? null;
@@ -263,9 +304,6 @@ export function SubscriptionTab() {
     await handleSendCode();
   };
 
-  const plans = ["free", "pro", "ultimate"] as const;
-  const planOrder = { free: 0, pro: 1, ultimate: 2 };
-
   return (
     <div className="animate-in fade-in duration-300">
       <SettingsSection
@@ -345,47 +383,53 @@ export function SubscriptionTab() {
           </div>
 
           <div className="grid grid-cols-3 gap-3">
-            {plans.map((plan) => {
-              const isCurrentPlan = currentPlan === plan;
-              const isUpgradeable = planOrder[plan] > planOrder[currentPlan];
-              const price = PLAN_PRICE[plan][cycle];
-              const isLoading = loadingPlan === plan;
+            {tiers.map((tier) => {
+              const plan = productPlans ? findPlan(tier, cycle, productPlans.plans) : undefined;
+              if (!plan) return null;
+
+              const isCurrentPlan = currentPlan === tier;
+              const isUpgradeable = (TIER_ORDER[tier] ?? 99) > (TIER_ORDER[currentPlan] ?? 0);
+              const price = formatPrice(plan.amount, plan.currency, locale);
+              const isLoading = loadingPlan === tier;
+              const isFree = tier === "free";
 
               return (
                 <div
-                  key={plan}
+                  key={tier}
                   className={`relative flex flex-col rounded-lg border bg-white dark:bg-zinc-900 p-4 ${isCurrentPlan ? "border-purple-500/40 ring-1 ring-purple-500/30" : "border-zinc-200 dark:border-zinc-800"}`}
                 >
-                  {plan === "pro" && (
+                  {tier === RECOMMENDED_TIER && (
                     <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500 text-white whitespace-nowrap">
                       {t("upgrade.recommended")}
                     </span>
                   )}
 
                   <div className="mb-3">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${PLAN_COLOR[plan]}`}>
-                      {t(`upgrade.plan.${plan}`)}
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${TIER_COLOR[tier] ?? TIER_COLOR.free}`}>
+                      {plan.name}
                     </span>
                   </div>
 
                   <div className="mb-1">
                     <span className="text-[22px] font-bold text-zinc-900 dark:text-white">{price}</span>
-                    {plan !== "free" && (
+                    {!isFree && (
                       <span className="text-[11px] text-zinc-400 ml-1">
-                        {cycle === "yearly" ? `/${t("upgrade.billing.billed_annually")}` : "/mo"}
+                        {plan.billing_interval === "year" ? `/${t("upgrade.billing.billed_annually")}` : "/mo"}
                       </span>
                     )}
                   </div>
 
-                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-4 leading-snug">
-                    {t(`upgrade.desc.${plan}`)}
-                  </p>
+                  {plan.description && (
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-4 leading-snug">
+                      {plan.description}
+                    </p>
+                  )}
 
                   <ul className="space-y-1.5 mb-5 flex-1">
-                    {PLAN_FEATURES[plan].map((key) => (
-                      <li key={key} className="flex items-start gap-1.5 text-[12px] text-zinc-600 dark:text-zinc-400">
-                        <span className={`mt-px shrink-0 ${FEATURE_CHECK_COLOR[plan]}`}>✓</span>
-                        {t(key)}
+                    {plan.features.map((feature) => (
+                      <li key={feature.key} className="flex items-start gap-1.5 text-[12px] text-zinc-600 dark:text-zinc-400">
+                        <span className={`mt-px shrink-0 ${TIER_CHECK_COLOR[tier] ?? TIER_CHECK_COLOR.free}`}>✓</span>
+                        {feature.name}
                       </li>
                     ))}
                   </ul>
@@ -394,7 +438,7 @@ export function SubscriptionTab() {
                     <div className="text-center text-[12px] font-medium text-purple-400 py-1.5 rounded-md border border-purple-500/30 bg-purple-500/5">
                       {t("upgrade.cta.free")}
                     </div>
-                  ) : plan === "ultimate" && !isCurrentPlan ? (
+                  ) : plan.is_coming_soon ? (
                     <button
                       disabled
                       className="text-[12px] font-semibold py-1.5 px-3 rounded-md bg-zinc-700/50 text-zinc-500 cursor-not-allowed border border-zinc-700"
@@ -403,13 +447,13 @@ export function SubscriptionTab() {
                     </button>
                   ) : isUpgradeable ? (
                     <button
-                      onClick={() => void handleUpgrade(plan as "pro" | "ultimate")}
+                      onClick={() => void handleUpgrade(tier as "pro" | "ultimate")}
                       disabled={isLoading}
                       className="text-[12px] font-semibold py-1.5 px-3 rounded-md bg-purple-500 hover:bg-purple-600 text-white transition-colors disabled:opacity-60"
                     >
-                      {isLoading ? t("upgrade.cta.loading") : t(`upgrade.cta.${plan}`)}
+                      {isLoading ? t("upgrade.cta.loading") : t(`upgrade.cta.${tier}`)}
                     </button>
-                  ) : plan === "pro" && currentPlan === "ultimate" && !cancelAtPeriodEnd ? (
+                  ) : tier === "pro" && currentPlan === "ultimate" && !cancelAtPeriodEnd ? (
                     <button
                       onClick={() => void handleDowngrade("pro")}
                       disabled={downgrading !== null}
@@ -417,7 +461,7 @@ export function SubscriptionTab() {
                     >
                       {downgrading === "pro" ? t("settings.subscription.downgrade.downgrading") : t("settings.subscription.downgrade.to_pro")}
                     </button>
-                  ) : plan === "free" && currentPlan !== "free" && !cancelAtPeriodEnd ? (
+                  ) : tier === "free" && currentPlan !== "free" && !cancelAtPeriodEnd ? (
                     <button
                       onClick={() => void handleDowngrade("free")}
                       disabled={downgrading !== null}

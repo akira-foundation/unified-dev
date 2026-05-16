@@ -1,6 +1,7 @@
 use tauri::{AppHandle, State};
 
 use crate::app::license;
+use crate::app::license::plans::ProductPlansDto;
 use crate::app::license::types::{ActivateLicenseRequest, CheckoutDto, InvoicesPageDto, LicenseDto};
 use crate::app::license::DowngradeDto;
 use crate::app::support::error::AppResult;
@@ -9,6 +10,11 @@ use crate::state::AppState;
 #[tauri::command]
 pub async fn checkout_license(plan: String, cycle: String) -> AppResult<CheckoutDto> {
     license::checkout(plan, cycle).await
+}
+
+#[tauri::command]
+pub async fn get_product_plans(state: State<'_, AppState>) -> AppResult<ProductPlansDto> {
+    license::plans::list(state).await
 }
 
 #[tauri::command]
