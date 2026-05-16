@@ -3,6 +3,7 @@ import { Bell, CheckCheck, Info, AlertTriangle, AlertCircle, CheckCircle2, X } f
 import { listen } from "@tauri-apps/api/event";
 import { useNotificationsStore, type NotificationItem } from "@/stores/notifications-store";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { runAction, actionLabel, hasAction } from "@/lib/notification-actions";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -37,18 +38,29 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function NotificationRow({ item }: { item: NotificationItem }) {
+function NotificationRow({ item, onAction }: { item: NotificationItem; onAction?: () => void }) {
   const { markRead, remove } = useNotificationsStore();
   const Icon = SEVERITY_ICON[item.severity] ?? Info;
   const isUnread = item.read_at === null;
+  const action = hasAction(item);
+  const label = actionLabel(item.action_type);
+
+  function handleClick() {
+    if (isUnread) void markRead(item.id);
+    if (action) {
+      runAction(item);
+      onAction?.();
+    }
+  }
 
   return (
     <div
       className={cn(
-        "group flex items-start gap-2.5 px-3 py-2.5 hover:bg-zinc-800/50 cursor-default border-b border-zinc-800/50 last:border-0",
+        "group flex items-start gap-2.5 px-3 py-2.5 border-b border-zinc-800/50 last:border-0",
+        action ? "cursor-pointer hover:bg-zinc-800/50" : "cursor-default",
         isUnread && "bg-zinc-800/20",
       )}
-      onClick={() => isUnread && void markRead(item.id)}
+      onClick={handleClick}
     >
       <Icon className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", SEVERITY_COLOR[item.severity] ?? "text-zinc-400")} />
       <div className="flex-1 min-w-0">
@@ -58,6 +70,9 @@ function NotificationRow({ item }: { item: NotificationItem }) {
         </div>
         {item.body && (
           <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-2">{item.body}</p>
+        )}
+        {label && (
+          <p className="text-[10px] text-purple-400 mt-1 font-medium">{label} →</p>
         )}
       </div>
       <button
@@ -136,7 +151,9 @@ export function NotificationsDropdown() {
               <p className="text-[11px] text-zinc-500">No notifications</p>
             </div>
           ) : (
-            items.map((item) => <NotificationRow key={item.id} item={item} />)
+            items.map((item) => (
+              <NotificationRow key={item.id} item={item} onAction={() => setOpen(false)} />
+            ))
           )}
         </div>
         {items.length > 0 && (
