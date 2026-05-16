@@ -1,7 +1,9 @@
 import { User } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "@/i18n/i18n";
 import { useLicense } from "@/hooks/useLicense";
 import { useLicenseStore } from "@/stores/license-store";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,12 +51,21 @@ const FEATURE_COLOR: Record<string, string> = {
 
 export function GeneralTab() {
   const { t, locale, setLocale } = useI18n();
-  const { currentPlan, license } = useLicense();
+  const { currentPlan, license, load } = useLicense();
   const { clear } = useLicenseStore();
   const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
 
   const handleManage = () => {
     setSettingsTab("subscription");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await invoke("oauth_logout");
+      await load();
+      useOnboardingStore.getState().requireAuth();
+    } catch {
+    }
   };
 
   return (
@@ -77,6 +88,14 @@ export function GeneralTab() {
                 <span className="text-[13px] text-zinc-500">{license.email}</span>
               )}
             </div>
+            {license?.email && (
+              <button
+                onClick={() => void handleLogout()}
+                className="ml-auto text-[11px] text-zinc-400 hover:text-red-400 underline underline-offset-2 transition-colors"
+              >
+                {t("settings.general.account.plan.logout")}
+              </button>
+            )}
           </div>
 
           <div className="p-4 rounded-md border border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-white/[0.02]">

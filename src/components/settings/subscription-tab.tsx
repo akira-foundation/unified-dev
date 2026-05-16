@@ -6,6 +6,7 @@ import { z } from "zod";
 import { useI18n } from "@/i18n/i18n";
 import { useLicense } from "@/hooks/useLicense";
 import { useLicenseStore } from "@/stores/license-store";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useCheckoutPoller } from "@/hooks/useCheckoutPoller";
 import { SettingsSection } from "./settings-section";
 
@@ -179,6 +180,15 @@ export function SubscriptionTab() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await invoke("oauth_logout");
+      await load();
+      useOnboardingStore.getState().requireAuth();
+    } catch {
+    }
+  };
+
   const handleDowngrade = async (targetPlan: "free" | "pro") => {
     setDowngrading(targetPlan);
     setError(null);
@@ -290,14 +300,24 @@ export function SubscriptionTab() {
                 <span className="text-[13px] text-zinc-500">{license.email}</span>
               )}
             </div>
-            {currentPlan !== "free" && (
-              <button
-                onClick={() => void handleManage()}
-                className="ml-auto text-[11px] text-zinc-400 hover:text-zinc-200 underline underline-offset-2 transition-colors"
-              >
-                {t("settings.general.account.plan.manage")}
-              </button>
-            )}
+            <div className="ml-auto flex items-center gap-3">
+              {currentPlan !== "free" && (
+                <button
+                  onClick={() => void handleManage()}
+                  className="text-[11px] text-zinc-400 hover:text-zinc-200 underline underline-offset-2 transition-colors"
+                >
+                  {t("settings.general.account.plan.manage")}
+                </button>
+              )}
+              {license?.email && (
+                <button
+                  onClick={() => void handleLogout()}
+                  className="text-[11px] text-zinc-400 hover:text-red-400 underline underline-offset-2 transition-colors"
+                >
+                  {t("settings.general.account.plan.logout")}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-center gap-1 p-1 rounded-md bg-zinc-100 dark:bg-zinc-800/60 w-fit mx-auto mb-5">

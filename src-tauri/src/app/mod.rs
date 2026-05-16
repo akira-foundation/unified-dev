@@ -1,3 +1,4 @@
+pub mod auth;
 pub mod autopilot;
 pub mod billing;
 pub mod chat;

@@ -84,35 +84,37 @@ const FEATURES = [
   },
 ];
 
-const STEPS = ["welcome", "dependencies", "license", "ready"] as const;
+const STEPS = ["welcome", "dependencies", "auth", "ready"] as const;
 type Step = (typeof STEPS)[number];
 
 const STEP_META: Record<Step, { title: string; subtitle: string }> = {
   welcome: { title: "Welcome", subtitle: "What's inside" },
   dependencies: { title: "Environment", subtitle: "CLI tools" },
-  license: { title: "License", subtitle: "Your profile" },
+  auth: { title: "Sign in", subtitle: "Connect provider" },
   ready: { title: "Ready", subtitle: "Let's go" },
 };
 
-export function OnboardingOverlay() {
-  const { complete, reset } = useOnboardingStore();
-  const [step, setStep] = useState<Step>("welcome");
+interface OauthLoginResult {
+  customer_id: string;
+  customer_email: string;
+  customer_name: string | null;
+  entitlement: { plan_key: string | null; source: string; ends_at: string | null } | null;
+  requires_plan_selection: boolean;
+}
 
-  // Always show during development — remove this block when ready for production
-  useEffect(() => { reset(); }, []);
+export function OnboardingOverlay() {
+  const { complete, authOnly, clearRequireAuth } = useOnboardingStore();
+  const [step, setStep] = useState<Step>(authOnly ? "auth" : "welcome");
+
   const [deps, setDeps] = useState<DependencyStatus[] | null>(null);
   const [checking, setChecking] = useState(false);
-  const [licenseEmail, setLicenseEmail] = useState("");
-  const [licenseEmailSaved, setLicenseEmailSaved] = useState(false);
+  const [authResult, setAuthResult] = useState<OauthLoginResult | null>(null);
+  const [authing, setAuthing] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     if (step === "dependencies" && deps === null) {
       runCheck();
-    }
-    if (step === "license") {
-      void invoke<{ email: string } | null>("get_user_profile").then((p) => {
-        if (p) setLicenseEmail(p.email);
-      });
     }
   }, [step]);
 
@@ -129,7 +131,6 @@ export function OnboardingOverlay() {
   const stepIndex = STEPS.indexOf(step);
 
   function next() {
-    setLicenseEmailSaved(false);
     setStep(STEPS[stepIndex + 1]);
   }
 
@@ -140,12 +141,22 @@ export function OnboardingOverlay() {
   const isLast = step === "ready";
   const isFirst = step === "welcome";
 
-  async function handleLicenseSave() {
-    const email = licenseEmail.trim();
-    if (!email) return;
-    await invoke("set_user_profile", { email });
-    setLicenseEmailSaved(true);
-    next();
+  async function handleOauth(provider: string) {
+    setAuthing(true);
+    setAuthError(null);
+    try {
+      const result = await invoke<OauthLoginResult>("oauth_login", { provider });
+      setAuthResult(result);
+      if (authOnly) {
+        clearRequireAuth();
+        return;
+      }
+      next();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAuthing(false);
+    }
   }
 
   return (
@@ -220,16 +231,21 @@ export function OnboardingOverlay() {
             {step === "dependencies" && (
               <DependenciesStep deps={deps} checking={checking} onRecheck={runCheck} />
             )}
-            {step === "license" && (
-              <LicenseStep email={licenseEmail} onEmailChange={setLicenseEmail} saved={licenseEmailSaved} />
+            {step === "auth" && (
+              <AuthStep
+                authing={authing}
+                authError={authError}
+                authResult={authResult}
+                onOauth={handleOauth}
+              />
             )}
-            {step === "ready" && <ReadyStep />}
+            {step === "ready" && <ReadyStep authResult={authResult} />}
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-between px-8 py-5 border-t border-white/6">
             <div>
-              {!isFirst && (
+              {!isFirst && !authOnly && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -241,41 +257,30 @@ export function OnboardingOverlay() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              {!isLast && (
+              {!isLast && step !== "auth" && !authOnly && (
                 <button
-                  onClick={step === "license" ? next : complete}
+                  onClick={complete}
                   className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
                 >
-                  {step === "license" ? "Skip for now" : "Skip for now"}
+                  Skip for now
                 </button>
               )}
-              <Button
-                onClick={
-                  isLast
-                    ? complete
-                    : step === "license"
-                      ? () => void handleLicenseSave()
-                      : next
-                }
-                disabled={
-                  (step === "dependencies" && checking) ||
-                  (step === "license" && !licenseEmail.trim())
-                }
-                className="bg-purple-600 hover:bg-purple-500 text-white gap-2"
-              >
-                {step === "dependencies" && checking ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : isLast ? (
-                  <Rocket className="h-3.5 w-3.5" />
-                ) : (
-                  <ArrowRight className="h-3.5 w-3.5" />
-                )}
-                {isLast
-                  ? "Launch Unified Dev"
-                  : step === "license"
-                    ? "Save & Continue"
-                    : "Continue"}
-              </Button>
+              {step !== "auth" && !authOnly && (
+                <Button
+                  onClick={isLast ? complete : next}
+                  disabled={step === "dependencies" && checking}
+                  className="bg-purple-600 hover:bg-purple-500 text-white gap-2"
+                >
+                  {step === "dependencies" && checking ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : isLast ? (
+                    <Rocket className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  )}
+                  {isLast ? "Launch Unified Dev" : "Continue"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -454,54 +459,91 @@ function DependencyRow({ dep }: { dep: DependencyStatus }) {
   );
 }
 
-function LicenseStep({
-  email,
-  onEmailChange,
-  saved,
+function AuthStep({
+  authing,
+  authError,
+  authResult,
+  onOauth,
 }: {
-  email: string;
-  onEmailChange: (v: string) => void;
-  saved: boolean;
+  authing: boolean;
+  authError: string | null;
+  authResult: { customer_email: string; customer_name: string | null } | null;
+  onOauth: (provider: string) => void;
 }) {
+  if (authResult) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white leading-tight">
+            Signed in
+          </h2>
+          <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
+            Linked to {authResult.customer_email}. Your GitHub provider is connected and ready.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+          <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">
+              {authResult.customer_name ?? authResult.customer_email}
+            </p>
+            <p className="text-[11px] text-zinc-500 truncate">{authResult.customer_email}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-white leading-tight">
-          Your profile email
+          Connect your dev account
         </h2>
         <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-          This email is used to activate your license later. You can change it anytime in Settings.
+          Sign in with GitHub to claim your free plan, sync repos, and unlock agent runs.
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-[11px] text-zinc-500 font-medium uppercase tracking-wider">
-          Profile email
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => onEmailChange(e.target.value)}
-          placeholder="your@email.com"
-          className="text-sm px-3 py-2 rounded-lg border border-white/10 bg-white/[0.04] text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-purple-500/60"
-        />
-        {saved && (
-          <p className="text-[11px] text-emerald-400 flex items-center gap-1.5">
-            <CheckCircle2 className="h-3 w-3" /> Saved
-          </p>
-        )}
+      <div className="flex flex-col gap-2.5">
+        <button
+          onClick={() => onOauth("github")}
+          disabled={authing}
+          className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {authing ? (
+            <Loader2 className="h-5 w-5 text-zinc-400 shrink-0 animate-spin" />
+          ) : (
+            <svg className="h-5 w-5 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.31-.54-1.53.11-3.18 0 0 1.01-.32 3.31 1.23a11.5 11.5 0 016.02 0c2.3-1.55 3.31-1.23 3.31-1.23.65 1.65.24 2.87.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.69.83.58A12 12 0 0024 12c0-6.63-5.37-12-12-12z" />
+            </svg>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-white">Continue with GitHub</p>
+            <p className="text-[11px] text-zinc-500">Login + connect repos in one step</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-zinc-500 shrink-0 group-hover:text-white transition-colors" />
+        </button>
       </div>
+
+      {authError ? (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2">
+          <XCircle className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-rose-300 leading-relaxed">{authError}</p>
+        </div>
+      ) : null}
 
       <div className="mt-auto pt-6 border-t border-white/6">
         <p className="text-[11px] text-zinc-600 leading-relaxed">
-          Skipping this step means you won't be able to activate a license until you set a profile email in Settings.
+          We never see your GitHub password. Tokens are stored encrypted on your device.
         </p>
       </div>
     </div>
   );
 }
 
-function ReadyStep() {
+function ReadyStep({ authResult }: { authResult: { customer_email: string; entitlement: { plan_key: string | null } | null } | null }) {
+  const planLabel = authResult?.entitlement?.plan_key ?? "free";
   return (
     <div className="flex flex-col items-center justify-center text-center h-full py-8">
       <div className="h-16 w-16 rounded-2xl bg-purple-600/15 border border-purple-500/20 flex items-center justify-center mb-6">
@@ -509,8 +551,14 @@ function ReadyStep() {
       </div>
       <h2 className="text-2xl font-bold text-white mb-2">Ready to launch</h2>
       <p className="text-sm text-zinc-400 leading-relaxed max-w-xs">
-        Start by connecting a GitHub organization, then import your repositories.
-        Agents and issues follow from there.
+        {authResult ? (
+          <>
+            Signed in as <span className="text-white">{authResult.customer_email}</span>{" "}
+            on the <span className="text-purple-300 font-semibold">{planLabel}</span> plan.
+          </>
+        ) : (
+          <>Start by connecting a GitHub organization, then import your repositories. Agents and issues follow from there.</>
+        )}
       </p>
       <div className="mt-8 grid grid-cols-3 gap-3 w-full max-w-xs text-center">
         {[

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ export default function App() {
   const { currentPage, navigateTo } = useNavigation("dashboard");
   const isAgentMode = useNavigationStore((state) => state.isAgentMode);
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
+  const onboardingAuthOnly = useOnboardingStore((s) => s.authOnly);
+  const requireOnboardingAuth = useOnboardingStore((s) => s.requireAuth);
   const loadRepositories = useAgentsStore((state) => state.loadRepositories);
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
   const loadAutopilotJobs = useAutopilotStore((state) => state.loadJobs);
@@ -58,6 +61,17 @@ export default function App() {
     loadAiProviders();
     loadAutopilotJobs();
   }, []);
+
+  useEffect(() => {
+    if (!onboardingCompleted) return;
+    void (async () => {
+      try {
+        const authed = await invoke<boolean>("is_authenticated");
+        if (!authed) requireOnboardingAuth();
+      } catch {
+      }
+    })();
+  }, [onboardingCompleted]);
 
   useEffect(() => {
     const unlisten = listen<string>("license://activate", (event) => {
@@ -122,7 +136,7 @@ export default function App() {
           initialSessionId={activationSessionId ?? ""}
           onClose={() => setActivationSessionId(null)}
         />
-        {!onboardingCompleted && <OnboardingOverlay />}
+        {(!onboardingCompleted || onboardingAuthOnly) && <OnboardingOverlay />}
       </AppContent>
     </AppShell>
   );

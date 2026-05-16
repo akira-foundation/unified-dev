@@ -5,6 +5,7 @@ pub const PRODUCT_SLUG: &str = "unified-dev";
 #[derive(Debug, Clone)]
 pub struct BillingClient {
     inner: Client,
+    has_customer_token: bool,
 }
 
 impl BillingClient {
@@ -17,6 +18,7 @@ impl BillingClient {
         let secret = env!("AKIRA_BILLING_SECRET").to_string();
         Self {
             inner: Client::new(base_url, PRODUCT_SLUG, secret),
+            has_customer_token: false,
         }
     }
 
@@ -28,8 +30,17 @@ impl BillingClient {
         &mut self.inner
     }
 
-    #[allow(dead_code)]
+    pub fn has_customer_token(&self) -> bool {
+        self.has_customer_token
+    }
+
     pub fn set_customer_token(&mut self, token: impl Into<String>) {
         self.inner.set_customer_token(token);
+        self.has_customer_token = true;
+    }
+
+    pub fn clear_customer_token(&mut self) {
+        self.inner.clear_customer_token();
+        self.has_customer_token = false;
     }
 }
