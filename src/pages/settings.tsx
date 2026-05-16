@@ -48,6 +48,8 @@ type TabId =
 
 const COMING_SOON_TABS: TabId[] = ["notifications", "integrations", "agents", "dictation", "workspaces", "remote", "shortcuts", "advanced"];
 
+const SHOW_COMING_SOON = import.meta.env.DEV;
+
 import { useNavigationStore } from "@/stores/navigation-store";
 
 export function SettingsPage() {
@@ -124,13 +126,17 @@ export function SettingsPage() {
 
       <div className="mx-auto w-full max-w-6xl pb-12 flex gap-8">
         <div className="w-64 shrink-0 flex flex-col gap-6">
-          {SETTINGS_GROUPS.map((group) => (
+          {SETTINGS_GROUPS.filter((group) =>
+            group.items.some((tab) => SHOW_COMING_SOON || !COMING_SOON_TABS.includes(tab.id)),
+          ).map((group) => (
             <div key={group.id} className="flex flex-col gap-1">
               <h3 className="px-3 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400/60 mb-2">
                 {group.group}
               </h3>
               <div className="flex flex-col gap-0.5">
-                {group.items.map((tab) => {
+                {group.items
+                  .filter((tab) => SHOW_COMING_SOON || !COMING_SOON_TABS.includes(tab.id))
+                  .map((tab) => {
                   const isComingSoon = COMING_SOON_TABS.includes(tab.id);
                   return (
                     <button
