@@ -179,9 +179,9 @@ async fn await_callback(listener: TcpListener) -> AppResult<(String, String)> {
         .map(|(_, value)| value.into_owned())
         .ok_or_else(|| AppError::Provider("oauth state missing".to_string()))?;
 
-    let body = "<html><body><h2>Signed in. You can close this tab.</h2></body></html>";
+    let body = include_str!("oauth_success.html");
     let response = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         body.len(),
         body
     );

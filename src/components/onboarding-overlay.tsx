@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import {
@@ -113,10 +113,8 @@ export function OnboardingOverlay() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (step === "dependencies" && deps === null) {
-      runCheck();
-    }
-  }, [step]);
+    if (deps === null) runCheck();
+  }, []);
 
   async function runCheck() {
     setChecking(true);
@@ -226,7 +224,7 @@ export function OnboardingOverlay() {
 
         {/* Right panel — step content */}
         <div className="flex flex-col flex-1 min-w-0">
-          <div className="flex-1 overflow-y-auto p-8">
+          <div key={step} className="flex-1 overflow-y-auto p-8 animate-in fade-in slide-in-from-right-2 duration-200">
             {step === "welcome" && <WelcomeStep />}
             {step === "dependencies" && (
               <DependenciesStep deps={deps} checking={checking} onRecheck={runCheck} />
@@ -459,6 +457,51 @@ function DependencyRow({ dep }: { dep: DependencyStatus }) {
   );
 }
 
+interface OauthProviderDto {
+  provider: string;
+  label: string;
+  scopes: string[];
+}
+
+const PROVIDER_ICON: Record<string, ReactNode> = {
+  github: (
+    <svg className="h-5 w-5 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.31-.54-1.53.11-3.18 0 0 1.01-.32 3.31 1.23a11.5 11.5 0 016.02 0c2.3-1.55 3.31-1.23 3.31-1.23.65 1.65.24 2.87.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.69.83.58A12 12 0 0024 12c0-6.63-5.37-12-12-12z" />
+    </svg>
+  ),
+  gitlab: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="#FC6D26" aria-hidden>
+      <path d="M23.6 9.6L23.6 9.5 20.3 1.1c-.1-.2-.2-.3-.4-.4-.2-.1-.4-.1-.6 0-.2.1-.3.2-.4.4l-2.3 6.9H7.4L5.1 1.1c-.1-.2-.2-.3-.4-.4-.2-.1-.4-.1-.6 0-.2.1-.3.2-.4.4L.4 9.5v.1c-.4 1.1 0 2.3.9 3l10.4 7.5L22.6 12.5c1-.7 1.4-1.9 1-3z" />
+    </svg>
+  ),
+  bitbucket: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="#2684FF" aria-hidden>
+      <path d="M.78 1.5C.347 1.495-.012 1.84 0 2.273c0 .033 0 .066.008.099l3.264 19.812c.067.405.42.704.83.706h15.65c.308.004.574-.216.626-.52l3.264-19.99c.066-.426-.225-.825-.65-.891-.034-.005-.067-.008-.1-.008zM14.55 15.7H9.46l-1.38-7.207h7.764z" />
+    </svg>
+  ),
+  google: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+  ),
+  apple: (
+    <svg className="h-5 w-5 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
+    </svg>
+  ),
+  microsoft: (
+    <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden>
+      <path fill="#F25022" d="M1 1h10v10H1z"/>
+      <path fill="#7FBA00" d="M13 1h10v10H13z"/>
+      <path fill="#00A4EF" d="M1 13h10v10H1z"/>
+      <path fill="#FFB900" d="M13 13h10v10H13z"/>
+    </svg>
+  ),
+};
+
 function AuthStep({
   authing,
   authError,
@@ -470,6 +513,20 @@ function AuthStep({
   authResult: { customer_email: string; customer_name: string | null } | null;
   onOauth: (provider: string) => void;
 }) {
+  const [providers, setProviders] = useState<OauthProviderDto[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(true);
+  const [activeProvider, setActiveProvider] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authing) setActiveProvider(null);
+  }, [authing]);
+
+  useEffect(() => {
+    invoke<OauthProviderDto[]>("list_oauth_providers")
+      .then((list) => setProviders(list))
+      .catch(() => setProviders([{ provider: "github", label: "GitHub", scopes: [] }]))
+      .finally(() => setLoadingProviders(false));
+  }, []);
   if (authResult) {
     return (
       <div className="flex flex-col h-full">
@@ -478,7 +535,7 @@ function AuthStep({
             Signed in
           </h2>
           <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-            Linked to {authResult.customer_email}. Your GitHub provider is connected and ready.
+            Linked to {authResult.customer_email}. You're ready to import repos and run agents.
           </p>
         </div>
         <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
@@ -494,36 +551,58 @@ function AuthStep({
     );
   }
 
+  const sortedProviders = [...providers].sort((a, b) => {
+    if (a.provider === "github") return -1;
+    if (b.provider === "github") return 1;
+    return a.label.localeCompare(b.label);
+  });
+
   return (
     <div className="flex flex-col h-full">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-white leading-tight">
-          Connect your dev account
+          Sign in to Unified Dev
         </h2>
         <p className="text-sm text-zinc-400 mt-2 leading-relaxed">
-          Sign in with GitHub to claim your free plan, sync repos, and unlock agent runs.
+          One account for repos, agents and sync — across every Akira app.
         </p>
       </div>
 
       <div className="flex flex-col gap-2.5">
-        <button
-          onClick={() => onOauth("github")}
-          disabled={authing}
-          className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {authing ? (
-            <Loader2 className="h-5 w-5 text-zinc-400 shrink-0 animate-spin" />
-          ) : (
-            <svg className="h-5 w-5 text-white shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.02c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.31-.54-1.53.11-3.18 0 0 1.01-.32 3.31 1.23a11.5 11.5 0 016.02 0c2.3-1.55 3.31-1.23 3.31-1.23.65 1.65.24 2.87.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.62-5.49 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.69.83.58A12 12 0 0024 12c0-6.63-5.37-12-12-12z" />
-            </svg>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white">Continue with GitHub</p>
-            <p className="text-[11px] text-zinc-500">Login + connect repos in one step</p>
+        {loadingProviders ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 text-zinc-500 animate-spin" />
           </div>
-          <ArrowRight className="h-4 w-4 text-zinc-500 shrink-0 group-hover:text-white transition-colors" />
-        </button>
+        ) : providers.length === 0 ? (
+          <p className="text-[12px] text-zinc-500 text-center py-4">
+            No login providers configured.
+          </p>
+        ) : (
+          sortedProviders.map((p) => {
+            const isThisLoading = authing && activeProvider === p.provider;
+            return (
+              <button
+                key={p.provider}
+                onClick={() => {
+                  setActiveProvider(p.provider);
+                  onOauth(p.provider);
+                }}
+                disabled={authing}
+                className="group flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-left transition-colors hover:border-white/20 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isThisLoading ? (
+                  <Loader2 className="h-5 w-5 text-zinc-400 shrink-0 animate-spin" />
+                ) : (
+                  PROVIDER_ICON[p.provider] ?? <span className="h-5 w-5 shrink-0" />
+                )}
+                <p className="text-sm font-semibold text-white flex-1 min-w-0">
+                  Continue with {p.label}
+                </p>
+                <ArrowRight className="h-4 w-4 text-zinc-500 shrink-0 group-hover:text-white transition-colors" />
+              </button>
+            );
+          })
+        )}
       </div>
 
       {authError ? (
@@ -535,7 +614,7 @@ function AuthStep({
 
       <div className="mt-auto pt-6 border-t border-white/6">
         <p className="text-[11px] text-zinc-600 leading-relaxed">
-          We never see your GitHub password. Tokens are stored encrypted on your device.
+          We never see your password. Tokens stay encrypted on your device.
         </p>
       </div>
     </div>

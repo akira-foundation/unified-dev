@@ -52,7 +52,7 @@ use commands::thread::{
 };
 use commands::prompt::{get_prompts, save_prompt, reset_prompt};
 use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_sync_settings, upsert_visibility_preferences, reset_sync_settings, reset_visibility_preferences, get_remote_settings, set_remote_enabled, regenerate_remote_pairing_code, revoke_remote_device, touch_org_synced_at};
-use commands::auth::{is_authenticated, oauth_login, oauth_logout};
+use commands::auth::{is_authenticated, list_oauth_providers, oauth_login, oauth_logout};
 use commands::notification::{
     clear_notifications, delete_notification, get_notification_prefs, list_notifications,
     mark_all_notifications_read, mark_notification_read, send_test_notifications,
@@ -266,6 +266,7 @@ pub fn run() {
             oauth_login,
             oauth_logout,
             is_authenticated,
+            list_oauth_providers,
             list_notifications,
             unread_notifications_count,
             mark_notification_read,
