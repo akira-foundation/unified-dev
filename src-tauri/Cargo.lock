@@ -54,13 +54,15 @@ dependencies = [
 
 [[package]]
 name = "akira-billing"
-version = "0.1.9"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7316fcadf05ee0acfe8beef192a0ac9bcb918709e0d5ccdc8cec9dfe69399657"
+checksum = "947c6aa050a61240fb370e244e164ce68a1eabae24c594fee7ef291d105666a7"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "ed25519-dalek",
+ "futures",
  "hex",
  "hmac",
  "rand 0.8.6",
@@ -5960,7 +5962,6 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "dirs 5.0.1",
- "ed25519-dalek",
  "futures-util",
  "hex",
  "hmac",
