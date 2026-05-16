@@ -53,12 +53,18 @@ async fn check_feature(
     let has_token = license::load_customer_token(&state.db_pool, &state.token_cipher)
         .await?
         .is_some();
+    let platform = std::env::consts::OS;
+    let app_version = env!("CARGO_PKG_VERSION");
     let payload = UsagePayload {
         product: PRODUCT_SLUG,
         feature,
         date: &date,
         device_fp: &identity.id,
         action: "check",
+        count: None,
+        platform: Some(platform),
+        device_type: Some("desktop"),
+        app_version: Some(app_version),
     };
 
     let billing = state.billing.read().await;

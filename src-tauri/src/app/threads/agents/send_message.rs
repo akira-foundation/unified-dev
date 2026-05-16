@@ -68,12 +68,18 @@ pub async fn send_message(
         let has_token = crate::app::license::load_customer_token(&state.db_pool, &state.token_cipher)
             .await?
             .is_some();
+        let platform = std::env::consts::OS;
+        let app_version = env!("CARGO_PKG_VERSION");
         let payload = UsagePayload {
             product: PRODUCT_SLUG,
             feature: USAGE_FEATURE,
             date: &date,
             device_fp: &identity.id,
             action: "increment",
+            count: None,
+            platform: Some(platform),
+            device_type: Some("desktop"),
+            app_version: Some(app_version),
         };
 
         let billing = state.billing.read().await;
