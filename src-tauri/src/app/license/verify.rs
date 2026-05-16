@@ -12,6 +12,7 @@ pub async fn get_plan(pool: &sqlx::SqlitePool) -> AppResult<String> {
     )
     .fetch_optional(pool)
     .await?
+    .filter(|p| !p.is_empty())
     .unwrap_or_else(|| "free".to_string());
     Ok(plan)
 }
