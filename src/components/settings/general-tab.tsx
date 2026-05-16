@@ -4,38 +4,12 @@ import { useI18n } from "@/i18n/i18n";
 import { useLicense } from "@/hooks/useLicense";
 import { useLicenseStore } from "@/stores/license-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
-import { useNavigationStore } from "@/stores/navigation-store";
+// import { useNavigationStore } from "@/stores/navigation-store";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ComingSoon } from "@/components/ui/coming-soon";
 import { SettingsSection } from "./settings-section";
 import { SettingsItem } from "./settings-item";
-
-const PLAN_FEATURES: Record<string, string[]> = {
-  free: [
-    "settings.general.account.plan.limit.runs",
-    "settings.general.account.plan.limit.threads",
-    "settings.general.account.plan.limit.repos",
-    "settings.general.account.plan.limit.orgs",
-    "settings.general.account.plan.limit.local",
-    "settings.general.account.plan.limit.kanban",
-    "settings.general.account.plan.limit.pr_review",
-    "settings.general.account.plan.limit.community",
-  ],
-  pro: [
-    "settings.general.account.plan.limit.unlimited_runs",
-    "settings.general.account.plan.limit.unlimited_threads",
-    "settings.general.account.plan.limit.kanban",
-    "settings.general.account.plan.limit.pr_review",
-    "settings.general.account.plan.limit.priority",
-  ],
-  ultimate: [
-    "settings.general.account.plan.limit.unlimited_runs",
-    "settings.general.account.plan.limit.unlimited_threads",
-    "settings.general.account.plan.limit.remote",
-    "settings.general.account.plan.limit.pairing",
-  ],
-};
 
 const PLAN_COLOR: Record<string, string> = {
   free: "bg-zinc-500/10 text-zinc-400",
@@ -43,21 +17,49 @@ const PLAN_COLOR: Record<string, string> = {
   ultimate: "bg-purple-500/10 text-purple-400",
 };
 
-const FEATURE_COLOR: Record<string, string> = {
-  free: "text-zinc-400",
-  pro: "text-blue-400",
-  ultimate: "text-purple-400",
-};
+// Plan features + colors moved to Subscription tab (dynamic via billing SDK).
+// Kept commented for future use if Account ever shows the current plan again.
+// const PLAN_FEATURES: Record<string, string[]> = {
+//   free: [
+//     "settings.general.account.plan.limit.runs",
+//     "settings.general.account.plan.limit.threads",
+//     "settings.general.account.plan.limit.repos",
+//     "settings.general.account.plan.limit.orgs",
+//     "settings.general.account.plan.limit.local",
+//     "settings.general.account.plan.limit.kanban",
+//     "settings.general.account.plan.limit.pr_review",
+//     "settings.general.account.plan.limit.community",
+//   ],
+//   pro: [
+//     "settings.general.account.plan.limit.unlimited_runs",
+//     "settings.general.account.plan.limit.unlimited_threads",
+//     "settings.general.account.plan.limit.kanban",
+//     "settings.general.account.plan.limit.pr_review",
+//     "settings.general.account.plan.limit.priority",
+//   ],
+//   ultimate: [
+//     "settings.general.account.plan.limit.unlimited_runs",
+//     "settings.general.account.plan.limit.unlimited_threads",
+//     "settings.general.account.plan.limit.remote",
+//     "settings.general.account.plan.limit.pairing",
+//   ],
+// };
+//
+// const FEATURE_COLOR: Record<string, string> = {
+//   free: "text-zinc-400",
+//   pro: "text-blue-400",
+//   ultimate: "text-purple-400",
+// };
 
 export function GeneralTab() {
   const { t, locale, setLocale } = useI18n();
   const { currentPlan, license, load } = useLicense();
   const { clear } = useLicenseStore();
-  const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
+  // const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
 
-  const handleManage = () => {
-    setSettingsTab("subscription");
-  };
+  // const handleManage = () => {
+  //   setSettingsTab("subscription");
+  // };
 
   const handleLogout = async () => {
     try {
@@ -98,6 +100,7 @@ export function GeneralTab() {
             )}
           </div>
 
+          {/* Current plan block moved to Subscription tab — keep here commented for future reuse.
           <div className="p-4 rounded-md border border-zinc-100 dark:border-white/5 bg-zinc-50 dark:bg-white/[0.02]">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
@@ -127,6 +130,7 @@ export function GeneralTab() {
               ))}
             </ul>
           </div>
+          */}
         </div>
 
         {import.meta.env.DEV && currentPlan !== "free" && (
