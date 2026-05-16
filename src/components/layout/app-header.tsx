@@ -1,4 +1,5 @@
-import { Bell, ChevronLeft, Download, PanelLeft } from "lucide-react";
+import { ChevronLeft, Download, PanelLeft } from "lucide-react";
+import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
 import { useUpdater } from "@/hooks/useUpdater";
@@ -107,9 +108,7 @@ export function AppHeader() {
                             </TooltipContent>
                         </Tooltip>
                     )}
-                    <button className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                        <Bell className="h-3.5 w-3.5" />
-                    </button>
+                    <NotificationsDropdown />
                 </div>
             </div>
         </header>

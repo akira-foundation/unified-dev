@@ -4,15 +4,15 @@ import {
   Palette,
   SlidersHorizontal,
   Bell,
-  Blocks,
-  Bot,
-  Keyboard,
-  Mic,
-  Wrench,
+  // Blocks,
+  // Bot,
+  // Keyboard,
+  // Mic,
+  // Wrench,
   Unplug,
-  FolderGit2,
+  // FolderGit2,
   FileText,
-  Smartphone,
+  // Smartphone,
   RefreshCw,
   CreditCard,
 } from "lucide-react";
@@ -46,7 +46,7 @@ type TabId =
   | "integrations" | "agents" | "remote" | "sync" | "shortcuts" | "dictation"
   | "advanced" | "vcs-providers" | "workspaces" | "prompts" | "subscription";
 
-const COMING_SOON_TABS: TabId[] = ["notifications", "integrations", "agents", "dictation", "workspaces", "remote", "shortcuts", "advanced"];
+const COMING_SOON_TABS: TabId[] = ["integrations", "agents", "dictation", "workspaces", "remote", "shortcuts", "advanced"];
 
 const SHOW_COMING_SOON = import.meta.env.DEV;
 
@@ -89,21 +89,21 @@ export function SettingsPage() {
       id: "features",
       group: t("settings.groups.features"),
       items: [
-        { id: "integrations" as TabId, label: t("settings.tabs.integrations"), icon: <Blocks className="h-4 w-4" /> },
-        { id: "agents" as TabId,       label: t("settings.tabs.agents"),        icon: <Bot className="h-4 w-4" /> },
-        { id: "remote" as TabId,       label: t("settings.tabs.remote"),        icon: <Smartphone className="h-4 w-4" /> },
+        // { id: "integrations" as TabId, label: t("settings.tabs.integrations"), icon: <Blocks className="h-4 w-4" /> },
+        // { id: "agents" as TabId,       label: t("settings.tabs.agents"),        icon: <Bot className="h-4 w-4" /> },
+        // { id: "remote" as TabId,       label: t("settings.tabs.remote"),        icon: <Smartphone className="h-4 w-4" /> },
         { id: "sync" as TabId,         label: t("settings.tabs.sync"),          icon: <RefreshCw className="h-4 w-4" /> },
-        { id: "shortcuts" as TabId,    label: t("settings.tabs.shortcuts"),     icon: <Keyboard className="h-4 w-4" /> },
-        { id: "dictation" as TabId,    label: t("settings.tabs.dictation"),     icon: <Mic className="h-4 w-4" /> },
+        // { id: "shortcuts" as TabId,    label: t("settings.tabs.shortcuts"),     icon: <Keyboard className="h-4 w-4" /> },
+        // { id: "dictation" as TabId,    label: t("settings.tabs.dictation"),     icon: <Mic className="h-4 w-4" /> },
       ],
     },
     {
       id: "development",
       group: t("settings.groups.development"),
       items: [
-        { id: "advanced" as TabId,       label: t("settings.tabs.advanced"),      icon: <Wrench className="h-4 w-4" /> },
+        // { id: "advanced" as TabId,       label: t("settings.tabs.advanced"),      icon: <Wrench className="h-4 w-4" /> },
         { id: "vcs-providers" as TabId,  label: t("settings.tabs.vcsProviders"),  icon: <Unplug className="h-4 w-4" /> },
-        { id: "workspaces" as TabId,     label: t("settings.tabs.workspaces"),    icon: <FolderGit2 className="h-4 w-4" /> },
+        // { id: "workspaces" as TabId,     label: t("settings.tabs.workspaces"),    icon: <FolderGit2 className="h-4 w-4" /> },
         { id: "prompts" as TabId,        label: t("settings.tabs.prompts"),       icon: <FileText className="h-4 w-4" /> },
       ],
     },

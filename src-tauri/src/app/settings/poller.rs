@@ -72,7 +72,7 @@ pub fn start(app_handle: AppHandle) {
                     {
                         let pr_scope = resolve_pr_scope(&state, org_id, repo).await;
                         let current_login = resolve_current_login(&state, org_id).await;
-                        let _ = crate::app::orgs::pull_requests::sync::sync(
+                        if let Err(error) = crate::app::orgs::pull_requests::sync::sync(
                             app_handle.state::<AppState>(),
                             org_id.clone(),
                             repo.to_string(),
@@ -80,7 +80,10 @@ pub fn start(app_handle: AppHandle) {
                             Some(pr_scope),
                             current_login,
                         )
-                        .await;
+                        .await
+                        {
+                            notify_sync_error(&app_handle, "pull requests", &repo_id, &error).await;
+                        }
                         last_synced.insert(("prs", repo_id.clone()), now);
                         touch_synced_at(&state, &repo_id, &repo_settings).await;
                         emit(&app_handle, "prs", org_id);
@@ -92,7 +95,7 @@ pub fn start(app_handle: AppHandle) {
                     {
                         let issue_scope = resolve_issue_scope(&state, org_id, repo).await;
                         let current_login = resolve_current_login(&state, org_id).await;
-                        let _ = crate::app::issues::sync::sync(
+                        if let Err(error) = crate::app::issues::sync::sync(
                             app_handle.state::<AppState>(),
                             org_id.clone(),
                             owner.to_string(),
@@ -100,7 +103,10 @@ pub fn start(app_handle: AppHandle) {
                             Some(issue_scope),
                             current_login,
                         )
-                        .await;
+                        .await
+                        {
+                            notify_sync_error(&app_handle, "issues", &repo_id, &error).await;
+                        }
                         last_synced.insert(("issues", repo_id.clone()), now);
                         touch_synced_at(&state, &repo_id, &repo_settings).await;
                         emit(&app_handle, "issues", org_id);
@@ -149,6 +155,39 @@ fn due(
     match last.get(&(kind, id.to_string())) {
         None => true,
         Some(t) => now.duration_since(*t) >= Duration::from_secs(interval_secs as u64),
+    }
+}
+
+async fn notify_sync_error(app_handle: &AppHandle, kind: &str, repo_id: &str, error: &str) {
+    let summary = summarize_error(error);
+    let _ = crate::app::notifications::notify(
+        app_handle,
+        crate::app::notifications::NotificationInput {
+            category: crate::app::notifications::NotificationCategory::Sync,
+            severity: crate::app::notifications::NotificationSeverity::Warning,
+            title: format!("Sync failed: {kind}"),
+            body: Some(format!("{repo_id}: {summary}")),
+            action_type: Some("sync.retry".to_string()),
+            action_payload: Some(repo_id.to_string()),
+            ttl_days: Some(3),
+        },
+    )
+    .await;
+}
+
+fn summarize_error(raw: &str) -> String {
+    let trimmed = raw.trim();
+    let cut_at = trimmed
+        .find("<!DOCTYPE")
+        .or_else(|| trimmed.find("<html"))
+        .or_else(|| trimmed.find(" <"))
+        .unwrap_or(trimmed.len());
+    let head = trimmed[..cut_at].trim_end_matches('—').trim();
+    let truncated: String = head.chars().take(180).collect();
+    if head.chars().count() > 180 {
+        format!("{truncated}…")
+    } else {
+        truncated.to_string()
     }
 }
 

@@ -98,7 +98,38 @@ pub async fn send_message(
         };
 
         if !response.allowed {
+            let _ = crate::app::notifications::notify(
+                &app,
+                crate::app::notifications::NotificationInput {
+                    category: crate::app::notifications::NotificationCategory::UsageLimit,
+                    severity: crate::app::notifications::NotificationSeverity::Warning,
+                    title: "Daily agent run limit reached".to_string(),
+                    body: response.limit.map(|limit| format!("{}/{} runs used today. Upgrade to Pro for unlimited.", response.count, limit)),
+                    action_type: Some("upgrade.pro".to_string()),
+                    action_payload: None,
+                    ttl_days: Some(1),
+                },
+            )
+            .await;
             return Err(AppError::FreeTierLimit("run_limit_reached".to_string()));
+        }
+
+        if let Some(limit) = response.limit {
+            if limit > 0 && response.count + 1 == limit {
+                let _ = crate::app::notifications::notify(
+                    &app,
+                    crate::app::notifications::NotificationInput {
+                        category: crate::app::notifications::NotificationCategory::UsageLimit,
+                        severity: crate::app::notifications::NotificationSeverity::Info,
+                        title: "Approaching daily run limit".to_string(),
+                        body: Some(format!("Last run of the day. {}/{} used.", response.count, limit)),
+                        action_type: Some("upgrade.pro".to_string()),
+                        action_payload: None,
+                        ttl_days: Some(1),
+                    },
+                )
+                .await;
+            }
         }
     }
 

@@ -25,6 +25,7 @@ import { RepositoryPRsPage } from "./pages/repository-prs";
 import { RepositoryDetailPage } from "./pages/repository-detail";
 import { PrReviewPage } from "./pages/pr-review";
 import { SettingsPage } from "./pages/settings";
+import { NotificationsPage } from "./pages/notifications";
 import { ProviderDetailPage } from "./pages/provider-detail";
 import { Bot, Building2, CircleDot, FolderGit2, GitFork, LayoutDashboard, Settings } from "lucide-react";
 import { useNavigation } from "./hooks/useNavigation";
@@ -125,6 +126,7 @@ export default function App() {
             {!isAgentMode && currentPage === "repository-detail" && <RepositoryDetailPage />}
             {!isAgentMode && currentPage === "pr-review" && <PrReviewPage />}
             {!isAgentMode && currentPage === "settings" && <SettingsPage />}
+            {!isAgentMode && currentPage === "notifications" && <NotificationsPage />}
             {!isAgentMode && currentPage === "provider-detail" && <ProviderDetailPage />}
           </div>
         </main>

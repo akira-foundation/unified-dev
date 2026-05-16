@@ -5,6 +5,7 @@ pub mod issue;
 pub mod system;
 pub mod license;
 pub mod mcp;
+pub mod notification;
 pub mod open_source;
 pub mod organization;
 pub mod profile;

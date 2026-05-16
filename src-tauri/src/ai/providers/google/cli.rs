@@ -188,7 +188,21 @@ impl GeminiCliProvider {
                     }
                     if line.contains("update available") && line.contains("Gemini CLI") {
                         if let Some(notice) = parse_update_notice(&line) {
-                            let _ = app_handle.emit("app-update-available", notice);
+                            let _ = app_handle.emit("app-update-available", notice.clone());
+                            let payload = serde_json::to_string(&notice).ok();
+                            let _ = crate::app::notifications::notify(
+                                &app_handle,
+                                crate::app::notifications::NotificationInput {
+                                    category: crate::app::notifications::NotificationCategory::Update,
+                                    severity: crate::app::notifications::NotificationSeverity::Info,
+                                    title: format!("{} update available", notice.tool),
+                                    body: Some(format!("{} → {} ({})", notice.current, notice.latest, notice.command)),
+                                    action_type: Some("update.cli".to_string()),
+                                    action_payload: payload,
+                                    ttl_days: Some(7),
+                                },
+                            )
+                            .await;
                         }
                         continue;
                     }

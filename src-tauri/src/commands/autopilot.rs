@@ -65,7 +65,38 @@ pub async fn autopilot_update_job(
     input: UpdateJobRequest,
 ) -> Result<(), String> {
     require_feature(&state, &app, "autopilot", "autopilot_requires_pro").await?;
-    autopilot::update_job(&state.db_pool, input).await
+    let status = input.status.clone();
+    let job_id = input.id.clone();
+    let total = input.total;
+    autopilot::update_job(&state.db_pool, input).await?;
+
+    let (severity, title) = match status.as_str() {
+        "completed" => (
+            crate::app::notifications::NotificationSeverity::Success,
+            "Autopilot job completed".to_string(),
+        ),
+        "failed" => (
+            crate::app::notifications::NotificationSeverity::Error,
+            "Autopilot job failed".to_string(),
+        ),
+        _ => return Ok(()),
+    };
+
+    let _ = crate::app::notifications::notify(
+        &app,
+        crate::app::notifications::NotificationInput {
+            category: crate::app::notifications::NotificationCategory::Autopilot,
+            severity,
+            title,
+            body: total.map(|t| format!("{t} issues processed")),
+            action_type: Some("autopilot.open".to_string()),
+            action_payload: Some(job_id),
+            ttl_days: Some(7),
+        },
+    )
+    .await;
+
+    Ok(())
 }
 
 #[tauri::command]

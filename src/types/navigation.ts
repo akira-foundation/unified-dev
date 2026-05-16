@@ -15,7 +15,8 @@ export type AppPage =
   | "pr-review"
   | "issues"
   | "issue-detail"
-  | "open-source";
+  | "open-source"
+  | "notifications";
 
 export type NavBadgeTone = "red" | "green" | "amber" | "blue" | "muted";
 
