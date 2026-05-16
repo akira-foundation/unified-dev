@@ -55,8 +55,8 @@ use commands::settings::{get_sync_settings, get_visibility_preferences, upsert_s
 use commands::auth::{is_authenticated, list_oauth_providers, oauth_login, oauth_logout};
 use commands::notification::{
     clear_notifications, delete_notification, get_notification_prefs, list_notifications,
-    mark_all_notifications_read, mark_notification_read, send_test_notifications,
-    set_notification_prefs, unread_notifications_count,
+    mark_all_notifications_read, mark_notification_read, set_notification_prefs,
+    unread_notifications_count,
 };
 use commands::license::{activate_license, checkout_license, claim_license_request, claim_license_verify, clear_license, downgrade_license, get_license, get_product_plans, list_invoices, manage_license, register_license, verify_license};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills, fetch_skills_from_repo};
@@ -275,7 +275,6 @@ pub fn run() {
             clear_notifications,
             get_notification_prefs,
             set_notification_prefs,
-            send_test_notifications,
             list_mcp_servers,
             add_mcp_server,
             remove_mcp_server,

@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Bell, Send } from "lucide-react";
+import { Bell } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "@/i18n/i18n";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./settings-section";
 
 interface NotificationPref {
@@ -76,13 +75,6 @@ export function NotificationsTab() {
     }
   }
 
-  async function sendTest() {
-    try {
-      await invoke("send_test_notifications");
-    } catch {
-    }
-  }
-
   return (
     <div className="animate-in fade-in duration-300">
       <SettingsSection
@@ -90,16 +82,6 @@ export function NotificationsTab() {
         description={t("settings.notifications.description")}
         icon={Bell}
       >
-        <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800/50 flex items-center justify-between gap-3 bg-zinc-50/50 dark:bg-zinc-900/20">
-          <p className="text-[11px] text-zinc-500">
-            Trigger a sample notification for each category to verify in-app + system delivery.
-          </p>
-          <Button variant="outline" size="sm" onClick={() => void sendTest()}>
-            <Send className="h-3.5 w-3.5" />
-            Send test
-          </Button>
-        </div>
-
         <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800/50 grid grid-cols-[1fr_auto_auto] gap-x-6 text-[10px] uppercase font-bold tracking-wider text-zinc-500">
           <span>Category</span>
           <span className="text-center w-16">In-app</span>
