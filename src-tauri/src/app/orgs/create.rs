@@ -13,10 +13,12 @@ pub async fn create(state: State<'_, AppState>, input: CreateOrgRequest) -> Resu
         .await
         .map_err(|e| e.to_string())?;
     if plan == "free" {
-        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM organizations")
-            .fetch_one(&state.db_pool)
-            .await
-            .map_err(|e| e.to_string())?;
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM organizations o JOIN providers p ON p.id = o.provider_id",
+        )
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
         if count >= 1 {
             return Err(AppError::FreeTierLimit("org_limit_reached".to_string()).to_string());
         }
