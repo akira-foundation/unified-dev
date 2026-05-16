@@ -1,7 +1,7 @@
 use crate::app::support::error::{AppError, AppResult};
 use super::types::CheckoutDto;
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
+const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
 
 pub async fn checkout(plan: String, cycle: String) -> AppResult<CheckoutDto> {
     let client = reqwest::Client::new();

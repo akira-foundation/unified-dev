@@ -1,6 +1,6 @@
 use crate::app::support::error::{AppError, AppResult};
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
+const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
 
 pub async fn portal(token: String) -> AppResult<String> {
     let client = reqwest::Client::new();

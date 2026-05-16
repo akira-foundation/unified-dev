@@ -2,7 +2,7 @@ use crate::app::support::error::{AppError, AppResult};
 
 use super::types::{InvoicesPageDto, WorkerInvoicesResponse};
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
+const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
 
 pub async fn list_invoices(token: String, cursor: Option<String>) -> AppResult<InvoicesPageDto> {
     let client = reqwest::Client::new();

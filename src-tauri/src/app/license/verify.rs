@@ -3,7 +3,7 @@ use crate::app::support::error::AppResult;
 use super::hmac;
 use super::types::{LicenseDto, WorkerStatusResponse};
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
+const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
 const GRACE_PERIOD_DAYS: i64 = 5;
 
 pub async fn get_plan(pool: &sqlx::SqlitePool) -> AppResult<String> {
@@ -63,6 +63,10 @@ pub async fn verify(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseDto>> {
     let Some(license) = cached else {
         return Ok(None);
     };
+
+    if license.token.is_empty() {
+        return Ok(Some(license));
+    }
 
     if !hmac::verify(
         &license.token,

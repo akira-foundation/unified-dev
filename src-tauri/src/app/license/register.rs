@@ -4,7 +4,7 @@ use super::hmac;
 use super::machine_id;
 use super::types::{LicenseDto, WorkerLicenseResponse};
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
+const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
 
 pub async fn register(token: String, pool: &sqlx::SqlitePool, app: &tauri::AppHandle) -> AppResult<LicenseDto> {
     let identity = machine_id::get_or_create(app)?;

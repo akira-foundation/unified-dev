@@ -44,7 +44,7 @@ pub async fn resolve_provider_for_repo_owner(
             let token = if is_personal_owner {
                 installation_token
             } else {
-                let api_url = env!("AKIRA_API_URL");
+                let api_url = env!("AKIRA_BILLING_URL");
                 let client = reqwest::Client::builder()
                     .user_agent("UnifiedDev/1.0")
                     .build()

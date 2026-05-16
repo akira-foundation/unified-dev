@@ -1,7 +1,7 @@
 use crate::app::support::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 
-const AKIRA_API_URL: &str = env!("AKIRA_API_URL");
+const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
