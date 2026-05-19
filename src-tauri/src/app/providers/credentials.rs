@@ -42,7 +42,9 @@ pub async fn credentials(state: &AppState, provider_id: &str) -> AppResult<Provi
             .unwrap_or_default()
             .as_secs() as i64;
         if now >= expires_at - 300 {
-            auth = refresh_github_app_token(state, provider_id, auth).await?;
+            if let Ok(refreshed) = refresh_github_app_token(state, provider_id, auth.clone()).await {
+                auth = refreshed;
+            }
         }
     }
 
@@ -109,20 +111,15 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
 }
 
 pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth: ProviderAuth) -> AppResult<ProviderAuth> {
-    let ProviderAuth::GitHubApp { installation_id, .. } = auth else {
+    let ProviderAuth::GitHubApp { .. } = auth else {
         return Ok(auth);
     };
-
-    let installation_id_u64 = u64::try_from(installation_id)
-        .map_err(|error| AppError::Provider(error.to_string()))?;
 
     let response = {
         let billing = state.billing.read().await;
         billing
             .inner()
-            .github_installation_token(akira_billing::types::GithubInstallationTokenPayload {
-                installation_id: Some(installation_id_u64),
-            })
+            .github_installation_token(akira_billing::types::GithubInstallationTokenPayload::default())
             .await
             .map_err(|error| AppError::Provider(format!("GitHub installation token refresh failed: {error}")))?
     };

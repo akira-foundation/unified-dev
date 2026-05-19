@@ -18,31 +18,25 @@ pub struct KeyStore;
 impl KeyStore {
     #[allow(unused_variables)]
     pub fn load_or_create_key(app: &tauri::AppHandle) -> AppResult<[u8; 32]> {
-        // In debug mode, the file is the stable source — checked before the keychain
-        // to prevent a new key being generated on each recompile.
         #[cfg(debug_assertions)]
         if let Ok(encoded) = read_key_file(app) {
             return decode_key(&encoded);
         }
 
-        let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_ACCOUNT)?;
-        match entry.get_password() {
+        match onyx::keyring::get(KEYRING_SERVICE, KEYRING_ACCOUNT) {
             Ok(encoded) => {
                 #[cfg(debug_assertions)]
-                let _ = write_key_file(app, &encoded); // keep file in sync
+                let _ = write_key_file(app, &encoded);
                 decode_key(&encoded)
             }
-            Err(keyring::Error::NoEntry)
-            | Err(keyring::Error::NoStorageAccess(_))
-            | Err(keyring::Error::PlatformFailure(_)) => {
+            Err(_) => {
                 let key = generate_key();
                 let encoded = base64::engine::general_purpose::STANDARD.encode(key);
-                let _ = entry.set_password(&encoded);
+                let _ = onyx::keyring::set(KEYRING_SERVICE, KEYRING_ACCOUNT, &encoded);
                 #[cfg(debug_assertions)]
                 let _ = write_key_file(app, &encoded);
                 Ok(key)
             }
-            Err(error) => Err(AppError::Keyring(error)),
         }
     }
 }

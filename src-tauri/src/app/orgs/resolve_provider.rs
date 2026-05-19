@@ -1,14 +1,11 @@
 use std::sync::Arc;
 
+use akira_billing::types::GithubInstallationTokenPayload;
+
 use crate::app::concerns::VcsProvider;
 use crate::providers::drivers::github::client::{GitHubDriver, GITHUB_API};
 use crate::providers::enums::{ProviderAuth, ProviderKind};
 use crate::state::AppState;
-
-#[derive(serde::Deserialize)]
-struct InstallationTokenResponse {
-    token: String,
-}
 
 pub async fn resolve_provider_for_repo_owner(
     state: &AppState,
@@ -40,37 +37,37 @@ pub async fn resolve_provider_for_repo_owner(
     let is_personal_owner = provider_account_login.as_deref() == Some(owner);
 
     if credentials.kind == ProviderKind::GitHub {
-        if let ProviderAuth::GitHubApp { oauth_access_token, installation_token, .. } = credentials.auth {
+        if let ProviderAuth::GitHubApp { installation_token, .. } = credentials.auth {
             let token = if is_personal_owner {
                 installation_token
             } else {
-                let api_url = env!("AKIRA_BILLING_URL");
-                let client = reqwest::Client::builder()
-                    .user_agent("UnifiedDev/1.0")
-                    .build()
-                    .map_err(|e| e.to_string())?;
+                let installations = {
+                    let billing = state.billing.read().await;
+                    billing
+                        .inner()
+                        .me_github_installations()
+                        .await
+                        .map_err(|e| format!("list installations failed: {e}"))?
+                };
 
-                let response = client
-                    .post(format!("{api_url}/github/installation-token"))
-                    .header("Content-Type", "application/json")
-                    .json(&serde_json::json!({
-                        "access_token": oauth_access_token,
-                        "target_login": owner,
-                    }))
-                    .send()
-                    .await
-                    .map_err(|e| e.to_string())?;
+                let installation = installations
+                    .installations
+                    .iter()
+                    .find(|i| i.account_login == owner)
+                    .ok_or_else(|| format!("no installation found for {owner}"))?;
 
-                let status = response.status();
-                let body = response.text().await.map_err(|e| e.to_string())?;
+                let response = {
+                    let billing = state.billing.read().await;
+                    billing
+                        .inner()
+                        .github_installation_token(GithubInstallationTokenPayload {
+                            installation_id: Some(installation.id),
+                        })
+                        .await
+                        .map_err(|e| format!("installation token request failed: {e}"))?
+                };
 
-                if !status.is_success() {
-                    return Err(format!("installation token request failed: {status} — {body}"));
-                }
-
-                let result: InstallationTokenResponse = serde_json::from_str(&body)
-                    .map_err(|e| format!("installation token decode failed: {e} — body: {body}"))?;
-                result.token
+                response.token
             };
 
             let provider = GitHubDriver::new(token).map_err(|e| e.to_string())?;
