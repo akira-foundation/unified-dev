@@ -90,6 +90,9 @@ export function useOssSync() {
   const { connectGithub } = useConnectGithub();
   return useMutation({
     mutationFn: () => openSourceService.sync(),
+    onMutate: () => {
+      toast.info(t("openSource.sync.started"), { duration: 8000 });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["oss"] });
       toast.success(t("openSource.sync.success"));
