@@ -1,5 +1,33 @@
 
 
+# [0.10.0](https://github.com/akira-foundation/unified-dev/compare/v0.9.0...v0.10.0) (2026-05-20)
+
+
+### Bug Fixes
+
+* **license:** persist store, load on mount, clear-first on logout ([d9cf24d](https://github.com/akira-foundation/unified-dev/commit/d9cf24dd61fb4917b532800ed2c519fa0ad81c65))
+* **license:** treat empty plan as free in get_plan ([b4ec67d](https://github.com/akira-foundation/unified-dev/commit/b4ec67d51a05a630bf851640594c2e661e178d0b))
+* **orgs:** align free-tier counter with provider join ([ad33324](https://github.com/akira-foundation/unified-dev/commit/ad33324e1f98e45539203594ce123caf03e22187))
+* **providers:** keep organizations when deleting VCS provider ([62d2a00](https://github.com/akira-foundation/unified-dev/commit/62d2a00ace3fd10323399ba75b8d79904372e8b1))
+
+
+### Features
+
+* **auth:** customer oauth login with lazy auth wall and logout ([56d8aaf](https://github.com/akira-foundation/unified-dev/commit/56d8aaf67a096f1957e18a29d661516b5845552c))
+* **auth:** dynamic oauth providers + polished onboarding flow ([0be1d67](https://github.com/akira-foundation/unified-dev/commit/0be1d6715ba7da81b3dc08c0cdddae60020dc6d4))
+* **autopilot:** finish job with an auto-created pull request ([11f377d](https://github.com/akira-foundation/unified-dev/commit/11f377d65cc9727cfc500db33660c09890c98704))
+* **autostart:** launch at login backed by tauri-plugin-autostart ([68e0f92](https://github.com/akira-foundation/unified-dev/commit/68e0f92fd7c0b11ad3488fe61f815da3ac54c24a))
+* **billing:** activate license via SDK with ed25519 verification ([2248ecc](https://github.com/akira-foundation/unified-dev/commit/2248ecc95dfbfb6e241b6f3b411d216cd29abdc2))
+* **billing:** swap OTP login onto akira-billing SDK ([ed0722d](https://github.com/akira-foundation/unified-dev/commit/ed0722d9377b7515180c7b89bc3299cd95e10277))
+* **billing:** wire akira-billing SDK and skeleton client ([4726c87](https://github.com/akira-foundation/unified-dev/commit/4726c87d7e3819dafac3b6e56e031fd0d74caf68))
+* **client:** server-driven usage limits, history, ui polish ([9c025ba](https://github.com/akira-foundation/unified-dev/commit/9c025ba2ec44a575cb2c69a76a133a396c732d90))
+* **github:** store OAuth user token on connect for OSS contribution sync ([8737543](https://github.com/akira-foundation/unified-dev/commit/873754376d741601987d12c3414c8ac40ae54261))
+* **notifications:** action handlers + clickable rows ([f05577f](https://github.com/akira-foundation/unified-dev/commit/f05577fa8f644cdac560fb1603f4418a57ce3c7e))
+* **notifications:** in-app inbox, system notifications, dock badge ([de69fea](https://github.com/akira-foundation/unified-dev/commit/de69fea958883078d35b5894e89e22cd94b9588b))
+* **open-source:** toast immediately when sync starts ([ae1085b](https://github.com/akira-foundation/unified-dev/commit/ae1085bc58c2d07478d2feb64405b3859485cf3c))
+* **plans:** drive subscription plans from billing sdk ([9b5075e](https://github.com/akira-foundation/unified-dev/commit/9b5075ee2a9e33d62b616fedbc5dbbc02f5aa3bd))
+* **ui:** user menu in sidebar footer ([9a59944](https://github.com/akira-foundation/unified-dev/commit/9a599442e6252adc7ab0f6f3041e25c2f7245554))
+
 # [0.9.0](https://github.com/akira-foundation/unified-dev/compare/v0.8.0...v0.9.0) (2026-05-11)
 
 
