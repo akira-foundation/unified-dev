@@ -15,6 +15,9 @@
     "core:window:allow-close",
     "opener:default",
     "dialog:default",
-    "notification:default"
+    "notification:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }
