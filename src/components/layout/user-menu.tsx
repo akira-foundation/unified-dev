@@ -25,7 +25,7 @@ const PLAN_BADGE: Record<string, string> = {
 
 export function UserMenu() {
   const { t } = useI18n();
-  const { license, currentPlan, load } = useLicense();
+  const { license, currentPlan } = useLicense();
   const avatarUrl = useAvatar(license?.email);
   const { clear } = useLicenseStore();
   const navigateTo = useNavigationStore((s) => s.navigateTo);
@@ -38,12 +38,11 @@ export function UserMenu() {
 
   async function handleLogout() {
     setOpen(false);
+    clear();
+    useOnboardingStore.getState().requireAuth();
     try {
       await invoke("oauth_logout");
-      await load();
-      useOnboardingStore.getState().requireAuth();
     } catch {}
-    clear();
   }
 
   function handleSettings() {
