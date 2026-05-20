@@ -13,7 +13,7 @@ pub enum AppError {
     #[error("crypto error")]
     Crypto,
     #[error("keyring error: {0}")]
-    Keyring(#[from] keyring::Error),
+    Keyring(#[from] onyx::keyring::KeyringError),
     #[error("decode error: {0}")]
     Decode(#[from] base64::DecodeError),
     #[error("json error: {0}")]

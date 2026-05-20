@@ -19,7 +19,10 @@ pub async fn fetch_summary(state: State<'_, AppState>) -> Result<ContributionSum
     .map_err(|e| e.to_string())?;
 
     let Some(row) = row else {
-        return Err("github_not_synced".to_string());
+        return match super::provider::find_github_driver(&state).await {
+            Ok(_) => Err("github_not_synced".to_string()),
+            Err(e) => Err(e),
+        };
     };
 
     let profile_id: String = row.try_get("id").map_err(|e| e.to_string())?;

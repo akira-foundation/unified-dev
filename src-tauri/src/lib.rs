@@ -80,6 +80,7 @@ pub fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .setup(|app| {
             let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
                 let pool = database::init_pool(app.handle()).await?;

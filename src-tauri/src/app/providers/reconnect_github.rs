@@ -54,8 +54,13 @@ pub async fn reconnect_github(
     let expires_at = parse_rfc3339_to_unix(&response.expires_at)
         .ok_or_else(|| AppError::Provider("invalid installation token expiry".to_string()))?;
 
+    let user_token = {
+        let billing = state.billing.read().await;
+        billing.inner().github_user_token().await.ok()
+    };
+
     let auth = ProviderAuth::GitHubApp {
-        oauth_access_token: String::new(),
+        oauth_access_token: user_token.as_ref().map(|t| t.token.clone()).unwrap_or_default(),
         oauth_refresh_token: None,
         oauth_expires_at: None,
         installation_token: response.token,

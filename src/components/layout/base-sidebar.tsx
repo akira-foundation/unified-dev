@@ -1,4 +1,4 @@
-import { Layers, PanelLeft, Settings } from "lucide-react";
+import { Layers, PanelLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -6,14 +6,11 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { UserMenu } from "@/components/layout/user-menu";
 import { useI18n } from "@/i18n/i18n";
 import { useUsage } from "@/hooks/useUsage";
-import { useNavigationStore } from "@/stores/navigation-store";
 import { cn } from "@/lib/utils";
 
 interface BaseSidebarProps {
@@ -32,8 +29,6 @@ export function BaseSidebar({
   const { t } = useI18n();
   const { state, toggleSidebar } = useSidebar();
   const { count, limit, isFree } = useUsage();
-  const navigateTo = useNavigationStore((s) => s.navigateTo);
-  const currentPage = useNavigationStore((s) => s.currentPage);
 
   return (
     <Sidebar
@@ -103,29 +98,7 @@ export function BaseSidebar({
           </div>
         )}
         {footerExtra}
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={() => navigateTo("settings")}
-              isActive={currentPage === "settings"}
-              tooltip={t("nav.settings")}
-              className={cn(
-                "h-10 rounded-xl px-3 transition-colors duration-150",
-                currentPage === "settings"
-                  ? "bg-white/70 text-zinc-900 shadow-sm shadow-black/5 dark:bg-zinc-800/70 dark:text-white"
-                  : "text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40",
-                "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0",
-              )}
-            >
-              <div className="flex shrink-0 items-center justify-center text-zinc-500 dark:text-zinc-400">
-                <Settings className="h-4 w-4" />
-              </div>
-              <span className="ml-3 text-[13px] font-medium group-data-[collapsible=icon]:hidden">
-                {t("nav.settings")}
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <UserMenu />
       </SidebarFooter>
     </Sidebar>
   );

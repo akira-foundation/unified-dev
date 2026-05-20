@@ -50,8 +50,13 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
     let expires_at = parse_rfc3339_to_unix(&response.expires_at)
         .ok_or_else(|| AppError::Provider("invalid installation token expiry".to_string()))?;
 
+    let user_token = {
+        let billing = state.billing.read().await;
+        billing.inner().github_user_token().await.ok()
+    };
+
     let auth = ProviderAuth::GitHubApp {
-        oauth_access_token: String::new(),
+        oauth_access_token: user_token.as_ref().map(|t| t.token.clone()).unwrap_or_default(),
         oauth_refresh_token: None,
         oauth_expires_at: None,
         installation_token: response.token,
@@ -62,25 +67,48 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
     let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
         .map_err(|error| AppError::Provider(error.to_string()))?;
 
-    let id = uuid::Uuid::new_v4().to_string();
-    let created_at = time::OffsetDateTime::now_utc()
-        .format(&time::format_description::well_known::Rfc3339)
-        .unwrap_or_default();
-
-    sqlx::query(
-        "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    let existing: Option<(String, String)> = sqlx::query_as(
+        "SELECT id, created_at FROM providers WHERE kind = 'github' AND account_login = ? LIMIT 1",
     )
-    .bind(&id)
     .bind(&response.account_login)
-    .bind("github")
-    .bind(&auth_type)
-    .bind(&auth_payload)
-    .bind(&created_at)
-    .bind(&response.account_login)
-    .bind(&response.account_type)
-    .execute(&state.db_pool)
+    .fetch_optional(&state.db_pool)
     .await
-    .map_err(|error| AppError::Provider(format!("DB insert failed: {error}")))?;
+    .map_err(|e| AppError::Provider(e.to_string()))?;
+
+    let (id, created_at) = if let Some((existing_id, existing_created_at)) = existing {
+        sqlx::query(
+            "UPDATE providers SET name = ?, auth_type = ?, auth_payload = ?, account_login = ?, account_type = ? WHERE id = ?",
+        )
+        .bind(&response.account_login)
+        .bind(&auth_type)
+        .bind(&auth_payload)
+        .bind(&response.account_login)
+        .bind(&response.account_type)
+        .bind(&existing_id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|error| AppError::Provider(format!("DB update failed: {error}")))?;
+        (existing_id, existing_created_at)
+    } else {
+        let new_id = uuid::Uuid::new_v4().to_string();
+        let new_created_at = time::OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Rfc3339)
+            .unwrap_or_default();
+        sqlx::query(
+            "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type) VALUES (?, ?, 'github', ?, ?, ?, ?, ?)",
+        )
+        .bind(&new_id)
+        .bind(&response.account_login)
+        .bind(&auth_type)
+        .bind(&auth_payload)
+        .bind(&new_created_at)
+        .bind(&response.account_login)
+        .bind(&response.account_type)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|error| AppError::Provider(format!("DB insert failed: {error}")))?;
+        (new_id, new_created_at)
+    };
 
     Ok(ProviderSummary {
         id,

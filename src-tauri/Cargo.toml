@@ -32,7 +32,7 @@ async-trait = "0.1"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
-keyring = "3"
+onyx = { package = "onyx-rs", version = "0.2.0" }
 rand = "0.9.3"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }
 thiserror = "2"
@@ -44,10 +44,11 @@ tauri-plugin-dialog = "2"
 tauri-plugin-deep-link = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
 regex = "1"
 zip = "2"
 axum = "0.8.8"
-akira-billing = "0.2.0"
+akira-billing = "0.3.7"
 
 
 [dev-dependencies]

@@ -4,11 +4,11 @@ import { toast } from "sonner";
 import { providerService } from "../services/providerService";
 import { queryKeys } from "../lib/query-keys";
 import type { ProviderKind } from "../types/provider";
-import { useBrowserHandoffToast } from "./use-browser-handoff-toast";
+import { useConnectGithub } from "./useConnectGithub";
 
 export function useProviders() {
   const queryClient = useQueryClient();
-  const browserHandoffToast = useBrowserHandoffToast();
+  const { connectGithub, isConnectingGithub } = useConnectGithub();
 
   const { data: providers = [], isLoading } = useQuery({
     queryKey: queryKeys.providers(),
@@ -69,26 +69,6 @@ export function useProviders() {
     },
   });
 
-  const connectGithub = useMutation({
-    mutationFn: async () => {
-      const handoff = browserHandoffToast("Abrindo GitHub...");
-      try {
-        const created = await providerService.connectGithub();
-        handoff.success("GitHub conectado");
-        return created;
-      } catch (error) {
-        handoff.error(error, "Falha ao conectar GitHub");
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.providers() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.rateLimits() });
-    },
-  });
-
   return {
     providers,
     isLoading,
@@ -96,7 +76,7 @@ export function useProviders() {
     updateProviderAuth: updateProviderAuth.mutateAsync,
     removeProvider: (providerId: string, keepOrganizations: boolean) =>
       removeProvider.mutateAsync({ providerId, keepOrganizations }),
-    connectGithub: connectGithub.mutateAsync,
-    isConnectingGithub: connectGithub.isPending,
+    connectGithub,
+    isConnectingGithub,
   };
 }

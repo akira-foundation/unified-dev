@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
 
 export type Plan = "free" | "pro" | "ultimate";
@@ -32,7 +33,9 @@ interface LicenseState {
   plan: () => Plan;
 }
 
-export const useLicenseStore = create<LicenseState>()((set, get) => ({
+export const useLicenseStore = create<LicenseState>()(
+  persist(
+    (set, get) => ({
   license: null,
   loading: false,
   activating: false,
@@ -86,4 +89,10 @@ export const useLicenseStore = create<LicenseState>()((set, get) => ({
     if (p === "pro") return "pro";
     return "free";
   },
-}));
+}),
+    {
+      name: "akira-license",
+      partialize: (state) => ({ license: state.license }),
+    }
+  )
+);

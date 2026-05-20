@@ -14,7 +14,7 @@ pub async fn request_otp(
     app: &tauri::AppHandle,
 ) -> AppResult<()> {
     let identity = machine_id::get_or_create(app)?;
-    let platform = std::env::consts::OS;
+    let platform = onyx::osinfo::Platform::current().as_str();
     let app_version = env!("CARGO_PKG_VERSION");
 
     let billing = state.billing.read().await;
@@ -25,6 +25,7 @@ pub async fn request_otp(
             device_fp: Some(&identity.id),
             platform: Some(platform),
             app_version: Some(app_version),
+            product_key: Some("maintainer"),
         })
         .await
         .map_err(|e| translate_billing_error(e, "otp_request"))?;

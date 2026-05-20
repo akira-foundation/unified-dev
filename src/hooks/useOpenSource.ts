@@ -4,6 +4,7 @@ import { toast } from "sonner";
 
 import { cache } from "@/config/cache";
 import { useI18n } from "@/i18n/i18n";
+import { useConnectGithub } from "@/hooks/useConnectGithub";
 import { queryKeys } from "@/lib/query-keys";
 import { openSourceService } from "@/services/openSourceService";
 import type { OssFilters } from "@/types/openSource";
@@ -18,7 +19,12 @@ export function useOssSummary() {
     gcTime: cache.gcTime.long,
     retry: (count, err) => {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("github_not_synced") || msg.includes("github_not_connected")) return false;
+      if (
+        msg.includes("github_not_synced") ||
+        msg.includes("github_not_connected") ||
+        msg.includes("github_app_no_user_token")
+      )
+        return false;
       return count < 2;
     },
   });
@@ -81,14 +87,49 @@ export function useOssYearOverview(year: number) {
 export function useOssSync() {
   const queryClient = useQueryClient();
   const { t } = useI18n();
+  const { connectGithub } = useConnectGithub();
   return useMutation({
     mutationFn: () => openSourceService.sync(),
+    onMutate: () => {
+      toast.info(t("openSource.sync.started"), { duration: 8000 });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["oss"] });
       toast.success(t("openSource.sync.success"));
     },
     onError: (err) => {
       const msg = err instanceof Error ? err.message : String(err);
+      const reconnectAndRefresh = async () => {
+        await connectGithub();
+        queryClient.invalidateQueries({ queryKey: ["oss"] });
+      };
+      if (msg.includes("github_app_no_user_token")) return;
+      if (msg.includes("github_not_connected")) {
+        toast.error(t("openSource.notConnected.title"), {
+          description: t("openSource.notConnected.description"),
+          action: {
+            label: t("openSource.notConnected.cta"),
+            onClick: reconnectAndRefresh,
+          },
+        });
+        return;
+      }
+      if (msg.includes("401") || msg.includes("Bad credentials") || msg.includes("Unauthorized")) {
+        toast.error(t("openSource.badCredentials.title"), {
+          description: t("openSource.badCredentials.description"),
+          action: {
+            label: t("pages.providerDetail.reconnect.button"),
+            onClick: reconnectAndRefresh,
+          },
+        });
+        return;
+      }
+      if (msg.includes("Something went wrong while executing your query")) {
+        toast.error(t("openSource.serverError.title"), {
+          description: t("openSource.serverError.description"),
+        });
+        return;
+      }
       toast.error(t("openSource.sync.error"), { description: msg });
     },
   });

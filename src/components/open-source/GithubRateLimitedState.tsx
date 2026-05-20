@@ -8,7 +8,7 @@ export function GithubRateLimitedState() {
 
   return (
     <Card>
-      <CardContent className="flex flex-col items-center justify-center gap-4 p-10 text-center">
+      <CardContent className="flex flex-col items-center justify-center gap-4 p-12 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500">
           <TimerReset className="h-6 w-6" />
         </div>

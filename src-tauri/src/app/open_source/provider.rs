@@ -12,7 +12,10 @@ pub struct GitHubContext {
 
 pub async fn find_github_driver(state: &AppState) -> Result<GitHubContext, String> {
     let row = sqlx::query(
-        "SELECT id FROM providers WHERE kind = 'github' ORDER BY created_at ASC LIMIT 1",
+        "SELECT id FROM providers WHERE kind = 'github'
+         ORDER BY CASE auth_type WHEN 'pat' THEN 0 WHEN 'github_oauth' THEN 1 ELSE 2 END,
+                  created_at DESC
+         LIMIT 1",
     )
     .fetch_optional(&state.db_pool)
     .await
@@ -31,7 +34,11 @@ pub async fn find_github_driver(state: &AppState) -> Result<GitHubContext, Strin
 
     let token = match creds.auth {
         ProviderAuth::GitHubOAuth { access_token, .. } => access_token,
-        ProviderAuth::GitHubApp { oauth_access_token, .. } => oauth_access_token,
+        ProviderAuth::PersonalAccessToken { token } => token,
+        ProviderAuth::GitHubApp { oauth_access_token, .. } if !oauth_access_token.is_empty() => {
+            oauth_access_token
+        }
+        ProviderAuth::GitHubApp { .. } => return Err("github_app_no_user_token".to_string()),
         _ => return Err("github_not_connected".to_string()),
     };
 

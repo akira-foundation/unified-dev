@@ -1,5 +1,5 @@
 import { useToggle } from "@uidotdev/usehooks";
-import { Palette, Minus, Plus } from "lucide-react";
+import { Palette } from "lucide-react";
 import { useI18n } from "@/i18n/i18n";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useAppearance } from "@/hooks/use-appearance";
@@ -26,7 +26,6 @@ import {
 } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { SettingsSection } from "./settings-section";
 import { SettingsItem } from "./settings-item";
-import { ComingSoon } from "@/components/ui/coming-soon";
 
 const CODE_THEMES: Record<string, any> = {
   vscDarkPlus,
@@ -190,36 +189,6 @@ export function AppearanceTab() {
           </div>
         )}
 
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.appearance.zoom.label")}
-            description={t("settings.appearance.zoom.description")}
-            action={
-              <div className="flex items-center gap-3">
-                <button className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors h-6 w-6 flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-white/10">
-                  <Minus className="h-3 w-3" />
-                </button>
-                <span className="text-[13px] text-zinc-900 dark:text-white w-10 text-center font-medium">100%</span>
-                <button className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition-colors h-6 w-6 flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-white/10">
-                  <Plus className="h-3 w-3" />
-                </button>
-              </div>
-            }
-          />
-        </ComingSoon>
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.appearance.terminalFont.label")}
-            description={t("settings.appearance.terminalFont.description")}
-            action={
-              <input
-                type="text"
-                placeholder={t("settings.appearance.terminalFont.placeholder")}
-                className="w-48 h-8 px-3 rounded-md bg-zinc-50 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-[13px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:border-purple-500 transition-colors"
-              />
-            }
-          />
-        </ComingSoon>
       </SettingsSection>
     </div>
   );

@@ -8,7 +8,6 @@ import type { IssueScope, PullRequestScope } from "@/types/work-visibility";
 import { invoke } from "@tauri-apps/api/core";
 import { SettingsSection } from "./settings-section";
 import { SettingsItem } from "./settings-item";
-import { ComingSoon } from "@/components/ui/coming-soon";
 
 export function BehaviourTab() {
   const { t } = useI18n();
@@ -92,76 +91,6 @@ export function BehaviourTab() {
             />
           }
         />
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.behaviour.hideInactiveRepos.label")}
-            description={t("settings.behaviour.hideInactiveRepos.description")}
-            action={<Switch />}
-          />
-        </ComingSoon>
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.behaviour.sidebarSortOrder.label")}
-            description={t("settings.behaviour.sidebarSortOrder.description")}
-            action={
-              <Select defaultValue="repository">
-                <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="repository">{t("settings.behaviour.sidebarSortOrder.repository")}</SelectItem>
-                  <SelectItem value="recent">{t("settings.behaviour.sidebarSortOrder.recent")}</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-          />
-        </ComingSoon>
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.behaviour.sendReviewComments.label")}
-            description={t("settings.behaviour.sendReviewComments.description")}
-            action={<Switch defaultChecked />}
-          />
-        </ComingSoon>
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.behaviour.inlineDiffResponses.label")}
-            description={t("settings.behaviour.inlineDiffResponses.description")}
-            action={<Switch />}
-          />
-        </ComingSoon>
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.behaviour.defaultMergeAction.label")}
-            description={t("settings.behaviour.defaultMergeAction.description")}
-            action={
-              <Select defaultValue="draft_pr">
-                <SelectTrigger className="w-44 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft_pr">{t("settings.behaviour.defaultMergeAction.draftPr")}</SelectItem>
-                  <SelectItem value="merge_locally">{t("settings.behaviour.defaultMergeAction.mergeLocally")}</SelectItem>
-                  <SelectItem value="merge_push">{t("settings.behaviour.defaultMergeAction.mergePush")}</SelectItem>
-                </SelectContent>
-              </Select>
-            }
-          />
-        </ComingSoon>
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.behaviour.fetchLatest.label")}
-            description={t("settings.behaviour.fetchLatest.description")}
-            action={<Switch defaultChecked />}
-          />
-        </ComingSoon>
-        <ComingSoon>
-          <SettingsItem
-            label={t("settings.behaviour.autoArchive.label")}
-            description={t("settings.behaviour.autoArchive.description")}
-            action={<Switch />}
-          />
-        </ComingSoon>
       </SettingsSection>
     </div>
   );
