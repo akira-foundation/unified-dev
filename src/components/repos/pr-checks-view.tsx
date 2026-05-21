@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Clock, MinusCircle, SkipForward, Timer, ChevronDown, ChevronRight } from "lucide-react";
-import { Card, CardContent } from "../ui/card";
 import { Skeleton } from "../ui/skeleton";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { useNavigationStore } from "../../stores/navigation-store";
@@ -127,13 +126,13 @@ function StepRow({
             <Skeleton className="h-3 w-3/4 rounded" />
           </div>
         ) : logLines && logLines.length > 0 ? (
-          <div className="border-b border-zinc-100/60 dark:border-zinc-800/60 overflow-x-auto font-mono text-[11px] leading-5 py-2">
+          <div className="overflow-x-auto border-b border-zinc-800/60 bg-zinc-950 py-2 font-mono text-[11px] leading-5">
             {logLines.map((line, i) => (
-              <div key={i} className="flex px-4 py-px hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 rounded">
-                <span className="select-none w-8 shrink-0 pr-3 text-right text-zinc-400 dark:text-zinc-600 tabular-nums">
+              <div key={i} className="flex px-4 py-px hover:bg-white/5">
+                <span className="select-none w-8 shrink-0 pr-3 text-right text-zinc-600 tabular-nums">
                   {i + 1}
                 </span>
-                <span className="whitespace-pre text-zinc-600 dark:text-zinc-400 flex-1">
+                <span className="flex-1 whitespace-pre text-zinc-300">
                   {highlightLine(line).map((seg, j) => (
                     <span key={j} className={seg.className || ""} style={seg.style}>
                       {seg.text}
@@ -193,45 +192,39 @@ function CheckItem({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} disabled={!hasSteps}>
-      <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
-        <CollapsibleTrigger className="w-full" asChild>
-          <div className={`flex items-center gap-3 px-4 py-3 select-none ${hasSteps ? "cursor-pointer" : ""}`}>
-            <div className="h-7 w-7 flex items-center justify-center rounded-lg border shrink-0 bg-zinc-500/10 border-zinc-500/10">
-              {conclusionIcon(check.conclusion, check.status)}
-            </div>
-            <span className="flex-1 text-sm font-semibold text-zinc-900 dark:text-white/95 truncate min-w-0 text-left">
-              {check.name}
-            </span>
-            <div className="flex items-center gap-2 shrink-0">
-              {duration && (
-                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 tabular-nums">
-                  {duration}
-                </span>
-              )}
-              <span className={`text-xs font-medium ${conclusionColor(check.conclusion, check.status)}`}>
-                {conclusionLabel(check.conclusion, check.status, t)}
-              </span>
-            </div>
-            <ChevronDown
-              className={`h-3.5 w-3.5 text-zinc-400 transition-transform duration-200 shrink-0 ${hasSteps ? "" : "opacity-0"}`}
-            />
+      <CollapsibleTrigger className="w-full" asChild>
+        <div
+          className={`flex items-center gap-2.5 px-3 py-2.5 select-none transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] ${hasSteps ? "cursor-pointer" : ""}`}
+        >
+          {conclusionIcon(check.conclusion, check.status, "sm")}
+          <span className="flex-1 min-w-0 truncate text-left text-[13px] font-medium text-zinc-800 dark:text-zinc-100">
+            {check.name}
+          </span>
+          {duration && (
+            <span className="shrink-0 text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">{duration}</span>
+          )}
+          <span className={`shrink-0 text-[11px] font-medium ${conclusionColor(check.conclusion, check.status)}`}>
+            {conclusionLabel(check.conclusion, check.status, t)}
+          </span>
+          <ChevronDown
+            className={`h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-200 ${open ? "rotate-180" : ""} ${hasSteps ? "" : "opacity-0"}`}
+          />
+        </div>
+      </CollapsibleTrigger>
+      {hasSteps && (
+        <CollapsibleContent>
+          <div className="border-t border-zinc-100 bg-zinc-50/40 dark:border-zinc-800/60 dark:bg-white/[0.015]">
+            {visibleSteps.map((step) => (
+              <StepRow
+                key={step.number}
+                step={step}
+                logLines={logsByStep?.get(step.number)}
+                logsLoading={logsLoading}
+              />
+            ))}
           </div>
-        </CollapsibleTrigger>
-        {hasSteps && (
-          <CollapsibleContent>
-            <CardContent className="px-0 py-0 border-t border-zinc-100 dark:border-zinc-800">
-              {visibleSteps.map((step) => (
-                <StepRow
-                  key={step.number}
-                  step={step}
-                  logLines={logsByStep?.get(step.number)}
-                  logsLoading={logsLoading}
-                />
-              ))}
-            </CardContent>
-          </CollapsibleContent>
-        )}
-      </Card>
+        </CollapsibleContent>
+      )}
     </Collapsible>
   );
 }
@@ -248,6 +241,7 @@ export function PrChecksView({
   repoName: string;
 }) {
   const { t } = useI18n();
+  const targetCheckName = useNavigationStore((s) => s.targetCheckName);
 
   if (loading) {
     return (
@@ -269,17 +263,17 @@ export function PrChecksView({
     );
   }
 
-  const targetCheckName = useNavigationStore((s) => s.targetCheckName);
-
   return (
-    <div className="flex flex-col gap-2 p-3">
-      {checks.map((check) => {
-        const matchTarget = targetCheckName != null && check.name === targetCheckName;
-        const open = matchTarget || (targetCheckName == null && checks.length === 1);
-        return (
-          <CheckItem key={check.id} check={check} orgId={orgId} repoName={repoName} defaultOpen={open} />
-        );
-      })}
+    <div className="p-3">
+      <div className="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
+        {checks.map((check) => {
+          const matchTarget = targetCheckName != null && check.name === targetCheckName;
+          const open = matchTarget || (targetCheckName == null && checks.length === 1);
+          return (
+            <CheckItem key={check.id} check={check} orgId={orgId} repoName={repoName} defaultOpen={open} />
+          );
+        })}
+      </div>
     </div>
   );
 }

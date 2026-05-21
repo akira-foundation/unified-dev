@@ -179,7 +179,7 @@ export function DashboardPage() {
                               <span className={cn(
                                 "text-[10px] font-medium px-1.5 py-0.5 rounded",
                                 repo.visibility === "private"
-                                  ? "bg-zinc-800 text-zinc-400"
+                                  ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                               )}>
                                 {repo.visibility}

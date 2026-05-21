@@ -4,10 +4,10 @@ import { useI18n } from "@/i18n/i18n";
 import { useDateLabel } from "@/hooks/use-date-label";
 import {
   PageHeader,
-  PageHeaderActions,
   PageHeaderMeta,
   PageHeaderTitle,
 } from "@/components/layout/page-header";
+import { AppbarActions } from "@/components/layout/appbar-actions";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -188,6 +188,26 @@ export function NotificationsPage() {
 
   return (
     <PageLayout>
+      <AppbarActions>
+        {unread > 0 && (
+          <Button variant="outline" size="sm" onClick={() => void markAllRead()}>
+            <CheckCheck className="h-3.5 w-3.5" />
+            Mark all read
+          </Button>
+        )}
+        {items.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (confirm("Clear all notifications? This cannot be undone.")) void clear();
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Clear all
+          </Button>
+        )}
+      </AppbarActions>
       <PageHeader>
         <div>
           <PageHeaderTitle>{t("nav.notifications", { defaultValue: "Notifications" } as never)}</PageHeaderTitle>
@@ -197,26 +217,6 @@ export function NotificationsPage() {
             <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
-        <PageHeaderActions>
-          {unread > 0 && (
-            <Button variant="outline" size="sm" onClick={() => void markAllRead()}>
-              <CheckCheck className="h-3.5 w-3.5" />
-              Mark all read
-            </Button>
-          )}
-          {items.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (confirm("Clear all notifications? This cannot be undone.")) void clear();
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Clear all
-            </Button>
-          )}
-        </PageHeaderActions>
       </PageHeader>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">

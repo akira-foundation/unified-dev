@@ -14,10 +14,10 @@ import { OrgSyncSheet } from "../components/organizations/org-sync-sheet";
 import { EmptyState } from "../components/ui/empty-state";
 import {
   PageHeader,
-  PageHeaderActions,
   PageHeaderMeta,
   PageHeaderTitle,
 } from "../components/layout/page-header";
+import { AppbarActions } from "../components/layout/appbar-actions";
 import { PageLayout } from "../components/layout/page-layout";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
@@ -93,6 +93,12 @@ export function OrganizationsPage() {
 
   return (
     <PageLayout>
+      <AppbarActions>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus size={18} />
+          {t("pages.organizations.newOrganization")}
+        </Button>
+      </AppbarActions>
       <PageHeader>
         <div>
           <PageHeaderTitle>{t("nav.organizations")}</PageHeaderTitle>
@@ -102,12 +108,6 @@ export function OrganizationsPage() {
             <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
-        <PageHeaderActions>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus size={18} />
-            {t("pages.organizations.newOrganization")}
-          </Button>
-        </PageHeaderActions>
       </PageHeader>
       <div className="flex flex-col gap-6">
         {isLoading ? (

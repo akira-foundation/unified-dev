@@ -12,10 +12,10 @@ import { CreateRepositoryDialog } from "@/components/repos/create-repository-dia
 import { EmptyState } from "../components/ui/empty-state";
 import {
   PageHeader,
-  PageHeaderActions,
   PageHeaderMeta,
   PageHeaderTitle,
 } from "../components/layout/page-header";
+import { AppbarActions } from "../components/layout/appbar-actions";
 import { PageLayout } from "../components/layout/page-layout";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
@@ -195,6 +195,12 @@ export function RepositoryPage() {
 
   return (
     <PageLayout>
+      <AppbarActions>
+        <Button onClick={() => setShowCreateDialog(true)}>
+          <Plus size={18} />
+          {t("dashboard.quick.newRepo")}
+        </Button>
+      </AppbarActions>
       <PageHeader>
         <div>
           <PageHeaderTitle>{t("nav.repositories")}</PageHeaderTitle>
@@ -204,12 +210,6 @@ export function RepositoryPage() {
             <span>{dateLabel}</span>
           </PageHeaderMeta>
         </div>
-        <PageHeaderActions>
-          <Button onClick={() => setShowCreateDialog(true)}>
-            <Plus size={18} />
-            {t("dashboard.quick.newRepo")}
-          </Button>
-        </PageHeaderActions>
       </PageHeader>
 
       <div className="flex flex-col gap-6">

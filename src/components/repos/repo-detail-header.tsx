@@ -7,7 +7,8 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "../ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { PageHeader, PageHeaderActions, PageHeaderMeta, PageHeaderTitle } from "../layout/page-header";
+import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../layout/page-header";
+import { AppbarActions } from "../layout/appbar-actions";
 import type { ActiveRepo } from "@/stores/navigation-store";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
 
@@ -54,6 +55,44 @@ export function RepoDetailHeader({
 
   return (
     <>
+      <AppbarActions>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline" size="icon" onClick={onSync} disabled={syncing}>
+              <RotateCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("common.sync")}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const ghOwner = currentRepo?.fork_owner ?? activeRepo.owner;
+                const ghRepo = currentRepo?.fork_repo ?? activeRepo.name;
+                void onOpenUrl(`https://github.com/${ghOwner}/${ghRepo}`);
+              }}
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>View on GitHub</TooltipContent>
+        </Tooltip>
+        {tab === "issues" && (
+          <Button onClick={onCreateIssue}>
+            <Plus size={18} />
+            {t("pages.repositoryIssues.newIssue")}
+          </Button>
+        )}
+        {tab === "branches" && (
+          <Button onClick={onCreateBranch}>
+            <Plus size={18} />
+            {t("pages.repositoryBranches.newBranch")}
+          </Button>
+        )}
+      </AppbarActions>
       <PageHeader>
         <div>
           <PageHeaderTitle>
@@ -96,44 +135,6 @@ export function RepoDetailHeader({
             </button>
           </PageHeaderMeta>
         </div>
-        <PageHeaderActions className="gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="outline" size="icon" onClick={onSync} disabled={syncing}>
-                <RotateCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t("common.sync")}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => {
-                  const ghOwner = currentRepo?.fork_owner ?? activeRepo.owner;
-                  const ghRepo = currentRepo?.fork_repo ?? activeRepo.name;
-                  void onOpenUrl(`https://github.com/${ghOwner}/${ghRepo}`);
-                }}
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>View on GitHub</TooltipContent>
-          </Tooltip>
-          {tab === "issues" && (
-            <Button onClick={onCreateIssue}>
-              <Plus size={18} />
-              {t("pages.repositoryIssues.newIssue")}
-            </Button>
-          )}
-          {tab === "branches" && (
-            <Button onClick={onCreateBranch}>
-              <Plus size={18} />
-              {t("pages.repositoryBranches.newBranch")}
-            </Button>
-          )}
-        </PageHeaderActions>
       </PageHeader>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">

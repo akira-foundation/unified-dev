@@ -1,6 +1,7 @@
 import { ChevronLeft, Download, PanelLeft, Search } from "lucide-react";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useSearchStore } from "@/stores/search-store";
+import { useNavigationStore } from "@/stores/navigation-store";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
 import { useUpdater } from "@/hooks/useUpdater";
@@ -15,13 +16,15 @@ import {
 } from "@/components/ui/tooltip";
 
 export function AppHeader() {
-    const { goBack, canGoBack, currentPage } = useNavigation("dashboard");
+    const { goBack, canGoBack, currentPage, navigateTo } = useNavigation("dashboard");
     const { t } = useI18n();
     const { update, installing, install } = useUpdater();
     const { activeTab, setActiveTab, previousTab } = useAgentsStore();
     const { state: sidebarState, toggleSidebar } = useSidebar();
     const searchProvider = useSearchStore((s) => s.provider);
     const openSearch = useSearchStore((s) => s.setOpen);
+    const activePr = useNavigationStore((s) => s.activePr);
+    const activeIssue = useNavigationStore((s) => s.activeIssue);
 
     const handleBack = () => {
         if (activeTab === "skill-source") {
@@ -66,7 +69,12 @@ export function AppHeader() {
                         <ChevronLeft className="h-3.5 w-3.5" />
                     </Button>
                     <div className="flex items-baseline gap-1.5">
-                        <span className="text-[12px] font-semibold tracking-tight text-foreground/80 leading-none">{t("app.name")}</span>
+                        <button
+                            onClick={() => navigateTo("dashboard")}
+                            className="text-[12px] font-semibold tracking-tight text-foreground/80 leading-none transition-colors hover:text-foreground"
+                        >
+                            {t("app.name")}
+                        </button>
                         <div className="flex items-center gap-1">
                             <span className="text-[10px] text-muted-foreground leading-none">v{appVersion}</span>
                             {update && (
@@ -88,12 +96,40 @@ export function AppHeader() {
                                 </Tooltip>
                             )}
                         </div>
-                        {currentPage !== "dashboard" && (
-                            <>
-                                <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
-                                <span className="text-[12px] font-medium leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
-                            </>
-                        )}
+                        {currentPage !== "dashboard" && (() => {
+                            const detail =
+                                currentPage === "pr-review"
+                                    ? { labelKey: "nav.prs", page: "prs" as const, title: activePr?.title }
+                                    : currentPage === "issue-detail"
+                                        ? { labelKey: "nav.issues", page: "issues" as const, title: activeIssue?.title }
+                                        : null;
+                            return (
+                                <>
+                                    <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
+                                    {detail ? (
+                                        <button
+                                            onClick={() => navigateTo(detail.page)}
+                                            className="text-[12px] font-medium leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline"
+                                        >
+                                            {t(detail.labelKey)}
+                                        </button>
+                                    ) : (
+                                        <span className="text-[12px] font-medium leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
+                                    )}
+                                    {detail?.title && (
+                                        <>
+                                            <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
+                                            <span
+                                                title={detail.title}
+                                                className="max-w-[280px] truncate text-[12px] font-medium leading-none text-foreground/70"
+                                            >
+                                                {detail.title}
+                                            </span>
+                                        </>
+                                    )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div>
 

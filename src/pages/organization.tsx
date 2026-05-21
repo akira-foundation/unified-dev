@@ -1,4 +1,5 @@
-import { PageHeader, PageHeaderActions, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
+import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../components/layout/page-header";
+import { AppbarActions } from "../components/layout/appbar-actions";
 import { PageLayout } from "../components/layout/page-layout";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "../components/ui/card";
@@ -185,6 +186,18 @@ export function OrganizationPage() {
 
   return (
     <PageLayout>
+      {organization && (
+        <AppbarActions>
+          <Button variant="outline" onClick={() => setShowCreateDialog(true)}>
+            <Plus size={18} />
+            {t("dashboard.quick.newRepo")}
+          </Button>
+          <Button onClick={() => navigateTo("import-repositories")}>
+            <Download size={18} />
+            {t("pages.organization.importRepositories")}
+          </Button>
+        </AppbarActions>
+      )}
       <PageHeader>
         <div>
           <PageHeaderTitle>
@@ -209,18 +222,6 @@ export function OrganizationPage() {
             </button>
           </PageHeaderMeta>
         </div>
-        {organization && (
-          <PageHeaderActions>
-            <Button variant="outline" onClick={() => setShowCreateDialog(true)}>
-              <Plus size={18} />
-              {t("dashboard.quick.newRepo")}
-            </Button>
-            <Button onClick={() => navigateTo("import-repositories")}>
-              <Download size={18} />
-              {t("pages.organization.importRepositories")}
-            </Button>
-          </PageHeaderActions>
-        )}
       </PageHeader>
       <div className="flex flex-col gap-6">
         {!organization && (

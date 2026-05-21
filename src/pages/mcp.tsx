@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Plus, Trash2, Loader2, Link2, Unplug } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/page-layout";
-import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
+import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "@/components/layout/page-header";
+import { AppbarActions } from "@/components/layout/appbar-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -126,6 +127,12 @@ export function McpPage() {
 
   return (
     <PageLayout scroll>
+      <AppbarActions>
+        <Button className="gap-1.5" onClick={() => setAddOpen(true)}>
+          <Plus className="h-4 w-4" strokeWidth={3} />
+          Add Server
+        </Button>
+      </AppbarActions>
       <div className="mx-auto w-full max-w-6xl pb-12">
         <PageHeader className="px-8">
           <div>
@@ -139,12 +146,6 @@ export function McpPage() {
               <span>Connect Model Context Protocol servers to extend AI capabilities</span>
             </PageHeaderMeta>
           </div>
-          <PageHeaderActions className="gap-3">
-            <Button className="gap-1.5" onClick={() => setAddOpen(true)}>
-              <Plus className="h-4 w-4" strokeWidth={3} />
-              Add Server
-            </Button>
-          </PageHeaderActions>
         </PageHeader>
 
         <div className="px-8 mt-4">

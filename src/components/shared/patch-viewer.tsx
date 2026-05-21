@@ -117,9 +117,9 @@ export function PatchViewer({
     }
 
     const cellCls = (line: PatchLine | null) => cn(
-      "flex-1 flex gap-0 min-w-0",
-      line?.type === "added" && "bg-emerald-500/10 dark:bg-emerald-500/8",
-      line?.type === "removed" && "bg-red-500/10 dark:bg-red-500/8",
+      "flex-1 flex gap-0 min-w-0 border-l-2 border-l-transparent",
+      line?.type === "added" && "border-l-emerald-500 bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12]",
+      line?.type === "removed" && "border-l-red-500 bg-red-500/[0.08] dark:bg-red-500/[0.12]",
     );
 
     const markerCls = (line: PatchLine | null) => cn(
@@ -136,10 +136,10 @@ export function PatchViewer({
         {rows.map((row, idx) => {
           if (row.kind === "hunk") {
             return (
-              <div key={idx} className="flex">
+              <div key={idx} className="flex bg-sky-500/[0.06] text-sky-700/80 dark:bg-sky-500/10 dark:text-sky-300/70">
                 <span className="select-none w-8 shrink-0 border-r border-zinc-200/60 dark:border-zinc-700/40" />
                 <span className="w-px shrink-0 bg-zinc-200/60 dark:bg-zinc-700/40" />
-                <span className="pl-3 text-zinc-400/50 dark:text-zinc-600/50 italic flex-1">{row.content}</span>
+                <span className="flex-1 pl-3">{row.content}</span>
               </div>
             );
           }
@@ -183,9 +183,9 @@ export function PatchViewer({
       {lines.map((line, i) => {
         if (line.type === "hunk") {
           return (
-            <div key={i} className="flex gap-0">
+            <div key={i} className="flex gap-0 bg-sky-500/[0.06] text-sky-700/80 dark:bg-sky-500/10 dark:text-sky-300/70">
               <span className="select-none w-20 shrink-0 border-r border-zinc-200/60 dark:border-zinc-700/40" />
-              <span className="pl-3 text-zinc-400/50 dark:text-zinc-600/50 italic">{line.content}</span>
+              <span className="pl-3">{line.content}</span>
             </div>
           );
         }
@@ -206,9 +206,9 @@ export function PatchViewer({
           <div
             key={i}
             className={cn(
-              "flex gap-0 group/line",
-              isAdded && "bg-emerald-500/10 dark:bg-emerald-500/8",
-              isRemoved && "bg-red-500/10 dark:bg-red-500/8",
+              "flex gap-0 group/line border-l-2 border-l-transparent",
+              isAdded && "border-l-emerald-500 bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12]",
+              isRemoved && "border-l-red-500 bg-red-500/[0.08] dark:bg-red-500/[0.12]",
             )}
           >
             <span className={cn(

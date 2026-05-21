@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAgentsStore, type InstalledSkill } from "@/stores/useAgentsStore";
+import { useNavigationStore } from "@/stores/navigation-store";
 import { useSearchStore } from "@/stores/search-store";
 import { useI18n } from "@/i18n/i18n";
 import { invoke } from "@tauri-apps/api/core";
@@ -95,6 +96,7 @@ export function SkillsPage() {
   const { setSelectedSkill, setSelectedSkillSource, repositoryGroups, selectedIssueId } = useAgentsStore();
   const queryClient = useQueryClient();
   const registerSearch = useSearchStore((s) => s.registerProvider);
+  const isAgentMode = useNavigationStore((s) => s.isAgentMode);
 
   const activeThread = repositoryGroups
     .flatMap((g) => g.repositories.flatMap((r) => r.issues))
@@ -140,6 +142,7 @@ export function SkillsPage() {
   const filteredInstalled = installedSkills;
 
   useEffect(() => {
+    if (!isAgentMode) return;
     registerSearch({
       placeholder: t("pages.skills.searchPlaceholder"),
       items: installedSkills.map((s) => ({
@@ -151,7 +154,7 @@ export function SkillsPage() {
     });
     return () => registerSearch(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [installedSkills]);
+  }, [installedSkills, isAgentMode]);
 
   return (
     <PageLayout scroll>
