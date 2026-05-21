@@ -1,24 +1,13 @@
 import { Activity, FileText, GitPullRequest, Plus, RefreshCw, Search, Sparkles, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useToggle } from "@uidotdev/usehooks";
 
-import {
-  PageHeader,
-  PageHeaderActions,
-  PageHeaderMeta,
-  PageHeaderTitle,
-} from "@/components/layout/page-header";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KanbanBoard, KanbanFilterPopover } from "@/components/kanban-board";
-import { AgendaView } from "@/components/agenda-view";
 import { AddOrganizationDialog } from "@/components/organizations/add-organization-dialog";
 import { useI18n } from "@/i18n/i18n";
-import { useDateLabel } from "@/hooks/use-date-label";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "@/stores/navigation-store";
@@ -30,12 +19,10 @@ import type { OrganizationRepoWithOrg } from "@/types/organization";
 
 export function DashboardPage() {
   const { t, locale } = useI18n();
-  const dateLabel = useDateLabel(locale);
   const { organizations, createOrganization } = useOrganizations();
   const { providers } = useProviders();
-  const { dashboardTab, setDashboardTab, setActiveRepo, navigateTo } = useNavigationStore();
+  const { setActiveRepo, navigateTo } = useNavigationStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [kanbanCompact, toggleKanbanCompact] = useToggle(false);
 
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -57,60 +44,7 @@ export function DashboardPage() {
 
   return (
     <PageLayout scroll={false}>
-      <PageHeader>
-        <div>
-          <PageHeaderTitle>
-            {t("dashboard.header.title") ?? "Overview"}
-          </PageHeaderTitle>
-          <PageHeaderMeta>
-            <span>{t("app.name")}</span>
-            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span>{dateLabel}</span>
-          </PageHeaderMeta>
-        </div>
-        <PageHeaderActions>
-          <Button size="icon" onClick={() => setIsDialogOpen(true)} title={t("dashboard.header.newOrg") ?? "New Organization"}>
-            <Plus size={18} />
-          </Button>
-        </PageHeaderActions>
-      </PageHeader>
-
-      <div className="flex min-h-0 flex-1 flex-col px-4 md:px-6 ">
-        <Tabs value={dashboardTab} onValueChange={setDashboardTab} className="flex h-full w-full flex-col">
-          <div className="flex shrink-0 mb-4 items-center justify-between">
-            <TabsList className="h-auto gap-1 bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50">
-              {[
-                { key: "overview", label: t("dashboard.tabs.overview") ?? "Overview" },
-                { key: "prs",      label: t("dashboard.tabs.prs")      ?? "PRs" },
-                { key: "syncs",    label: t("dashboard.tabs.syncs")    ?? "Syncs" },
-              ].map((tab) => (
-                <TabsTrigger key={tab.key} value={tab.key}>
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {dashboardTab === "prs" && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleKanbanCompact()}
-                  className={cn(
-                    "cursor-pointer flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
-                    kanbanCompact
-                      ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-                      : "border-zinc-200 bg-zinc-100/50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-500 hover:border-zinc-600 hover:text-zinc-300",
-                  )}
-                >
-                  <FileText size={13} />
-                  Compact
-                </button>
-                <KanbanFilterPopover />
-              </div>
-            )}
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-auto custom-scrollbar">
-            <TabsContent value="overview" className="mt-0 h-full space-y-6 pb-6">
+      <div className="space-y-6 px-4 pb-6 md:px-6">
 
               {/* Stat Cards */}
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -152,7 +86,7 @@ export function DashboardPage() {
                   color="text-purple-500"
                   bg="bg-purple-500/10"
                   loading={reposLoading}
-                  onClick={() => setDashboardTab("prs")}
+                  onClick={() => navigateTo("prs")}
                 />
               </div>
 
@@ -290,17 +224,6 @@ export function DashboardPage() {
                   </Card>
                 </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="prs" className="mt-0 h-full">
-              <KanbanBoard compact={kanbanCompact} />
-            </TabsContent>
-
-            <TabsContent value="syncs" className="mt-0 h-full">
-              <AgendaView organizations={organizations} allRepos={allRepos} />
-            </TabsContent>
-          </div>
-        </Tabs>
       </div>
 
       <AddOrganizationDialog

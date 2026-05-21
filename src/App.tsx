@@ -27,12 +27,13 @@ import { PrReviewPage } from "./pages/pr-review";
 import { SettingsPage } from "./pages/settings";
 import { NotificationsPage } from "./pages/notifications";
 import { ProviderDetailPage } from "./pages/provider-detail";
-import { Bot, Building2, CircleDot, FolderGit2, GitFork, LayoutDashboard, Settings } from "lucide-react";
+import { Bot, Building2, CircleDot, FolderGit2, GitFork, GitPullRequest, LayoutDashboard, Settings } from "lucide-react";
 import { useNavigation } from "./hooks/useNavigation";
 import { useNavigationStore } from "./stores/navigation-store";
 import { useAgentsStore } from "./stores/useAgentsStore";
 import { useAutopilotStore } from "./stores/useAutopilotStore";
 import { IssuesPage } from "./pages/issues";
+import { PrsPage } from "./pages/prs";
 import { OpenSourcePage } from "./pages/open-source";
 import type { NavItem } from "./types/navigation";
 
@@ -40,6 +41,7 @@ const navigationItems: NavItem[] = [
   { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, section: "workspace" },
   { id: "agents", label: "Agents", icon: <Bot className="h-4 w-4" />, section: "workspace" },
   { id: "issues", label: "Issues", icon: <CircleDot className="h-4 w-4" />, section: "workspace" },
+  { id: "prs", label: "Pull Requests", icon: <GitPullRequest className="h-4 w-4" />, section: "workspace" },
   { id: "open-source", label: "Open Source", icon: <GitFork className="h-4 w-4" />, section: "workspace" },
   { id: "repository", label: "Repositories", icon: <FolderGit2 className="h-4 w-4" />, section: "browse" },
   { id: "organizations", label: "Organizations", icon: <Building2 className="h-4 w-4" />, section: "browse" },
@@ -110,13 +112,14 @@ export default function App() {
           isAgentMode ? "h-full overflow-hidden" : "overflow-y-auto"
         )}>
           <div className={cn(
-            isAgentMode ? "h-full w-full" : "mx-auto min-h-full w-full max-w-7xl"
+            isAgentMode ? "h-full w-full" : "min-h-full w-full"
           )}>
             <div className={cn("h-full w-full", !isAgentMode && "hidden")}>
               <AgentWorkspaceLayout />
             </div>
             {!isAgentMode && currentPage === "dashboard" && <DashboardPage />}
             {!isAgentMode && currentPage === "issues" && <IssuesPage />}
+            {!isAgentMode && currentPage === "prs" && <PrsPage />}
             {!isAgentMode && currentPage === "open-source" && <OpenSourcePage />}
             {!isAgentMode && currentPage === "organizations" && <OrganizationsPage />}
             {!isAgentMode && currentPage === "organization" && <OrganizationPage />}

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 
 export function AppHeader() {
-    const { goBack, canGoBack } = useNavigation("dashboard");
+    const { goBack, canGoBack, currentPage } = useNavigation("dashboard");
     const { t } = useI18n();
     const { update, installing, install } = useUpdater();
     const { activeTab, setActiveTab, previousTab } = useAgentsStore();
@@ -85,6 +85,12 @@ export function AppHeader() {
                                 </Tooltip>
                             )}
                         </div>
+                        {currentPage !== "dashboard" && (
+                            <>
+                                <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
+                                <span className="text-[12px] font-medium leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
+                            </>
+                        )}
                     </div>
                 </div>
 

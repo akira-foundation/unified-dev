@@ -87,6 +87,8 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     staleTime: cache.staleTime.short,
   });
 
+  const totalOpenPrs = allRepos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
+
   const itemsBySection = useMemo(() => {
     const groups: Record<string, NavItem[]> = { workspace: [], browse: [] };
     for (const item of items) {
@@ -113,6 +115,9 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     if (item.badge) return item.badge;
     if (item.id === "issues" && openIssues > 0) {
       return { text: openIssues, tone: "amber" };
+    }
+    if (item.id === "prs" && totalOpenPrs > 0) {
+      return { text: totalOpenPrs, tone: "blue" };
     }
     if (item.id === "repository" && allRepos.length > 0) {
       return { text: allRepos.length, tone: "muted" };

@@ -11,7 +11,7 @@ export function PageHeader({ children, className }: PageHeaderProps) {
   return (
     <div
       className={cn(
-        "flex shrink-0 flex-col gap-3 border-none bg-transparent pt-5 pb-4 md:flex-row md:items-center md:justify-between",
+        "flex shrink-0 flex-col gap-2 border-none bg-transparent pt-1 pb-3 md:flex-row md:items-center md:justify-end",
         className,
       )}
     >
@@ -21,23 +21,15 @@ export function PageHeader({ children, className }: PageHeaderProps) {
 }
 
 export function PageHeaderTitle({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <h2 className={cn("text-lg font-semibold tracking-tight text-foreground", className)}>
-      {children}
-    </h2>
-  );
+  return <h2 className={cn("sr-only", className)}>{children}</h2>;
 }
 
 export function PageHeaderMeta({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("mt-1.5 flex items-center text-sm font-medium text-zinc-500", className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn("sr-only", className)}>{children}</div>;
 }
 
 export function PageHeaderSubtitle({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("mt-1 text-sm text-muted-foreground", className)}>{children}</div>;
+  return <div className={cn("sr-only", className)}>{children}</div>;
 }
 
 export function PageHeaderActions({ children, className }: { children: ReactNode; className?: string }) {

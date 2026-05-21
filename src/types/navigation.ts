@@ -5,6 +5,7 @@ export type AppPage =
   | "organizations"
   | "organization"
   | "import-repositories"
+  | "prs"
   | "repository"
   | "repository-prs"
   | "repository-detail"
