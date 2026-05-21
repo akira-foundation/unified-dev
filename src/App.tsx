@@ -24,7 +24,7 @@ import { ImportRepositoriesPage } from "./pages/import-repositories";
 import { RepositoryPage } from "./pages/repository";
 import { RepositoryPRsPage } from "./pages/repository-prs";
 import { RepositoryDetailPage } from "./pages/repository-detail";
-import { PrReviewPage } from "./pages/pr-review";
+import { PrDetailPage } from "./pages/pr-detail";
 import { SettingsPage } from "./pages/settings";
 import { NotificationsPage } from "./pages/notifications";
 import { ProviderDetailPage } from "./pages/provider-detail";
@@ -130,7 +130,7 @@ export default function App() {
             {!isAgentMode && currentPage === "repository" && <RepositoryPage />}
             {!isAgentMode && currentPage === "repository-prs" && <RepositoryPRsPage />}
             {!isAgentMode && currentPage === "repository-detail" && <RepositoryDetailPage />}
-            {!isAgentMode && currentPage === "pr-review" && <PrReviewPage />}
+            {!isAgentMode && (currentPage === "pr-review" || currentPage === "pr-detail") && <PrDetailPage />}
             {!isAgentMode && currentPage === "settings" && <SettingsPage />}
             {!isAgentMode && currentPage === "notifications" && <NotificationsPage />}
             {!isAgentMode && currentPage === "provider-detail" && <ProviderDetailPage />}

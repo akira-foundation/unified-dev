@@ -224,6 +224,7 @@ export const enPart3: Record<string, string> = {
   "agents.sidebar.runTask": "Run task",
   "agents.sidebar.autopilot": "Autopilot",
   "agents.sidebar.settings": "Settings",
+  "agents.sidebar.viewRepo": "View Repo",
   "agents.sidebar.clearThreads": "Clear Threads",
   "agents.sidebar.clearThreadsConfirmTitle": "Clear all threads?",
   "agents.sidebar.clearThreadsConfirmDesc": "This will remove all threads from {name}. The repository will remain.",

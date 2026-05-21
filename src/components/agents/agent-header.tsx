@@ -8,17 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { AgentIssue } from "@/types/agents";
-import {
-  ChevronDown,
-  GitPullRequest,
-  Monitor,
-  CloudUpload,
-  ExternalLink,
-  GitCommitHorizontal,
-  GitBranch,
-  GitMerge,
-  Eye,
-} from "lucide-react";
+import { ChevronDown, ExternalLink, GitBranch, GitCommitHorizontal, GitMerge, Eye } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
@@ -27,53 +17,19 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useI18n } from "@/i18n/i18n";
 import { usePRChecksPolling } from "@/hooks/usePRChecks";
 import { PrCiToggle } from "@/components/agents/pr-ci-toggle";
-import { PrDetailSheet } from "@/components/repos/pr-detail-sheet";
+import { useNavigationStore } from "@/stores/navigation-store";
+import { buildActionConfigs, type ActionConfig, type HeaderAction } from "@/components/agents/agent-header-config";
 import type { PullRequestDto } from "@/types/organization";
 
 interface AgentHeaderProps {
   issue: AgentIssue;
 }
 
-type HeaderAction = "merge_local" | "merge_push" | "draft_pr" | "create_pr" | "merge_commit";
-
-interface ActionConfig {
-  label: string;
-  description: string;
-  icon: React.ElementType;
-}
-
 export function AgentHeader({ issue }: AgentHeaderProps) {
   const { t } = useI18n();
-  const ACTION_CONFIGS: Record<HeaderAction, ActionConfig> = {
-    merge_local: {
-      label: t("agents.header.action.mergeLocal.label"),
-      description: t("agents.header.action.mergeLocal.description"),
-      icon: Monitor,
-    },
-    merge_push: {
-      label: t("agents.header.action.mergePush.label"),
-      description: t("agents.header.action.mergePush.description"),
-      icon: CloudUpload,
-    },
-    draft_pr: {
-      label: t("agents.header.action.draftPr.label"),
-      description: t("agents.header.action.draftPr.description"),
-      icon: GitPullRequest,
-    },
-    create_pr: {
-      label: t("agents.header.action.createPr.label"),
-      description: t("agents.header.action.createPr.description"),
-      icon: GitPullRequest,
-    },
-    merge_commit: {
-      label: t("agents.header.action.mergeCommit.label"),
-      description: t("agents.header.action.mergeCommit.description"),
-      icon: GitCommitHorizontal,
-    },
-  };
+  const ACTION_CONFIGS = buildActionConfigs(t);
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
   const [isActioning, setIsActioning] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetCtx, setSheetCtx] = useState<{ pr: PullRequestDto; orgId: string; repo: string; owner: string } | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const ci = useAgentsStore((s) => s.prCiByThread[issue.id]);
@@ -81,6 +37,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const { fileChanges, sendMessage, repositoryGroups, getEffectiveModelId, prUrlByThread, loadPrUrl, setThreadPrInfo } = useAgentsStore();
   const isStreaming = useAgentsStore((s) => !!s.streamingThreadIds[issue.id]);
   const { getPrompt } = useSettingsStore();
+  const { navigateTo, setActivePr, setActiveRepo } = useNavigationStore();
 
   const currentAction = ACTION_CONFIGS[selectedAction];
 
@@ -134,10 +91,12 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
   const handleOpenSheet = async () => {
     try {
-      await fetchContext();
-      setSheetOpen(true);
+      const ctx = await fetchContext();
+      setActiveRepo({ name: ctx.repo, owner: ctx.owner, organizationId: ctx.orgId });
+      setActivePr(ctx.pr);
+      navigateTo("pr-detail");
     } catch (err) {
-      toast.error(`Failed to open PR sheet: ${err}`);
+      toast.error(`Failed to open PR: ${err}`);
     }
   };
 
@@ -296,18 +255,6 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
       <span className="text-[15px] font-semibold tracking-tight text-foreground/90 truncate min-w-0">
         {issue.title}
       </span>
-      {sheetCtx && (
-        <PrDetailSheet
-          pr={sheetCtx.pr}
-          open={sheetOpen}
-          organizationId={sheetCtx.orgId}
-          repoName={sheetCtx.repo}
-          owner={sheetCtx.owner}
-          onOpenChange={setSheetOpen}
-          onOpenUrl={(url) => openUrl(url)}
-          onMerged={() => setSheetOpen(false)}
-        />
-      )}
     </header>
   );
 }

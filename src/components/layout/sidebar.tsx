@@ -143,8 +143,8 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
           className={cn(
             "h-10 rounded-xl px-3 transition-colors duration-150",
             isActive
-              ? "bg-white/70 text-zinc-900 shadow-sm shadow-black/5 dark:bg-zinc-800/70 dark:text-white"
-              : "text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40",
+              ? "bg-white/70 text-zinc-900 shadow-sm shadow-black/5 dark:bg-white/[0.1] dark:text-white"
+              : "text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-white/[0.06]",
             "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0",
           )}
         >
@@ -218,7 +218,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                             navigateTo("repository-detail");
                           }}
                           tooltip={repo.repo_name}
-                          className="h-9 rounded-xl px-3 text-zinc-600 transition-colors hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
+                          className="h-9 rounded-xl px-3 text-zinc-600 transition-colors hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-white/[0.06]"
                         >
                           <ToneDot tone={tone} />
                           <span className="truncate text-[13px] font-medium">{repo.repo_name}</span>

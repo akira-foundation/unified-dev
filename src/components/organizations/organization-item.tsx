@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Building2, Eye, FolderDown, MoreVertical, Pencil, RefreshCw, Settings2, Trash2 } from "lucide-react";
 import { useI18n } from "../../i18n/i18n";
 
@@ -59,10 +59,14 @@ export function OrganizationItem({
 }: OrganizationItemProps) {
   const { t, locale } = useI18n();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const suppressRowClick = useRef(false);
 
   return (
     <div
-      onClick={() => onSelect?.(organization.id)}
+      onClick={() => {
+        if (suppressRowClick.current) return;
+        onSelect?.(organization.id);
+      }}
       className="group flex h-10 cursor-pointer items-center gap-2.5 rounded-md pl-3 pr-2 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]"
     >
       <Building2 className="h-4 w-4 shrink-0 text-zinc-400" />
@@ -83,7 +87,15 @@ export function OrganizationItem({
             ? formatRelativeTime(organization.last_synced_at, locale)
             : t("components.orgItem.neverSynced")}
         </span>
-        <DropdownMenu>
+        <DropdownMenu
+          onOpenChange={(open) => {
+            if (open) {
+              suppressRowClick.current = true;
+            } else {
+              setTimeout(() => { suppressRowClick.current = false; }, 350);
+            }
+          }}
+        >
           <DropdownMenuTrigger asChild>
             <button
               onClick={(e) => e.stopPropagation()}

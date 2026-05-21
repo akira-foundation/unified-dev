@@ -31,7 +31,7 @@ export function PrsPage() {
     setDashboardTab("prs");
     setActiveRepo({ name: card.repoName, owner: card.owner, organizationId: card.organizationId });
     setActivePr(card.pr);
-    navigateTo("pr-review");
+    navigateTo("pr-detail");
   }
 
   async function handleOpenUrl(url: string) {

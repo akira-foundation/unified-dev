@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { PR_FILTER_NS } from "@/hooks/usePrCards";
 
-export function PrToolbar() {
+export function PrToolbar({ filterNamespace = PR_FILTER_NS }: { filterNamespace?: string }) {
   const { t } = useI18n();
-  const storeFilters = useFiltersStore((s) => s.filters[PR_FILTER_NS]);
+  const storeFilters = useFiltersStore((s) => s.filters[filterNamespace]);
   const insightsOpen = usePrViewStore((s) => s.insightsOpen);
   const toggleInsights = usePrViewStore((s) => s.toggleInsights);
 

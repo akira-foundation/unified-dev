@@ -14,6 +14,7 @@ export type AppPage =
   | "skills"
   | "provider-detail"
   | "pr-review"
+  | "pr-detail"
   | "issues"
   | "issue-detail"
   | "open-source"

@@ -2,6 +2,7 @@ import { ChevronLeft, Download, PanelLeft, Search } from "lucide-react";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useSearchStore } from "@/stores/search-store";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useImportViewStore } from "@/stores/import-view-store";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
@@ -28,11 +29,17 @@ export function AppHeader() {
     const activeIssue = useNavigationStore((s) => s.activeIssue);
     const activeRepo = useNavigationStore((s) => s.activeRepo);
     const activeOrganizationId = useNavigationStore((s) => s.activeOrganizationId);
+    const importSelectedOrg = useImportViewStore((s) => s.selectedOrg);
+    const setImportSelectedOrg = useImportViewStore((s) => s.setSelectedOrg);
     const { organizations } = useOrganizations();
     const activeOrgName = organizations.find((o) => o.id === activeOrganizationId)?.name;
 
+    const inImportDetail = currentPage === "import-repositories" && !!importSelectedOrg;
+
     const handleBack = () => {
-        if (activeTab === "skill-source") {
+        if (inImportDetail) {
+            setImportSelectedOrg(null);
+        } else if (activeTab === "skill-source") {
             setActiveTab("skills");
         } else if (activeTab === "manage-skill") {
             setActiveTab(previousTab ?? "skills");
@@ -41,7 +48,7 @@ export function AppHeader() {
         }
     };
 
-    const isBackEnabled = activeTab === "skill-source" || activeTab === "manage-skill" || canGoBack;
+    const isBackEnabled = inImportDetail || activeTab === "skill-source" || activeTab === "manage-skill" || canGoBack;
 
     return (
         <header
@@ -103,7 +110,7 @@ export function AppHeader() {
                         </div>
                         {currentPage !== "dashboard" && (() => {
                             const detail =
-                                currentPage === "pr-review"
+                                currentPage === "pr-review" || currentPage === "pr-detail"
                                     ? { labelKey: "nav.prs", page: "prs" as const, title: activePr?.title }
                                     : currentPage === "issue-detail"
                                         ? { labelKey: "nav.issues", page: "issues" as const, title: activeIssue?.title }
@@ -111,7 +118,9 @@ export function AppHeader() {
                                             ? { labelKey: "nav.repositories", page: "repository" as const, title: activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : undefined }
                                             : currentPage === "organization"
                                                 ? { labelKey: "nav.organizations", page: "organizations" as const, title: activeOrgName }
-                                                : null;
+                                                : currentPage === "import-repositories"
+                                                    ? { labelKey: "nav.organizations", page: "organizations" as const, title: t("pages.importRepos.title") }
+                                                    : null;
                             return (
                                 <>
                                     <span className={`text-[12px] leading-none text-muted-foreground/40 ${detail?.title ? "hidden lg:inline" : ""}`}>/</span>

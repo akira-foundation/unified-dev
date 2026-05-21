@@ -56,9 +56,9 @@ function NotificationRow({ item, onAction }: { item: NotificationItem; onAction?
   return (
     <div
       className={cn(
-        "group flex items-start gap-2.5 px-3 py-2.5 border-b border-zinc-200/60 last:border-0 dark:border-zinc-800/50",
-        action ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800/50" : "cursor-default",
-        isUnread && "bg-zinc-100/60 dark:bg-zinc-800/20",
+        "group flex items-start gap-2.5 px-3 py-2.5 border-b border-zinc-200/60 last:border-0 dark:border-white/[0.06]",
+        action ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-white/10" : "cursor-default",
+        isUnread && "bg-zinc-100/60 dark:bg-white/[0.04]",
       )}
       onClick={handleClick}
     >
@@ -122,8 +122,8 @@ export function NotificationsDropdown() {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0 bg-white border-zinc-200 dark:bg-zinc-950 dark:border-zinc-800">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-zinc-800">
+      <DropdownMenuContent align="end" className="w-80 p-0 bg-popover text-popover-foreground border-border">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-white/10">
           <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Notifications</span>
           {items.length > 0 && (
             <div className="flex items-center gap-2">
@@ -162,7 +162,7 @@ export function NotificationsDropdown() {
               setOpen(false);
               navigateTo("notifications");
             }}
-            className="w-full text-center text-[11px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 py-2 border-t border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900/50 transition-colors"
+            className="w-full text-center text-[11px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 py-2 border-t border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
           >
             View all
           </button>

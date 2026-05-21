@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Filter, RefreshCw } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -12,7 +12,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { AppbarActions } from "../layout/appbar-actions";
 import { PrItem } from "./pr-item";
-import { PrDetailSheet } from "./pr-detail-sheet";
 import { useI18n } from "../../i18n/i18n";
 import { useFiltersStore } from "../../stores/filters-store";
 import { useNavigationStore } from "../../stores/navigation-store";
@@ -43,7 +42,6 @@ export function PrListCard({
   isSyncing,
   onSync,
   syncOptions,
-  onMerged,
   onNewTask,
   actionsInAppbar,
 }: PrListCardProps) {
@@ -51,8 +49,6 @@ export function PrListCard({
   const { navigateTo, setActivePr, setActiveRepo } = useNavigationStore();
   const insightsOpen = usePrViewStore((s) => s.insightsOpen);
   const toggleInsights = usePrViewStore((s) => s.toggleInsights);
-  const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
 
   const storeFilters = useFiltersStore((s) => s.filters[filterNamespace]);
   const activeFilterCount = storeFilters
@@ -97,14 +93,15 @@ export function PrListCard({
   };
 
   const handleViewDetail = (pr: PullRequestDto) => {
-    setSelectedPr(pr);
-    setSheetOpen(true);
+    setActiveRepo({ name: repoName, owner, organizationId });
+    setActivePr(pr);
+    navigateTo("pr-detail");
   };
 
   const handleReview = (pr: PullRequestDto) => {
     setActiveRepo({ name: repoName, owner, organizationId });
     setActivePr(pr);
-    navigateTo("pr-review");
+    navigateTo("pr-detail");
   };
 
   const toolbar = (
@@ -179,17 +176,6 @@ export function PrListCard({
           />
         ))}
       </div>
-
-      <PrDetailSheet
-        pr={selectedPr}
-        open={sheetOpen}
-        organizationId={organizationId}
-        repoName={repoName}
-        owner={owner}
-        onOpenChange={setSheetOpen}
-        onOpenUrl={handleOpenUrl}
-        onMerged={onMerged ?? (() => {})} 
-      />
     </>
   );
 }

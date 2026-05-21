@@ -1,22 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Filter, GitPullRequest, RefreshCw } from "lucide-react";
+import { GitPullRequest, RefreshCw } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Card, CardContent } from "../components/ui/card";
-import {
-  FilterPopover,
-  FilterPopoverContent,
-  FilterPopoverTrigger,
-} from "../components/filters/filter-popover";
-import { MultiSelectFilterSection } from "../components/filters/multi-select-filter-section";
-import {
-  FilterBooleanSection,
-  FilterPopoverHeader,
-  FilterSectionDivider,
-  FilterToggleSection,
-} from "../components/filters/filter-popover-section";
+import { RepoPrsFilterPopover } from "../components/repos/repo-prs-filter-popover";
 import { EmptyState } from "../components/ui/empty-state";
 import { Skeleton } from "../components/ui/skeleton";
 import { Button } from "../components/ui/button";
@@ -27,7 +16,6 @@ import {
 } from "../components/layout/page-header";
 import { PageLayout } from "../components/layout/page-layout";
 import { PrItem } from "../components/repos/pr-item";
-import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
 import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -42,10 +30,6 @@ import type { PullRequestDto } from "../types/organization";
 
 const FILTER_NAMESPACE = "repo-prs";
 
-function toggleItem(arr: string[], item: string): string[] {
-  return arr.includes(item) ? arr.filter((x) => x !== item) : [...arr, item];
-}
-
 export function RepositoryPRsPage() {
   const { t, locale } = useI18n();
   const dateLabel = useDateLabel(locale);
@@ -54,8 +38,6 @@ export function RepositoryPRsPage() {
   const { providers } = useProviders();
   const { resolvePrScope } = useSettingsStore();
   const queryClient = useQueryClient();
-  const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const currentLogin = activeRepo ? resolveCurrentLogin(activeRepo.organizationId, organizations, providers) : null;
   const prScope = targetPrScope ?? (activeRepo ? resolvePrScope(activeRepo.organizationId, activeRepo.name) : "mine_or_review_requested");
@@ -99,11 +81,11 @@ export function RepositoryPRsPage() {
     if (!targetPrNumber || prs.length === 0) return;
     const match = prs.find((pr) => pr.number === targetPrNumber);
     if (match) {
-      setSelectedPr(match);
-      setSheetOpen(true);
+      setActivePr(match);
       setTargetPrNumber(null);
+      navigateTo("pr-detail");
     }
-  }, [targetPrNumber, prs, setTargetPrNumber]);
+  }, [targetPrNumber, prs, setTargetPrNumber, setActivePr, navigateTo]);
 
   const allAuthors = useMemo(() => {
     const set = new Set<string>();
@@ -163,19 +145,13 @@ export function RepositoryPRsPage() {
   };
 
   const handleViewDetail = (pr: PullRequestDto) => {
-    setSelectedPr(pr);
-    setSheetOpen(true);
+    setActivePr(pr);
+    navigateTo("pr-detail");
   };
 
   const handleReview = (pr: PullRequestDto) => {
     setActivePr(pr);
-    navigateTo("pr-review");
-  };
-
-  const handleMerged = () => {
-    queryClient.invalidateQueries({
-      queryKey: queryKeys.pullRequests(activeRepo?.organizationId ?? "", activeRepo?.name ?? ""),
-    });
+    navigateTo("pr-detail");
   };
 
   const handleSync = async () => {
@@ -258,105 +234,18 @@ export function RepositoryPRsPage() {
                   <RefreshCw className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`} />
                 </Button>
 
-                <FilterPopover>
-                <FilterPopoverTrigger asChild>
-                  <Button variant="outline" size="icon" className="relative">
-                    <Filter className="h-4 w-4" />
-                    {activeFilterCount > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-purple-500 text-[10px] font-bold text-white flex items-center justify-center">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </Button>
-                </FilterPopoverTrigger>
-                <FilterPopoverContent>
-                  <FilterPopoverHeader
-                    title={t("prs.filter")}
-                    clearLabel={t("prs.filter.clear")}
-                    canClear={activeFilterCount > 0}
-                    onClear={() => clearFilters(FILTER_NAMESPACE)}
-                  />
-                  <FilterSectionDivider />
-
-                  {/* State */}
-                  <FilterToggleSection
-                    label={t("prs.filter.state")}
-                    options={(["open", "merged"] as const).map((s) => ({
-                      key: s,
-                      label: t(`prs.filter.${s}`),
-                      checked: filters.state.includes(s),
-                      onCheckedChange: () =>
-                        setFilter(FILTER_NAMESPACE, "state", toggleItem(filters.state, s)),
-                    }))}
-                  />
-
-                  {/* Drafts */}
-                  <FilterSectionDivider />
-                  <FilterBooleanSection
-                    label={t("prs.filter.isDraft")}
-                    checked={showDraftsOnly}
-                    onCheckedChange={(checked) =>
-                      setFilter(FILTER_NAMESPACE, "isDraft", checked ? ["true"] : [])
-                    }
-                  />
-
-                  {/* Author */}
-                  {allAuthors.length > 0 && (
-                    <>
-                      <FilterSectionDivider />
-                      <MultiSelectFilterSection
-                        label={t("prs.filter.author")}
-                        placeholder={t("prs.filter.authorSearch")}
-                        items={allAuthors}
-                        value={filters.author}
-                        onValueChange={(value) => setFilter(FILTER_NAMESPACE, "author", value)}
-                      />
-                    </>
-                  )}
-
-                  {/* Labels */}
-                  {allLabels.length > 0 && (
-                    <>
-                      <FilterSectionDivider />
-                      <MultiSelectFilterSection
-                        label={t("prs.filter.labels")}
-                        placeholder={t("prs.filter.labelSearch")}
-                        items={allLabels}
-                        value={filters.labels}
-                        onValueChange={(value) => setFilter(FILTER_NAMESPACE, "labels", value)}
-                      />
-                    </>
-                  )}
-
-                  {/* CI Status */}
-                  {allCiStatuses.length > 0 && (
-                    <>
-                      <FilterSectionDivider />
-                      <MultiSelectFilterSection
-                        label={t("prs.filter.ciStatus")}
-                        placeholder={t("prs.filter.ciStatusSearch")}
-                        items={allCiStatuses}
-                        value={filters.ciStatus}
-                        onValueChange={(value) => setFilter(FILTER_NAMESPACE, "ciStatus", value)}
-                      />
-                    </>
-                  )}
-
-                  {/* Reviewers */}
-                  {allReviewers.length > 0 && (
-                    <>
-                      <FilterSectionDivider />
-                      <MultiSelectFilterSection
-                        label={t("prs.filter.reviewers")}
-                        placeholder={t("prs.filter.reviewerSearch")}
-                        items={allReviewers}
-                        value={filters.reviewers}
-                        onValueChange={(value) => setFilter(FILTER_NAMESPACE, "reviewers", value)}
-                      />
-                    </>
-                  )}
-                </FilterPopoverContent>
-              </FilterPopover>
+                <RepoPrsFilterPopover
+                  namespace={FILTER_NAMESPACE}
+                  filters={filters}
+                  activeFilterCount={activeFilterCount}
+                  showDraftsOnly={showDraftsOnly}
+                  authors={allAuthors}
+                  labels={allLabels}
+                  ciStatuses={allCiStatuses}
+                  reviewers={allReviewers}
+                  setFilter={setFilter}
+                  clearFilters={clearFilters}
+                />
               </div>
             </div>
             <CardContent className="">
@@ -373,17 +262,6 @@ export function RepositoryPRsPage() {
           </Card>
         )}
       </div>
-
-      <PrDetailSheet
-        pr={selectedPr}
-        open={sheetOpen}
-        organizationId={activeRepo.organizationId}
-        repoName={activeRepo.name}
-        owner={activeRepo.owner}
-        onOpenChange={setSheetOpen}
-        onOpenUrl={handleOpenUrl}
-        onMerged={handleMerged}
-      />
     </PageLayout>
   );
 }

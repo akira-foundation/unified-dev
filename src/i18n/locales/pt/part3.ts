@@ -219,6 +219,7 @@ export const ptPart3: Record<string, string> = {
   "agents.sidebar.runTask": "Executar tarefa",
   "agents.sidebar.autopilot": "Autopilot",
   "agents.sidebar.settings": "Definições",
+  "agents.sidebar.viewRepo": "Ver Repo",
   "agents.sidebar.clearThreads": "Limpar Threads",
   "agents.sidebar.clearThreadsConfirmTitle": "Limpar todos os threads?",
   "agents.sidebar.clearThreadsConfirmDesc": "Isto irá remover todos os threads de {name}. O repositório ficará intacto.",

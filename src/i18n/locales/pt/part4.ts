@@ -156,6 +156,7 @@ export const ptPart4: Record<string, string> = {
   "components.prDetail.mergeCommit": "Criar um merge commit",
   "components.prDetail.mergeSquash": "Squash e merge",
   "components.prDetail.mergeRebase": "Rebase e merge",
+  "components.prDetail.merge": "Merge",
   "components.prDetail.merging": "A fazer merge...",
   "components.prDetail.openInBrowser": "Abrir no browser",
   "components.prDetail.review": "Rever",

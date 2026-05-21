@@ -176,6 +176,7 @@ export const ptPart5: Record<string, string> = {
   "repos.table.filter": "Filtrar",
   "repos.table.filter.clear": "Limpar filtros",
   "repos.table.filter.visibility": "Visibilidade",
+  "repos.table.filter.all": "Todos",
   "repos.table.filter.public": "Público",
   "repos.table.filter.private": "Privado",
   "repos.table.filter.organization": "Organização",

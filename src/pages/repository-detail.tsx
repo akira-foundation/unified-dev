@@ -11,7 +11,6 @@ import { PrInsightsPanel } from "@/components/prs/pr-insights-panel";
 import { useIssueViewStore } from "@/stores/issue-view-store";
 import { usePrViewStore } from "@/stores/pr-view-store";
 import { useSearchStore } from "@/stores/search-store";
-import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
 import { PrNewTaskDialog } from "../components/repos/pr-new-task-dialog";
 import { CreateIssueDialog } from "../components/issues/create-issue-dialog";
 import { CreateBranchDialog } from "../components/repos/create-branch-dialog";
@@ -83,8 +82,6 @@ export function RepositoryDetailPage() {
   );
 
   const [tab, setTab] = useState<"prs" | "issues" | "branches">("prs");
-  const [selectedPr, setSelectedPr] = useState<PullRequestDto | null>(null);
-  const [prSheetOpen, setPrSheetOpen] = useState(false);
   const [newTaskPr, setNewTaskPr] = useState<PullRequestDto | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
 
@@ -104,7 +101,7 @@ export function RepositoryDetailPage() {
   const prScope = activeRepo ? resolvePrScope(activeRepo.organizationId, activeRepo.name) : "mine_or_review_requested";
 
   const data = useRepositoryDetail({ activeRepo, currentLogin, issueScope, prScope, allRepos, organizations, providers, resolveIssueScope });
-  const { prs, prsLoading, issues, issuesLoading, branches, deleteBranchMutation, createBranch, handleMerged, handleOpenUrl } = data;
+  const { prs, prsLoading, issues, issuesLoading, branches, deleteBranchMutation, createBranch, handleOpenUrl } = data;
   const issuesInsightsOpen = useIssueViewStore((s) => s.insightsOpen);
   const prsInsightsOpen = usePrViewStore((s) => s.insightsOpen);
 
@@ -119,7 +116,7 @@ export function RepositoryDetailPage() {
           title: pr.title,
           subtitle: `#${pr.number}`,
           icon: <GitPullRequest className="h-3.5 w-3.5 text-zinc-400" />,
-          onSelect: () => { setActiveRepo(repo); setActivePr(pr); navigateTo("pr-review"); },
+          onSelect: () => { setActiveRepo(repo); setActivePr(pr); navigateTo("pr-detail"); },
         })),
       });
     } else if (tab === "issues") {
@@ -152,12 +149,11 @@ export function RepositoryDetailPage() {
     if (!targetPrNumber || prs.length === 0) return;
     const match = prs.find((pr) => pr.number === targetPrNumber);
     if (match) {
-      setTab("prs");
-      setSelectedPr(match);
-      setPrSheetOpen(true);
+      setActivePr(match);
       setTargetPrNumber(null);
+      navigateTo("pr-detail");
     }
-  }, [targetPrNumber, prs, setTargetPrNumber]);
+  }, [targetPrNumber, prs, setTargetPrNumber, setActivePr, navigateTo]);
 
   if (!activeRepo) return null;
 
@@ -212,17 +208,6 @@ export function RepositoryDetailPage() {
           <PrInsightsPanel prs={prs} filterNamespace="repo-prs" className="w-72 shrink-0" />
         )}
       </div>
-
-      <PrDetailSheet
-        pr={selectedPr}
-        open={prSheetOpen}
-        organizationId={activeRepo.organizationId}
-        repoName={activeRepo.name}
-        owner={activeRepo.owner}
-        onOpenChange={setPrSheetOpen}
-        onOpenUrl={handleOpenUrl}
-        onMerged={handleMerged}
-      />
 
       <CreateIssueDialog
         open={createOpen}
