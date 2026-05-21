@@ -12,6 +12,7 @@ import { AgentsSidebar } from "./components/agents/agents-sidebar";
 import { AgentWorkspaceLayout } from "./components/agents/agent-workspace-layout";
 import { Toaster } from "./components/ui/sonner";
 import { CommandPalette } from "./components/layout/command-palette";
+import { SearchOverlay } from "./components/layout/search-overlay";
 import { LicenseActivationDialog } from "./components/license-activation-dialog";
 import { OnboardingOverlay } from "./components/onboarding-overlay";
 import { UpgradeModal } from "./components/upgrade-modal";
@@ -135,6 +136,7 @@ export default function App() {
         </main>
         <Toaster richColors />
         <CommandPalette />
+        <SearchOverlay />
         <UpgradeModal />
         <LicenseActivationDialog
           open={activationSessionId !== null}

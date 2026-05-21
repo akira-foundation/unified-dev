@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -8,16 +9,7 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ children, className }: PageHeaderProps) {
-  return (
-    <div
-      className={cn(
-        "flex shrink-0 flex-col gap-2 border-none bg-transparent pt-1 pb-3 md:flex-row md:items-center md:justify-end",
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
+  return <div className={cn("contents", className)}>{children}</div>;
 }
 
 export function PageHeaderTitle({ children, className }: { children: ReactNode; className?: string }) {
@@ -33,5 +25,22 @@ export function PageHeaderSubtitle({ children, className }: { children: ReactNod
 }
 
 export function PageHeaderActions({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("flex items-center gap-2", className)}>{children}</div>;
+  const anchorRef = useRef<HTMLSpanElement>(null);
+  const [target, setTarget] = useState<HTMLElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    setTarget(document.getElementById("appbar-actions"));
+    const v = anchorRef.current?.offsetParent != null;
+    setVisible((prev) => (prev === v ? prev : v));
+  });
+
+  return (
+    <>
+      <span ref={anchorRef} aria-hidden />
+      {target && visible
+        ? createPortal(<div className={cn("flex items-center gap-2", className)}>{children}</div>, target)
+        : null}
+    </>
+  );
 }

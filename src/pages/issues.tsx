@@ -1,16 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LayoutGrid, List, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import {
-  PageHeader,
-  PageHeaderActions,
-  PageHeaderMeta,
-  PageHeaderTitle,
-} from "@/components/layout/page-header";
+import { AppbarActions } from "@/components/layout/appbar-actions";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,10 +14,10 @@ import { IssueKanban } from "@/components/issues/issue-kanban";
 import { IssueDetailSheet } from "@/components/issues/issue-detail-sheet";
 import { CreateIssueDialog } from "@/components/issues/create-issue-dialog";
 import { useI18n } from "@/i18n/i18n";
-import { useDateLabel } from "@/hooks/use-date-label";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useSearchStore } from "@/stores/search-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { queryKeys } from "@/lib/query-keys";
@@ -35,8 +30,7 @@ import type { IssueScope } from "@/types/work-visibility";
 type ViewMode = "list" | "kanban";
 
 export function IssuesPage() {
-  const { t, locale } = useI18n();
-  const dateLabel = useDateLabel(locale);
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const { activeIssue, setActiveIssue, setActiveRepo, setTargetPrNumber, navigateTo } = useNavigationStore();
   const { organizations } = useOrganizations();
@@ -78,6 +72,21 @@ export function IssuesPage() {
 
   const isLoading = reposLoading || issueQueries.some((q) => q.isLoading);
   const allIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []);
+
+  const registerSearch = useSearchStore((s) => s.registerProvider);
+  useEffect(() => {
+    registerSearch({
+      placeholder: t("issues.table.search"),
+      items: allIssues.map((i) => ({
+        id: i.id,
+        title: i.title,
+        subtitle: `#${i.number}`,
+        onSelect: () => handleSelectIssue(i),
+      })),
+    });
+    return () => registerSearch(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allIssues]);
 
   const syncMutation = useMutation({
     mutationFn: async (scope: IssueScope) => {
@@ -298,38 +307,28 @@ export function IssuesPage() {
 
   return (
     <PageLayout>
-      <PageHeader>
-        <div>
-          <PageHeaderTitle>{t("issues.page.title")}</PageHeaderTitle>
-          <PageHeaderMeta>
-            <span>{t("app.name")}</span>
-            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span>{dateLabel}</span>
-          </PageHeaderMeta>
+      <AppbarActions>
+        <div className="flex items-center overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
+          <button
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "list" ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+            onClick={() => setViewMode("list")}
+            title={t("issues.page.listView")}
+          >
+            <List className="h-4 w-4" />
+          </button>
+          <button
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "kanban" ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+            onClick={() => setViewMode("kanban")}
+            title={t("issues.page.kanbanView")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
         </div>
-        <PageHeaderActions>
-          <div className="flex items-center rounded-md border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-            <button
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === "list" ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
-              onClick={() => setViewMode("list")}
-              title={t("issues.page.listView")}
-            >
-              <List className="h-4 w-4" />
-            </button>
-            <button
-              className={`px-2.5 py-1.5 transition-colors ${viewMode === "kanban" ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
-              onClick={() => setViewMode("kanban")}
-              title={t("issues.page.kanbanView")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-            </button>
-          </div>
-          <Button onClick={handleCreateClick} disabled={allRepos.length === 0}>
-            <Plus size={18} />
-            {t("issues.page.new")}
-          </Button>
-        </PageHeaderActions>
-      </PageHeader>
+        <Button onClick={handleCreateClick} disabled={allRepos.length === 0}>
+          <Plus size={18} />
+          {t("issues.page.new")}
+        </Button>
+      </AppbarActions>
 
       <div className="flex flex-col gap-6">
         {isLoading ? (
@@ -342,6 +341,7 @@ export function IssuesPage() {
         ) : viewMode === "list" ? (
           <IssueTable
             issues={allIssues}
+            actionsInAppbar
             onSelect={handleSelectIssue}
             onNavigateToPrs={handleNavigateToPrs}
             onNavigateToRepo={handleNavigateToRepo}

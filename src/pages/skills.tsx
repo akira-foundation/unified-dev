@@ -1,14 +1,13 @@
-import { useState } from "react";
-import { Search, Trash2, FolderOpen, Globe, ChevronRight } from "lucide-react";
+import { useEffect } from "react";
+import { Trash2, FolderOpen, Globe, ChevronRight } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/layout/page-layout";
-import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAgentsStore, type InstalledSkill } from "@/stores/useAgentsStore";
+import { useSearchStore } from "@/stores/search-store";
 import { useI18n } from "@/i18n/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
@@ -95,7 +94,7 @@ export function SkillsPage() {
   const { t } = useI18n();
   const { setSelectedSkill, setSelectedSkillSource, repositoryGroups, selectedIssueId } = useAgentsStore();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const registerSearch = useSearchStore((s) => s.registerProvider);
 
   const activeThread = repositoryGroups
     .flatMap((g) => g.repositories.flatMap((r) => r.issues))
@@ -138,42 +137,25 @@ export function SkillsPage() {
     queryClient.invalidateQueries({ queryKey: queryKeys.skills() });
   };
 
-  const query = search.toLowerCase();
+  const filteredInstalled = installedSkills;
 
-  const filteredInstalled = installedSkills.filter(
-    (s) =>
-      !search ||
-      s.name.toLowerCase().includes(query) ||
-      s.description.toLowerCase().includes(query),
-  );
+  useEffect(() => {
+    registerSearch({
+      placeholder: t("pages.skills.searchPlaceholder"),
+      items: installedSkills.map((s) => ({
+        id: s.id,
+        title: s.name,
+        subtitle: s.description,
+        onSelect: () => setSelectedSkill(s),
+      })),
+    });
+    return () => registerSearch(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [installedSkills]);
 
   return (
     <PageLayout scroll>
       <div className="mx-auto w-full max-w-6xl pb-12">
-        <PageHeader className="px-8">
-          <div>
-            <div className="flex items-center gap-3">
-              <PageHeaderTitle>{t("pages.skills.title")}</PageHeaderTitle>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border text-[9px] text-zinc-500 shrink-0 font-black uppercase tracking-wider h-fit">
-                {t("common.beta")}
-              </span>
-            </div>
-            <PageHeaderMeta>
-              <span>{t("pages.skills.subtitle")}</span>
-            </PageHeaderMeta>
-          </div>
-          <PageHeaderActions className="gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-              <Input
-                placeholder={t("pages.skills.searchPlaceholder")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-64 pl-9 focus-visible:ring-purple-500/50"
-              />
-            </div>
-          </PageHeaderActions>
-        </PageHeader>
 
         <div className="px-6 flex flex-col gap-6 mt-2">
           {/* Installed Section */}

@@ -1,5 +1,6 @@
-import { ChevronLeft, Download, PanelLeft } from "lucide-react";
+import { ChevronLeft, Download, PanelLeft, Search } from "lucide-react";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
+import { useSearchStore } from "@/stores/search-store";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
 import { useUpdater } from "@/hooks/useUpdater";
@@ -19,6 +20,8 @@ export function AppHeader() {
     const { update, installing, install } = useUpdater();
     const { activeTab, setActiveTab, previousTab } = useAgentsStore();
     const { state: sidebarState, toggleSidebar } = useSidebar();
+    const searchProvider = useSearchStore((s) => s.provider);
+    const openSearch = useSearchStore((s) => s.setOpen);
 
     const handleBack = () => {
         if (activeTab === "skill-source") {
@@ -39,7 +42,7 @@ export function AppHeader() {
         >
             <div
                 data-tauri-drag-region
-                className={`flex h-9 items-center justify-between pr-4 [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag] ${sidebarState === "collapsed" ? "pl-24" : "pl-3 md:pl-4"}`}
+                className={`flex h-11 items-center justify-between pr-4 [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag] ${sidebarState === "collapsed" ? "pl-24" : "pl-3 md:pl-4"}`}
             >
                 <div className="flex items-center gap-2">
                     {sidebarState === "collapsed" ? (
@@ -94,7 +97,21 @@ export function AppHeader() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex flex-1 justify-center px-4">
+                    {searchProvider && (
+                        <button
+                            onClick={() => openSearch(true)}
+                            className="flex h-8 w-full max-w-md items-center gap-2 rounded-md border border-zinc-200 bg-zinc-100/60 px-3 text-sm text-muted-foreground transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/50"
+                        >
+                            <Search className="h-3.5 w-3.5 shrink-0" />
+                            <span className="flex-1 truncate text-left">{searchProvider.placeholder}</span>
+                            <kbd className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] font-medium dark:border-zinc-700">/</kbd>
+                        </button>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <div id="appbar-actions" className="flex items-center gap-2 empty:hidden" />
                     {update && (
                         <Tooltip>
                             <TooltipTrigger asChild>
