@@ -25,6 +25,7 @@ export function AppHeader() {
     const openSearch = useSearchStore((s) => s.setOpen);
     const activePr = useNavigationStore((s) => s.activePr);
     const activeIssue = useNavigationStore((s) => s.activeIssue);
+    const activeRepo = useNavigationStore((s) => s.activeRepo);
 
     const handleBack = () => {
         if (activeTab === "skill-source") {
@@ -102,7 +103,9 @@ export function AppHeader() {
                                     ? { labelKey: "nav.prs", page: "prs" as const, title: activePr?.title }
                                     : currentPage === "issue-detail"
                                         ? { labelKey: "nav.issues", page: "issues" as const, title: activeIssue?.title }
-                                        : null;
+                                        : currentPage === "repository-detail"
+                                            ? { labelKey: "nav.repositories", page: "repository" as const, title: activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : undefined }
+                                            : null;
                             return (
                                 <>
                                     <span className="text-[12px] leading-none text-muted-foreground/40">/</span>

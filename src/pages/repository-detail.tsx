@@ -5,6 +5,10 @@ import { RepoDetailHeader } from "@/components/repos/repo-detail-header";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { PageLayout } from "../components/layout/page-layout";
+import { IssueInsightsPanel } from "@/components/issues/issue-insights-panel";
+import { PrInsightsPanel } from "@/components/prs/pr-insights-panel";
+import { useIssueViewStore } from "@/stores/issue-view-store";
+import { usePrViewStore } from "@/stores/pr-view-store";
 import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
 import { PrNewTaskDialog } from "../components/repos/pr-new-task-dialog";
 import { CreateIssueDialog } from "../components/issues/create-issue-dialog";
@@ -95,7 +99,9 @@ export function RepositoryDetailPage() {
   const prScope = activeRepo ? resolvePrScope(activeRepo.organizationId, activeRepo.name) : "mine_or_review_requested";
 
   const data = useRepositoryDetail({ activeRepo, currentLogin, issueScope, prScope, allRepos, organizations, providers, resolveIssueScope });
-  const { prs, prsLoading, issues, issuesLoading, branches, syncRepoMutation, deleteBranchMutation, createBranch, handleMerged, handleOpenUrl } = data;
+  const { prs, prsLoading, issues, issuesLoading, branches, deleteBranchMutation, createBranch, handleMerged, handleOpenUrl } = data;
+  const issuesInsightsOpen = useIssueViewStore((s) => s.insightsOpen);
+  const prsInsightsOpen = usePrViewStore((s) => s.insightsOpen);
 
   useEffect(() => {
     if (!targetPrNumber || prs.length === 0) return;
@@ -117,41 +123,50 @@ export function RepositoryDetailPage() {
   const visibility = currentRepo?.visibility ?? null;
 
   return (
-    <PageLayout>
-      <RepoDetailHeader
-        activeRepo={activeRepo}
-        currentRepo={currentRepo}
-        defaultBranch={defaultBranch}
-        visibility={visibility}
-        dateLabel={dateLabel}
-        tab={tab}
-        openPrsCount={openPrsCount}
-        draftPrsCount={draftPrsCount}
-        openIssuesCount={openIssuesCount}
-        prsLoading={prsLoading}
-        issuesLoading={issuesLoading}
-        syncing={syncRepoMutation.isPending}
-        onSync={() => syncRepoMutation.mutate()}
-        onOpenUrl={handleOpenUrl}
-        onConfigOpen={() => setRepoConfigOpen(true)}
-        onCreateIssue={() => setCreateOpen(true)}
-        onCreateBranch={() => setCreateBranchOpen(true)}
-      />
+    <PageLayout className="!p-0 !space-y-0 h-[calc(100vh-4rem)] overflow-hidden">
+      <div className="flex h-full min-h-0">
+        <div className="min-w-0 flex-1 space-y-5 overflow-y-auto custom-scrollbar p-4 md:p-6">
+          <RepoDetailHeader
+            activeRepo={activeRepo}
+            currentRepo={currentRepo}
+            defaultBranch={defaultBranch}
+            visibility={visibility}
+            dateLabel={dateLabel}
+            tab={tab}
+            openPrsCount={openPrsCount}
+            draftPrsCount={draftPrsCount}
+            openIssuesCount={openIssuesCount}
+            prsLoading={prsLoading}
+            issuesLoading={issuesLoading}
+            onOpenUrl={handleOpenUrl}
+            onConfigOpen={() => setRepoConfigOpen(true)}
+            onCreateIssue={() => setCreateOpen(true)}
+            onCreateBranch={() => setCreateBranchOpen(true)}
+          />
 
-      <RepoDetailTabs
-        tab={tab}
-        onTabChange={setTab}
-        activeRepo={activeRepo}
-        prScope={prScope}
-        issueScope={issueScope}
-        setRepositoryPrScope={setRepositoryPrScope}
-        setRepositoryIssueScope={setRepositoryIssueScope}
-        data={data}
-        onNewTask={(pr) => { setNewTaskPr(pr); setNewTaskOpen(true); }}
-        onSelectIssue={(issue) => { setActiveIssue(issue); setIssueList(orderIssuesByColumn(issues)); navigateTo("issue-detail"); }}
-        onNavigateToPrs={(prNumber) => { if (prNumber !== undefined) setTargetPrNumber(prNumber); setTab("prs"); }}
-        onDeleteBranch={(name) => setBranchToDelete(name)}
-      />
+          <RepoDetailTabs
+            tab={tab}
+            onTabChange={setTab}
+            activeRepo={activeRepo}
+            prScope={prScope}
+            issueScope={issueScope}
+            setRepositoryPrScope={setRepositoryPrScope}
+            setRepositoryIssueScope={setRepositoryIssueScope}
+            data={data}
+            onNewTask={(pr) => { setNewTaskPr(pr); setNewTaskOpen(true); }}
+            onSelectIssue={(issue) => { setActiveIssue(issue); setIssueList(orderIssuesByColumn(issues)); navigateTo("issue-detail"); }}
+            onNavigateToPrs={(prNumber) => { if (prNumber !== undefined) setTargetPrNumber(prNumber); setTab("prs"); }}
+            onDeleteBranch={(name) => setBranchToDelete(name)}
+          />
+        </div>
+
+        {tab === "issues" && issuesInsightsOpen && (
+          <IssueInsightsPanel issues={issues} filterNamespace="repo-issues" className="w-72 shrink-0" />
+        )}
+        {tab === "prs" && prsInsightsOpen && (
+          <PrInsightsPanel prs={prs} filterNamespace="repo-prs" className="w-72 shrink-0" />
+        )}
+      </div>
 
       <PrDetailSheet
         pr={selectedPr}

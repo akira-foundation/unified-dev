@@ -1,11 +1,11 @@
-import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, Plus, RotateCw, Settings2 } from "lucide-react";
+import { CircleDot, ExternalLink, FileDiff, GitBranch, GitPullRequest, Plus, Settings2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardHeader } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../layout/page-header";
 import { AppbarActions } from "../layout/appbar-actions";
@@ -24,8 +24,6 @@ interface RepoDetailHeaderProps {
   openIssuesCount: number;
   prsLoading: boolean;
   issuesLoading: boolean;
-  syncing: boolean;
-  onSync: () => void;
   onOpenUrl: (url: string) => void;
   onConfigOpen: () => void;
   onCreateIssue: () => void;
@@ -44,8 +42,6 @@ export function RepoDetailHeader({
   openIssuesCount,
   prsLoading,
   issuesLoading,
-  syncing,
-  onSync,
   onOpenUrl,
   onConfigOpen,
   onCreateIssue,
@@ -56,14 +52,6 @@ export function RepoDetailHeader({
   return (
     <>
       <AppbarActions>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="icon" onClick={onSync} disabled={syncing}>
-              <RotateCw className={cn("h-4 w-4", syncing && "animate-spin")} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>{t("common.sync")}</TooltipContent>
-        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -141,28 +129,30 @@ export function RepoDetailHeader({
         <StatCard label={t("pages.repositoryDetail.stats.openPrs")} value={openPrsCount} icon={GitPullRequest} color="text-purple-500" bg="bg-purple-500/10" loading={prsLoading} />
         <StatCard label={t("pages.repositoryDetail.stats.draftPrs")} value={draftPrsCount} icon={FileDiff} color="text-zinc-500" bg="bg-zinc-500/10" loading={prsLoading} />
         <StatCard label={t("pages.repositoryDetail.stats.openIssues")} value={openIssuesCount} icon={CircleDot} color="text-emerald-500" bg="bg-emerald-500/10" loading={issuesLoading} />
-        <Card
-          className={defaultBranch !== "—" ? "cursor-pointer hover:border-blue-500/40 transition-colors" : ""}
+        <button
           onClick={() => {
             if (defaultBranch !== "—") {
               void onOpenUrl(`https://github.com/${activeRepo.owner}/${activeRepo.name}/tree/${defaultBranch}`);
             }
           }}
+          className={cn("w-full rounded-xl text-left", defaultBranch !== "—" && "group cursor-pointer")}
         >
-          <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
-            <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-              {t("pages.repositoryDetail.stats.defaultBranch")}
-            </CardDescription>
-            <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-blue-500/10 text-blue-500">
-              <GitBranch size={16} />
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 pt-4">
-            <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white leading-none font-mono">
-              {defaultBranch}
-            </div>
-          </CardContent>
-        </Card>
+          <Card className={cn("h-full transition-colors", defaultBranch !== "—" && "group-hover:border-blue-500/40")}>
+            <CardContent className="pointer-events-none flex items-center gap-3 p-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-100 bg-blue-500/10 text-blue-500 dark:border-zinc-800">
+                <GitBranch size={15} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-mono text-xl font-semibold leading-none tracking-tight text-zinc-900 dark:text-white">
+                  {defaultBranch}
+                </div>
+                <div className="mt-1 truncate text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                  {t("pages.repositoryDetail.stats.defaultBranch")}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
       </div>
     </>
   );

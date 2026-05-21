@@ -36,6 +36,14 @@ function prState(pr: PullRequestDto): { labelKey: string; icon: typeof GitPullRe
   return { labelKey: "prs.filter.open", icon: GitPullRequest, cls: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" };
 }
 
+function TabCount({ children }: { children: number }) {
+  return (
+    <span className="ml-1.5 rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] font-bold leading-none dark:bg-zinc-700">
+      {children}
+    </span>
+  );
+}
+
 function CiBadge({ status }: { status: string | null }) {
   if (!status) return null;
   const map = {
@@ -151,8 +159,6 @@ export function PrReviewPage() {
 
   if (!activePr || !activeRepo) return null;
 
-  const filesTabLabel = `${t("components.prReview.tabFiles")}${files.length > 0 ? ` (${files.length})` : ""}`;
-  const checksTabLabel = `${t("components.prReview.tabChecks")}${checks.length > 0 ? ` (${checks.length})` : ""}`;
   const defaultTab = activePr.ci_status === "failure" ? "checks" : "files";
 
   return (
@@ -174,9 +180,15 @@ export function PrReviewPage() {
         <div className="flex flex-col">
           <Tabs defaultValue={defaultTab} className="flex w-full flex-col">
             <div className="shrink-0 mb-4">
-              <TabsList variant="line">
-                <TabsTrigger value="files">{filesTabLabel}</TabsTrigger>
-                <TabsTrigger value="checks">{checksTabLabel}</TabsTrigger>
+              <TabsList>
+                <TabsTrigger value="files">
+                  {t("components.prReview.tabFiles")}
+                  {files.length > 0 && <TabCount>{files.length}</TabCount>}
+                </TabsTrigger>
+                <TabsTrigger value="checks">
+                  {t("components.prReview.tabChecks")}
+                  {checks.length > 0 && <TabCount>{checks.length}</TabCount>}
+                </TabsTrigger>
               </TabsList>
             </div>
 

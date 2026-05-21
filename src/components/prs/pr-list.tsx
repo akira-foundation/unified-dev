@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
+import { EmptyState } from "@/components/ui/empty-state";
 import { formatRelativeDate } from "@/components/repos/pr-item";
 import { PrStatusIcon, PR_COLUMN_LABEL_KEY, PR_COLUMN_ORDER, type PrColumnId } from "@/lib/pr-column";
 import type { PrCardType } from "@/hooks/usePrCards";
@@ -115,7 +116,7 @@ export function PrList({
     });
 
   if (cards.length === 0) {
-    return <p className="px-3 py-16 text-center text-sm text-zinc-500 dark:text-zinc-600">{t("prs.table.empty")}</p>;
+    return <EmptyState title={t("prs.table.empty")} />;
   }
 
   return (

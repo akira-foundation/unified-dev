@@ -86,6 +86,7 @@ export function RepoDetailTabs({
         ) : (
           <PrListCard
             prs={prs}
+            actionsInAppbar
             filterNamespace="repo-prs"
             organizationId={activeRepo.organizationId}
             repoName={activeRepo.name}
@@ -115,6 +116,7 @@ export function RepoDetailTabs({
         ) : (
           <IssueTable
             issues={issues}
+            actionsInAppbar
             filterNamespace="repo-issues"
             onSelect={onSelectIssue}
             onNavigateToPrs={(_, __, prNumber) => onNavigateToPrs(prNumber)}
@@ -140,6 +142,7 @@ export function RepoDetailTabs({
       <TabsContent value="branches">
         <RepoBranchesTab
           branches={branches}
+          actionsInAppbar
           loading={branchesLoading}
           syncing={data.syncBranchesMutation.isPending}
           deleting={data.deleteBranchMutation.isPending}

@@ -36,12 +36,20 @@ function dotColor(tab: TabId, value: string): string {
   return "bg-zinc-400 dark:bg-zinc-600";
 }
 
-export function PrInsightsPanel({ prs, className }: { prs: PullRequestDto[]; className?: string }) {
+export function PrInsightsPanel({
+  prs,
+  className,
+  filterNamespace = PR_FILTER_NS,
+}: {
+  prs: PullRequestDto[];
+  className?: string;
+  filterNamespace?: string;
+}) {
   const { t } = useI18n();
   const [tab, setTab] = useState<TabId>("state");
   const setFilter = useFiltersStore((s) => s.setFilter);
   const clearFilters = useFiltersStore((s) => s.clearFilters);
-  const active = useFiltersStore((s) => s.filters[PR_FILTER_NS]);
+  const active = useFiltersStore((s) => s.filters[filterNamespace]);
 
   const counts = useMemo(() => {
     const state = new Map<string, number>();
@@ -66,7 +74,7 @@ export function PrInsightsPanel({ prs, className }: { prs: PullRequestDto[]; cla
 
   const toggleValue = (value: string) => {
     const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value];
-    setFilter(PR_FILTER_NS, current.filterKey, next);
+    setFilter(filterNamespace, current.filterKey, next);
   };
 
   return (
@@ -75,7 +83,7 @@ export function PrInsightsPanel({ prs, className }: { prs: PullRequestDto[]; cla
         <span className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">{t("prs.filter.title")}</span>
         {activeCount > 0 && (
           <button
-            onClick={() => clearFilters(PR_FILTER_NS)}
+            onClick={() => clearFilters(filterNamespace)}
             className="text-[11px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
             {t("prs.filter.clear")}

@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
+import { EmptyState } from "../ui/empty-state";
 import { toast } from "sonner";
 
 import { useFilteredIssues } from "@/hooks/useFilteredIssues";
@@ -112,7 +113,7 @@ export function IssueTable({
       )}
 
       {filteredIssues.length === 0 ? (
-        <p className="px-3 py-16 text-center text-sm text-zinc-500 dark:text-zinc-600">{t("issues.table.empty")}</p>
+        <EmptyState title={t("issues.table.empty")} />
       ) : (
         <div className="flex flex-col">
           {GROUP_ORDER.map((col) => {
