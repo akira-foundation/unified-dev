@@ -69,16 +69,15 @@ export function DashboardPage() {
           </PageHeaderMeta>
         </div>
         <PageHeaderActions>
-          <Button onClick={() => setIsDialogOpen(true)}>
+          <Button size="icon" onClick={() => setIsDialogOpen(true)} title={t("dashboard.header.newOrg") ?? "New Organization"}>
             <Plus size={18} />
-            {t("dashboard.header.newOrg") ?? "New Organization"}
           </Button>
         </PageHeaderActions>
       </PageHeader>
 
       <div className="flex min-h-0 flex-1 flex-col px-4 md:px-6 ">
         <Tabs value={dashboardTab} onValueChange={setDashboardTab} className="flex h-full w-full flex-col">
-          <div className="flex shrink-0 mb-8 items-center justify-between">
+          <div className="flex shrink-0 mb-4 items-center justify-between">
             <TabsList className="h-auto gap-1 bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50">
               {[
                 { key: "overview", label: t("dashboard.tabs.overview") ?? "Overview" },
@@ -111,10 +110,10 @@ export function DashboardPage() {
           </div>
 
           <div className="min-h-0 flex-1 overflow-auto custom-scrollbar">
-            <TabsContent value="overview" className="mt-0 h-full space-y-10 pb-10">
+            <TabsContent value="overview" className="mt-0 h-full space-y-6 pb-6">
 
               {/* Stat Cards */}
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                   label={t("dashboard.stats.organizations")}
                   value={organizations.length}
@@ -158,14 +157,14 @@ export function DashboardPage() {
               </div>
 
               {/* Bottom grid */}
-              <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
                 {/* Repositories */}
                 <div className="lg:col-span-2">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 shadow-sm bg-indigo-500/10 text-indigo-500">
+                        <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 bg-indigo-500/10 text-indigo-500">
                           <Activity size={16} />
                         </div>
                         <div>
@@ -190,7 +189,7 @@ export function DashboardPage() {
                       {reposLoading ? (
                         <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800/50">
                           {[...Array(4)].map((_, i) => (
-                            <div key={i} className="flex items-center gap-4 px-6 py-4">
+                            <div key={i} className="flex items-center gap-3 px-4 py-2.5">
                               <Skeleton className="h-10 w-10 rounded-md shrink-0" />
                               <div className="flex flex-col gap-1.5 flex-1">
                                 <Skeleton className="h-3.5 w-40" />
@@ -211,11 +210,11 @@ export function DashboardPage() {
                           <button
                             key={`${repo.organization_id}:${repo.repo_name}`}
                             onClick={() => handleRepoClick(repo)}
-                            className="w-full flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 text-left cursor-pointer"
+                            className="w-full flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 text-left cursor-pointer"
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
-                                <span className="text-sm font-bold text-zinc-600 dark:text-zinc-400">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
+                                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
                                   {repo.repo_name.charAt(0).toUpperCase()}
                                 </span>
                               </div>
@@ -262,7 +261,7 @@ export function DashboardPage() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-500">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 bg-purple-500/10 text-purple-500">
                           <Sparkles size={16} />
                         </div>
                         <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
@@ -279,10 +278,10 @@ export function DashboardPage() {
                         <button
                           key={action.label}
                           onClick={action.onClick}
-                          className="cursor-pointer group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
+                          className="cursor-pointer group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-2.5 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
                         >
-                          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-transform group-hover:scale-110", action.bg, action.color)}>
-                            <action.icon size={20} />
+                          <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-transform group-hover:scale-110", action.bg, action.color)}>
+                            <action.icon size={18} />
                           </div>
                           <span className="text-sm font-bold text-zinc-900 dark:text-zinc-200">{action.label}</span>
                         </button>
@@ -339,24 +338,24 @@ function StatCard({
       className={cn("text-left w-full rounded-xl", onClick && "cursor-pointer group")}
     >
       <Card className={cn("h-full transition-colors", onClick && "group-hover:border-zinc-600 group-hover:bg-zinc-900/60")}>
-        <CardHeader className="flex flex-row items-center justify-between p-5 pb-3 pointer-events-none">
-          <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-            {label}
-          </CardDescription>
-          <div className={cn("h-8 w-8 rounded-md flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm", bg, color)}>
-            <Icon size={16} />
+        <CardContent className="flex items-center gap-3 p-3 pointer-events-none">
+          <div className={cn("h-8 w-8 shrink-0 rounded-md flex items-center justify-center border border-zinc-100 dark:border-zinc-800", bg, color)}>
+            <Icon size={15} />
           </div>
-        </CardHeader>
-        <CardContent className="flex justify-between items-end p-4 pt-4 gap-1.5 border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/30 dark:bg-white/[0.02]">
-          {loading ? (
-            <Skeleton className="h-8 w-12" />
-          ) : (
-            <div className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white leading-none">
-              {value}
+          <div className="min-w-0 flex-1">
+            {loading ? (
+              <Skeleton className="h-5 w-16" />
+            ) : (
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-semibold tracking-tight leading-none text-zinc-900 dark:text-white truncate">
+                  {value}
+                </span>
+                <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 truncate">{sub}</span>
+              </div>
+            )}
+            <div className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 truncate">
+              {label}
             </div>
-          )}
-          <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest pb-0.5">
-            {sub}
           </div>
         </CardContent>
       </Card>

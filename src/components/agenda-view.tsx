@@ -71,7 +71,7 @@ export function AgendaView({ organizations, allRepos }: AgendaViewProps) {
   const maxSummaryValue = Math.max(organizations.length, 1);
 
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <div className="lg:col-span-2 space-y-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -132,7 +132,7 @@ export function AgendaView({ organizations, allRepos }: AgendaViewProps) {
             {formatWeekLabel(weekStart, weekEnd, locale)}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 p-6 pt-6">
+        <CardContent className="space-y-4 p-4 pt-4">
           <div className="space-y-6">
             <SummaryBar
               label={t("agenda.summary.syncs")}

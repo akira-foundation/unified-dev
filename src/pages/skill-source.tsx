@@ -97,7 +97,7 @@ export function SkillSourcePage() {
         <PageHeader className="px-8">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-3">
-              <PageHeaderTitle className="text-3xl">{selectedSkillSource?.name}</PageHeaderTitle>
+              <PageHeaderTitle>{selectedSkillSource?.name}</PageHeaderTitle>
             </div>
             <PageHeaderMeta>
               <span>{selectedSkillSource?.description}</span>

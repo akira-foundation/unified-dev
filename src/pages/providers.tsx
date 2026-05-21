@@ -70,7 +70,7 @@ export function ProvidersPage() {
         </div>
       </PageHeader>
 
-      <div className="mx-auto w-full max-w-6xl pb-12 flex flex-col gap-8">
+      <div className="mx-auto w-full max-w-6xl pb-6 flex flex-col gap-6">
         <div className="flex flex-col gap-6">
           {isLoading ? (
             <div className="space-y-3">

@@ -124,7 +124,7 @@ export function SettingsPage() {
         </div>
       </PageHeader>
 
-      <div className="mx-auto w-full max-w-6xl pb-12 flex gap-8">
+      <div className="mx-auto w-full max-w-6xl pb-6 flex gap-6">
         <div className="w-64 shrink-0 flex flex-col gap-6">
           {SETTINGS_GROUPS.filter((group) =>
             group.items.some((tab) => SHOW_COMING_SOON || !COMING_SOON_TABS.includes(tab.id)),

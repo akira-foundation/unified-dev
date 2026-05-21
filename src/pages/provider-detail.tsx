@@ -181,7 +181,7 @@ export function ProviderDetailPage() {
               <KindIcon size={24} strokeWidth={2} />
             </div>
             <div className="flex flex-col gap-1">
-              <PageHeaderTitle className="text-3xl">{provider.name}</PageHeaderTitle>
+              <PageHeaderTitle>{provider.name}</PageHeaderTitle>
               <div className="flex items-center gap-2">
                 <Badge variant="secondary">{kindLabel}</Badge>
                 <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">{t("pages.providerDetail.connected")}</Badge>

@@ -46,7 +46,7 @@ export function ContributionPanel({ summary: _summary, year, years, onYearChange
   return (
     <div className="flex gap-6">
       <Card className="flex-1">
-        <CardContent className="p-6 space-y-6">
+        <CardContent className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
               {t("openSource.calendar.contributionsIn", {

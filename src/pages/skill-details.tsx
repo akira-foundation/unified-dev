@@ -81,7 +81,7 @@ export function SkillDetailsPage() {
               )}
             </div>
             <div>
-              <PageHeaderTitle className="text-3xl">{displayName}</PageHeaderTitle>
+              <PageHeaderTitle>{displayName}</PageHeaderTitle>
             </div>
           </div>
         </div>

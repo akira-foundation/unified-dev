@@ -21,7 +21,7 @@ export function ContributionStatsCards({ summary }: ContributionStatsCardsProps)
   const totals = summary.totals;
 
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
       <StatCard
         label={t("openSource.stats.repositories")}
         value={totals.repositories}
@@ -76,7 +76,7 @@ export function ContributionStatsCards({ summary }: ContributionStatsCardsProps)
 
 export function ContributionStatsCardsSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
       {Array.from({ length: 7 }).map((_, i) => (
         <StatCard
           key={i}

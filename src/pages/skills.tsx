@@ -153,7 +153,7 @@ export function SkillsPage() {
         <PageHeader className="px-8">
           <div>
             <div className="flex items-center gap-3">
-              <PageHeaderTitle className="text-3xl">{t("pages.skills.title")}</PageHeaderTitle>
+              <PageHeaderTitle>{t("pages.skills.title")}</PageHeaderTitle>
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border text-[9px] text-zinc-500 shrink-0 font-black uppercase tracking-wider h-fit">
                 {t("common.beta")}
               </span>
@@ -175,7 +175,7 @@ export function SkillsPage() {
           </PageHeaderActions>
         </PageHeader>
 
-        <div className="px-8 flex flex-col gap-12 mt-4">
+        <div className="px-6 flex flex-col gap-6 mt-2">
           {/* Installed Section */}
           <div>
             <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">
