@@ -6,6 +6,7 @@ import { AppbarActions } from "@/components/layout/appbar-actions";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useI18n } from "@/i18n/i18n";
 import type { IssueDto } from "@/types/issue";
 
 function slug(text: string): string {
@@ -57,6 +58,7 @@ function IconButton({
 }
 
 export function IssueDetailActions({ issue }: { issue: IssueDto }) {
+  const { t } = useI18n();
   const branchName = `${issue.number}-${slug(issue.title)}`;
   const issueList = useNavigationStore((s) => s.issueList);
   const setActiveIssue = useNavigationStore((s) => s.setActiveIssue);
@@ -72,27 +74,27 @@ export function IssueDetailActions({ issue }: { issue: IssueDto }) {
       {index >= 0 && total > 1 && (
         <div className="flex items-center gap-1 pr-1">
           <span className="text-[11px] tabular-nums text-zinc-500">{index + 1}/{total}</span>
-          <IconButton label="Previous issue" onClick={() => go(-1)} disabled={index <= 0}>
+          <IconButton label={t("issues.detail.prevIssue")} onClick={() => go(-1)} disabled={index <= 0}>
             <ArrowUp className="h-4 w-4" />
           </IconButton>
-          <IconButton label="Next issue" onClick={() => go(1)} disabled={index >= total - 1}>
+          <IconButton label={t("issues.detail.nextIssue")} onClick={() => go(1)} disabled={index >= total - 1}>
             <ArrowDown className="h-4 w-4" />
           </IconButton>
         </div>
       )}
       {issue.url && (
-        <IconButton label="Copy link" onClick={() => void copy(issue.url, "Link copied")}>
+        <IconButton label={t("issues.detail.copyLink")} onClick={() => void copy(issue.url, t("issues.detail.linkCopied"))}>
           <Link2 className="h-4 w-4" />
         </IconButton>
       )}
-      <IconButton label="Copy issue ID" onClick={() => void copy(`${issue.repoName}#${issue.number}`, "Issue ID copied")}>
+      <IconButton label={t("issues.detail.copyId")} onClick={() => void copy(`${issue.repoName}#${issue.number}`, t("issues.detail.idCopied"))}>
         <Hash className="h-4 w-4" />
       </IconButton>
-      <IconButton label="Copy git branch name" onClick={() => void copy(branchName, "Branch name copied")}>
+      <IconButton label={t("issues.detail.copyBranch")} onClick={() => void copy(branchName, t("issues.detail.branchCopied"))}>
         <GitBranch className="h-4 w-4" />
       </IconButton>
       {issue.url && (
-        <IconButton label="Open on GitHub" onClick={() => void open(issue.url)}>
+        <IconButton label={t("issues.detail.openUrl")} onClick={() => void open(issue.url)}>
           <ExternalLink className="h-4 w-4" />
         </IconButton>
       )}

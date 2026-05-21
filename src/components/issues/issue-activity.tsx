@@ -5,11 +5,13 @@ import { ArrowUp, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
+import { useI18n } from "@/i18n/i18n";
 import { PrCommentItem } from "@/components/repos/pr-comment-item";
 import type { PrCommentDto } from "@/types/organization";
 import type { IssueDto } from "@/types/issue";
 
 export function IssueActivity({ issue }: { issue: IssueDto }) {
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [body, setBody] = useState("");
   const qk = queryKeys.prComments(issue.orgId, issue.repoName, issue.number);
@@ -80,7 +82,7 @@ export function IssueActivity({ issue }: { issue: IssueDto }) {
 
   return (
     <div className="mt-10 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-      <h2 className="mb-3 text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">Activity</h2>
+      <h2 className="mb-3 text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t("issues.detail.activity")}</h2>
 
       {isLoading ? (
         <div className="mb-4 h-12 animate-pulse rounded-lg bg-zinc-100 dark:bg-white/[0.03]" />
@@ -108,7 +110,7 @@ export function IssueActivity({ issue }: { issue: IssueDto }) {
               submit();
             }
           }}
-          placeholder="Leave a comment..."
+          placeholder={t("issues.detail.commentPlaceholder")}
           className="h-20 w-full resize-none bg-transparent px-3 py-2.5 text-sm text-zinc-700 outline-none placeholder:text-zinc-400 dark:text-zinc-200 dark:placeholder:text-zinc-600"
         />
         <div className="absolute bottom-2 right-2 flex items-center gap-1.5">

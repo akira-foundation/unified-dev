@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useOrganizations } from "../hooks/useOrganizations";
 import type { OrganizationSummary } from "../types/organization";
+import { useHotkey } from "@/hooks/useHotkey";
 import { OrganizationList } from "../components/organizations/organization-list";
 import { AddOrganizationDialog } from "../components/organizations/add-organization-dialog";
 import { EditOrganizationDialog } from "../components/organizations/edit-organization-dialog";
@@ -37,6 +38,7 @@ export function OrganizationsPage() {
   const { providers } = useProviders();
   const { resolveIssueScope, resolvePrScope } = useSettingsStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  useHotkey("n", () => setIsDialogOpen(true));
   const [editOrganization, setEditOrganization] = useState<OrganizationSummary | null>(null);
   const [syncOrganization, setSyncOrganization] = useState<OrganizationSummary | null>(null);
   const [manualSyncingIds, setManualSyncingIds] = useState<Set<string>>(new Set());

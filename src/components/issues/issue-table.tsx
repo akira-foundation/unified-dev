@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-import { useFiltersStore } from "../../stores/filters-store";
+import { useFilteredIssues } from "@/hooks/useFilteredIssues";
 import { useI18n } from "../../i18n/i18n";
 import { AppbarActions } from "@/components/layout/appbar-actions";
 import {
@@ -25,6 +25,7 @@ interface IssueTableProps {
   issues: IssueDto[];
   filterNamespace?: string;
   actionsInAppbar?: boolean;
+  showToolbar?: boolean;
   onSelect?: (issue: IssueDto) => void;
   onNavigateToPrs?: (repoName: string, orgId: string, prNumber?: number) => void;
   onNavigateToRepo?: (repoName: string, orgId: string) => void;
@@ -45,6 +46,7 @@ export function IssueTable({
   issues,
   filterNamespace = "issues",
   actionsInAppbar = false,
+  showToolbar = true,
   onSelect,
   onNavigateToPrs,
   onNavigateToRepo,
@@ -62,28 +64,7 @@ export function IssueTable({
   const [collapsed, setCollapsed] = useState<Set<IssueColumnId>>(new Set());
   const { delegateIssue } = useDelegateIssue();
 
-  const storeFilters = useFiltersStore((s) => s.filters[filterNamespace]);
-  const filters = useMemo(
-    () => ({
-      statuses: storeFilters?.statuses ?? [],
-      sources: storeFilters?.sources ?? [],
-      labels: storeFilters?.labels ?? [],
-      assignees: storeFilters?.assignees ?? [],
-      repos: storeFilters?.repos ?? [],
-    }),
-    [storeFilters],
-  );
-
-  const filteredIssues = useMemo(() => {
-    return issues.filter((issue) => {
-      if (filters.statuses.length > 0 && !filters.statuses.includes(issue.status)) return false;
-      if (filters.sources.length > 0 && !filters.sources.includes(issue.syncWithProvider ? "synced" : "local")) return false;
-      if (filters.labels.length > 0 && !filters.labels.some((l) => issue.labels.includes(l))) return false;
-      if (filters.assignees.length > 0 && !filters.assignees.some((a) => issue.assignees.includes(a))) return false;
-      if (filters.repos.length > 0 && !filters.repos.includes(issue.repoName)) return false;
-      return true;
-    });
-  }, [issues, filters]);
+  const filteredIssues = useFilteredIssues(issues, filterNamespace);
 
   const grouped = useMemo(() => {
     const map: Record<IssueColumnId, IssueDto[]> = { backlog: [], todo: [], in_progress: [], done: [] };
@@ -118,15 +99,17 @@ export function IssueTable({
 
   return (
     <>
-      <ToolbarActions inAppbar={actionsInAppbar}>
-        <IssueToolbar
-          filterNamespace={filterNamespace}
-          onSync={onSync}
-          syncOptions={syncOptions}
-          isSyncing={isSyncing}
-          disableSync={disableSync}
-        />
-      </ToolbarActions>
+      {showToolbar && (
+        <ToolbarActions inAppbar={actionsInAppbar}>
+          <IssueToolbar
+            filterNamespace={filterNamespace}
+            onSync={onSync}
+            syncOptions={syncOptions}
+            isSyncing={isSyncing}
+            disableSync={disableSync}
+          />
+        </ToolbarActions>
+      )}
 
       {filteredIssues.length === 0 ? (
         <p className="px-3 py-16 text-center text-sm text-zinc-500 dark:text-zinc-600">{t("issues.table.empty")}</p>

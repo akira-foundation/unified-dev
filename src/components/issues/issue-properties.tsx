@@ -58,9 +58,9 @@ export function IssueProperties({
 
   return (
     <div className="flex flex-col gap-3">
-      <Section title="Properties">
+      <Section title={t("issues.detail.properties")}>
         <Row icon={<StatusIcon column={column} />}>{COLUMN_LABEL[column]}</Row>
-        <Row icon={<Cloud className="h-3.5 w-3.5" />}>{issue.syncWithProvider ? "Synced" : "Local"}</Row>
+        <Row icon={<Cloud className="h-3.5 w-3.5" />}>{issue.syncWithProvider ? t("issues.detail.synced") : t("issues.detail.local")}</Row>
         {issue.author && <Row icon={<UserCircle2 className="h-3.5 w-3.5" />}>{issue.author}</Row>}
         {assigneeLabel && <Row icon={<Initials name={issue.assignees[0]} />}>{assigneeLabel}</Row>}
         {issue.linkedPrNumbers.map((n) => (
@@ -72,7 +72,7 @@ export function IssueProperties({
         <Row icon={<Clock className="h-3.5 w-3.5" />}>{new Date(issue.updatedAt).toLocaleDateString()}</Row>
       </Section>
 
-      <Section title="Labels">
+      <Section title={t("issues.detail.labelLabels")}>
         {issue.labels.length > 0 ? (
           <div className="flex flex-wrap gap-1.5 px-1 py-1">
             {issue.labels.map((label) => (
@@ -81,12 +81,12 @@ export function IssueProperties({
           </div>
         ) : (
           <Row icon={<Tag className="h-3.5 w-3.5" />}>
-            <span className="text-zinc-500">Add label</span>
+            <span className="text-zinc-500">{t("issues.detail.addLabel")}</span>
           </Row>
         )}
       </Section>
 
-      <Section title="Project">
+      <Section title={t("issues.detail.project")}>
         <Row icon={<FolderGit2 className="h-3.5 w-3.5" />}>{issue.repoName}</Row>
       </Section>
 

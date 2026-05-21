@@ -2,6 +2,7 @@ import { Plus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
+import { useHotkey } from "@/hooks/useHotkey";
 import { useQuery, useMutation, useQueries } from "@tanstack/react-query";
 import { FolderGit2, GitPullRequest, Globe2, Lock } from "lucide-react";
 
@@ -45,6 +46,7 @@ export function RepositoryPage() {
   const [repoToRemove, setRepoToRemove] = useState<OrganizationRepoWithOrg | null>(null);
   const [isRemovingRepo, setIsRemovingRepo] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  useHotkey("n", () => setShowCreateDialog(true));
 
   const { data: repos = [], isLoading, refetch } = useQuery({
     queryKey: queryKeys.allRepositories(),

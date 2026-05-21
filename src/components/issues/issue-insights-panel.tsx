@@ -3,6 +3,7 @@ import { UserCircle2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useFiltersStore } from "../../stores/filters-store";
+import { useI18n } from "@/i18n/i18n";
 import { LabelBadge } from "./label-badge";
 import type { IssueDto } from "../../types/issue";
 
@@ -14,21 +15,21 @@ interface IssueInsightsPanelProps {
 
 type TabId = "status" | "assignees" | "labels" | "projects" | "source";
 
-const TABS: Array<{ id: TabId; label: string; filterKey: string }> = [
-  { id: "status", label: "Status", filterKey: "statuses" },
-  { id: "assignees", label: "Assignees", filterKey: "assignees" },
-  { id: "labels", label: "Labels", filterKey: "labels" },
-  { id: "projects", label: "Projects", filterKey: "repos" },
-  { id: "source", label: "Source", filterKey: "sources" },
+const TABS: Array<{ id: TabId; labelKey: string; filterKey: string }> = [
+  { id: "status", labelKey: "issues.detail.labelStatus", filterKey: "statuses" },
+  { id: "assignees", labelKey: "issues.detail.labelAssignees", filterKey: "assignees" },
+  { id: "labels", labelKey: "issues.detail.labelLabels", filterKey: "labels" },
+  { id: "projects", labelKey: "issues.filter.projects", filterKey: "repos" },
+  { id: "source", labelKey: "issues.detail.source", filterKey: "sources" },
 ];
 
 function tally(map: Map<string, number>, key: string) {
   map.set(key, (map.get(key) ?? 0) + 1);
 }
 
-function valueLabel(tab: TabId, value: string): string {
-  if (tab === "status") return value === "open" ? "Open" : "Closed";
-  if (tab === "source") return value === "synced" ? "Synced" : "Local";
+function valueLabel(t: (key: string) => string, tab: TabId, value: string): string {
+  if (tab === "status") return value === "open" ? t("issues.table.filter.open") : t("issues.table.filter.closed");
+  if (tab === "source") return value === "synced" ? t("issues.detail.synced") : t("issues.detail.local");
   return value;
 }
 
@@ -38,6 +39,7 @@ function dotColor(tab: TabId, value: string): string {
 }
 
 export function IssueInsightsPanel({ issues, filterNamespace = "issues", className }: IssueInsightsPanelProps) {
+  const { t } = useI18n();
   const [tab, setTab] = useState<TabId>("status");
   const setFilter = useFiltersStore((s) => s.setFilter);
   const clearFilters = useFiltersStore((s) => s.clearFilters);
@@ -74,13 +76,13 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
   return (
     <aside className={cn("flex flex-col border-l border-zinc-200 dark:border-zinc-800", className)}>
       <div className="flex items-center justify-between px-3 pt-3">
-        <span className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Filter</span>
+        <span className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">{t("issues.filter.title")}</span>
         {activeCount > 0 && (
           <button
             onClick={() => clearFilters(filterNamespace)}
             className="text-[11px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
-            Clear
+            {t("issues.filter.clear")}
           </button>
         )}
       </div>
@@ -97,7 +99,7 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
                 : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300",
             )}
           >
-            {tabItem.label}
+            {t(tabItem.labelKey)}
           </button>
         ))}
       </div>
@@ -106,13 +108,13 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
         {tab === "assignees" && counts.noAssignee > 0 && (
           <div className="flex items-center gap-2.5 rounded-md px-2.5 py-2">
             <UserCircle2 className="h-4 w-4 shrink-0 text-zinc-500" />
-            <span className="flex-1 truncate text-[13px] text-zinc-600 dark:text-zinc-400">No assignee</span>
+            <span className="flex-1 truncate text-[13px] text-zinc-600 dark:text-zinc-400">{t("issues.filter.noAssignee")}</span>
             <span className="text-[12px] tabular-nums text-zinc-500">{counts.noAssignee}</span>
           </div>
         )}
 
         {rows.length === 0 && counts.noAssignee === 0 ? (
-          <p className="px-2.5 py-6 text-center text-[12px] text-zinc-500">No data</p>
+          <p className="px-2.5 py-6 text-center text-[12px] text-zinc-500">{t("issues.filter.noData")}</p>
         ) : (
           rows.map(([value, count]) => {
             const isActive = selected.includes(value);
@@ -144,7 +146,7 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
                         isActive && "text-zinc-900 dark:text-zinc-100",
                       )}
                     >
-                      {valueLabel(tab, value)}
+                      {valueLabel(t, tab, value)}
                     </span>
                   </>
                 )}

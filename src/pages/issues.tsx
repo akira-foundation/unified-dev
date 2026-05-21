@@ -11,6 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { IssueTable } from "@/components/issues/issue-table";
 import { IssueKanban } from "@/components/issues/issue-kanban";
 import { IssueInsightsPanel } from "@/components/issues/issue-insights-panel";
+import { IssueToolbar } from "@/components/issues/issue-toolbar";
+import { useFilteredIssues } from "@/hooks/useFilteredIssues";
+import { useHotkey } from "@/hooks/useHotkey";
 import { StatusIcon } from "@/components/issues/issue-status";
 import { CreateIssueDialog } from "@/components/issues/create-issue-dialog";
 import { useI18n } from "@/i18n/i18n";
@@ -29,8 +32,6 @@ import { issueToColumn, orderIssuesByColumn, type IssueDto } from "@/types/issue
 import type { OrganizationRepoWithOrg } from "@/types/organization";
 import type { IssueScope } from "@/types/work-visibility";
 
-type ViewMode = "list" | "kanban";
-
 export function IssuesPage() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
@@ -39,8 +40,9 @@ export function IssuesPage() {
   const { providers } = useProviders();
   const { resolveIssueScope, assignIssuesToSelfByDefault } = useSettingsStore();
 
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [createOpen, setCreateOpen] = useState(false);
+  const viewMode = useIssueViewStore((s) => s.viewMode);
+  const setViewMode = useIssueViewStore((s) => s.setViewMode);
   const insightsOpen = useIssueViewStore((s) => s.insightsOpen);
   const toggleInsights = useIssueViewStore((s) => s.toggleInsights);
 
@@ -75,6 +77,7 @@ export function IssuesPage() {
 
   const isLoading = reposLoading || issueQueries.some((q) => q.isLoading);
   const allIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []);
+  const filteredIssues = useFilteredIssues(allIssues, "issues");
 
   const registerSearch = useSearchStore((s) => s.registerProvider);
   useEffect(() => {
@@ -92,16 +95,8 @@ export function IssuesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allIssues]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F")) {
-        e.preventDefault();
-        toggleInsights();
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [toggleInsights]);
+  useHotkey("f", toggleInsights);
+  useHotkey("n", () => setCreateOpen(true));
 
   const { syncMutation, deleteIssueMutation, assignToMeMutation, removeIssueFromCaches } = useIssueMutations({
     allRepos,
@@ -158,20 +153,30 @@ export function IssuesPage() {
       <AppbarActions>
         <div className="flex items-center overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
           <button
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "list" ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "list" ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-700 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
             onClick={() => setViewMode("list")}
             title={t("issues.page.listView")}
           >
             <List className="h-4 w-4" />
           </button>
           <button
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "kanban" ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "kanban" ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-700 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
             onClick={() => setViewMode("kanban")}
             title={t("issues.page.kanbanView")}
           >
             <LayoutGrid className="h-4 w-4" />
           </button>
         </div>
+        <IssueToolbar
+          filterNamespace="issues"
+          onSync={() => syncMutation.mutate("my_queue")}
+          syncOptions={syncOptions.map((scope) => ({
+            label: t(issueScopeLabelKey(scope)),
+            onSelect: () => syncMutation.mutate(scope),
+          }))}
+          isSyncing={syncMutation.isPending}
+          disableSync={allRepos.length === 0}
+        />
         <Button onClick={handleCreateClick} disabled={allRepos.length === 0}>
           <Plus size={18} />
           {t("issues.page.new")}
@@ -190,17 +195,10 @@ export function IssuesPage() {
           ) : viewMode === "list" ? (
             <IssueTable
               issues={allIssues}
-              actionsInAppbar
+              showToolbar={false}
               onSelect={handleSelectIssue}
               onNavigateToPrs={handleNavigateToPrs}
               onNavigateToRepo={handleNavigateToRepo}
-              onSync={() => syncMutation.mutate("my_queue")}
-              syncOptions={syncOptions.map((scope) => ({
-                label: t(issueScopeLabelKey(scope)),
-                onSelect: () => syncMutation.mutate(scope),
-              }))}
-              isSyncing={syncMutation.isPending}
-              disableSync={allRepos.length === 0}
               onOpenUrl={handleOpenUrl}
               onDelete={async (issue) => {
                 removeIssueFromCaches(issue);
@@ -209,11 +207,11 @@ export function IssuesPage() {
               onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
             />
           ) : (
-            <IssueKanban issues={allIssues} onSelect={handleSelectIssue} />
+            <IssueKanban issues={filteredIssues} onSelect={handleSelectIssue} onNewIssue={handleCreateClick} />
           )}
         </div>
 
-        {viewMode === "list" && insightsOpen && (
+        {insightsOpen && (
           <IssueInsightsPanel issues={allIssues} className="w-72 shrink-0" />
         )}
       </div>

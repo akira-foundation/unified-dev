@@ -10,6 +10,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { useSearchStore } from "@/stores/search-store";
+import { useI18n } from "@/i18n/i18n";
 
 function isTyping(): boolean {
   const el = document.activeElement;
@@ -34,6 +35,7 @@ function highlight(text: string, query: string): ReactNode {
 }
 
 export function SearchOverlay() {
+  const { t } = useI18n();
   const open = useSearchStore((s) => s.open);
   const setOpen = useSearchStore((s) => s.setOpen);
   const provider = useSearchStore((s) => s.provider);
@@ -67,8 +69,8 @@ export function SearchOverlay() {
       <CommandList className="h-[400px] custom-scrollbar">
         <CommandEmpty className="flex flex-col items-center justify-center gap-2 py-12 text-center">
           <SearchX className="h-5 w-5 text-zinc-600" />
-          <span className="text-[13px] font-medium text-zinc-400">No results</span>
-          <span className="text-[11px] text-zinc-600">Try a different search</span>
+          <span className="text-[13px] font-medium text-zinc-400">{t("search.noResults")}</span>
+          <span className="text-[11px] text-zinc-600">{t("search.tryDifferent")}</span>
         </CommandEmpty>
         <CommandGroup>
           {provider.items.map((item) => (
