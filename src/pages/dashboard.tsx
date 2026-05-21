@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AddOrganizationDialog } from "@/components/organizations/add-organization-dialog";
+import { StatCard } from "@/components/stat-card";
+import { AgendaView } from "@/components/agenda-view";
 import { useI18n } from "@/i18n/i18n";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useProviders } from "@/hooks/useProviders";
@@ -224,6 +226,8 @@ export function DashboardPage() {
                   </Card>
                 </div>
               </div>
+
+              <AgendaView organizations={organizations} allRepos={allRepos} />
       </div>
 
       <AddOrganizationDialog
@@ -233,55 +237,5 @@ export function DashboardPage() {
         onSubmit={createOrganization}
       />
     </PageLayout>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  color,
-  bg,
-  loading,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  sub: string;
-  icon: React.ElementType;
-  color: string;
-  bg: string;
-  loading: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn("text-left w-full rounded-xl", onClick && "cursor-pointer group")}
-    >
-      <Card className={cn("h-full transition-colors", onClick && "group-hover:border-zinc-600 group-hover:bg-zinc-900/60")}>
-        <CardContent className="flex items-center gap-3 p-3 pointer-events-none">
-          <div className={cn("h-8 w-8 shrink-0 rounded-md flex items-center justify-center border border-zinc-100 dark:border-zinc-800", bg, color)}>
-            <Icon size={15} />
-          </div>
-          <div className="min-w-0 flex-1">
-            {loading ? (
-              <Skeleton className="h-5 w-16" />
-            ) : (
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-semibold tracking-tight leading-none text-zinc-900 dark:text-white truncate">
-                  {value}
-                </span>
-                <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 truncate">{sub}</span>
-              </div>
-            )}
-            <div className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 truncate">
-              {label}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </button>
   );
 }

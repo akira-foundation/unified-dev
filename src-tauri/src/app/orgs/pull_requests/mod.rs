@@ -1,6 +1,7 @@
 pub mod resolve_provider;
 pub mod get_checks;
 pub mod get_comments;
+pub mod delete_comment;
 pub mod get_files;
 pub mod get_job_logs;
 pub mod list;
@@ -11,6 +12,7 @@ pub mod sync;
 
 pub use get_checks::get_checks;
 pub use get_comments::get_comments;
+pub use delete_comment::delete_comment;
 pub use get_files::get_files;
 pub use get_job_logs::get_job_logs;
 pub use list::list;

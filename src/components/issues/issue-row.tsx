@@ -1,124 +1,97 @@
-import { MoreHorizontal, ExternalLink } from "lucide-react";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { GitPullRequest } from "lucide-react";
 
-import type { IssueDto } from "../../types/issue";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { formatRelativeDate } from "../repos/pr-item";
-import { useDelegateIssue } from "../../hooks/useDelegateIssue";
-import { useI18n } from "../../i18n/i18n";
+import { LabelBadge } from "./label-badge";
+import { StatusIcon } from "./issue-status";
+import { IssueActionsMenu } from "./issue-actions-menu";
+import type { IssueColumnId, IssueDto } from "../../types/issue";
 
 interface IssueRowProps {
   issue: IssueDto;
-  onClick?: (issue: IssueDto) => void;
+  column: IssueColumnId;
+  onSelect?: (issue: IssueDto) => void;
+  onNavigateToPrs?: (repoName: string, orgId: string, prNumber?: number) => void;
+  onNavigateToRepo?: (repoName: string, orgId: string) => void;
+  onOpenUrl?: (url: string) => void;
+  onDelete?: (issue: IssueDto) => Promise<void>;
+  onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
+  delegateIssue: (issue: IssueDto) => Promise<void>;
+  t: (key: string) => string;
+  setIssueToDelete: (issue: IssueDto | null) => void;
 }
 
-async function handleOpenUrl(url: string) {
-  try {
-    await openUrl(url);
-  } catch {
-    window.open(url, "_blank");
-  }
+function Assignees({ names }: { names: string[] }) {
+  if (names.length === 0) return null;
+  return (
+    <div className="flex items-center shrink-0" title={names.join(", ")}>
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-semibold text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
+        {names[0].slice(0, 2).toUpperCase()}
+      </span>
+      {names.length > 1 && <span className="ml-1 text-[10px] text-zinc-500">+{names.length - 1}</span>}
+    </div>
+  );
 }
 
-export function IssueRow({ issue, onClick }: IssueRowProps) {
-  const isOpen = issue.status === "open";
-  const { t } = useI18n();
-  const { delegateIssue } = useDelegateIssue();
+export function IssueRow({
+  issue,
+  column,
+  onSelect,
+  onNavigateToPrs,
+  onNavigateToRepo,
+  onOpenUrl,
+  onDelete,
+  onAssignToMe,
+  delegateIssue,
+  t,
+  setIssueToDelete,
+}: IssueRowProps) {
+  const prNumber = issue.linkedPrNumbers[0];
 
   return (
-    <div className="flex items-start justify-between px-4 py-3 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 border-b border-zinc-100 dark:border-zinc-800/60 last:border-b-0">
-      <div className="flex items-start gap-3 min-w-0 flex-1">
-        <div className="mt-1.5 shrink-0">
-          {isOpen ? (
-            <div className="h-2.5 w-2.5 rounded-full bg-green-500" />
-          ) : (
-            <div className="h-2.5 w-2.5 rounded-full bg-zinc-500" />
-          )}
-        </div>
-        <div className="flex flex-col gap-1 min-w-0">
+    <div
+      onClick={() => onSelect?.(issue)}
+      className="group flex h-9 cursor-pointer items-center gap-2.5 rounded-md pl-3 pr-2 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]"
+    >
+      <StatusIcon column={column} />
+      <span className="w-12 shrink-0 text-[12px] tabular-nums text-zinc-500">#{issue.number}</span>
+      <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-800 dark:text-zinc-100">{issue.title}</span>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {issue.labels[0] && <LabelBadge name={issue.labels[0]} />}
+        {prNumber !== undefined && (
           <button
-            className="text-sm font-semibold text-gray-900 dark:text-white leading-snug text-left hover:text-purple-600 dark:hover:text-purple-400 transition-colors cursor-pointer"
-            onClick={() => onClick?.(issue)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateToPrs?.(issue.repoName, issue.orgId, prNumber);
+            }}
+            className="flex items-center gap-1 text-[11px] text-purple-500 hover:underline"
           >
-            {issue.title}
+            <GitPullRequest className="h-3 w-3" />#{prNumber}
           </button>
-          <div className="flex items-center gap-1.5 flex-wrap text-xs text-gray-500 dark:text-gray-400">
-            <span className="font-medium">#{issue.number}</span>
-            <span className="text-zinc-300 dark:text-zinc-600">·</span>
-            <span>{issue.repoName}</span>
-            {issue.author && (
-              <>
-                <span className="text-zinc-300 dark:text-zinc-600">·</span>
-                <span>{issue.author}</span>
-              </>
-            )}
-            <span className="text-zinc-300 dark:text-zinc-600">·</span>
-            <span>{formatRelativeDate(issue.updatedAt)}</span>
-          </div>
-          {issue.labels.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap mt-0.5">
-              {issue.labels.slice(0, 3).map((label) => (
-                <Badge key={label} variant="outline" className="text-[10px]">
-                  {label}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      <div className="flex items-center gap-1 shrink-0 ml-4">
-        {!isOpen && (
-          <Badge variant="secondary" className="text-[10px] uppercase">
-            {issue.status}
-          </Badge>
         )}
-        {issue.assignees.length > 0 && (
-          <span className="text-xs text-zinc-500 hidden sm:inline">
-            {issue.assignees[0]}
-            {issue.assignees.length > 1 && ` +${issue.assignees.length - 1}`}
-          </span>
-        )}
-        {issue.url && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
-                onClick={(e) => { e.stopPropagation(); handleOpenUrl(issue.url); }}
-              >
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Open on GitHub</TooltipContent>
-          </Tooltip>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 cursor-pointer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">
-              {t("common.manage")}
-            </DropdownMenuLabel>
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={(e) => { e.stopPropagation(); delegateIssue(issue); }}
-            >
-              {t("issues.detail.delegate")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onNavigateToRepo?.(issue.repoName, issue.orgId);
+          }}
+          className="hidden max-w-[140px] truncate rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 md:inline-block"
+        >
+          {issue.repoName}
+        </button>
+        <Assignees names={issue.assignees} />
+        <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-zinc-500">
+          {formatRelativeDate(issue.updatedAt)}
+        </span>
+        <IssueActionsMenu
+          issue={issue}
+          onSelect={onSelect}
+          onOpenUrl={onOpenUrl}
+          onAssignToMe={onAssignToMe}
+          onDelete={onDelete}
+          delegateIssue={delegateIssue}
+          t={t}
+          setIssueToDelete={setIssueToDelete}
+        />
       </div>
     </div>
   );

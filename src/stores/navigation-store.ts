@@ -20,6 +20,7 @@ interface NavigationState {
   recentRepos: ActiveRepo[];
   activePr: PullRequestDto | null;
   activeIssue: IssueDto | null;
+  issueList: IssueDto[];
   targetPrNumber: number | null;
   targetPrScope: PullRequestScope | null;
   targetCheckName: string | null;
@@ -37,6 +38,7 @@ interface NavigationState {
   setActiveRepo: (repo: ActiveRepo | null) => void;
   setActivePr: (pr: PullRequestDto | null) => void;
   setActiveIssue: (issue: IssueDto | null) => void;
+  setIssueList: (list: IssueDto[]) => void;
   setTargetPrNumber: (n: number | null) => void;
   setTargetPrScope: (scope: PullRequestScope | null) => void;
   setTargetCheckName: (name: string | null) => void;
@@ -56,6 +58,7 @@ export const useNavigationStore = create<NavigationState>()(
       recentRepos: [],
       activePr: null,
       activeIssue: null,
+      issueList: [],
       targetPrNumber: null,
       targetPrScope: null,
       targetCheckName: null,
@@ -124,6 +127,7 @@ export const useNavigationStore = create<NavigationState>()(
       },
       setActivePr: (pr) => set({ activePr: pr }),
       setActiveIssue: (issue) => set({ activeIssue: issue }),
+      setIssueList: (list) => set({ issueList: list }),
       setTargetPrNumber: (n) => set({ targetPrNumber: n }),
       setTargetPrScope: (scope) => set({ targetPrScope: scope }),
       setTargetCheckName: (name) => set({ targetCheckName: name }),

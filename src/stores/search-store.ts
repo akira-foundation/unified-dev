@@ -1,9 +1,11 @@
 import { create } from "zustand";
+import type { ReactNode } from "react";
 
 export interface SearchResult {
   id: string;
   title: string;
   subtitle?: string;
+  icon?: ReactNode;
   onSelect: () => void;
 }
 

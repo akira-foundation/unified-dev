@@ -20,7 +20,7 @@ import { useI18n } from "../i18n/i18n";
 import { useDateLabel } from "../hooks/use-date-label";
 import { Button } from "@/components/ui/button.tsx";
 import { Skeleton } from "../components/ui/skeleton";
-import { Card, CardContent, CardDescription, CardHeader } from "../components/ui/card";
+import { StatCard } from "@/components/stat-card";
 import { repositorySelectionService } from "../services/repositorySelectionService";
 import { useNavigationStore } from "../stores/navigation-store";
 import { queryKeys } from "../lib/query-keys";
@@ -225,67 +225,35 @@ export function RepositoryPage() {
           />
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
-                  <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    {t("pages.repository.stats.total")}
-                  </CardDescription>
-                  <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-blue-500/10 text-blue-500">
-                    <FolderGit2 size={16} />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-4">
-                  <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white leading-none">
-                    {stats.total}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
-                  <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    {t("pages.repository.stats.openPrs")}
-                  </CardDescription>
-                  <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-500">
-                    <GitPullRequest size={16} />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-4">
-                  <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white leading-none">
-                    {stats.openPrs}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
-                  <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    {t("pages.repository.stats.private")}
-                  </CardDescription>
-                  <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-amber-500/10 text-amber-500">
-                    <Lock size={16} />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-4">
-                  <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white leading-none">
-                    {stats.privateCount}
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between p-5 pb-3">
-                  <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-                    {t("pages.repository.stats.public")}
-                  </CardDescription>
-                  <div className="h-8 w-8 rounded-lg flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm bg-emerald-500/10 text-emerald-500">
-                    <Globe2 size={16} />
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 pt-4">
-                  <div className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white leading-none">
-                    {stats.publicCount}
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                label={t("pages.repository.stats.total")}
+                value={stats.total}
+                icon={FolderGit2}
+                color="text-blue-500"
+                bg="bg-blue-500/10"
+              />
+              <StatCard
+                label={t("pages.repository.stats.openPrs")}
+                value={stats.openPrs}
+                icon={GitPullRequest}
+                color="text-purple-500"
+                bg="bg-purple-500/10"
+              />
+              <StatCard
+                label={t("pages.repository.stats.private")}
+                value={stats.privateCount}
+                icon={Lock}
+                color="text-amber-500"
+                bg="bg-amber-500/10"
+              />
+              <StatCard
+                label={t("pages.repository.stats.public")}
+                value={stats.publicCount}
+                icon={Globe2}
+                color="text-emerald-500"
+                bg="bg-emerald-500/10"
+              />
             </div>
 
             <RepoMetricsTable

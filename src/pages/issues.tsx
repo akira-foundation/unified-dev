@@ -2,8 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LayoutGrid, List, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AppbarActions } from "@/components/layout/appbar-actions";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -11,19 +10,22 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssueTable } from "@/components/issues/issue-table";
 import { IssueKanban } from "@/components/issues/issue-kanban";
-import { IssueDetailSheet } from "@/components/issues/issue-detail-sheet";
+import { IssueInsightsPanel } from "@/components/issues/issue-insights-panel";
+import { StatusIcon } from "@/components/issues/issue-status";
 import { CreateIssueDialog } from "@/components/issues/create-issue-dialog";
 import { useI18n } from "@/i18n/i18n";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useSearchStore } from "@/stores/search-store";
+import { useIssueViewStore } from "@/stores/issue-view-store";
 import { useSettingsStore } from "@/stores/settings-store";
+import { useIssueMutations } from "@/hooks/useIssueMutations";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { queryKeys } from "@/lib/query-keys";
 import { issueScopeLabelKey, resolveCurrentLogin } from "@/lib/work-visibility";
 import { cache } from "@/config/cache";
-import type { IssueDto } from "@/types/issue";
+import { issueToColumn, orderIssuesByColumn, type IssueDto } from "@/types/issue";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
 import type { IssueScope } from "@/types/work-visibility";
 
@@ -32,14 +34,15 @@ type ViewMode = "list" | "kanban";
 export function IssuesPage() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
-  const { activeIssue, setActiveIssue, setActiveRepo, setTargetPrNumber, navigateTo } = useNavigationStore();
+  const { setActiveIssue, setIssueList, setActiveRepo, setTargetPrNumber, navigateTo } = useNavigationStore();
   const { organizations } = useOrganizations();
   const { providers } = useProviders();
   const { resolveIssueScope, assignIssuesToSelfByDefault } = useSettingsStore();
 
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const insightsOpen = useIssueViewStore((s) => s.insightsOpen);
+  const toggleInsights = useIssueViewStore((s) => s.toggleInsights);
 
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -81,6 +84,7 @@ export function IssuesPage() {
         id: i.id,
         title: i.title,
         subtitle: `#${i.number}`,
+        icon: <StatusIcon column={issueToColumn(i)} />,
         onSelect: () => handleSelectIssue(i),
       })),
     });
@@ -88,34 +92,30 @@ export function IssuesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allIssues]);
 
-  const syncMutation = useMutation({
-    mutationFn: async (scope: IssueScope) => {
-      await Promise.allSettled(
-        allRepos.map((repo: OrganizationRepoWithOrg) =>
-          invoke("sync_issues", {
-            orgId: repo.organization_id,
-            owner: repo.owner,
-            repoName: repo.repo_name,
-            scope,
-            currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
-          }),
-        ),
-      );
-    },
-    onSuccess: () => {
-      allRepos.forEach((repo: OrganizationRepoWithOrg) => {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.issues(repo.organization_id, repo.repo_name),
-        });
-      });
-    },
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "F")) {
+        e.preventDefault();
+        toggleInsights();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [toggleInsights]);
+
+  const { syncMutation, deleteIssueMutation, assignToMeMutation, removeIssueFromCaches } = useIssueMutations({
+    allRepos,
+    organizations,
+    providers,
+    resolveIssueScope,
   });
 
   const syncOptions: IssueScope[] = ["my_queue", "all_open", "all"];
 
   function handleSelectIssue(issue: IssueDto) {
     setActiveIssue(issue);
-    setSheetOpen(true);
+    setIssueList(orderIssuesByColumn(allIssues));
+    navigateTo("issue-detail");
   }
 
   function handleNavigateToPrs(repoName: string, orgId: string, prNumber?: number) {
@@ -145,126 +145,6 @@ export function IssuesPage() {
     setCreateOpen(true);
   }
 
-  const deleteIssueMutation = useMutation({
-    mutationFn: async (issue: IssueDto) => {
-      const repo = allRepos.find(
-        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
-      );
-      try {
-        return await invoke("delete_issue", {
-          orgId: repo?.organization_id ?? issue.orgId,
-          repoName: issue.repoName,
-          number: issue.number,
-          issueId: issue.id,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("Issue not found")) {
-          return;
-        }
-        throw error;
-      }
-    },
-    onMutate: async (issue) => {
-      const issueQueryKey = queryKeys.issues(issue.orgId, issue.repoName);
-      const issueSnapshots = queryClient.getQueriesData<IssueDto[]>({ queryKey: issueQueryKey });
-      issueSnapshots.forEach(([key, data]) => {
-        queryClient.setQueryData<IssueDto[]>(key, (data ?? []).filter((entry) => entry.id !== issue.id));
-      });
-
-      const repoSnapshots = [
-        [queryKeys.selectedRepositories(issue.orgId), queryClient.getQueryData<OrganizationRepoWithOrg[]>(queryKeys.selectedRepositories(issue.orgId))] as const,
-        [queryKeys.allRepositories(), queryClient.getQueryData<OrganizationRepoWithOrg[]>(queryKeys.allRepositories())] as const,
-      ];
-
-      repoSnapshots.forEach(([key]) => {
-        queryClient.setQueryData<OrganizationRepoWithOrg[]>(key, (current) =>
-          current?.map((repo) => (
-            repo.organization_id === issue.orgId && repo.repo_name === issue.repoName
-              ? { ...repo, open_issues_count: Math.max((repo.open_issues_count ?? 1) - 1, 0) }
-              : repo
-          )),
-        );
-      });
-
-      return { issueSnapshots, repoSnapshots };
-    },
-    onError: (error, _issue, context) => {
-      const message = error instanceof Error ? error.message : String(error);
-      context?.issueSnapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      context?.repoSnapshots.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      toast.error(message);
-    },
-    onSuccess: (_, issue) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(issue.orgId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
-    },
-  });
-
-  const assignToMeMutation = useMutation({
-    mutationFn: async (issue: IssueDto) => {
-      const repo = allRepos.find(
-        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
-      );
-      const currentLogin = repo ? resolveCurrentLogin(repo.organization_id, organizations, providers) : null;
-      if (!currentLogin) {
-        throw new Error(t("issues.table.toast.noCurrentUser"));
-      }
-
-      return invoke<IssueDto>("update_issue", {
-        orgId: issue.orgId,
-        repoName: issue.repoName,
-        number: issue.number,
-        issueId: issue.id,
-        input: {
-          assignees: Array.from(new Set([...(issue.assignees ?? []), currentLogin])),
-        },
-      });
-    },
-    onMutate: async (issue) => {
-      const repo = allRepos.find(
-        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
-      );
-      const currentLogin = repo ? resolveCurrentLogin(repo.organization_id, organizations, providers) : null;
-      const scope = repo ? resolveIssueScope(repo.organization_id, repo.repo_name) : undefined;
-      if (!currentLogin) {
-        return { snapshots: [] as Array<[readonly unknown[], IssueDto[] | undefined]> };
-      }
-
-      const queryKey = queryKeys.issues(issue.orgId, issue.repoName, scope);
-      const snapshots = queryClient.getQueriesData<IssueDto[]>({ queryKey });
-      queryClient.setQueriesData<IssueDto[]>({ queryKey }, (current) => {
-        if (!current) return current;
-        return current.map((entry) => (
-          entry.id === issue.id
-            ? { ...entry, assignees: Array.from(new Set([...(entry.assignees ?? []), currentLogin])) }
-            : entry
-        ));
-      });
-      return { snapshots };
-    },
-    onError: (error, _issue, context) => {
-      context?.snapshots.forEach(([key, data]) => {
-        queryClient.setQueryData(key, data);
-      });
-      toast.error(error instanceof Error ? error.message : String(error));
-    },
-    onSuccess: (updatedIssue, issue) => {
-      const repo = allRepos.find(
-        (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
-      );
-      const scope = repo ? resolveIssueScope(repo.organization_id, repo.repo_name) : undefined;
-
-      queryClient.setQueriesData<IssueDto[]>({ queryKey: queryKeys.issues(issue.orgId, issue.repoName, scope) }, (current) => {
-        if (!current) return current;
-        return current.map((entry) => (entry.id === updatedIssue.id ? updatedIssue : entry));
-      });
-      queryClient.invalidateQueries({ queryKey: queryKeys.issues(issue.orgId, issue.repoName, scope) });
-      toast.success(t("issues.table.toast.assignedToMe"));
-    },
-  });
-
   async function handleOpenUrl(url: string) {
     try {
       await openUrl(url);
@@ -273,40 +153,8 @@ export function IssuesPage() {
     }
   }
 
-  const removeIssueFromCaches = (issue: IssueDto) => {
-    const repo = allRepos.find(
-      (r: OrganizationRepoWithOrg) => r.repo_name === issue.repoName && r.organization_id === issue.orgId,
-    );
-    if (!repo) return;
-
-    const scope = resolveIssueScope(repo.organization_id, repo.repo_name);
-
-    queryClient.setQueryData<IssueDto[]>(
-      queryKeys.issues(repo.organization_id, repo.repo_name, scope),
-      (current) => (current ?? []).filter((entry) => entry.id !== issue.id),
-    );
-
-    queryClient.setQueryData<OrganizationRepoWithOrg[]>(
-      queryKeys.selectedRepositories(issue.orgId),
-      (current) => current?.map((entry) => (
-        entry.organization_id === issue.orgId && entry.repo_name === issue.repoName
-          ? { ...entry, open_issues_count: Math.max((entry.open_issues_count ?? 1) - 1, 0) }
-          : entry
-      )),
-    );
-
-    queryClient.setQueryData<OrganizationRepoWithOrg[]>(
-      queryKeys.allRepositories(),
-      (current) => current?.map((entry) => (
-        entry.organization_id === issue.orgId && entry.repo_name === issue.repoName
-          ? { ...entry, open_issues_count: Math.max((entry.open_issues_count ?? 1) - 1, 0) }
-          : entry
-      )),
-    );
-  };
-
   return (
-    <PageLayout>
+    <PageLayout className="!p-0 !space-y-0 h-[calc(100vh-4rem)] overflow-hidden">
       <AppbarActions>
         <div className="flex items-center overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
           <button
@@ -330,45 +178,45 @@ export function IssuesPage() {
         </Button>
       </AppbarActions>
 
-      <div className="flex flex-col gap-6">
-        {isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-        ) : viewMode === "list" ? (
-          <IssueTable
-            issues={allIssues}
-            actionsInAppbar
-            onSelect={handleSelectIssue}
-            onNavigateToPrs={handleNavigateToPrs}
-            onNavigateToRepo={handleNavigateToRepo}
-            onSync={() => syncMutation.mutate("my_queue")}
-            syncOptions={syncOptions.map((scope) => ({
-              label: t(issueScopeLabelKey(scope)),
-              onSelect: () => syncMutation.mutate(scope),
-            }))}
-            isSyncing={syncMutation.isPending}
-            disableSync={allRepos.length === 0}
-            onOpenUrl={handleOpenUrl}
-            onDelete={async (issue) => {
-              removeIssueFromCaches(issue);
-              await deleteIssueMutation.mutateAsync(issue);
-            }}
-            onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
-          />
-        ) : (
-          <IssueKanban issues={allIssues} onSelect={handleSelectIssue} />
+      <div className="flex h-full min-h-0">
+        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+          {isLoading ? (
+            <div className="space-y-3">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ) : viewMode === "list" ? (
+            <IssueTable
+              issues={allIssues}
+              actionsInAppbar
+              onSelect={handleSelectIssue}
+              onNavigateToPrs={handleNavigateToPrs}
+              onNavigateToRepo={handleNavigateToRepo}
+              onSync={() => syncMutation.mutate("my_queue")}
+              syncOptions={syncOptions.map((scope) => ({
+                label: t(issueScopeLabelKey(scope)),
+                onSelect: () => syncMutation.mutate(scope),
+              }))}
+              isSyncing={syncMutation.isPending}
+              disableSync={allRepos.length === 0}
+              onOpenUrl={handleOpenUrl}
+              onDelete={async (issue) => {
+                removeIssueFromCaches(issue);
+                await deleteIssueMutation.mutateAsync(issue);
+              }}
+              onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
+            />
+          ) : (
+            <IssueKanban issues={allIssues} onSelect={handleSelectIssue} />
+          )}
+        </div>
+
+        {viewMode === "list" && insightsOpen && (
+          <IssueInsightsPanel issues={allIssues} className="w-72 shrink-0" />
         )}
       </div>
-
-      <IssueDetailSheet
-        issue={activeIssue}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-      />
 
       <CreateIssueDialog
         open={createOpen}

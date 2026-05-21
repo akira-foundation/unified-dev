@@ -80,6 +80,7 @@ export function SearchOverlay() {
                 setOpen(false);
               }}
             >
+              {item.icon}
               <span className="truncate">{highlight(item.title, query)}</span>
               {item.subtitle && (
                 <span className="ml-auto shrink-0 text-xs text-muted-foreground">{item.subtitle}</span>

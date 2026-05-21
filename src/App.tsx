@@ -34,6 +34,7 @@ import { useNavigationStore } from "./stores/navigation-store";
 import { useAgentsStore } from "./stores/useAgentsStore";
 import { useAutopilotStore } from "./stores/useAutopilotStore";
 import { IssuesPage } from "./pages/issues";
+import { IssueDetailPage } from "./pages/issue-detail";
 import { PrsPage } from "./pages/prs";
 import { OpenSourcePage } from "./pages/open-source";
 import type { NavItem } from "./types/navigation";
@@ -120,6 +121,7 @@ export default function App() {
             </div>
             {!isAgentMode && currentPage === "dashboard" && <DashboardPage />}
             {!isAgentMode && currentPage === "issues" && <IssuesPage />}
+            {!isAgentMode && currentPage === "issue-detail" && <IssueDetailPage />}
             {!isAgentMode && currentPage === "prs" && <PrsPage />}
             {!isAgentMode && currentPage === "open-source" && <OpenSourcePage />}
             {!isAgentMode && currentPage === "organizations" && <OrganizationsPage />}
