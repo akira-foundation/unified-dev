@@ -85,28 +85,35 @@ export function ProvidersPage() {
               onUpdateToken={(provider) => setProviderToUpdate(provider)}
             />
           )}
-          {organizationsLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-16 w-full" />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{t("components.orgList.title")}</span>
+              <Button size="sm" onClick={() => setOrganizationDialogOpen(true)} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" />
+                {t("common.newOrganization")}
+              </Button>
             </div>
-          ) : (
-            <OrganizationList
-              organizations={organizations}
-              onRemove={removeOrganization}
-              onCreate={() => setOrganizationDialogOpen(true)}
-              onSelect={(organizationId) => {
-                setActiveOrganizationId(organizationId);
-                navigateTo("organization");
-              }}
-              onImportRepositories={(organizationId) => {
-                setActiveOrganizationId(organizationId);
-                navigateTo("import-repositories");
-              }}
-              providerNameById={providerNameById}
-            />
-          )}
+            {organizationsLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : (
+              <OrganizationList
+                organizations={organizations}
+                onRemove={removeOrganization}
+                onSelect={(organizationId) => {
+                  setActiveOrganizationId(organizationId);
+                  navigateTo("organization");
+                }}
+                onImportRepositories={(organizationId) => {
+                  setActiveOrganizationId(organizationId);
+                  navigateTo("import-repositories");
+                }}
+                providerNameById={providerNameById}
+              />
+            )}
+          </div>
           <AddProviderDialog
             open={isDialogOpen}
             onOpenChange={setIsDialogOpen}

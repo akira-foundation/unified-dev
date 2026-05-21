@@ -12,7 +12,7 @@ function SelectTrigger({ className, children, ...props }: React.ComponentPropsWi
   return (
       <SelectPrimitive.Trigger
         className={cn(
-          "flex h-10 w-full items-center justify-between rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2 font-sans text-sm text-zinc-700 shadow-xs placeholder:text-zinc-400 focus:outline-hidden focus:ring-1 focus:ring-border disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500",
+          "flex h-9 w-full items-center justify-between rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2 font-sans text-sm text-zinc-700 shadow-xs placeholder:text-zinc-400 focus:outline-hidden focus:ring-1 focus:ring-border disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500",
           className,
         )}
       {...props}

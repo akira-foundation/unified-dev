@@ -52,11 +52,23 @@ export function RepoDetailHeader({
   return (
     <>
       <AppbarActions>
+        {tab === "issues" && (
+          <Button onClick={onCreateIssue} title={t("pages.repositoryIssues.newIssue")}>
+            <Plus size={18} />
+            <span className="hidden xl:inline">{t("pages.repositoryIssues.newIssue")}</span>
+          </Button>
+        )}
+        {tab === "branches" && (
+          <Button onClick={onCreateBranch} title={t("pages.repositoryBranches.newBranch")}>
+            <Plus size={18} />
+            <span className="hidden xl:inline">{t("pages.repositoryBranches.newBranch")}</span>
+          </Button>
+        )}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="outline"
-              size="icon"
+              size="icon-sm"
               onClick={() => {
                 const ghOwner = currentRepo?.fork_owner ?? activeRepo.owner;
                 const ghRepo = currentRepo?.fork_repo ?? activeRepo.name;
@@ -68,18 +80,6 @@ export function RepoDetailHeader({
           </TooltipTrigger>
           <TooltipContent>View on GitHub</TooltipContent>
         </Tooltip>
-        {tab === "issues" && (
-          <Button onClick={onCreateIssue}>
-            <Plus size={18} />
-            {t("pages.repositoryIssues.newIssue")}
-          </Button>
-        )}
-        {tab === "branches" && (
-          <Button onClick={onCreateBranch}>
-            <Plus size={18} />
-            {t("pages.repositoryBranches.newBranch")}
-          </Button>
-        )}
       </AppbarActions>
       <PageHeader>
         <div>

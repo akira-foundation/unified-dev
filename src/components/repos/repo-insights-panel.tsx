@@ -18,12 +18,20 @@ function tally(map: Map<string, number>, key: string) {
   map.set(key, (map.get(key) ?? 0) + 1);
 }
 
-export function RepoInsightsPanel({ repos, className }: { repos: OrganizationRepoWithOrg[]; className?: string }) {
+export function RepoInsightsPanel({
+  repos,
+  className,
+  filterNamespace = REPO_FILTER_NS,
+}: {
+  repos: OrganizationRepoWithOrg[];
+  className?: string;
+  filterNamespace?: string;
+}) {
   const { t } = useI18n();
   const [tab, setTab] = useState<TabId>("visibility");
   const setFilter = useFiltersStore((s) => s.setFilter);
   const clearFilters = useFiltersStore((s) => s.clearFilters);
-  const active = useFiltersStore((s) => s.filters[REPO_FILTER_NS]);
+  const active = useFiltersStore((s) => s.filters[filterNamespace]);
 
   const counts = useMemo(() => {
     const visibility = new Map<string, number>();
@@ -45,7 +53,7 @@ export function RepoInsightsPanel({ repos, className }: { repos: OrganizationRep
 
   const toggleValue = (value: string) => {
     const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value];
-    setFilter(REPO_FILTER_NS, current.filterKey, next);
+    setFilter(filterNamespace, current.filterKey, next);
   };
 
   const valueLabel = (value: string) =>
@@ -64,7 +72,7 @@ export function RepoInsightsPanel({ repos, className }: { repos: OrganizationRep
         <span className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">{t("repos.table.filter")}</span>
         {(activeCount > 0 || hasOpenPrs) && (
           <button
-            onClick={() => clearFilters(REPO_FILTER_NS)}
+            onClick={() => clearFilters(filterNamespace)}
             className="text-[11px] text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
           >
             {t("repos.table.filter.clear")}
@@ -76,7 +84,7 @@ export function RepoInsightsPanel({ repos, className }: { repos: OrganizationRep
         <input
           type="checkbox"
           checked={hasOpenPrs}
-          onChange={(e) => setFilter(REPO_FILTER_NS, "hasOpenPrs", e.target.checked ? ["true"] : [])}
+          onChange={(e) => setFilter(filterNamespace, "hasOpenPrs", e.target.checked ? ["true"] : [])}
           className="accent-purple-600"
         />
         {t("repos.table.filter.hasOpenPrs")}

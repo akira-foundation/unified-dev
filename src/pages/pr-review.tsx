@@ -164,13 +164,13 @@ export function PrReviewPage() {
   return (
     <>
       <AppbarActions>
-        <Button variant="outline" className="inline-flex items-center gap-2" onClick={() => openUrl(activePr.url)}>
+        <Button variant="outline" className="inline-flex items-center gap-2" onClick={() => openUrl(activePr.url)} title={t("components.prReview.viewPrButton")}>
           <ExternalLink className="h-4 w-4 shrink-0" />
-          {t("components.prReview.viewPrButton")}
+          <span className="hidden xl:inline">{t("components.prReview.viewPrButton")}</span>
         </Button>
-        <Button className="inline-flex items-center gap-2" onClick={() => setReviewOpen(true)}>
+        <Button className="inline-flex items-center gap-2" onClick={() => setReviewOpen(true)} title={t("components.prReview.finishButton")}>
           <MessageSquare className="h-4 w-4 shrink-0" />
-          {t("components.prReview.finishButton")}
+          <span className="hidden xl:inline">{t("components.prReview.finishButton")}</span>
         </Button>
       </AppbarActions>
 

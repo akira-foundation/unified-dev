@@ -2,6 +2,7 @@ import { ChevronLeft, Download, PanelLeft, Search } from "lucide-react";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useSearchStore } from "@/stores/search-store";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useOrganizations } from "@/hooks/useOrganizations";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
 import { useUpdater } from "@/hooks/useUpdater";
@@ -26,6 +27,9 @@ export function AppHeader() {
     const activePr = useNavigationStore((s) => s.activePr);
     const activeIssue = useNavigationStore((s) => s.activeIssue);
     const activeRepo = useNavigationStore((s) => s.activeRepo);
+    const activeOrganizationId = useNavigationStore((s) => s.activeOrganizationId);
+    const { organizations } = useOrganizations();
+    const activeOrgName = organizations.find((o) => o.id === activeOrganizationId)?.name;
 
     const handleBack = () => {
         if (activeTab === "skill-source") {
@@ -48,7 +52,7 @@ export function AppHeader() {
                 data-tauri-drag-region
                 className={`flex h-11 items-center justify-between pr-4 [-webkit-app-region:drag] [&_button]:[-webkit-app-region:no-drag] [&_input]:[-webkit-app-region:no-drag] [&_a]:[-webkit-app-region:no-drag] ${sidebarState === "collapsed" ? "pl-24" : "pl-3 md:pl-4"}`}
             >
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                     {sidebarState === "collapsed" ? (
                         <Button
                             variant="ghost"
@@ -69,14 +73,14 @@ export function AppHeader() {
                     >
                         <ChevronLeft className="h-3.5 w-3.5" />
                     </Button>
-                    <div className="flex items-baseline gap-1.5">
+                    <div className="flex min-w-0 items-baseline gap-1.5">
                         <button
                             onClick={() => navigateTo("dashboard")}
-                            className="text-[12px] font-semibold tracking-tight text-foreground/80 leading-none transition-colors hover:text-foreground"
+                            className="shrink-0 text-[12px] font-semibold tracking-tight text-foreground/80 leading-none transition-colors hover:text-foreground"
                         >
                             {t("app.name")}
                         </button>
-                        <div className="flex items-center gap-1">
+                        <div className="hidden items-center gap-1 xl:flex">
                             <span className="text-[10px] text-muted-foreground leading-none">v{appVersion}</span>
                             {update && (
                                 <Tooltip>
@@ -105,26 +109,28 @@ export function AppHeader() {
                                         ? { labelKey: "nav.issues", page: "issues" as const, title: activeIssue?.title }
                                         : currentPage === "repository-detail"
                                             ? { labelKey: "nav.repositories", page: "repository" as const, title: activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : undefined }
-                                            : null;
+                                            : currentPage === "organization"
+                                                ? { labelKey: "nav.organizations", page: "organizations" as const, title: activeOrgName }
+                                                : null;
                             return (
                                 <>
-                                    <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
+                                    <span className={`text-[12px] leading-none text-muted-foreground/40 ${detail?.title ? "hidden lg:inline" : ""}`}>/</span>
                                     {detail ? (
                                         <button
                                             onClick={() => navigateTo(detail.page)}
-                                            className="text-[12px] font-medium leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline"
+                                            className="hidden shrink-0 text-[12px] font-medium leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline lg:inline"
                                         >
                                             {t(detail.labelKey)}
                                         </button>
                                     ) : (
-                                        <span className="text-[12px] font-medium leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
+                                        <span className="shrink-0 text-[12px] font-medium leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
                                     )}
                                     {detail?.title && (
                                         <>
                                             <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
                                             <span
                                                 title={detail.title}
-                                                className="max-w-[280px] truncate text-[12px] font-medium leading-none text-foreground/70"
+                                                className="max-w-[140px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
                                             >
                                                 {detail.title}
                                             </span>
@@ -136,20 +142,20 @@ export function AppHeader() {
                     </div>
                 </div>
 
-                <div className="flex flex-1 justify-center px-4">
+                <div className="flex min-w-0 flex-1 justify-center px-2 md:px-4">
                     {searchProvider && (
                         <button
                             onClick={() => openSearch(true)}
-                            className="flex h-8 w-full max-w-md items-center gap-2 rounded-md border border-zinc-200 bg-zinc-100/60 px-3 text-sm text-muted-foreground transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/50"
+                            className="flex h-8 w-full max-w-md min-w-0 items-center gap-2 rounded-md border border-zinc-200 bg-zinc-100/60 px-3 text-sm text-muted-foreground transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/50 dark:hover:bg-zinc-800/50"
                         >
                             <Search className="h-3.5 w-3.5 shrink-0" />
                             <span className="flex-1 truncate text-left">{searchProvider.placeholder}</span>
-                            <kbd className="rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] font-medium dark:border-zinc-700">/</kbd>
+                            <kbd className="hidden rounded border border-zinc-300 px-1.5 py-0.5 text-[10px] font-medium dark:border-zinc-700 sm:inline">/</kbd>
                         </button>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                     <div id="appbar-actions" className="flex items-center gap-2 empty:hidden" />
                     {update && (
                         <Tooltip>

@@ -151,6 +151,10 @@ export function IssuesPage() {
   return (
     <PageLayout className="!p-0 !space-y-0 h-[calc(100vh-4rem)] overflow-hidden">
       <AppbarActions>
+        <Button onClick={handleCreateClick} disabled={allRepos.length === 0} title={t("issues.page.new")}>
+          <Plus size={18} />
+          <span className="hidden xl:inline">{t("issues.page.new")}</span>
+        </Button>
         <div className="flex items-center overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800">
           <button
             className={`px-2.5 py-1.5 transition-colors ${viewMode === "list" ? "bg-zinc-200 text-zinc-900 dark:bg-zinc-700 dark:text-white" : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"}`}
@@ -177,10 +181,6 @@ export function IssuesPage() {
           isSyncing={syncMutation.isPending}
           disableSync={allRepos.length === 0}
         />
-        <Button onClick={handleCreateClick} disabled={allRepos.length === 0}>
-          <Plus size={18} />
-          {t("issues.page.new")}
-        </Button>
       </AppbarActions>
 
       <div className="flex h-full min-h-0">

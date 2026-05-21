@@ -194,11 +194,11 @@ export function RepositoryPage() {
   return (
     <PageLayout className="!p-0 !space-y-0 h-[calc(100vh-4rem)] overflow-hidden">
       <AppbarActions>
-        <RepoToolbar onSync={() => syncAllMutation.mutate()} isSyncing={syncAllMutation.isPending} />
-        <Button onClick={() => setShowCreateDialog(true)}>
+        <Button onClick={() => setShowCreateDialog(true)} title={t("dashboard.quick.newRepo")}>
           <Plus size={18} />
-          {t("dashboard.quick.newRepo")}
+          <span className="hidden xl:inline">{t("dashboard.quick.newRepo")}</span>
         </Button>
+        <RepoToolbar onSync={() => syncAllMutation.mutate()} isSyncing={syncAllMutation.isPending} />
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
