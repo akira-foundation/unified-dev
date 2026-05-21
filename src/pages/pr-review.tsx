@@ -153,6 +153,7 @@ export function PrReviewPage() {
 
   const filesTabLabel = `${t("components.prReview.tabFiles")}${files.length > 0 ? ` (${files.length})` : ""}`;
   const checksTabLabel = `${t("components.prReview.tabChecks")}${checks.length > 0 ? ` (${checks.length})` : ""}`;
+  const defaultTab = activePr.ci_status === "failure" ? "checks" : "files";
 
   return (
     <>
@@ -171,7 +172,7 @@ export function PrReviewPage() {
         <PrReviewHeader pr={activePr} />
 
         <div className="flex flex-col">
-          <Tabs defaultValue="checks" className="flex w-full flex-col">
+          <Tabs defaultValue={defaultTab} className="flex w-full flex-col">
             <div className="shrink-0 mb-4">
               <TabsList variant="line">
                 <TabsTrigger value="files">{filesTabLabel}</TabsTrigger>
