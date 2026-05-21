@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { CircleDot, GitBranch, GitPullRequest } from "lucide-react";
 import { useRepositoryDetail } from "@/hooks/useRepositoryDetail";
 import { RepoDetailTabs } from "@/components/repos/repo-detail-tabs";
 import { RepoDetailHeader } from "@/components/repos/repo-detail-header";
@@ -9,6 +10,7 @@ import { IssueInsightsPanel } from "@/components/issues/issue-insights-panel";
 import { PrInsightsPanel } from "@/components/prs/pr-insights-panel";
 import { useIssueViewStore } from "@/stores/issue-view-store";
 import { usePrViewStore } from "@/stores/pr-view-store";
+import { useSearchStore } from "@/stores/search-store";
 import { PrDetailSheet } from "../components/repos/pr-detail-sheet";
 import { PrNewTaskDialog } from "../components/repos/pr-new-task-dialog";
 import { CreateIssueDialog } from "../components/issues/create-issue-dialog";
@@ -44,12 +46,15 @@ export function RepositoryDetailPage() {
     activeRepo,
     setActiveIssue,
     setIssueList,
+    setActivePr,
+    setActiveRepo,
     targetPrNumber,
     setTargetPrNumber,
     targetRepoTab,
     setTargetRepoTab,
     navigateTo,
   } = useNavigationStore();
+  const registerSearch = useSearchStore((s) => s.registerProvider);
   const { organizations } = useOrganizations();
   const { providers } = useProviders();
   const {
@@ -102,6 +107,46 @@ export function RepositoryDetailPage() {
   const { prs, prsLoading, issues, issuesLoading, branches, deleteBranchMutation, createBranch, handleMerged, handleOpenUrl } = data;
   const issuesInsightsOpen = useIssueViewStore((s) => s.insightsOpen);
   const prsInsightsOpen = usePrViewStore((s) => s.insightsOpen);
+
+  useEffect(() => {
+    if (!activeRepo) return;
+    const repo = { name: activeRepo.name, owner: activeRepo.owner, organizationId: activeRepo.organizationId };
+    if (tab === "prs") {
+      registerSearch({
+        placeholder: t("prs.table.search"),
+        items: prs.map((pr) => ({
+          id: String(pr.id),
+          title: pr.title,
+          subtitle: `#${pr.number}`,
+          icon: <GitPullRequest className="h-3.5 w-3.5 text-zinc-400" />,
+          onSelect: () => { setActiveRepo(repo); setActivePr(pr); navigateTo("pr-review"); },
+        })),
+      });
+    } else if (tab === "issues") {
+      registerSearch({
+        placeholder: t("issues.table.search"),
+        items: issues.map((issue) => ({
+          id: issue.id,
+          title: issue.title,
+          subtitle: `#${issue.number}`,
+          icon: <CircleDot className="h-3.5 w-3.5 text-zinc-400" />,
+          onSelect: () => { setActiveIssue(issue); setIssueList(orderIssuesByColumn(issues)); navigateTo("issue-detail"); },
+        })),
+      });
+    } else {
+      registerSearch({
+        placeholder: t("filters.search.placeholder"),
+        items: branches.map((branch) => ({
+          id: branch.name,
+          title: branch.name,
+          icon: <GitBranch className="h-3.5 w-3.5 text-zinc-400" />,
+          onSelect: () => handleOpenUrl(`https://github.com/${repo.owner}/${repo.name}/tree/${branch.name}`),
+        })),
+      });
+    }
+    return () => registerSearch(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, prs, issues, branches, activeRepo]);
 
   useEffect(() => {
     if (!targetPrNumber || prs.length === 0) return;

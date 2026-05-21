@@ -28,7 +28,7 @@ function highlight(text: string, query: string): ReactNode {
   return (
     <>
       {text.slice(0, i)}
-      <mark className="rounded-sm bg-purple-500/30 text-foreground">{text.slice(i, i + q.length)}</mark>
+      <mark className="bg-transparent font-bold text-purple-600 dark:text-purple-400">{text.slice(i, i + q.length)}</mark>
       {text.slice(i + q.length)}
     </>
   );
