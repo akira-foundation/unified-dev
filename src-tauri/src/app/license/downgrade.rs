@@ -1,7 +1,8 @@
-use crate::app::support::error::{AppError, AppResult};
+use akira_billing::types::DowngradePayload;
 use serde::{Deserialize, Serialize};
 
-const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
+use crate::app::billing::{BillingClient, PRODUCT_SLUG};
+use crate::app::support::error::{AppError, AppResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -14,27 +15,29 @@ pub struct DowngradeDto {
     pub target_plan: Option<String>,
 }
 
-pub async fn downgrade(token: String, target_plan: String) -> AppResult<DowngradeDto> {
-    let client = reqwest::Client::new();
-    let res = client
-        .post(format!("{AKIRA_API_URL}/billing/downgrade"))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "token": token, "target_plan": target_plan }))
-        .send()
+pub async fn downgrade(billing: &BillingClient, target_plan: String) -> AppResult<DowngradeDto> {
+    let target = match target_plan.trim() {
+        "" | "free" => None,
+        plan => Some(plan),
+    };
+
+    let response = billing
+        .inner()
+        .downgrade_subscription(DowngradePayload {
+            product: PRODUCT_SLUG,
+            target_plan: target,
+        })
         .await
-        .map_err(AppError::Http)?;
+        .map_err(|e| AppError::Internal(format!("downgrade failed: {e}")))?;
 
-    if !res.status().is_success() {
-        let msg = res.text().await.unwrap_or_default();
-        let error_code = serde_json::from_str::<serde_json::Value>(&msg)
-            .ok()
-            .and_then(|v| v["error"].as_str().map(str::to_string))
-            .unwrap_or_else(|| msg.clone());
-        return Err(AppError::Internal(error_code));
-    }
-
-    let dto: DowngradeDto = res.json().await.map_err(AppError::Http)?;
-    Ok(dto)
+    Ok(DowngradeDto {
+        cancel_at_period_end: response.cancel_at_period_end,
+        cancel_at: response.cancel_at,
+        plan: response.plan,
+        valid_until: response.valid_until,
+        signature: response.signature,
+        target_plan: response.target_plan,
+    })
 }
 
 pub async fn apply_downgrade(pool: &sqlx::SqlitePool, dto: &DowngradeDto) -> AppResult<()> {
@@ -47,4 +50,38 @@ pub async fn apply_downgrade(pool: &sqlx::SqlitePool, dto: &DowngradeDto) -> App
     .execute(pool)
     .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::{seed_license, setup_test_db};
+
+    #[tokio::test]
+    async fn apply_downgrade_persists_cancel_fields() {
+        let pool = setup_test_db().await;
+        seed_license(&pool, "pro", false).await;
+
+        let dto = DowngradeDto {
+            cancel_at_period_end: true,
+            cancel_at: Some("2099-01-01T00:00:00+00:00".to_string()),
+            plan: Some("pro".to_string()),
+            valid_until: Some("2099-01-01T00:00:00+00:00".to_string()),
+            signature: None,
+            target_plan: Some("free".to_string()),
+        };
+
+        apply_downgrade(&pool, &dto).await.expect("apply_downgrade");
+
+        let row = sqlx::query_as::<_, (i64, Option<String>, Option<String>)>(
+            "SELECT cancel_at_period_end, cancel_at, target_plan FROM license WHERE id = 'local'",
+        )
+        .fetch_one(&pool)
+        .await
+        .expect("row");
+
+        assert_eq!(row.0, 1);
+        assert_eq!(row.1.as_deref(), Some("2099-01-01T00:00:00+00:00"));
+        assert_eq!(row.2.as_deref(), Some("free"));
+    }
 }

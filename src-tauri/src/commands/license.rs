@@ -59,10 +59,8 @@ pub async fn manage_license(state: State<'_, AppState>) -> AppResult<String> {
 
 #[tauri::command]
 pub async fn downgrade_license(target_plan: String, state: State<'_, AppState>) -> AppResult<DowngradeDto> {
-    let token = license::get_token(&state.db_pool)
-        .await?
-        .ok_or_else(|| crate::app::support::error::AppError::Internal("No license found".into()))?;
-    let dto = license::downgrade(token, target_plan).await?;
+    let billing = state.billing.read().await.clone();
+    let dto = license::downgrade(&billing, target_plan).await?;
     license::apply_downgrade(&state.db_pool, &dto).await?;
     Ok(dto)
 }
