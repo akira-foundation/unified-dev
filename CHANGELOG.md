@@ -1,5 +1,12 @@
 
 
+## [0.11.1](https://github.com/akira-foundation/unified-dev/compare/v0.11.0...v0.11.1) (2026-05-22)
+
+
+### Bug Fixes
+
+* **org:** correct GitHub token type for API authentication ([6eeb7cd](https://github.com/akira-foundation/unified-dev/commit/6eeb7cd57092500bdcaa517c520c5a1bbb0d48e8))
+
 # [0.11.0](https://github.com/akira-foundation/unified-dev/compare/v0.10.1...v0.11.0) (2026-05-22)
 
 
