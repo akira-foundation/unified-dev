@@ -1,9 +1,50 @@
 use std::collections::HashSet;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, State};
+use tokio::sync::RwLock;
 
 use crate::providers::dto::ProviderOrg;
 use crate::providers::enums::{ProviderAuth, ProviderKind, ProviderOrgKind};
+use crate::providers::drivers::github::client::{GitHubDriver, GITHUB_API};
 use crate::state::AppState;
+
+#[derive(serde::Deserialize, Clone)]
+struct GitHubUser {
+    id: u64,
+    login: String,
+}
+
+#[derive(serde::Deserialize, Clone)]
+struct GitHubInstallationFull {
+    id: u64,
+    account: Account,
+    html_url: String,
+}
+
+#[derive(serde::Deserialize, Clone)]
+struct Account {
+    login: String,
+    #[serde(rename = "type")]
+    account_type: String,
+    id: u64,
+}
+
+#[derive(serde::Deserialize, Clone)]
+struct UserInstallationsResponse {
+    user: GitHubUser,
+    installations: Vec<GitHubInstallationFull>,
+}
+
+struct CachedUserInstallations {
+    data: UserInstallationsResponse,
+    cached_at: Instant,
+}
+
+lazy_static::lazy_static! {
+    static ref USER_INSTALLATIONS_CACHE: RwLock<Option<CachedUserInstallations>> = RwLock::new(None);
+}
+
+const USER_CACHE_TTL: Duration = Duration::from_secs(300);
 
 pub async fn list_organizations(state: State<'_, AppState>, app: AppHandle, provider_id: String) -> Result<Vec<ProviderOrg>, String> {
     let credentials = crate::app::providers::credentials::credentials(&state, &provider_id)
@@ -33,35 +74,29 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
         .await
         .map_err(|error| error.to_string())?;
 
-    let mut attempt = 0;
-    let (info, response) = loop {
-        let result = {
-            let billing = state.billing.read().await;
-            let info = billing.inner().github_app_info().await;
-            let response = billing.inner().me_github_installations().await;
-            (info, response)
-        };
+    let provider_id = sqlx::query_scalar::<_, String>(
+        "SELECT id FROM providers WHERE kind = 'github' LIMIT 1",
+    )
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| e.to_string())?
+    .ok_or_else(|| "no github provider found".to_string())?;
 
-        match result {
-            (Ok(info), Ok(response)) => break (info, response),
-            (_, Err(error)) if is_unauthorized(&error) && attempt == 0 => {
-                attempt += 1;
-                crate::app::auth::login_with_provider(state.clone(), &app, "github")
-                    .await
-                    .map_err(|err| err.to_string())?;
-                continue;
-            }
-            (Err(error), _) => return Err(format!("github app info failed: {error}")),
-            (_, Err(error)) => return Err(format!("github installations failed: {error}")),
-        }
+    let credentials = crate::app::providers::credentials::credentials(&state, &provider_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let token = match credentials.auth {
+        ProviderAuth::GitHubApp { installation_token, .. } => installation_token,
+        _ => return Err("not a github app provider".to_string()),
     };
 
-    let generic_install_url = info.install_url.replace("/installations/select_target", "/installations/new");
+    let response = get_cached_or_fetch_user_installations(&token).await?;
 
     let installed_logins: HashSet<String> = response
         .installations
         .iter()
-        .map(|installation| installation.account_login.clone())
+        .map(|installation| installation.account.login.clone())
         .collect();
 
     let mut organizations = Vec::new();
@@ -71,30 +106,32 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
         login: response.user.login.clone(),
         kind: ProviderOrgKind::Personal,
         app_installed: Some(installed_logins.contains(&response.user.login)),
-        app_install_url: (!installed_logins.contains(&response.user.login)).then(|| generic_install_url.clone()),
+        app_install_url: (!installed_logins.contains(&response.user.login)).then(|| {
+            format!("https://github.com/apps/akira/installations/new")
+        }),
         app_manage_url: response
             .installations
             .iter()
-            .find(|installation| installation.account_login == response.user.login)
+            .find(|installation| installation.account.login == response.user.login)
             .map(|installation| installation.html_url.clone()),
     });
 
     for installation in response.installations.iter() {
-        if installation.account_type != "Organization" {
+        if installation.account.account_type != "Organization" {
             continue;
         }
 
-        let is_installed = installed_logins.contains(&installation.account_login);
+        let is_installed = installed_logins.contains(&installation.account.login);
 
         organizations.push(ProviderOrg {
-            id: installation.account_id.to_string(),
-            login: installation.account_login.clone(),
+            id: installation.account.id.to_string(),
+            login: installation.account.login.clone(),
             kind: ProviderOrgKind::Organization,
             app_installed: Some(is_installed),
             app_install_url: (!is_installed).then(|| {
                 format!(
                     "https://github.com/organizations/{}/settings/installations/new",
-                    installation.account_login
+                    installation.account.login
                 )
             }),
             app_manage_url: is_installed.then(|| installation.html_url.clone()),
@@ -110,6 +147,28 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
     Ok(organizations)
 }
 
-fn is_unauthorized(error: &akira_billing::Error) -> bool {
-    matches!(error, akira_billing::Error::Api { status: 401, .. })
+async fn get_cached_or_fetch_user_installations(token: &str) -> Result<UserInstallationsResponse, String> {
+    let cache = USER_INSTALLATIONS_CACHE.read().await;
+    if let Some(cached) = cache.as_ref() {
+        if cached.cached_at.elapsed() < USER_CACHE_TTL {
+            return Ok(cached.data.clone());
+        }
+    }
+    drop(cache);
+
+    let driver = GitHubDriver::new(token.to_string()).map_err(|e| e.to_string())?;
+    let url = format!("{GITHUB_API}/user/installations");
+    let response: UserInstallationsResponse = driver
+        .get_json(url)
+        .await
+        .map_err(|e| format!("failed to fetch user installations: {e}"))?;
+
+    let mut cache = USER_INSTALLATIONS_CACHE.write().await;
+    *cache = Some(CachedUserInstallations {
+        data: response.clone(),
+        cached_at: Instant::now(),
+    });
+
+    Ok(response)
 }
+

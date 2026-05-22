@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 
 use akira_billing::types::GithubInstallationTokenPayload;
 
@@ -6,6 +8,33 @@ use crate::app::concerns::VcsProvider;
 use crate::providers::drivers::github::client::{GitHubDriver, GITHUB_API};
 use crate::providers::enums::{ProviderAuth, ProviderKind};
 use crate::state::AppState;
+
+#[derive(serde::Deserialize, Clone)]
+pub struct GitHubInstallation {
+    pub id: u64,
+    pub account: Account,
+}
+
+#[derive(serde::Deserialize, Clone)]
+pub struct Account {
+    pub login: String,
+}
+
+#[derive(serde::Deserialize)]
+struct InstallationsResponse {
+    installations: Vec<GitHubInstallation>,
+}
+
+struct CachedInstallations {
+    installations: Vec<GitHubInstallation>,
+    cached_at: Instant,
+}
+
+lazy_static::lazy_static! {
+    static ref INSTALLATIONS_CACHE: RwLock<Option<CachedInstallations>> = RwLock::new(None);
+}
+
+const CACHE_TTL: Duration = Duration::from_secs(300);
 
 pub async fn resolve_provider_for_repo_owner(
     state: &AppState,
@@ -41,19 +70,11 @@ pub async fn resolve_provider_for_repo_owner(
             let token = if is_personal_owner {
                 installation_token
             } else {
-                let installations = {
-                    let billing = state.billing.read().await;
-                    billing
-                        .inner()
-                        .me_github_installations()
-                        .await
-                        .map_err(|e| format!("list installations failed: {e}"))?
-                };
+                let installations = get_cached_or_fetch_installations(&installation_token).await?;
 
                 let installation = installations
-                    .installations
                     .iter()
-                    .find(|i| i.account_login == owner)
+                    .find(|i| i.account.login == owner)
                     .ok_or_else(|| format!("no installation found for {owner}"))?;
 
                 let response = {
@@ -171,4 +192,29 @@ pub async fn fetch_and_persist_github_parent(
     .await;
 
     Some((fork_owner, fork_repo))
+}
+
+pub async fn get_cached_or_fetch_installations(token: &str) -> Result<Vec<GitHubInstallation>, String> {
+    let cache = INSTALLATIONS_CACHE.read().await;
+    if let Some(cached) = cache.as_ref() {
+        if cached.cached_at.elapsed() < CACHE_TTL {
+            return Ok(cached.installations.clone());
+        }
+    }
+    drop(cache);
+
+    let driver = GitHubDriver::new(token.to_string()).map_err(|e| e.to_string())?;
+    let url = format!("{GITHUB_API}/user/installations");
+    let response: InstallationsResponse = driver
+        .get_json(url)
+        .await
+        .map_err(|e| format!("failed to fetch installations: {e}"))?;
+
+    let mut cache = INSTALLATIONS_CACHE.write().await;
+    *cache = Some(CachedInstallations {
+        installations: response.installations.clone(),
+        cached_at: Instant::now(),
+    });
+
+    Ok(response.installations)
 }

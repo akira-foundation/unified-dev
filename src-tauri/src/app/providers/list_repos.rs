@@ -25,19 +25,21 @@ async fn fetch_installation_token(state: &State<'_, AppState>, installation_id: 
     Ok(response.token)
 }
 
-async fn resolve_installation_id_for_login(state: &State<'_, AppState>, login: &str) -> Result<u64, String> {
-    let billing = state.billing.read().await;
-    let response = billing
-        .inner()
-        .me_github_installations()
+async fn resolve_installation_id_for_login(state: &State<'_, AppState>, provider_id: &str, login: &str) -> Result<u64, String> {
+    let credentials = crate::app::providers::credentials::credentials(&state, provider_id)
         .await
-        .map_err(|error| format!("list installations failed: {error}"))?;
-    response
-        .installations
-        .iter()
-        .find(|installation| installation.account_login == login)
-        .map(|installation| installation.id)
-        .ok_or_else(|| format!("no installation found for {login}"))
+        .map_err(|error| error.to_string())?;
+
+    if let ProviderAuth::GitHubApp { installation_token, .. } = credentials.auth {
+        let installations = crate::app::orgs::resolve_provider::get_cached_or_fetch_installations(&installation_token).await?;
+        installations
+            .iter()
+            .find(|installation| installation.account.login == login)
+            .map(|installation| installation.id)
+            .ok_or_else(|| format!("no installation found for {login}"))
+    } else {
+        Err("not a github app provider".to_string())
+    }
 }
 
 pub async fn list_repos(state: State<'_, AppState>, input: ProviderReposInput) -> Result<Vec<ProviderRepo>, String> {
@@ -54,7 +56,7 @@ pub async fn list_repos(state: State<'_, AppState>, input: ProviderReposInput) -
             };
 
             let token = if let Some(ref login) = target_login {
-                let org_installation_id = resolve_installation_id_for_login(&state, login).await?;
+                let org_installation_id = resolve_installation_id_for_login(&state, &input.provider_id, login).await?;
                 fetch_installation_token(&state, Some(org_installation_id)).await?
             } else {
                 installation_token
