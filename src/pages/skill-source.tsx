@@ -13,7 +13,7 @@ import { useAgentsStore, type InstalledSkill } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
 import { queryKeys } from "@/lib/query-keys";
 import { skillColor } from "@/lib/skill-color";
-import { SKILL_SOURCES, type RemoteSkill } from "@/pages/skills";
+import { SKILL_SOURCES, type RemoteSkill } from "@/lib/skill-sources";
 
 const FOUR_HOURS = 4 * 60 * 60 * 1000;
 

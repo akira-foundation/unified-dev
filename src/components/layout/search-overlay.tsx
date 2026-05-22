@@ -83,10 +83,12 @@ export function SearchOverlay() {
               }}
             >
               {item.icon}
-              <span className="truncate">{highlight(item.title, query)}</span>
-              {item.subtitle && (
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">{item.subtitle}</span>
-              )}
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-[13px] font-medium text-foreground">{highlight(item.title, query)}</span>
+                {item.subtitle && (
+                  <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
+                )}
+              </div>
             </CommandItem>
           ))}
         </CommandGroup>

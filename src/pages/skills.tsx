@@ -1,7 +1,10 @@
 import { useEffect } from "react";
-import { Trash2, FolderOpen, Globe, ChevronRight } from "lucide-react";
+import { Trash2, FolderOpen, Globe, ChevronRight, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { PageLayout } from "@/components/layout/page-layout";
+import { PageHeaderActions } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -15,48 +18,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { queryKeys } from "@/lib/query-keys";
 import { skillColor } from "@/lib/skill-color";
-export interface RemoteSkill {
-  uid: string;
-  id: string;
-  name: string;
-  description: string;
-  repo_url: string;
-  installs: number;
-}
-
-export interface SkillSource {
-  id: string;
-  name: string;
-  description: string;
-  type: "remote";
-  repoUrl?: string;
-  branch?: string;
-}
-
-export const SKILL_SOURCES: SkillSource[] = [
-  {
-    id: "skills-sh",
-    name: "skills.sh",
-    description: "Community skill registry",
-    type: "remote",
-  },
-  {
-    id: "claude",
-    name: "Claude",
-    description: "alirezarezvani/claude-skills",
-    type: "remote",
-    repoUrl: "https://github.com/alirezarezvani/claude-skills",
-    branch: "main",
-  },
-  {
-    id: "codex",
-    name: "Codex",
-    description: "ComposioHQ/awesome-codex-skills",
-    type: "remote",
-    repoUrl: "https://github.com/ComposioHQ/awesome-codex-skills",
-    branch: "master",
-  },
-];
+import { SKILL_SOURCES } from "@/lib/skill-sources";
 
 interface SkillIconProps {
   className?: string;
@@ -123,6 +85,23 @@ export function SkillsPage() {
     },
   });
 
+  const syncSkills = useMutation({
+    mutationFn: async () => {
+      const [list] = await Promise.all([
+        invoke<InstalledSkill[]>("sync_skills", { workspacePath }),
+        new Promise((resolve) => setTimeout(resolve, 600)),
+      ]);
+      return list;
+    },
+    onSuccess: (list) => {
+      queryClient.setQueryData(queryKeys.skills(), list);
+      toast.success(t("pages.skills.syncToast").replace("{count}", String(list.length)));
+    },
+    onError: (error) => {
+      toast.error(t("pages.skills.syncFailed").replace("{error}", String(error)));
+    },
+  });
+
   const changeIcon = async (id: string) => {
     const selected = await openDialog({
       multiple: false,
@@ -158,6 +137,18 @@ export function SkillsPage() {
 
   return (
     <PageLayout scroll>
+      <PageHeaderActions>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={() => syncSkills.mutate()}
+          disabled={syncSkills.isPending}
+          title={t("pages.skills.sync")}
+        >
+          <RefreshCw className={cn("h-4 w-4", syncSkills.isPending && "animate-spin")} />
+        </Button>
+      </PageHeaderActions>
+
       <div className="mx-auto w-full max-w-6xl pb-12">
 
         <div className="px-6 flex flex-col gap-6 mt-2">

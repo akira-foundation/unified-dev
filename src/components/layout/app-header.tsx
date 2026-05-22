@@ -35,6 +35,8 @@ export function AppHeader() {
     const activeOrgName = organizations.find((o) => o.id === activeOrganizationId)?.name;
     const isAgentMode = useNavigationStore((s) => s.isAgentMode);
     const selectedIssueId = useAgentsStore((s) => s.selectedIssueId);
+    const selectedSkill = useAgentsStore((s) => s.selectedSkill);
+    const selectedSkillSource = useAgentsStore((s) => s.selectedSkillSource);
     const agentRepositoryGroups = useAgentsStore((s) => s.repositoryGroups);
     const activeThread = isAgentMode
         ? agentRepositoryGroups.flatMap((g) => g.repositories).flatMap((r) => r.issues).find((i) => i.id === selectedIssueId) ?? null
@@ -168,6 +170,50 @@ export function AppHeader() {
                                             </span>
                                         </>
                                     )}
+                                    {isAgentMode && activeTab !== "workspace" && (() => {
+                                        const isSkillTab = activeTab === "skills" || activeTab === "manage-skill" || activeTab === "skill-source";
+                                        const isAutomationTab = activeTab === "automations" || activeTab === "create-automation";
+                                        const sectionLabel = isSkillTab
+                                            ? t("pages.skills.title")
+                                            : isAutomationTab
+                                                ? t("pages.automations.title")
+                                                : activeTab === "mcp"
+                                                    ? "MCP"
+                                                    : null;
+                                        if (!sectionLabel) return null;
+                                        const leaf =
+                                            activeTab === "manage-skill"
+                                                ? (selectedSkill?.name ?? selectedSkill?.id ?? null)
+                                                : activeTab === "skill-source"
+                                                    ? (selectedSkillSource?.name ?? null)
+                                                    : null;
+                                        return (
+                                            <>
+                                                <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
+                                                {leaf ? (
+                                                    <button
+                                                        onClick={() => setActiveTab(isSkillTab ? "skills" : "automations")}
+                                                        className="hidden shrink-0 text-[12px] font-medium leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline lg:inline"
+                                                    >
+                                                        {sectionLabel}
+                                                    </button>
+                                                ) : (
+                                                    <span className="shrink-0 text-[12px] font-medium leading-none text-foreground/70">{sectionLabel}</span>
+                                                )}
+                                                {leaf && (
+                                                    <>
+                                                        <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
+                                                        <span
+                                                            title={leaf}
+                                                            className="max-w-[160px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[220px] md:max-w-[280px]"
+                                                        >
+                                                            {leaf}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </>
                             );
                         })()}

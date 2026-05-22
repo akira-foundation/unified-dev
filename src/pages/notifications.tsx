@@ -10,8 +10,6 @@ import {
 import { AppbarActions } from "@/components/layout/appbar-actions";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SettingsSection } from "@/components/settings/settings-section";
 import { useNotificationsStore, type NotificationItem } from "@/stores/notifications-store";
 import { runAction, actionLabel, hasAction } from "@/lib/notification-actions";
 import { cn } from "@/lib/utils";
@@ -70,91 +68,65 @@ function NotificationRow({ item }: { item: NotificationItem }) {
     if (hasBody) setExpanded((v) => !v);
   }
 
-  function handleAction(e: React.MouseEvent) {
-    e.stopPropagation();
-    if (isUnread) void markRead(item.id);
-    runAction(item);
-  }
-
   return (
-    <div
-      className={cn(
-        "group flex items-start gap-3 px-4 py-4 transition-colors",
-        hasBody && "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/40",
-        isUnread && "bg-purple-50/30 dark:bg-purple-500/[0.03]",
-      )}
-      onClick={handleToggle}
-    >
-      <div className="flex items-center gap-2 mt-0.5 shrink-0">
-        {isUnread && <span className="h-1.5 w-1.5 rounded-full bg-purple-500 shrink-0" />}
-        <Icon className={cn("h-4 w-4", SEVERITY_COLOR[item.severity] ?? "text-zinc-400")} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2 mb-1">
-          <p className={cn(
-            "text-sm font-medium",
-            isUnread ? "text-zinc-900 dark:text-white" : "text-zinc-600 dark:text-zinc-300",
-          )}>
-            {item.title}
-          </p>
-          <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-400 dark:text-zinc-600 shrink-0">
+    <div className="group rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
+      <div
+        className={cn("flex h-9 items-center gap-2.5 pl-3 pr-2", hasBody && "cursor-pointer")}
+        onClick={handleToggle}
+      >
+        {isUnread && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-purple-500" />}
+        <Icon className={cn("h-3.5 w-3.5 shrink-0", SEVERITY_COLOR[item.severity] ?? "text-zinc-400")} />
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate text-[13px]",
+            isUnread ? "font-medium text-zinc-900 dark:text-zinc-100" : "text-zinc-700 dark:text-zinc-300",
+          )}
+        >
+          {item.title}
+        </span>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="hidden max-w-[120px] truncate rounded border border-zinc-200 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400 md:inline-block">
             {CATEGORY_LABEL[item.category] ?? item.category}
           </span>
-          <span className="text-[11px] text-zinc-500 shrink-0 ml-auto">{relativeTime(item.created_at)}</span>
+          <span className="w-14 shrink-0 text-right text-[11px] tabular-nums text-zinc-500">
+            {relativeTime(item.created_at)}
+          </span>
           {hasBody && (
-            <ChevronDown
-              className={cn(
-                "h-3.5 w-3.5 text-zinc-400 transition-transform",
-                expanded && "rotate-180",
-              )}
-            />
+            <ChevronDown className={cn("h-3.5 w-3.5 text-zinc-400 transition-transform", expanded && "rotate-180")} />
           )}
-        </div>
-        {item.body && (
-          <p
-            className={cn(
-              "text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed break-all",
-              !expanded && "line-clamp-1",
+          <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+            {action && label && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isUnread) void markRead(item.id);
+                  runAction(item);
+                }}
+                className="rounded px-2 py-1 text-[11px] font-medium text-purple-600 hover:bg-purple-100 hover:text-purple-700 dark:text-purple-400 dark:hover:bg-purple-500/10 dark:hover:text-purple-300"
+              >
+                {label}
+              </button>
             )}
-          >
-            {item.body}
-          </p>
-        )}
-      </div>
-      <div className="flex items-center gap-1 shrink-0">
-        {action && label && (
-          <button
-            onClick={handleAction}
-            className="px-2 py-1 rounded text-[11px] font-medium text-purple-600 hover:text-purple-700 hover:bg-purple-100 dark:text-purple-400 dark:hover:text-purple-300 dark:hover:bg-purple-500/10"
-          >
-            {label}
-          </button>
-        )}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {isUnread && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                void markRead(item.id);
+                void remove(item.id);
               }}
-              className="p-1.5 rounded text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200 dark:hover:text-zinc-200 dark:hover:bg-zinc-800"
-              title="Mark read"
+              className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-red-500 dark:hover:bg-zinc-700"
+              title="Delete"
             >
-              <CheckCheck className="h-3.5 w-3.5" />
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              void remove(item.id);
-            }}
-            className="p-1.5 rounded text-zinc-500 hover:text-red-500 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-            title="Delete"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
+          </div>
         </div>
       </div>
+
+      {item.body && expanded && (
+        <p className="break-all px-3 pb-3 pl-[2.4rem] text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+          {item.body}
+        </p>
+      )}
     </div>
   );
 }
@@ -181,10 +153,11 @@ export function NotificationsPage() {
     return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [items]);
 
-  const description =
-    items.length === 0
-      ? "Events and updates from the app will show up here."
-      : `${items.length} total · ${unread} unread`;
+  const tabs: Array<{ id: string; label: string; count: number }> = [
+    { id: "all", label: "All", count: items.length },
+    { id: "unread", label: "Unread", count: unread },
+    ...categories.map(([cat, count]) => ({ id: cat, label: CATEGORY_LABEL[cat] ?? cat, count })),
+  ];
 
   return (
     <PageLayout>
@@ -219,65 +192,45 @@ export function NotificationsPage() {
         </div>
       </PageHeader>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-        <TabsList className="h-auto gap-1 rounded-full border border-zinc-200 bg-zinc-100/50 dark:border-zinc-800/50 dark:bg-zinc-900/50">
-          <TabsTrigger
-            value="all"
-            className="rounded-full px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 transition-all data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-white border border-transparent"
-          >
-            All
-            {items.length > 0 && (
-              <span className="ml-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-bold leading-none">
-                {items.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger
-            value="unread"
-            className="rounded-full px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 transition-all data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-white border border-transparent"
-          >
-            Unread
-            {unread > 0 && (
-              <span className="ml-1.5 rounded-full bg-purple-500/20 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 text-[10px] font-bold leading-none">
-                {unread}
-              </span>
-            )}
-          </TabsTrigger>
-          {categories.map(([cat, count]) => (
-            <TabsTrigger
-              key={cat}
-              value={cat}
-              className="rounded-full px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 transition-all data-[state=active]:bg-white data-[state=active]:text-zinc-900 data-[state=active]:shadow-sm dark:data-[state=active]:bg-zinc-800 dark:data-[state=active]:text-white border border-transparent"
+      <div className="mb-1 flex items-center gap-5 border-b border-zinc-200 px-1 dark:border-white/[0.06]">
+        {tabs.map(({ id, label, count }) => {
+          const active = activeTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={cn(
+                "relative flex h-10 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
+                active
+                  ? "text-purple-600 dark:text-purple-400"
+                  : "text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300",
+              )}
             >
-              {CATEGORY_LABEL[cat] ?? cat}
-              <span className="ml-1.5 rounded-full bg-zinc-200 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] font-bold leading-none">
-                {count}
-              </span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+              <span>{label}</span>
+              {count > 0 && <span className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-600">{count}</span>}
+              {active && <span className="absolute inset-x-0 bottom-0 h-[1.5px] bg-purple-500" />}
+            </button>
+          );
+        })}
+      </div>
 
-      <SettingsSection title="Inbox" description={description} icon={Bell}>
-
+      <div className="flex flex-col gap-0.5 py-2">
         {loading ? (
-          <div className="px-4 py-12 text-center text-[12px] text-zinc-500">Loading…</div>
+          <div className="px-3 py-12 text-center text-[12px] text-zinc-500">Loading…</div>
         ) : filtered.length === 0 ? (
-          <div className="px-4 py-16 text-center">
-            <Bell className="h-8 w-8 text-zinc-400 dark:text-zinc-700 mx-auto mb-3" />
-            <p className="text-[13px] text-zinc-700 dark:text-zinc-300 font-medium mb-1">
+          <div className="px-3 py-16 text-center">
+            <Bell className="mx-auto mb-3 h-8 w-8 text-zinc-400 dark:text-zinc-700" />
+            <p className="mb-1 text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
               {items.length === 0 ? "No notifications yet" : "No matches"}
             </p>
             <p className="text-[11px] text-zinc-500">
-              {items.length === 0
-                ? "Events and updates will appear here."
-                : "Try adjusting the filters."}
+              {items.length === 0 ? "Events and updates will appear here." : "Try adjusting the filters."}
             </p>
           </div>
         ) : (
           filtered.map((item) => <NotificationRow key={item.id} item={item} />)
         )}
-      </SettingsSection>
+      </div>
     </PageLayout>
   );
 }
