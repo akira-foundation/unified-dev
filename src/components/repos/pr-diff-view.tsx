@@ -1,13 +1,9 @@
 import { useState } from "react";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
-import { Check, ChevronDown, Columns2, FileCode, WrapText } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "../ui/collapsible";
-import { Card, CardContent, CardTitle } from "../ui/card";
+import { Check, ChevronRight, Columns2, FileCode, WrapText } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { Skeleton } from "../ui/skeleton";
+import { cn } from "../../lib/utils";
 import { useI18n } from "../../i18n/i18n";
 import { PatchViewer } from "../shared/patch-viewer";
 import { useViewedFilesStore } from "../../stores/useViewedFilesStore";
@@ -16,15 +12,11 @@ import type { PrFileDto } from "../../types/organization";
 function useIntersected(rootMargin = "200px") {
   const [sentinelRef, entry] = useIntersectionObserver({ rootMargin, threshold: 0 });
   const [intersected, setIntersectedOnce] = useState(false);
-
-  if (entry?.isIntersecting && !intersected) {
-    setIntersectedOnce(true);
-  }
-
+  if (entry?.isIntersecting && !intersected) setIntersectedOnce(true);
   return { ref: sentinelRef, intersected };
 }
 
-function FileDiffCard({
+function FileDiffBlock({
   file,
   splitView,
   viewed,
@@ -39,10 +31,6 @@ function FileDiffCard({
   const [open, setOpen] = useState(!viewed);
   const { ref: sentinelRef, intersected } = useIntersected("300px");
 
-  const handleOpenChange = (next: boolean) => {
-    setOpen(next);
-  };
-
   const handleViewed = (e: React.MouseEvent) => {
     e.stopPropagation();
     const next = !viewed;
@@ -51,59 +39,46 @@ function FileDiffCard({
   };
 
   return (
-    <Collapsible open={open} onOpenChange={handleOpenChange}>
-      <Card className={`overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm transition-opacity ${viewed ? "opacity-60" : ""}`}>
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className={cn("overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800", viewed && "opacity-60")}>
         <CollapsibleTrigger className="w-full cursor-pointer" asChild>
-          <div className="flex flex-row items-center gap-3 px-4 py-3 select-none">
-            <div className={`h-7 w-7 flex items-center justify-center rounded-lg border shrink-0 transition-colors ${viewed ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" : "bg-purple-500/10 text-purple-500 border-purple-500/10"}`}>
-              {viewed ? <Check size={14} strokeWidth={2.5} /> : <FileCode size={14} strokeWidth={2} />}
-            </div>
-            <CardTitle className={`text-sm font-semibold leading-none flex-1 text-left font-mono truncate min-w-0 transition-colors ${viewed ? "text-zinc-400 dark:text-zinc-500" : "text-zinc-900 dark:text-white/95"}`}>
+          <div className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 select-none dark:bg-white/[0.02]">
+            <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform", open && "rotate-90")} />
+            <FileCode className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+            <span className="min-w-0 flex-1 truncate text-left font-mono text-[12px] text-zinc-700 dark:text-zinc-200">
               {file.filename}
-            </CardTitle>
-            <div className="flex items-center gap-2 shrink-0">
-              {file.additions > 0 && (
-                <span className="text-xs font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
-                  +{file.additions}
-                </span>
+            </span>
+            {file.additions > 0 && (
+              <span className="shrink-0 text-[11px] font-medium tabular-nums text-emerald-600 dark:text-emerald-400">+{file.additions}</span>
+            )}
+            {file.deletions > 0 && (
+              <span className="shrink-0 text-[11px] font-medium tabular-nums text-red-500 dark:text-red-400">−{file.deletions}</span>
+            )}
+            <button
+              onClick={handleViewed}
+              title={t("components.prDiff.viewedCount").replace("{viewed}", viewed ? "1" : "0").replace("{total}", "1")}
+              className={cn(
+                "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                viewed ? "border-emerald-500 bg-emerald-500 text-white" : "border-zinc-300 dark:border-zinc-600",
               )}
-              {file.deletions > 0 && (
-                <span className="text-xs font-medium tabular-nums text-red-500 dark:text-red-400">
-                  -{file.deletions}
-                </span>
-              )}
-              <button
-                onClick={handleViewed}
-                className={`h-3.5 w-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-                  viewed
-                    ? "bg-emerald-500 border-emerald-500 text-white"
-                    : "border-zinc-300 dark:border-zinc-600 bg-transparent"
-                }`}
-              >
-                {viewed && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
-              </button>
-            </div>
-            <ChevronDown
-              className={`h-3.5 w-3.5 text-zinc-400 transition-transform duration-200 shrink-0 ${open ? "rotate-180" : ""}`}
-            />
+            >
+              {viewed && <Check className="h-2.5 w-2.5" strokeWidth={3} />}
+            </button>
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="px-0 py-0 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/30">
-            {/* Sentinel triggers lazy mount when card scrolls into view */}
+          <div className="border-t border-zinc-200 dark:border-zinc-800">
             <div ref={sentinelRef} />
             {intersected && (
               file.patch ? (
                 <PatchViewer patch={file.patch} splitView={splitView} filename={file.filename} />
               ) : (
-                <p className="px-4 py-3 text-sm text-zinc-400 dark:text-zinc-500 italic">
-                  {t("components.prDiff.binary")}
-                </p>
+                <p className="px-3 py-2 text-[12px] text-zinc-400 dark:text-zinc-500 italic">{t("components.prDiff.binary")}</p>
               )
             )}
-          </CardContent>
+          </div>
         </CollapsibleContent>
-      </Card>
+      </div>
     </Collapsible>
   );
 }
@@ -118,7 +93,7 @@ export function PrDiffView({
   prNumber: number;
 }) {
   const { t } = useI18n();
-  const [splitView, setSplitView] = useState(true);
+  const [splitView, setSplitView] = useState(false);
   const storeKey = `pr:${prNumber}`;
   const { isViewed, setViewed } = useViewedFilesStore();
 
@@ -126,72 +101,57 @@ export function PrDiffView({
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-3 p-3">
-        <Skeleton className="h-12 w-full rounded-lg" />
-        <Skeleton className="h-40 w-full rounded-lg" />
-        <Skeleton className="h-12 w-full rounded-lg" />
+      <div className="flex flex-col gap-2 p-3">
+        <Skeleton className="h-9 w-full rounded-lg" />
         <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-9 w-full rounded-lg" />
       </div>
     );
   }
 
   if (files.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">
-          {t("components.prDiff.noFiles")}
-        </p>
+      <div className="flex h-full items-center justify-center">
+        <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">{t("components.prDiff.noFiles")}</p>
       </div>
     );
   }
 
+  const toggleBtn = (active: boolean) =>
+    cn(
+      "flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-medium transition-colors cursor-pointer",
+      active
+        ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white"
+        : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300",
+    );
+
   return (
-    <div className="flex flex-col gap-3 p-3">
-      {/* Toolbar */}
+    <div className="flex flex-col gap-2 p-3">
       <div className="flex items-center justify-between px-1">
-        <div className="flex items-center gap-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+        <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest">
+          <span className="text-zinc-400 dark:text-zinc-500">
             {t("components.prDiff.filesCount").replace("{count}", String(files.length))}
-          </p>
+          </span>
           {viewedCount > 0 && (
-            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
-              {t("components.prDiff.viewedCount")
-                .replace("{viewed}", String(viewedCount))
-                .replace("{total}", String(files.length))}
-            </p>
+            <span className="text-emerald-600 dark:text-emerald-400">
+              {t("components.prDiff.viewedCount").replace("{viewed}", String(viewedCount)).replace("{total}", String(files.length))}
+            </span>
           )}
         </div>
-        <div className="flex items-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-0.5">
-          <button
-            onClick={() => setSplitView(false)}
-            title={t("components.prDiff.unifiedView")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
-              !splitView
-                ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
-          >
+        <div className="flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 p-0.5 dark:border-zinc-700 dark:bg-zinc-900">
+          <button onClick={() => setSplitView(false)} title={t("components.prDiff.unifiedView")} className={toggleBtn(!splitView)}>
             <WrapText className="h-3 w-3" />
             {t("components.prDiff.unifiedView")}
           </button>
-          <button
-            onClick={() => setSplitView(true)}
-            title={t("components.prDiff.splitView")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${
-              splitView
-                ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm"
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
-            }`}
-          >
+          <button onClick={() => setSplitView(true)} title={t("components.prDiff.splitView")} className={toggleBtn(splitView)}>
             <Columns2 className="h-3 w-3" />
             {t("components.prDiff.splitView")}
           </button>
         </div>
       </div>
 
-      {/* File cards */}
       {files.map((file) => (
-        <FileDiffCard
+        <FileDiffBlock
           key={file.filename}
           file={file}
           splitView={splitView}

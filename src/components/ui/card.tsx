@@ -7,12 +7,11 @@ function Card({ className, children, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "border-zinc-200 bg-white p-0.5 shadow-sm dark:border-zinc-800  relative overflow-hidden  dark:bg-zinc-900 text-zinc-950 dark:text-zinc-50 flex flex-col gap-6 rounded-2xl border  transition-all",
+        "relative flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white text-zinc-950 transition-colors dark:border-zinc-800/80 dark:bg-zinc-900/40 dark:text-zinc-50",
         className,
       )}
       {...props}
     >
-      <div className="pointer-events-none absolute -mr-10 -mt-10 right-0 top-0 h-32 w-32 rounded-full bg-purple-500/10 blur-3xl" />
       {children}
     </div>
   );
@@ -20,7 +19,7 @@ function Card({ className, children, ...props }: React.ComponentProps<"div">) {
 
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <div data-slot="card-header" className={cn("flex flex-col gap-1.5 pt-6 px-4", className)} {...props} />
+    <div data-slot="card-header" className={cn("flex flex-col gap-1.5 pt-4 px-4", className)} {...props} />
   );
 }
 
@@ -37,7 +36,7 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-content" className={cn("px-1 border-1  rounded-2xl dark:border-zinc-800 ", className)} {...props} />;
+  return <div data-slot="card-content" className={cn("px-1", className)} {...props} />;
 }
 
 function CardFooter({ className, ...props }: React.ComponentProps<"div">) {

@@ -20,6 +20,7 @@ pub trait VcsProvider: Send + Sync {
     async fn delete_branch(&self, owner: &str, repository: &str, branch_name: &str) -> AppResult<()>;
     async fn get_pull_request_comments(&self, owner: &str, repository: &str, pr_number: u64) -> AppResult<Vec<VcsPrComment>>;
     async fn post_pull_request_comment(&self, owner: &str, repository: &str, pr_number: u64, body: &str) -> AppResult<VcsPrComment>;
+    async fn delete_pull_request_comment(&self, owner: &str, repository: &str, comment_id: &str) -> AppResult<()>;
     async fn submit_pull_request_review(&self, owner: &str, repository: &str, pr_number: u64, event: PrReviewEvent, body: Option<&str>) -> AppResult<()>;
     async fn merge_pull_request(&self, owner: &str, repository: &str, pr_number: u64, strategy: PrMergeStrategy) -> AppResult<()>;
     async fn list_pull_request_files(&self, owner: &str, repository: &str, pr_number: u64) -> AppResult<Vec<VcsPrFile>>;

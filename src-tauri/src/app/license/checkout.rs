@@ -1,32 +1,21 @@
-use crate::app::support::error::{AppError, AppResult};
-use super::types::CheckoutDto;
+use crate::app::billing::PRODUCT_SLUG;
 
-const AKIRA_API_URL: &str = env!("AKIRA_BILLING_URL");
+pub fn checkout_url(plan_key: &str) -> String {
+    let base = match env!("AKIRA_BILLING_URL") {
+        "" => "http://billing.test",
+        value => value,
+    };
+    format!("{}/subscribe/{PRODUCT_SLUG}/{plan_key}", base.trim_end_matches('/'))
+}
 
-pub async fn checkout(plan: String, cycle: String) -> AppResult<CheckoutDto> {
-    let client = reqwest::Client::new();
-    let res = client
-        .post(format!("{AKIRA_API_URL}/billing/checkout"))
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "plan": plan, "cycle": cycle }))
-        .send()
-        .await
-        .map_err(AppError::Http)?;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    if !res.status().is_success() {
-        let msg = res.text().await.unwrap_or_default();
-        return Err(AppError::Internal(format!("Checkout failed: {msg}")));
+    #[test]
+    fn builds_subscribe_url_with_plan_key() {
+        let url = checkout_url("pro_monthly");
+        assert!(url.ends_with("/subscribe/unified-dev/pro_monthly"));
+        assert!(!url.contains("//subscribe"));
     }
-
-    let body: serde_json::Value = res.json().await.map_err(AppError::Http)?;
-    let url = body["url"]
-        .as_str()
-        .ok_or_else(|| AppError::Internal("No URL in checkout response".into()))?
-        .to_string();
-    let session_id = body["session_id"]
-        .as_str()
-        .ok_or_else(|| AppError::Internal("No session_id in checkout response".into()))?
-        .to_string();
-
-    Ok(CheckoutDto { url, session_id })
 }

@@ -1,105 +1,35 @@
 import {
   DndContext,
-  DragEndEvent,
+  DragOverEvent,
   DragOverlay,
   DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  closestCorners,
   useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { createPortal } from "react-dom";
 import { useMemo, useState } from "react";
-import { CircleDot, Circle, CheckCircle2, XCircle } from "lucide-react";
+import { EyeOff, MoreHorizontal, Plus } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { LabelBadgeSmall } from "@/components/issues/label-badge";
+import { StatusIcon } from "@/components/issues/issue-status";
+import { useI18n } from "@/i18n/i18n";
 import { useIssueKanbanStore } from "@/stores/useIssueKanbanStore";
+import { useIssueViewStore } from "@/stores/issue-view-store";
+import { KanbanHiddenRail } from "@/components/issues/kanban-hidden-rail";
+import { KanbanCard, KanbanCardView, type IssueCardType } from "@/components/issues/kanban-card";
 import { ISSUE_COLUMNS, issueToColumn } from "@/types/issue";
 import type { IssueDto, IssueColumnId } from "@/types/issue";
-
-// ── column icon ──────────────────────────────────────────────────────────────
-
-function ColumnIcon({ id }: { id: IssueColumnId }) {
-  const cls = "h-3.5 w-3.5";
-  if (id === "backlog") return <Circle className={cn(cls, "text-zinc-400")} />;
-  if (id === "todo") return <CircleDot className={cn(cls, "text-blue-400")} />;
-  if (id === "in_progress") return <CircleDot className={cn(cls, "text-amber-400")} />;
-  if (id === "done") return <CheckCircle2 className={cn(cls, "text-emerald-400")} />;
-  return <XCircle className={cn(cls, "text-zinc-500")} />;
-}
-
-// ── card ─────────────────────────────────────────────────────────────────────
-
-interface IssueCardType {
-  id: string;
-  issue: IssueDto;
-  columnId: IssueColumnId;
-}
-
-function IssueCard({
-  card,
-  isDragging = false,
-  onSelect,
-}: {
-  card: IssueCardType;
-  isDragging?: boolean;
-  onSelect?: (issue: IssueDto) => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: card.id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0 : 1,
-  };
-
-  function handleClick() {
-    onSelect?.(card.issue);
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card
-        className="cursor-pointer border-zinc-800 bg-zinc-900/60 p-3 hover:border-zinc-700 hover:bg-zinc-900"
-        onClick={handleClick}
-      >
-        <div className="mb-1.5 flex items-start justify-between gap-2">
-          <div className="flex min-w-0 items-start gap-2">
-            <span className="line-clamp-2 text-xs font-medium leading-snug text-white">
-              {card.issue.title}
-            </span>
-            <span
-              className={`shrink-0 rounded-[6px] px-1.5 py-0.5 text-[10px] font-medium ${
-                card.issue.syncWithProvider
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-zinc-500/10 text-zinc-400"
-              }`}
-            >
-              {card.issue.syncWithProvider ? "synced" : "local"}
-            </span>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] text-zinc-500">
-            #{card.issue.number}
-          </span>
-          {card.issue.labels.slice(0, 2).map((label) => (
-            <LabelBadgeSmall key={label} name={label} />
-          ))}
-          {card.issue.assignees.length > 0 && (
-            <span className="ml-auto text-[10px] text-zinc-500">
-              @{card.issue.assignees[0]}
-            </span>
-          )}
-        </div>
-      </Card>
-    </div>
-  );
-}
 
 // ── droppable column ──────────────────────────────────────────────────────────
 
@@ -107,38 +37,67 @@ function IssueColumn({
   id,
   title,
   cards,
-  borderColor,
   onSelect,
+  onAdd,
+  onHide,
 }: {
   id: IssueColumnId;
   title: string;
   cards: IssueCardType[];
-  borderColor: string;
   onSelect?: (issue: IssueDto) => void;
+  onAdd?: () => void;
+  onHide?: () => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const { t } = useI18n();
 
   return (
-    <div className="flex min-w-[220px] flex-1 flex-col gap-2">
-      <div className={cn("flex items-center gap-1.5 border-t-2 pt-2", borderColor)}>
-        <ColumnIcon id={id} />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-          {title}
-        </span>
-        <span className="ml-auto text-[10px] text-zinc-600">{cards.length}</span>
+    <div className="flex h-full w-[300px] shrink-0 flex-col">
+      <div className="flex items-center gap-2 px-1 pb-2">
+        <StatusIcon column={id} />
+        <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{title}</span>
+        <span className="text-[12px] text-zinc-500">{cards.length}</span>
+        <div className="ml-auto flex items-center gap-0.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200">
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onHide}>
+                <EyeOff className="mr-2 h-4 w-4" />
+                {t("issues.kanban.hideColumn")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <button
+            onClick={onAdd}
+            className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
       <div
         ref={setNodeRef}
         className={cn(
-          "flex flex-col gap-2 rounded-md p-1 transition-colors min-h-[60px]",
-          isOver && "bg-zinc-800/40",
+          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-lg bg-zinc-100/50 p-2 transition-colors custom-scrollbar dark:bg-white/[0.02]",
+          isOver && "bg-zinc-200/60 dark:bg-white/[0.05]",
         )}
       >
         <SortableContext items={cards.map((c) => c.id)}>
           {cards.map((card) => (
-            <IssueCard key={card.id} card={card} onSelect={onSelect} />
+            <KanbanCard key={card.id} card={card} onSelect={onSelect} />
           ))}
         </SortableContext>
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] text-zinc-500 transition-colors hover:bg-zinc-200/70 hover:text-zinc-700 dark:hover:bg-white/[0.04] dark:hover:text-zinc-200"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("issues.kanban.addIssue")}
+        </button>
       </div>
     </div>
   );
@@ -149,34 +108,41 @@ function IssueColumn({
 export function IssueKanban({
   issues,
   onSelect,
+  onNewIssue,
 }: {
   issues: IssueDto[];
   onSelect?: (issue: IssueDto) => void;
+  onNewIssue?: () => void;
 }) {
   const { overrides, setOverride } = useIssueKanbanStore();
+  const hiddenColumns = useIssueViewStore((s) => s.hiddenColumns);
+  const hideColumn = useIssueViewStore((s) => s.hideColumn);
+  const showColumn = useIssueViewStore((s) => s.showColumn);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ id: string; column: IssueColumnId } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const COLUMNS_CONFIG: { id: IssueColumnId; borderColor: string }[] = [
-    { id: "backlog",     borderColor: "border-t-zinc-500"    },
-    { id: "todo",        borderColor: "border-t-blue-500"    },
-    { id: "in_progress", borderColor: "border-t-amber-500"   },
-    { id: "done",        borderColor: "border-t-emerald-500" },
-  ];
+  const COLUMN_ORDER: IssueColumnId[] = ["backlog", "todo", "in_progress", "done"];
 
   const cards: IssueCardType[] = useMemo(
     () =>
-      issues.map((issue) => ({
-        id: issue.id,
-        issue,
-        columnId: overrides[issue.id] ?? issueToColumn(issue),
-      })),
-    [issues, overrides],
+      issues.map((issue) => {
+        const override = overrides[issue.id];
+        const base = override && COLUMN_ORDER.includes(override) ? override : issueToColumn(issue);
+        const columnId = preview && preview.id === issue.id ? preview.column : base;
+        return { id: issue.id, issue, columnId };
+      }),
+    [issues, overrides, preview],
   );
+
+  const resolveColumn = (overId: string): IssueColumnId | undefined =>
+    COLUMN_ORDER.includes(overId as IssueColumnId)
+      ? (overId as IssueColumnId)
+      : cards.find((c) => c.id === overId)?.columnId;
 
   const columnCards = useMemo(() => {
     const map: Record<IssueColumnId, IssueCardType[]> = {
@@ -186,7 +152,7 @@ export function IssueKanban({
       done: [],
     };
     for (const card of cards) {
-      map[card.columnId].push(card);
+      (map[card.columnId] ?? map.backlog).push(card);
     }
     return map;
   }, [cards]);
@@ -197,20 +163,34 @@ export function IssueKanban({
     setDraggingId(active.id as string);
   }
 
-  function onDragEnd({ active, over }: DragEndEvent) {
-    setDraggingId(null);
+  function onDragOver({ active, over }: DragOverEvent) {
     if (!over) return;
-    const newColumn = over.id as IssueColumnId;
-    const dragged = cards.find((c) => c.id === (active.id as string));
-    if (dragged && newColumn !== dragged.columnId) {
-      setOverride(active.id as string, newColumn);
-    }
+    const target = resolveColumn(over.id as string);
+    if (target) setPreview({ id: active.id as string, column: target });
+  }
+
+  function onDragEnd() {
+    if (preview) setOverride(preview.id, preview.column);
+    setPreview(null);
+    setDraggingId(null);
+  }
+
+  function onDragCancel() {
+    setPreview(null);
+    setDraggingId(null);
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
-      <div className="flex gap-4 overflow-x-auto pb-4">
-        {COLUMNS_CONFIG.map(({ id, borderColor }) => {
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      onDragCancel={onDragCancel}
+    >
+      <div className="flex h-full gap-4 overflow-x-auto pb-1">
+        {COLUMN_ORDER.filter((id) => !hiddenColumns.includes(id)).map((id) => {
           const col = ISSUE_COLUMNS.find((c) => c.id === id)!;
           return (
             <IssueColumn
@@ -218,15 +198,27 @@ export function IssueKanban({
               id={id}
               title={col.label}
               cards={columnCards[id]}
-              borderColor={borderColor}
               onSelect={onSelect}
+              onAdd={onNewIssue}
+              onHide={() => hideColumn(id)}
             />
           );
         })}
+
+        <KanbanHiddenRail
+          ids={COLUMN_ORDER.filter((id) => hiddenColumns.includes(id))}
+          counts={{
+            backlog: columnCards.backlog.length,
+            todo: columnCards.todo.length,
+            in_progress: columnCards.in_progress.length,
+            done: columnCards.done.length,
+          }}
+          onShow={showColumn}
+        />
       </div>
       {createPortal(
         <DragOverlay>
-          {draggingCard && <IssueCard card={draggingCard} isDragging />}
+          {draggingCard && <KanbanCardView card={draggingCard} overlay />}
         </DragOverlay>,
         document.body,
       )}

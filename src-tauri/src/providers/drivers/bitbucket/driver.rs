@@ -131,6 +131,15 @@ impl VcsProvider for BitbucketDriver {
         Err(AppError::Provider("PR comments not yet supported for Bitbucket".to_string()))
     }
 
+    async fn delete_pull_request_comment(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _comment_id: &str,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("PR comments not yet supported for Bitbucket".to_string()))
+    }
+
     async fn submit_pull_request_review(
         &self,
         _owner: &str,

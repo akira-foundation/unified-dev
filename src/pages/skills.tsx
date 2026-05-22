@@ -1,62 +1,24 @@
-import { useState } from "react";
-import { Search, Trash2, FolderOpen, Globe, ChevronRight } from "lucide-react";
+import { useEffect } from "react";
+import { Trash2, FolderOpen, Globe, ChevronRight, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { PageLayout } from "@/components/layout/page-layout";
-import { PageHeader, PageHeaderMeta, PageHeaderTitle, PageHeaderActions } from "@/components/layout/page-header";
-import { Input } from "@/components/ui/input";
+import { PageHeaderActions } from "@/components/layout/page-header";
+import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAgentsStore, type InstalledSkill } from "@/stores/useAgentsStore";
+import { useNavigationStore } from "@/stores/navigation-store";
+import { useSearchStore } from "@/stores/search-store";
 import { useI18n } from "@/i18n/i18n";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { queryKeys } from "@/lib/query-keys";
 import { skillColor } from "@/lib/skill-color";
-export interface RemoteSkill {
-  uid: string;
-  id: string;
-  name: string;
-  description: string;
-  repo_url: string;
-  installs: number;
-}
-
-export interface SkillSource {
-  id: string;
-  name: string;
-  description: string;
-  type: "remote";
-  repoUrl?: string;
-  branch?: string;
-}
-
-export const SKILL_SOURCES: SkillSource[] = [
-  {
-    id: "skills-sh",
-    name: "skills.sh",
-    description: "Community skill registry",
-    type: "remote",
-  },
-  {
-    id: "claude",
-    name: "Claude",
-    description: "alirezarezvani/claude-skills",
-    type: "remote",
-    repoUrl: "https://github.com/alirezarezvani/claude-skills",
-    branch: "main",
-  },
-  {
-    id: "codex",
-    name: "Codex",
-    description: "ComposioHQ/awesome-codex-skills",
-    type: "remote",
-    repoUrl: "https://github.com/ComposioHQ/awesome-codex-skills",
-    branch: "master",
-  },
-];
+import { SKILL_SOURCES } from "@/lib/skill-sources";
 
 interface SkillIconProps {
   className?: string;
@@ -95,7 +57,8 @@ export function SkillsPage() {
   const { t } = useI18n();
   const { setSelectedSkill, setSelectedSkillSource, repositoryGroups, selectedIssueId } = useAgentsStore();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const registerSearch = useSearchStore((s) => s.registerProvider);
+  const isAgentMode = useNavigationStore((s) => s.isAgentMode);
 
   const activeThread = repositoryGroups
     .flatMap((g) => g.repositories.flatMap((r) => r.issues))
@@ -122,6 +85,23 @@ export function SkillsPage() {
     },
   });
 
+  const syncSkills = useMutation({
+    mutationFn: async () => {
+      const [list] = await Promise.all([
+        invoke<InstalledSkill[]>("sync_skills", { workspacePath }),
+        new Promise((resolve) => setTimeout(resolve, 600)),
+      ]);
+      return list;
+    },
+    onSuccess: (list) => {
+      queryClient.setQueryData(queryKeys.skills(), list);
+      toast.success(t("pages.skills.syncToast").replace("{count}", String(list.length)));
+    },
+    onError: (error) => {
+      toast.error(t("pages.skills.syncFailed").replace("{error}", String(error)));
+    },
+  });
+
   const changeIcon = async (id: string) => {
     const selected = await openDialog({
       multiple: false,
@@ -138,44 +118,40 @@ export function SkillsPage() {
     queryClient.invalidateQueries({ queryKey: queryKeys.skills() });
   };
 
-  const query = search.toLowerCase();
+  const filteredInstalled = installedSkills;
 
-  const filteredInstalled = installedSkills.filter(
-    (s) =>
-      !search ||
-      s.name.toLowerCase().includes(query) ||
-      s.description.toLowerCase().includes(query),
-  );
+  useEffect(() => {
+    if (!isAgentMode) return;
+    registerSearch({
+      placeholder: t("pages.skills.searchPlaceholder"),
+      items: installedSkills.map((s) => ({
+        id: s.id,
+        title: s.name,
+        subtitle: s.description,
+        onSelect: () => setSelectedSkill(s),
+      })),
+    });
+    return () => registerSearch(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [installedSkills, isAgentMode]);
 
   return (
     <PageLayout scroll>
-      <div className="mx-auto w-full max-w-6xl pb-12">
-        <PageHeader className="px-8">
-          <div>
-            <div className="flex items-center gap-3">
-              <PageHeaderTitle className="text-3xl">{t("pages.skills.title")}</PageHeaderTitle>
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border text-[9px] text-zinc-500 shrink-0 font-black uppercase tracking-wider h-fit">
-                {t("common.beta")}
-              </span>
-            </div>
-            <PageHeaderMeta>
-              <span>{t("pages.skills.subtitle")}</span>
-            </PageHeaderMeta>
-          </div>
-          <PageHeaderActions className="gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
-              <Input
-                placeholder={t("pages.skills.searchPlaceholder")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-64 pl-9 focus-visible:ring-purple-500/50"
-              />
-            </div>
-          </PageHeaderActions>
-        </PageHeader>
+      <PageHeaderActions>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={() => syncSkills.mutate()}
+          disabled={syncSkills.isPending}
+          title={t("pages.skills.sync")}
+        >
+          <RefreshCw className={cn("h-4 w-4", syncSkills.isPending && "animate-spin")} />
+        </Button>
+      </PageHeaderActions>
 
-        <div className="px-8 flex flex-col gap-12 mt-4">
+      <div className="mx-auto w-full max-w-6xl pb-12">
+
+        <div className="px-6 flex flex-col gap-6 mt-2">
           {/* Installed Section */}
           <div>
             <h2 className="text-[13px] font-black uppercase tracking-[0.15em] text-zinc-500 mb-6">

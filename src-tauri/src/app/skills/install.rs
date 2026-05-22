@@ -6,40 +6,7 @@ use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
 use super::types::InstalledSkill;
-
-fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
-    let mut name: Option<String> = None;
-    let mut description: Option<String> = None;
-    let mut lines = content.lines();
-    if lines.next().map(str::trim) != Some("---") {
-        return (name, description);
-    }
-    for line in lines {
-        let trimmed = line.trim();
-        if trimmed == "---" {
-            break;
-        }
-        if let Some(rest) = trimmed.strip_prefix("name:") {
-            name = Some(rest.trim().to_string());
-        } else if let Some(rest) = trimmed.strip_prefix("description:") {
-            description = Some(rest.trim().to_string());
-        }
-    }
-    (name, description)
-}
-
-fn title_case(s: &str) -> String {
-    s.split('-')
-        .map(|w| {
-            let mut c = w.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
+use super::{parse_frontmatter, title_case};
 
 pub async fn install(
     skill_id: String,

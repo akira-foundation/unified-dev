@@ -71,50 +71,44 @@ export function AgendaView({ organizations, allRepos }: AgendaViewProps) {
   const maxSummaryValue = Math.max(organizations.length, 1);
 
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      <div className="lg:col-span-2 space-y-4">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="lg:col-span-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div>
+              <CardTitle className="text-[13px] font-semibold text-foreground">
                 {t("agenda.history.title")}
               </CardTitle>
-              <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-zinc-500/80">
+              <CardDescription className="text-xs text-muted-foreground">
                 {t("agenda.history.subtitle")}
               </CardDescription>
             </div>
-            <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-widest h-8 px-3">
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
               {t("agenda.viewAll")}
             </Button>
           </CardHeader>
-          <CardContent className="p-0 border-t border-zinc-100 dark:border-zinc-800/50">
+          <CardContent className="border-t border-zinc-100 px-0 dark:border-zinc-800/60">
             {agendaItems.length === 0 ? (
-              <div className="flex items-center justify-center py-10">
-                <p className="text-sm text-zinc-400 dark:text-zinc-500 italic">
-                  {t("agenda.empty")}
-                </p>
+              <div className="flex items-center justify-center py-8">
+                <p className="text-sm italic text-zinc-400 dark:text-zinc-500">{t("agenda.empty")}</p>
               </div>
             ) : (
-              <div className="divide-y divide-zinc-100 dark:divide-zinc-800/50">
+              <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                 {agendaItems.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center gap-4 px-6 py-4 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/10 transition-colors group cursor-pointer"
+                    className="group flex cursor-pointer items-center gap-3 px-4 py-2.5 transition-colors hover:bg-zinc-50/60 dark:hover:bg-zinc-900/20"
                   >
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate mb-0.5">
-                        {item.title}
-                      </h4>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{item.subtitle}</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate text-[13px] font-medium text-zinc-900 dark:text-zinc-100">{item.title}</h4>
+                      <p className="truncate text-xs text-zinc-500 dark:text-zinc-500">{item.subtitle}</p>
                     </div>
-
-                    <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-zinc-400 dark:text-zinc-600 shrink-0">
+                    <div className="hidden shrink-0 items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-600 sm:flex">
                       <Clock size={12} className="opacity-70" />
                       {item.syncDate.toLocaleDateString(locale, { day: "numeric", month: "short" })},{" "}
                       {item.syncDate.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                     </div>
-
-                    <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="h-4 w-4 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-500 dark:text-zinc-600" />
                   </div>
                 ))}
               </div>
@@ -124,30 +118,15 @@ export function AgendaView({ organizations, allRepos }: AgendaViewProps) {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
-            {t("agenda.summary.title")}
-          </CardTitle>
-          <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-zinc-500/80">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[13px] font-semibold text-foreground">{t("agenda.summary.title")}</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
             {formatWeekLabel(weekStart, weekEnd, locale)}
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 p-6 pt-6">
-          <div className="space-y-6">
-            <SummaryBar
-              label={t("agenda.summary.syncs")}
-              value={syncsThisWeek}
-              max={maxSummaryValue}
-              barClass="bg-purple-500 dark:bg-purple-500/80 shadow-[0_0_12px_rgba(168,85,247,0.4)]"
-            />
-            <SummaryBar
-              label={t("agenda.summary.repos")}
-              value={reposCount}
-              max={Math.max(reposCount, 1)}
-              barClass="bg-blue-500 dark:bg-blue-500/80 shadow-[0_0_12px_rgba(59,130,246,0.4)]"
-            />
-          </div>
-
+        <CardContent className="space-y-4 px-4 pb-4">
+          <SummaryBar label={t("agenda.summary.syncs")} value={syncsThisWeek} max={maxSummaryValue} barClass="bg-purple-500" />
+          <SummaryBar label={t("agenda.summary.repos")} value={reposCount} max={Math.max(reposCount, 1)} barClass="bg-blue-500" />
         </CardContent>
       </Card>
     </div>
@@ -168,11 +147,11 @@ function SummaryBar({
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
     <div>
-      <div className="flex justify-between items-end mb-2">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-500">{label}</span>
-        <span className="text-lg font-black text-zinc-900 dark:text-white leading-none">{value}</span>
+      <div className="mb-1.5 flex items-end justify-between">
+        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</span>
+        <span className="text-base font-semibold leading-none text-zinc-900 dark:text-white">{value}</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800/50">
+      <div className="h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800/60">
         <div className={cn("h-full rounded-full transition-all duration-500", barClass)} style={{ width: `${pct}%` }} />
       </div>
     </div>

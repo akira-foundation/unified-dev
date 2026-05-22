@@ -1,6 +1,7 @@
 import { RefreshCcw, Plus, Search, Settings } from "lucide-react";
 import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderTitle, PageHeaderMeta, PageHeaderActions } from "@/components/layout/page-header";
+import { AppbarActions } from "@/components/layout/appbar-actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,11 +98,21 @@ export function AutomationsPage() {
 
   return (
     <PageLayout scroll>
+      <AppbarActions>
+        <Button variant="ghost" className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs">
+          <RefreshCcw className="mr-2 h-3.5 w-3.5" />
+          {t("common.refresh")}
+        </Button>
+        <Button onClick={() => setActiveTab("create-automation")} className="gap-1.5">
+          <Plus className="h-4 w-4" strokeWidth={3} />
+          {t("common.newAutomation")}
+        </Button>
+      </AppbarActions>
       <div className="mx-auto w-full max-w-6xl pb-12">
         <PageHeader className="px-8">
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <PageHeaderTitle className="text-3xl">{t("pages.automations.title")}</PageHeaderTitle>
+              <PageHeaderTitle>{t("pages.automations.title")}</PageHeaderTitle>
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md dark:bg-white/5 bg-black/5 dark:border-white/5 border-border border text-[9px] text-zinc-500 shrink-0 font-black uppercase tracking-wider h-fit">
                 {t("common.beta")}
               </span>
@@ -118,17 +129,6 @@ export function AutomationsPage() {
                 className="w-64 pl-9 focus-visible:ring-purple-500/50"
               />
             </div>
-            <Button variant="ghost" className="text-zinc-400 hover:text-foreground dark:hover:bg-white/5 hover:bg-black/5 font-medium text-xs">
-              <RefreshCcw className="mr-2 h-3.5 w-3.5" />
-              {t("common.refresh")}
-            </Button>
-            <Button
-              onClick={() => setActiveTab("create-automation")}
-              className="gap-1.5"
-            >
-              <Plus className="h-4 w-4" strokeWidth={3} />
-              {t("common.newAutomation")}
-            </Button>
           </PageHeaderActions>
         </PageHeader>
 

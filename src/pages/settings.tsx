@@ -34,7 +34,7 @@ import { AgentsTab } from "@/components/settings/agents-tab";
 import { RemoteTab } from "@/components/settings/remote-tab";
 import { ShortcutsTab } from "@/components/settings/shortcuts-tab";
 import { DictationTab } from "@/components/settings/dictation-tab";
-import { SyncSettingsTab } from "@/components/settings/sync-settings-tab";
+import { SyncTab } from "@/components/settings/sync-tab";
 import { AdvancedTab } from "@/components/settings/advanced-tab";
 import { VcsProvidersTab } from "@/components/settings/vcs-providers-tab";
 import { WorkspacesTab } from "@/components/settings/workspaces-tab";
@@ -124,7 +124,7 @@ export function SettingsPage() {
         </div>
       </PageHeader>
 
-      <div className="mx-auto w-full max-w-6xl pb-12 flex gap-8">
+      <div className="mx-auto w-full max-w-6xl pb-6 flex gap-6">
         <div className="w-64 shrink-0 flex flex-col gap-6">
           {SETTINGS_GROUPS.filter((group) =>
             group.items.some((tab) => SHOW_COMING_SOON || !COMING_SOON_TABS.includes(tab.id)),
@@ -182,7 +182,7 @@ export function SettingsPage() {
               {id === "integrations"  && <IntegrationsTab />}
               {id === "agents"        && <AgentsTab />}
               {id === "remote"        && <RemoteTab />}
-              {id === "sync"          && <SyncSettingsTab />}
+              {id === "sync"          && <SyncTab />}
               {id === "shortcuts"     && <ShortcutsTab />}
               {id === "dictation"     && <DictationTab />}
               {id === "advanced"      && <AdvancedTab />}

@@ -43,7 +43,7 @@ export function CreateAutomationPage() {
             <span className="text-sm font-medium">{t("pages.createAutomation.back")}</span>
           </button>
           <div>
-            <PageHeaderTitle className="text-3xl">
+            <PageHeaderTitle>
               {selectedAutomation ? t("pages.createAutomation.titleConfigure") : t("pages.createAutomation.titleCreate")}
             </PageHeaderTitle>
             <PageHeaderMeta>

@@ -49,6 +49,14 @@ export function issueToColumn(issue: IssueDto): IssueColumnId {
   return "done";
 }
 
+export function orderIssuesByColumn(issues: IssueDto[]): IssueDto[] {
+  const order: IssueColumnId[] = ["in_progress", "todo", "backlog", "done"];
+  const map: Record<IssueColumnId, IssueDto[]> = { backlog: [], todo: [], in_progress: [], done: [] };
+  issues.forEach((issue) => map[issueToColumn(issue)].push(issue));
+  order.forEach((col) => map[col].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
+  return order.flatMap((col) => map[col]);
+}
+
 /** @deprecated use IssueDto */
 export interface IssueSummary {
   id: string;

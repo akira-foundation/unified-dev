@@ -111,7 +111,7 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
 }
 
 pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth: ProviderAuth) -> AppResult<ProviderAuth> {
-    let ProviderAuth::GitHubApp { .. } = auth else {
+    let ProviderAuth::GitHubApp { oauth_access_token, oauth_refresh_token, oauth_expires_at, .. } = auth else {
         return Ok(auth);
     };
 
@@ -132,9 +132,9 @@ pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth:
     .unix_timestamp();
 
     let new_auth = ProviderAuth::GitHubApp {
-        oauth_access_token: String::new(),
-        oauth_refresh_token: None,
-        oauth_expires_at: None,
+        oauth_access_token,
+        oauth_refresh_token,
+        oauth_expires_at,
         installation_token: response.token,
         installation_id: response.installation_id,
         expires_at,

@@ -81,6 +81,11 @@ pub async fn post_pr_comment(state: State<'_, AppState>, organization_id: String
 }
 
 #[tauri::command]
+pub async fn delete_pr_comment(state: State<'_, AppState>, organization_id: String, repo_name: String, comment_id: String) -> Result<(), String> {
+    orgs::delete_pr_comment(state, organization_id, repo_name, comment_id).await
+}
+
+#[tauri::command]
 pub async fn submit_pr_review(state: State<'_, AppState>, organization_id: String, repo_name: String, pr_number: u64, event: PrReviewEvent, body: Option<String>) -> Result<(), String> {
     orgs::submit_pr_review(state, organization_id, repo_name, pr_number, event, body).await
 }

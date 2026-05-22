@@ -108,7 +108,7 @@ export function OpenSourcePage() {
     <PageLayout>
       <OpenSourceHeader summary={summary} />
 
-      <div className="flex flex-col gap-10 px-4 pb-10 md:px-6">
+      <div className="flex flex-col gap-6 pb-6">
         {isLoading || !summary ? (
           <ContributionStatsCardsSkeleton />
         ) : (

@@ -12,7 +12,7 @@ const Command = React.forwardRef<
   <CommandPrimitive
     ref={ref}
     className={cn(
-      "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
+      "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground dark:bg-[#262626]",
       className,
     )}
     {...props}
@@ -25,8 +25,8 @@ interface CommandDialogProps extends DialogProps {}
 const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
   return (
     <Dialog {...props}>
-      <DialogContent className="overflow-hidden p-0 shadow-lg border-none max-w-2xl bg-[#0F0F0F] rounded-2xl">
-        <Command className="border-4 rounded-2xl [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 ">
+      <DialogContent className="overflow-hidden p-0 shadow-lg border-none max-w-2xl bg-popover text-popover-foreground dark:bg-[#262626] rounded-2xl">
+        <Command className="border-4 border-border rounded-2xl [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]:not([hidden])_~[cmdk-group]]:pt-0 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-3 [&_[cmdk-item]_svg]:h-5 [&_[cmdk-item]_svg]:w-5 ">
           {children}
         </Command>
       </DialogContent>
@@ -101,7 +101,7 @@ const CommandSeparator = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <CommandPrimitive.Separator
     ref={ref}
-    className={cn("-mx-1 h-px bg-white/5", className)}
+    className={cn("-mx-1 h-px bg-zinc-200 dark:bg-white/5", className)}
     {...props}
   />
 ));
@@ -114,7 +114,7 @@ const CommandItem = React.forwardRef<
   <CommandPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer gap-3 select-none items-center rounded-xl px-3 py-2.5 text-sm outline-none data-[disabled=true]:pointer-events-none data-[selected='true']:bg-white/5 data-[selected=true]:text-white data-[disabled=true]:opacity-50 transition-all [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-zinc-500 data-[selected=true]:[&_svg]:text-purple-400",
+      "relative flex cursor-pointer gap-3 select-none items-center rounded-md px-3 py-2 text-sm text-foreground outline-none data-[disabled=true]:pointer-events-none data-[selected=true]:bg-zinc-100 dark:data-[selected='true']:bg-white/5 data-[selected=true]:text-zinc-900 dark:data-[selected=true]:text-white data-[disabled=true]:opacity-50 transition-colors [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-zinc-500 data-[selected=true]:[&_svg]:text-purple-400",
       className,
     )}
     {...props}

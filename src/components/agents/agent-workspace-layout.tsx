@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useI18n } from "@/i18n/i18n";
@@ -6,28 +5,19 @@ import { AgentHeader } from "./agent-header";
 import { AgentTimeline } from "./agent-timeline";
 import { PrCiCard } from "./pr-ci-card";
 import { PrMergedBanner } from "./pr-merged-banner";
-import { DiffViewer } from "./diff-viewer";
+import { AgentDiffIsland } from "./agent-diff-island";
 import { AgentChatInput } from "./agent-chat-input";
 import { AgentStatusBar } from "./agent-status-bar";
-import { TerminalPanel } from "./terminal-panel";
 import type { AgentIssue, AgentRepository, RepositoryGroup } from "@/types/agents";
 
-import { FileEditor } from "./file-editor";
 import { SkillsPage } from "@/pages/skills";
 import { SkillDetailsPage } from "@/pages/skill-details";
 import { SkillSourcePage } from "@/pages/skill-source";
 import { AutomationsPage } from "@/pages/automations";
 import { CreateAutomationPage } from "@/pages/create-automation";
 import { McpPage } from "@/pages/mcp";
-import { useEffect, useRef, useState, useCallback } from "react";
-
-const DIFF_MIN_WIDTH = 280;
-const DIFF_MAX_WIDTH = 900;
-const DIFF_DEFAULT_WIDTH = 500;
-const CHAT_MIN_WIDTH = 500;
-const TERMINAL_MIN_HEIGHT = 100;
-const TERMINAL_MAX_HEIGHT = 600;
-const TERMINAL_DEFAULT_HEIGHT = 260;
+import { useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export function AgentWorkspaceLayout() {
   const { t } = useI18n();
@@ -37,12 +27,14 @@ export function AgentWorkspaceLayout() {
     selectedIssueId,
     timelineSteps,
     fileChanges,
-    selectedFilePath,
+    setSelectedFilePath,
     activeTab,
     isRightSidebarOpen,
     setIsRightSidebarOpen,
-    isTerminalOpen,
-    setIsTerminalOpen,
+    diffViewTab,
+    setDiffViewTab,
+    islandPanel,
+    setIslandPanel,
     messagesByThread,
     messagesLoadingByThread,
     streamingContentByThread,
@@ -54,74 +46,26 @@ export function AgentWorkspaceLayout() {
     repositoriesLoaded,
   } = useAgentsStore();
 
-  const [diffWidth, setDiffWidth] = useState(DIFF_DEFAULT_WIDTH);
-  const isDragging = useRef(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [terminalHeight, setTerminalHeight] = useState(TERMINAL_DEFAULT_HEIGHT);
-  const isTerminalDragging = useRef(false);
-  const [isTerminalMounted, setIsTerminalMounted] = useState(false);
-
-  const onTerminalResizeMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    isTerminalDragging.current = true;
-    document.body.style.cursor = "row-resize";
-    document.body.style.userSelect = "none";
-
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!isTerminalDragging.current) return;
-      const next = Math.min(TERMINAL_MAX_HEIGHT, Math.max(TERMINAL_MIN_HEIGHT, window.innerHeight - ev.clientY));
-      setTerminalHeight(next);
+  useEffect(() => {
+    if (!isAgentMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      const toggleDiff = (tab: "changes" | "files") => {
+        e.preventDefault();
+        if (isRightSidebarOpen && islandPanel === "diff" && diffViewTab === tab) setIsRightSidebarOpen(false);
+        else { setIslandPanel("diff"); setDiffViewTab(tab); setIsRightSidebarOpen(true); }
+      };
+      if (mod && e.shiftKey && e.key.toLowerCase() === "d") toggleDiff("changes");
+      else if (mod && e.shiftKey && e.key.toLowerCase() === "f") toggleDiff("files");
+      else if (e.ctrlKey && e.key === "`") {
+        e.preventDefault();
+        if (isRightSidebarOpen && islandPanel === "terminal") setIsRightSidebarOpen(false);
+        else { setIslandPanel("terminal"); setIsRightSidebarOpen(true); }
+      }
     };
-
-    const onMouseUp = () => {
-      isTerminalDragging.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }, []);
-
-  const handleToggleTerminal = useCallback(() => {
-    if (!isTerminalMounted) {
-      setIsTerminalMounted(true);
-      setIsTerminalOpen(true);
-    } else if (isTerminalOpen) {
-      setIsTerminalOpen(false);
-    } else {
-      setIsTerminalOpen(true);
-    }
-  }, [isTerminalMounted, isTerminalOpen, setIsTerminalOpen]);
-
-  const onMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    isDragging.current = true;
-    setIsResizing(true);
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!isDragging.current) return;
-      const maxAllowed = window.innerWidth - CHAT_MIN_WIDTH;
-      const next = Math.min(DIFF_MAX_WIDTH, Math.max(DIFF_MIN_WIDTH, Math.min(maxAllowed, window.innerWidth - ev.clientX)));
-      setDiffWidth(next);
-    };
-
-    const onMouseUp = () => {
-      isDragging.current = false;
-      setIsResizing(false);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  }, []);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isAgentMode, isRightSidebarOpen, islandPanel, diffViewTab, setIsRightSidebarOpen, setDiffViewTab, setIslandPanel]);
 
   const isCurrentThreadStreaming = !!streamingThreadIds[selectedIssueId ?? ""];
   const streamingContent = streamingContentByThread[selectedIssueId ?? ""] ?? "";
@@ -162,6 +106,16 @@ export function AgentWorkspaceLayout() {
 
     return () => clearInterval(interval);
   }, [isCurrentThreadStreaming, selectedIssue?.workspacePath, loadFileChanges]);
+
+  useEffect(() => {
+    if (!isAgentMode) return;
+    const workspacePath = selectedIssue?.workspacePath;
+    if (!workspacePath) return;
+    const unlisten = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) loadFileChanges(workspacePath);
+    });
+    return () => { void unlisten.then((fn) => fn()); };
+  }, [isAgentMode, selectedIssue?.workspacePath, loadFileChanges]);
 
   if (activeTab === "skills") {
     return (
@@ -213,7 +167,6 @@ export function AgentWorkspaceLayout() {
 
   if (!selectedIssue) {
     if (!repositoriesLoaded && selectedIssueId) {
-      // Repos still loading — show skeletons only briefly
       return (
         <div className="flex flex-col h-full bg-background pt-4">
           <div className="flex-1 flex overflow-hidden relative">
@@ -236,7 +189,6 @@ export function AgentWorkspaceLayout() {
       );
     }
 
-    // repositoriesLoaded=true but no matching thread — stale selectedIssueId, show splash
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-background h-full relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
@@ -261,89 +213,50 @@ export function AgentWorkspaceLayout() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background pt-4">
+    <div className="flex flex-col h-full bg-background">
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 flex flex-col min-w-0 bg-background">
-          {!selectedFilePath && <AgentHeader issue={selectedIssue} />}
+          <AgentHeader issue={selectedIssue} />
 
-          {selectedFilePath ? (
-            <div className="flex-1 overflow-y-auto custom-scrollbar">
-              <FileEditor />
+          <div className="flex-1 flex flex-col overflow-hidden max-w-5xl mx-auto w-full px-6">
+            <PrCiCard threadId={selectedIssue.id} className="mt-3" />
+            <div className="flex-1 overflow-y-auto py-8" style={{ scrollbarWidth: "none" }}>
+              <AgentTimeline
+                steps={timelineSteps}
+                messages={messages}
+                streamingContent={streamingContent}
+                isStreaming={isCurrentThreadStreaming}
+                toolCalls={toolCalls}
+                isLoadingMessages={messagesLoading}
+              />
             </div>
-          ) : (
-            <div className="flex-1 flex flex-col overflow-hidden max-w-5xl mx-auto w-full px-6">
-              <PrCiCard threadId={selectedIssue.id} className="mt-3" />
-              <div className="flex-1 overflow-y-auto py-8" style={{ scrollbarWidth: "none" }}>
-                <AgentTimeline
-                  steps={timelineSteps}
-                  messages={messages}
-                  streamingContent={streamingContent}
-                  isStreaming={isCurrentThreadStreaming}
-                  toolCalls={toolCalls}
-                  isLoadingMessages={messagesLoading}
-                />
-              </div>
-              <div className="shrink-0 pb-6 pt-2">
-                <PrMergedBanner threadId={selectedIssue.id} threadTitle={selectedIssue.title} className="mb-3" />
-                <AgentChatInput />
-              </div>
+            <div className="shrink-0 pb-6 pt-2">
+              <PrMergedBanner threadId={selectedIssue.id} threadTitle={selectedIssue.title} className="mb-3" />
+              <AgentChatInput />
             </div>
-          )}
-        </div>
-
-        <div
-          className={cn(
-            "h-full flex shrink-0 overflow-hidden",
-            !isResizing && "transition-all duration-300 ease-in-out",
-            isRightSidebarOpen ? "border-l border-border/10" : "w-0"
-          )}
-          style={isRightSidebarOpen ? { width: diffWidth } : undefined}
-        >
-          {isRightSidebarOpen && (
-            <div
-              className="w-1 h-full cursor-col-resize shrink-0 group relative"
-              onMouseDown={onMouseDown}
-            >
-              <div className="absolute inset-y-0 left-0 w-1 group-hover:bg-purple-500/40 group-active:bg-purple-500/60 transition-colors" />
-            </div>
-          )}
-          <div className="flex-1 h-full min-w-0">
-            <DiffViewer files={fileChanges} />
           </div>
         </div>
-      </div>
 
-      {isTerminalMounted && (
-        <div
-          className={cn(
-            "shrink-0 relative",
-            isTerminalOpen ? "border-t border-white/[0.06]" : "h-0 overflow-hidden"
-          )}
-          style={isTerminalOpen ? { height: terminalHeight } : undefined}
-        >
-          {isTerminalOpen && (
-            <div
-              className="absolute top-0 left-0 right-0 h-1 cursor-row-resize group z-10"
-              onMouseDown={onTerminalResizeMouseDown}
-            >
-              <div className="absolute inset-x-0 top-0 h-1 group-hover:bg-purple-500/40 group-active:bg-purple-500/60 transition-colors" />
-            </div>
-          )}
-          <TerminalPanel
-            onMinimize={() => setIsTerminalOpen(false)}
-            onClose={() => { setIsTerminalOpen(false); setIsTerminalMounted(false); }}
-            cwd={selectedIssue.workspacePath}
+        {isRightSidebarOpen && (
+          <AgentDiffIsland
+            branchName={selectedIssue.branchName}
+            files={fileChanges}
+            workspacePath={selectedIssue.workspacePath}
+            onClose={() => { setIsRightSidebarOpen(false); setSelectedFilePath(null); }}
           />
-        </div>
-      )}
+        )}
+      </div>
 
       <AgentStatusBar
         branchName={selectedIssue.branchName}
         toolCallCount={toolCalls.length}
         isRightOpen={isRightSidebarOpen}
         onToggleRight={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-        isTerminalOpen={isTerminalOpen}
-        onToggleTerminal={handleToggleTerminal}
+        isTerminalOpen={isRightSidebarOpen && islandPanel === "terminal"}
+        onToggleTerminal={() => {
+          if (isRightSidebarOpen && islandPanel === "terminal") setIsRightSidebarOpen(false);
+          else { setIslandPanel("terminal"); setIsRightSidebarOpen(true); }
+        }}
       />
     </div>
   );

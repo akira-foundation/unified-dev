@@ -8,17 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { AgentIssue } from "@/types/agents";
-import {
-  ChevronDown,
-  GitPullRequest,
-  Monitor,
-  CloudUpload,
-  ExternalLink,
-  GitCommitHorizontal,
-  GitBranch,
-  GitMerge,
-  Eye,
-} from "lucide-react";
+import { ChevronDown, ExternalLink, GitCommitHorizontal, GitMerge, Eye } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
@@ -27,53 +17,21 @@ import { useSettingsStore } from "@/stores/settings-store";
 import { useI18n } from "@/i18n/i18n";
 import { usePRChecksPolling } from "@/hooks/usePRChecks";
 import { PrCiToggle } from "@/components/agents/pr-ci-toggle";
-import { PrDetailSheet } from "@/components/repos/pr-detail-sheet";
+import { useNavigationStore } from "@/stores/navigation-store";
+import { AppbarActions } from "@/components/layout/appbar-actions";
+import { AgentPanelSelector } from "@/components/agents/agent-panel-selector";
+import { buildActionConfigs, type ActionConfig, type HeaderAction } from "@/components/agents/agent-header-config";
 import type { PullRequestDto } from "@/types/organization";
 
 interface AgentHeaderProps {
   issue: AgentIssue;
 }
 
-type HeaderAction = "merge_local" | "merge_push" | "draft_pr" | "create_pr" | "merge_commit";
-
-interface ActionConfig {
-  label: string;
-  description: string;
-  icon: React.ElementType;
-}
-
 export function AgentHeader({ issue }: AgentHeaderProps) {
   const { t } = useI18n();
-  const ACTION_CONFIGS: Record<HeaderAction, ActionConfig> = {
-    merge_local: {
-      label: t("agents.header.action.mergeLocal.label"),
-      description: t("agents.header.action.mergeLocal.description"),
-      icon: Monitor,
-    },
-    merge_push: {
-      label: t("agents.header.action.mergePush.label"),
-      description: t("agents.header.action.mergePush.description"),
-      icon: CloudUpload,
-    },
-    draft_pr: {
-      label: t("agents.header.action.draftPr.label"),
-      description: t("agents.header.action.draftPr.description"),
-      icon: GitPullRequest,
-    },
-    create_pr: {
-      label: t("agents.header.action.createPr.label"),
-      description: t("agents.header.action.createPr.description"),
-      icon: GitPullRequest,
-    },
-    merge_commit: {
-      label: t("agents.header.action.mergeCommit.label"),
-      description: t("agents.header.action.mergeCommit.description"),
-      icon: GitCommitHorizontal,
-    },
-  };
+  const ACTION_CONFIGS = buildActionConfigs(t);
   const [selectedAction, setSelectedAction] = useState<HeaderAction>("draft_pr");
   const [isActioning, setIsActioning] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetCtx, setSheetCtx] = useState<{ pr: PullRequestDto; orgId: string; repo: string; owner: string } | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const ci = useAgentsStore((s) => s.prCiByThread[issue.id]);
@@ -81,6 +39,8 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const { fileChanges, sendMessage, repositoryGroups, getEffectiveModelId, prUrlByThread, loadPrUrl, setThreadPrInfo } = useAgentsStore();
   const isStreaming = useAgentsStore((s) => !!s.streamingThreadIds[issue.id]);
   const { getPrompt } = useSettingsStore();
+  const { navigateTo, setActivePr, setActiveRepo } = useNavigationStore();
+  const isAgentMode = useNavigationStore((s) => s.isAgentMode);
 
   const currentAction = ACTION_CONFIGS[selectedAction];
 
@@ -134,14 +94,16 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
   const handleOpenSheet = async () => {
     try {
-      await fetchContext();
-      setSheetOpen(true);
+      const ctx = await fetchContext();
+      setActiveRepo({ name: ctx.repo, owner: ctx.owner, organizationId: ctx.orgId });
+      setActivePr(ctx.pr);
+      navigateTo("pr-detail");
     } catch (err) {
-      toast.error(`Failed to open PR sheet: ${err}`);
+      toast.error(`Failed to open PR: ${err}`);
     }
   };
 
-  const handleAction = async () => {
+  const handleAction = async (actionOverride?: HeaderAction) => {
     if (!effectiveModelId) {
       toast.error(t("agents.header.toast.noModel"));
       return;
@@ -149,7 +111,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
 
     setIsActioning(true);
     try {
-      const actionKey = prUrl ? "merge_commit" : selectedAction;
+      const actionKey = prUrl ? "merge_commit" : (actionOverride ?? selectedAction);
       const basePrompt = getPrompt(actionKey);
       const linearMatch = issue.title.match(/^([a-z]+)-(\d+)-/i);
       const linearId = linearMatch ? `${linearMatch[1].toUpperCase()}-${linearMatch[2]}` : null;
@@ -166,119 +128,46 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
     }
   };
 
-  return (
-    <header className="border-b border-border/30 flex flex-col gap-0.5 px-4 py-2 bg-background backdrop-blur-md shrink-0">
-      <div className="flex items-center justify-between gap-3 min-w-0">
-        <div className="flex items-center gap-1.5 min-w-0 text-[11px] font-medium tracking-tight text-foreground/40 flex-1">
-          <span className="truncate">{issue.repoName}</span>
-          <span className="shrink-0">/</span>
-          <span className="inline-flex items-center gap-1 shrink-0 font-mono text-[10.5px]">
-            <GitBranch className="h-3 w-3" />
-            <span className="truncate max-w-[280px]">{issue.branchName}</span>
-          </span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-        {prUrl && prUrl.state !== "MERGED" && <PrCiToggle threadId={issue.id} />}
-        {prUrl && prUrl.state !== "MERGED" && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={handleOpenSheet}
-              title="Open PR sheet"
-              className="h-8 w-8 p-0 text-sky-400 rounded-md hover:bg-sky-500/10 border border-sky-500/20 hover:border-sky-500/40 transition-all cursor-pointer"
-            >
-              <Eye className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => openUrl(prUrl.url)}
-              title={t("agents.header.viewPr")}
-              className="h-8 w-8 p-0 text-[#A855F7] rounded-md hover:bg-[#A855F7]/10 border border-[#A855F7]/20 hover:border-[#A855F7]/40 transition-all cursor-pointer"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
-        {prUrl?.state === "MERGED" && (
-          <Button
-            variant="ghost"
-            onClick={() => openUrl(prUrl.url)}
-            title={prUrl.mergedAt ? `Merged ${new Date(prUrl.mergedAt).toLocaleString()}` : "Merged"}
-            className="h-8 inline-flex items-center gap-1.5 px-2.5 text-[12px] font-semibold text-emerald-400 rounded-md hover:bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/50 transition-all cursor-pointer"
-          >
-            <GitMerge className="h-3.5 w-3.5" />
-            <span>Merged</span>
-          </Button>
-        )}
-        {prUrl && prUrl.state !== "MERGED" && allChecksPass && (
-          <div className="ml-1 pl-2 border-l border-border/40">
-            <Button
-              variant="ghost"
-              onClick={handleMergePr}
-              disabled={isMerging}
-              title="Merge PR"
-              className="h-8 inline-flex items-center gap-1.5 px-2.5 text-[12px] font-semibold text-emerald-400 rounded-md hover:bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-500/50 transition-all cursor-pointer disabled:opacity-60"
-            >
-              <GitMerge className="h-3.5 w-3.5" />
-              <span>{isMerging ? "Merging…" : "Merge"}</span>
-            </Button>
-          </div>
-        )}
-        {fileChanges.length > 0 && !isStreaming && (
-          <div className="flex items-center dark:bg-[#0F0F0F] bg-secondary rounded-xl dark:border-white/5 border-border border shadow-2xl overflow-hidden transition-all duration-300">
-            <Button
-              variant="ghost"
-              disabled={isActioning}
-              onClick={handleAction}
-              className="h-8 pl-4 pr-3 text-foreground/90 text-[12px] font-semibold gap-2.5 rounded-none hover:bg-transparent transition-all border-none cursor-pointer"
-            >
-              {prUrl ? (
-                <>
-                  <GitCommitHorizontal className="h-4 w-4 text-[#A855F7]" />
-                  <span>{t("agents.header.pushChanges")}</span>
-                </>
-              ) : (
-                <>
-                  <currentAction.icon className="h-4 w-4 text-[#A855F7]" />
-                  <span>{currentAction.label}</span>
-                </>
-              )}
-            </Button>
+  if (!isAgentMode) return null;
 
-            {!prUrl && (
+  return (
+    <AppbarActions>
+      <div className="flex items-center gap-2">
+        {fileChanges.length > 0 && !isStreaming && (
+          prUrl ? (
+            <Button onClick={() => void handleAction()} disabled={isActioning} title={t("agents.header.pushChanges")}>
+              <GitCommitHorizontal className="h-4 w-4" />
+              <span className="hidden xl:inline">{t("agents.header.pushChanges")}</span>
+            </Button>
+          ) : (
+            <div className="flex items-center">
+              <Button onClick={() => void handleAction()} disabled={isActioning} className="rounded-r-none" title={currentAction.label}>
+                <currentAction.icon className="h-4 w-4" />
+                <span className="hidden xl:inline">{currentAction.label}</span>
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-9 rounded-none dark:hover:bg-white/5 hover:bg-black/5 text-zinc-400 hover:text-foreground transition-colors border-none cursor-pointer"
-                  >
+                  <Button size="icon-sm" disabled={isActioning} className="rounded-l-none border-l border-l-white/20">
                     <ChevronDown className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-80 dark:bg-[#0F0F0F] bg-popover dark:border-white/[0.05] border-border p-2 shadow-2xl rounded-2xl backdrop-blur-3xl animate-in fade-in zoom-in-95 duration-200"
-                >
+                <DropdownMenuContent align="end" className="w-80 bg-popover border-border p-2 shadow-md rounded-xl">
                   {(Object.entries(ACTION_CONFIGS) as [HeaderAction, ActionConfig][])
                     .filter(([key]) => key !== "merge_commit")
                     .map(([key, config]) => (
                       <DropdownMenuItem
                         key={key}
-                        onSelect={() => setSelectedAction(key)}
+                        onSelect={() => { setSelectedAction(key); void handleAction(key); }}
                         className={cn(
-                          "flex items-start gap-3.5 p-3.5 dark:focus:bg-white/[0.03] focus:bg-black/[0.03] rounded-xl cursor-pointer group transition-all duration-200",
-                          selectedAction === key && "dark:bg-white/[0.02] bg-black/[0.02]"
+                          "flex items-start gap-3 p-3 rounded-lg cursor-pointer group",
+                          selectedAction === key && "dark:bg-white/[0.04] bg-black/[0.04]"
                         )}
                       >
                         <div className={cn(
-                          "h-9 w-9 rounded-lg dark:bg-white/5 bg-black/5 flex items-center justify-center shrink-0 dark:border-white/5 border-border border group-hover:bg-[#A855F7]/10 group-hover:border-[#A855F7]/20 transition-all duration-200",
-                          selectedAction === key && "bg-[#A855F7]/10 border-[#A855F7]/20"
+                          "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 border border-border group-hover:bg-purple-500/10 group-hover:border-purple-500/20 transition-colors",
+                          selectedAction === key ? "bg-purple-500/10 border-purple-500/20" : "dark:bg-white/[0.04] bg-black/[0.04]"
                         )}>
-                          <config.icon className={cn(
-                            "h-4 w-4 transition-colors",
-                            selectedAction === key ? "text-[#A855F7]" : "text-zinc-400 group-hover:text-[#A855F7]"
-                          )} />
+                          <config.icon className={cn("h-4 w-4 transition-colors", selectedAction === key ? "text-purple-500" : "text-zinc-400 group-hover:text-purple-500")} />
                         </div>
                         <div className="flex flex-col gap-0.5">
                           <span className="text-[13px] font-semibold text-foreground/90 tracking-tight">{config.label}</span>
@@ -288,26 +177,48 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
                     ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-            )}
-          </div>
+            </div>
+          )
         )}
-        </div>
+
+        {prUrl && prUrl.state !== "MERGED" && allChecksPass && (
+          <Button
+            variant="ghost"
+            onClick={handleMergePr}
+            disabled={isMerging}
+            title="Merge PR"
+            className="border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400 dark:hover:bg-emerald-500/20"
+          >
+            <GitMerge className="h-4 w-4" />
+            <span className="hidden xl:inline">{isMerging ? "Merging…" : "Merge"}</span>
+          </Button>
+        )}
+
+        {prUrl?.state === "MERGED" && (
+          <Button
+            variant="outline"
+            onClick={() => openUrl(prUrl.url)}
+            title={prUrl.mergedAt ? `Merged ${new Date(prUrl.mergedAt).toLocaleString()}` : "Merged"}
+            className="text-emerald-600 dark:text-emerald-400"
+          >
+            <GitMerge className="h-4 w-4" />
+            <span className="hidden xl:inline">Merged</span>
+          </Button>
+        )}
+
+        {prUrl && prUrl.state !== "MERGED" && (
+          <Button variant="outline" size="icon-sm" onClick={() => openUrl(prUrl.url)} title={t("agents.header.viewPr")}>
+            <ExternalLink className="h-4 w-4" />
+          </Button>
+        )}
+        {prUrl && prUrl.state !== "MERGED" && (
+          <Button variant="outline" size="icon-sm" onClick={handleOpenSheet} title="Open PR">
+            <Eye className="h-4 w-4" />
+          </Button>
+        )}
+        {prUrl && prUrl.state !== "MERGED" && <PrCiToggle threadId={issue.id} />}
+        <AgentPanelSelector />
       </div>
-      <span className="text-[15px] font-semibold tracking-tight text-foreground/90 truncate min-w-0">
-        {issue.title}
-      </span>
-      {sheetCtx && (
-        <PrDetailSheet
-          pr={sheetCtx.pr}
-          open={sheetOpen}
-          organizationId={sheetCtx.orgId}
-          repoName={sheetCtx.repo}
-          owner={sheetCtx.owner}
-          onOpenChange={setSheetOpen}
-          onOpenUrl={(url) => openUrl(url)}
-          onMerged={() => setSheetOpen(false)}
-        />
-      )}
-    </header>
+    </AppbarActions>
   );
 }

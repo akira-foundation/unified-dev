@@ -91,11 +91,6 @@ pub fn get_or_create(app: &tauri::AppHandle) -> AppResult<MachineIdentity> {
     Ok(identity)
 }
 
-pub fn save(app: &tauri::AppHandle, identity: &MachineIdentity) -> AppResult<()> {
-    let path = identity_path(app)?;
-    persist(&path, identity)
-}
-
 fn identity_path(app: &tauri::AppHandle) -> AppResult<std::path::PathBuf> {
     let dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&dir)?;

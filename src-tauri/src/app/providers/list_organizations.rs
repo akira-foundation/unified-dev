@@ -16,7 +16,6 @@ struct GitHubUser {
 
 #[derive(serde::Deserialize, Clone)]
 struct GitHubInstallationFull {
-    id: u64,
     account: Account,
     html_url: String,
 }

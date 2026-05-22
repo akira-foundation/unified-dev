@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -72,8 +73,8 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-zinc-600 transition-colors hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40",
-            "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0",
+            "flex w-full items-center gap-2.5 rounded-md bg-zinc-100/70 px-3 py-2 text-left text-zinc-600 transition-colors hover:bg-zinc-200/70 dark:bg-white/[0.04] dark:text-zinc-400 dark:hover:bg-white/[0.07]",
+            "group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0",
           )}
         >
           {avatar}
@@ -97,19 +98,15 @@ export function UserMenu() {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        side="top"
-        align="start"
-        className="w-64 p-0 bg-zinc-950 border-zinc-800"
-      >
-        <div className="flex items-center gap-2.5 px-3 py-3 border-b border-zinc-800">
+      <DropdownMenuContent side="top" align="start" className="w-64">
+        <DropdownMenuLabel className="flex items-center gap-2.5 py-2 font-normal">
           {avatar}
           <div className="flex min-w-0 flex-col">
-            <span className="truncate text-[12px] font-medium text-zinc-200">{email}</span>
+            <span className="truncate text-[13px] font-medium">{email}</span>
             {currentPlan && (
               <span
                 className={cn(
-                  "w-fit rounded px-1 py-px text-[10px] font-semibold capitalize",
+                  "mt-0.5 w-fit rounded px-1 py-px text-[10px] font-semibold capitalize",
                   PLAN_BADGE[currentPlan] ?? "bg-zinc-500/10 text-zinc-400",
                 )}
               >
@@ -117,36 +114,21 @@ export function UserMenu() {
               </span>
             )}
           </div>
-        </div>
-
-        <div className="p-1">
-          <DropdownMenuItem
-            onClick={handleSettings}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer"
-          >
-            <Settings className="h-3.5 w-3.5 text-zinc-500" />
-            {t("nav.settings")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={handleSubscription}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 cursor-pointer"
-          >
-            <CreditCard className="h-3.5 w-3.5 text-zinc-500" />
-            {t("nav.subscription")}
-          </DropdownMenuItem>
-        </div>
-
-        <DropdownMenuSeparator className="bg-zinc-800" />
-
-        <div className="p-1">
-          <DropdownMenuItem
-            onClick={handleLogout}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] text-rose-400 hover:bg-zinc-800 hover:text-rose-300 cursor-pointer"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            {t("nav.signOut")}
-          </DropdownMenuItem>
-        </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleSettings}>
+          <Settings />
+          {t("nav.settings")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSubscription}>
+          <CreditCard />
+          {t("nav.subscription")}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+          <LogOut />
+          {t("nav.signOut")}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

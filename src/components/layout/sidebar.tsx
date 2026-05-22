@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import type { NavBadge, NavBadgeTone, NavItem } from "@/types/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -59,6 +60,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const setActiveRepo = useNavigationStore((s) => s.setActiveRepo);
   const navigateTo = useNavigationStore((s) => s.navigateTo);
   const { organizations } = useOrganizations();
+  const activeThreadCount = useAgentsStore((s) => Object.values(s.streamingThreadIds).filter(Boolean).length);
 
   const { data: allRepos = [] } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -87,6 +89,8 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     staleTime: cache.staleTime.short,
   });
 
+  const totalOpenPrs = allRepos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
+
   const itemsBySection = useMemo(() => {
     const groups: Record<string, NavItem[]> = { workspace: [], browse: [] };
     for (const item of items) {
@@ -111,8 +115,14 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
   function badgeFor(item: NavItem): NavBadge | undefined {
     if (item.badge) return item.badge;
+    if (item.id === "agents" && activeThreadCount > 0) {
+      return { text: activeThreadCount, tone: "green" };
+    }
     if (item.id === "issues" && openIssues > 0) {
       return { text: openIssues, tone: "amber" };
+    }
+    if (item.id === "prs" && totalOpenPrs > 0) {
+      return { text: totalOpenPrs, tone: "blue" };
     }
     if (item.id === "repository" && allRepos.length > 0) {
       return { text: allRepos.length, tone: "muted" };
@@ -138,8 +148,8 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
           className={cn(
             "h-10 rounded-xl px-3 transition-colors duration-150",
             isActive
-              ? "bg-white/70 text-zinc-900 shadow-sm shadow-black/5 dark:bg-zinc-800/70 dark:text-white"
-              : "text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40",
+              ? "bg-white/70 text-zinc-900 shadow-sm shadow-black/5 dark:bg-white/[0.1] dark:text-white"
+              : "text-zinc-600 hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-white/[0.06]",
             "group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0",
           )}
         >
@@ -213,7 +223,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
                             navigateTo("repository-detail");
                           }}
                           tooltip={repo.repo_name}
-                          className="h-9 rounded-xl px-3 text-zinc-600 transition-colors hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
+                          className="h-9 rounded-xl px-3 text-zinc-600 transition-colors hover:bg-zinc-200/40 dark:text-zinc-400 dark:hover:bg-white/[0.06]"
                         >
                           <ToneDot tone={tone} />
                           <span className="truncate text-[13px] font-medium">{repo.repo_name}</span>

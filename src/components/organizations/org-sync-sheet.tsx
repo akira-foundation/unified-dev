@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Eye, RefreshCw } from "lucide-react";
+import { Eye, RefreshCw } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Sheet,
@@ -8,8 +8,6 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -147,159 +145,115 @@ export function OrgSyncSheet({ organization, open, onOpenChange }: OrgSyncSheetP
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
-          <div className="flex flex-col gap-3 p-2">
-            <Collapsible defaultOpen>
-              <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
-                <CollapsibleTrigger className="w-full cursor-pointer">
-                  <div className="flex flex-row items-center gap-3 px-4 py-3">
-                    <div className="h-7 w-7 flex items-center justify-center rounded-lg bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
-                      <RefreshCw size={14} strokeWidth={2} />
-                    </div>
-                    <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-white/95 leading-none flex-1 text-left">
-                      {t("settings.sync.title")}
-                    </CardTitle>
-                    <ChevronDown className="h-3.5 w-3.5 text-zinc-400 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
-                    {ROWS.map(({ label, description, enabledKey, intervalKey, intervalKind }) => {
-                      const enabled = current[enabledKey];
-                      const intervalSecs = current[intervalKey];
-                      const globalEnabled = globalFallback[enabledKey];
-                      const globalInterval = globalFallback[intervalKey];
-                      const isDefault =
-                        enabled === globalEnabled && intervalSecs === globalInterval;
-
-                      return (
-                        <div key={enabledKey} className="flex items-center justify-between px-4 py-3 gap-4">
-                          <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-semibold text-zinc-900 dark:text-white">
-                                {label}
-                              </span>
-                              {!isDefault && (
-                                <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                                  {t("settings.sync.overrides.activeBadge")}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                              {description}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-3 shrink-0">
-                            {enabled && (
-                              <Select
-                                value={String(intervalSecs)}
-                                onValueChange={(v) => patch(intervalKey, Number(v))}
-                              >
-                                <SelectTrigger className="w-28 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {INTERVAL_OPTIONS[intervalKind].map((opt) => (
-                                    <SelectItem key={opt.value} value={String(opt.value)}>
-                                      {opt.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                            <Switch
-                              checked={enabled}
-                              onCheckedChange={(v) => patch(enabledKey, v)}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-
-            <Collapsible defaultOpen>
-              <Card className="overflow-hidden gap-0 border-zinc-200/50 dark:border-zinc-800/50 shadow-sm">
-                <CollapsibleTrigger className="w-full cursor-pointer">
-                  <div className="flex flex-row items-center gap-3 px-4 py-3">
-                    <div className="h-7 w-7 flex items-center justify-center rounded-lg bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
-                      <Eye size={14} strokeWidth={2} />
-                    </div>
-                    <CardTitle className="text-sm font-semibold text-zinc-900 dark:text-white/95 leading-none flex-1 text-left">
-                      {t("pages.organization.visibility.title")}
-                    </CardTitle>
-                    <ChevronDown className="h-3.5 w-3.5 text-zinc-400 transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <CardContent className="divide-y divide-zinc-100 dark:divide-zinc-800/50 px-0">
-                    <div className="flex items-center justify-between px-4 py-3 gap-4">
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span className="text-xs font-semibold text-zinc-900 dark:text-white">{t("pages.organization.visibility.issues")}</span>
+          <section className="border-b border-zinc-100 px-4 py-4 dark:border-zinc-800/60">
+            <div className="mb-1.5 flex items-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">{t("settings.sync.title")}</span>
+            </div>
+            <div className="flex flex-col">
+              {ROWS.map(({ label, description, enabledKey, intervalKey, intervalKind }) => {
+                const enabled = current[enabledKey];
+                const intervalSecs = current[intervalKey];
+                const isDefault = enabled === globalFallback[enabledKey] && intervalSecs === globalFallback[intervalKey];
+                return (
+                  <div key={enabledKey} className="flex items-center justify-between gap-4 py-2">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{label}</span>
+                        {!isDefault && (
+                          <span className="shrink-0 rounded bg-purple-500/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-purple-500">
+                            {t("settings.sync.overrides.activeBadge")}
+                          </span>
+                        )}
                       </div>
-                      <Select
-                        value={organizationIssueScopes[orgId] ?? "default"}
-                        onValueChange={async (value) => {
-                          const next = value === "default" ? null : value as IssueScope;
-                          setOrganizationIssueScope(orgId, next);
-                          await invoke("upsert_visibility_preferences", {
-                            input: {
-                              scopeType: "organization",
-                              scopeId: orgId,
-                              issueScope: next ?? "my_queue",
-                              prScope: organizationPrScopes[orgId] ?? "mine_or_review_requested",
-                              assignIssuesToSelf: true,
-                            },
-                          });
-                        }}
-                      >
-                        <SelectTrigger className="w-40 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="default">{t("visibility.useGlobalDefault")}</SelectItem>
-                          <SelectItem value="my_queue">{t(issueScopeLabelKey("my_queue"))}</SelectItem>
-                          <SelectItem value="all_open">{t(issueScopeLabelKey("all_open"))}</SelectItem>
-                          <SelectItem value="all">{t(issueScopeLabelKey("all"))}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{description}</p>
                     </div>
-                    <div className="flex items-center justify-between px-4 py-3 gap-4">
-                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                        <span className="text-xs font-semibold text-zinc-900 dark:text-white">{t("pages.organization.visibility.prs")}</span>
-                      </div>
-                      <Select
-                        value={organizationPrScopes[orgId] ?? "default"}
-                        onValueChange={async (value) => {
-                          const next = value === "default" ? null : value as PullRequestScope;
-                          setOrganizationPrScope(orgId, next);
-                          await invoke("upsert_visibility_preferences", {
-                            input: {
-                              scopeType: "organization",
-                              scopeId: orgId,
-                              issueScope: organizationIssueScopes[orgId] ?? "my_queue",
-                              prScope: next ?? "mine_or_review_requested",
-                              assignIssuesToSelf: true,
-                            },
-                          });
-                        }}
-                      >
-                        <SelectTrigger className="w-44 h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="default">{t("visibility.useGlobalDefault")}</SelectItem>
-                          <SelectItem value="mine_or_review_requested">{t(prScopeLabelKey("mine_or_review_requested"))}</SelectItem>
-                          <SelectItem value="all_open">{t(prScopeLabelKey("all_open"))}</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="flex shrink-0 items-center gap-2.5">
+                      {enabled && (
+                        <Select value={String(intervalSecs)} onValueChange={(v) => patch(intervalKey, Number(v))}>
+                          <SelectTrigger className="h-8 w-28 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {INTERVAL_OPTIONS[intervalKind].map((opt) => (
+                              <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <Switch checked={enabled} onCheckedChange={(v) => patch(enabledKey, v)} />
                     </div>
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className="px-4 py-4">
+            <div className="mb-1.5 flex items-center gap-2">
+              <Eye className="h-3.5 w-3.5 text-purple-500" />
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">{t("pages.organization.visibility.title")}</span>
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center justify-between gap-4 py-2">
+                <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{t("pages.organization.visibility.issues")}</span>
+                <Select
+                  value={organizationIssueScopes[orgId] ?? "default"}
+                  onValueChange={async (value) => {
+                    const next = value === "default" ? null : value as IssueScope;
+                    setOrganizationIssueScope(orgId, next);
+                    await invoke("upsert_visibility_preferences", {
+                      input: {
+                        scopeType: "organization",
+                        scopeId: orgId,
+                        issueScope: next ?? "my_queue",
+                        prScope: organizationPrScopes[orgId] ?? "mine_or_review_requested",
+                        assignIssuesToSelf: true,
+                      },
+                    });
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-40 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">{t("visibility.useGlobalDefault")}</SelectItem>
+                    <SelectItem value="my_queue">{t(issueScopeLabelKey("my_queue"))}</SelectItem>
+                    <SelectItem value="all_open">{t(issueScopeLabelKey("all_open"))}</SelectItem>
+                    <SelectItem value="all">{t(issueScopeLabelKey("all"))}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between gap-4 py-2">
+                <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{t("pages.organization.visibility.prs")}</span>
+                <Select
+                  value={organizationPrScopes[orgId] ?? "default"}
+                  onValueChange={async (value) => {
+                    const next = value === "default" ? null : value as PullRequestScope;
+                    setOrganizationPrScope(orgId, next);
+                    await invoke("upsert_visibility_preferences", {
+                      input: {
+                        scopeType: "organization",
+                        scopeId: orgId,
+                        issueScope: organizationIssueScopes[orgId] ?? "my_queue",
+                        prScope: next ?? "mine_or_review_requested",
+                        assignIssuesToSelf: true,
+                      },
+                    });
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-44 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">{t("visibility.useGlobalDefault")}</SelectItem>
+                    <SelectItem value="mine_or_review_requested">{t(prScopeLabelKey("mine_or_review_requested"))}</SelectItem>
+                    <SelectItem value="all_open">{t(prScopeLabelKey("all_open"))}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
         </div>
 
         {/* Footer */}

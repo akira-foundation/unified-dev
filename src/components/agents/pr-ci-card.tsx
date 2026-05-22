@@ -57,7 +57,7 @@ function OpenInAppButton({ threadId, checkName }: { threadId: string; checkName?
       setActiveRepo(repo);
       setActivePr(ctx.pr);
       setTargetCheckName(checkName ?? null);
-      navigateTo("pr-review");
+      navigateTo("pr-detail");
     } catch (err) {
       toast.error(`Failed to open PR review: ${err}`);
     }

@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { EditorContent } from "@tiptap/react";
 import { toast } from "sonner";
 import { Check, MessageSquare, X } from "lucide-react";
 
 import { useI18n } from "../../i18n/i18n";
+import { useIssueComposerEditor } from "../../hooks/useIssueComposerEditor";
 import { Button } from "../ui/button";
 import {
   Sheet,
@@ -16,6 +18,9 @@ import type { PrReviewEvent, PullRequestDto } from "../../types/organization";
 import type { ActiveRepo } from "../../stores/navigation-store";
 
 type ReviewMode = "comment" | "approve" | "request_changes";
+
+const EDITOR_CLASS =
+  "issue-editor [&_.ProseMirror]:min-h-[160px] [&_.ProseMirror]:max-w-none [&_.ProseMirror]:text-sm [&_.ProseMirror]:outline-none [&_.ProseMirror_p]:my-0 [&_.ProseMirror_p]:leading-6 [&_.ProseMirror_ul]:my-2 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6 [&_.ProseMirror_ol]:my-2 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_li]:my-1 [&_.ProseMirror_p.is-editor-empty:first-child::before]:pointer-events-none [&_.ProseMirror_p.is-editor-empty:first-child::before]:float-left [&_.ProseMirror_p.is-editor-empty:first-child::before]:h-0 [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-sm [&_.ProseMirror_p.is-editor-empty:first-child::before]:text-muted-foreground/40 [&_.ProseMirror_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]";
 
 export function PrReviewSheet({
   pr,
@@ -33,6 +38,13 @@ export function PrReviewSheet({
   const [reviewBody, setReviewBody] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
+
+  const editor = useIssueComposerEditor({
+    placeholder: t("components.prReview.placeholder"),
+    open,
+    recreateKey: pr.number,
+    onChange: setReviewBody,
+  });
 
   const handleOpenChange = (next: boolean) => {
     if (!next) {
@@ -62,6 +74,7 @@ export function PrReviewSheet({
       setReviewSuccess(msg);
       setReviewBody("");
       setReviewMode("comment");
+      editor?.commands.clearContent();
     } catch (err) {
       const raw = String(err);
       const errorsMatch = raw.match(/"errors"\s*:\s*\["([^"]+)"/);
@@ -118,12 +131,12 @@ export function PrReviewSheet({
         ) : (
           <>
             <div className="flex-1 overflow-y-auto flex flex-col">
-              <textarea
-                value={reviewBody}
-                onChange={(e) => setReviewBody(e.target.value)}
-                placeholder={t("components.prReview.placeholder")}
-                className="flex-1 min-h-[160px] w-full bg-white dark:bg-zinc-900 px-5 py-4 text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-600 resize-none focus:outline-none"
-              />
+              <div
+                className="flex-1 px-5 py-4 text-zinc-900 dark:text-white"
+                onClick={() => editor?.commands.focus()}
+              >
+                <EditorContent editor={editor} className={EDITOR_CLASS} />
+              </div>
 
               <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                 {reviewOptions.map(({ value, label, description, icon }) => (

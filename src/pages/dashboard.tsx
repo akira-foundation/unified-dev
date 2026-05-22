@@ -1,24 +1,15 @@
 import { Activity, FileText, GitPullRequest, Plus, RefreshCw, Search, Sparkles, Building2 } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useToggle } from "@uidotdev/usehooks";
 
-import {
-  PageHeader,
-  PageHeaderActions,
-  PageHeaderMeta,
-  PageHeaderTitle,
-} from "@/components/layout/page-header";
 import { PageLayout } from "@/components/layout/page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { KanbanBoard, KanbanFilterPopover } from "@/components/kanban-board";
-import { AgendaView } from "@/components/agenda-view";
 import { AddOrganizationDialog } from "@/components/organizations/add-organization-dialog";
+import { StatCard } from "@/components/stat-card";
+import { AgendaView } from "@/components/agenda-view";
 import { useI18n } from "@/i18n/i18n";
-import { useDateLabel } from "@/hooks/use-date-label";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useProviders } from "@/hooks/useProviders";
 import { useNavigationStore } from "@/stores/navigation-store";
@@ -30,12 +21,10 @@ import type { OrganizationRepoWithOrg } from "@/types/organization";
 
 export function DashboardPage() {
   const { t, locale } = useI18n();
-  const dateLabel = useDateLabel(locale);
   const { organizations, createOrganization } = useOrganizations();
   const { providers } = useProviders();
-  const { dashboardTab, setDashboardTab, setActiveRepo, navigateTo } = useNavigationStore();
+  const { setActiveRepo, navigateTo } = useNavigationStore();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [kanbanCompact, toggleKanbanCompact] = useToggle(false);
 
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -57,64 +46,10 @@ export function DashboardPage() {
 
   return (
     <PageLayout scroll={false}>
-      <PageHeader>
-        <div>
-          <PageHeaderTitle>
-            {t("dashboard.header.title") ?? "Overview"}
-          </PageHeaderTitle>
-          <PageHeaderMeta>
-            <span>{t("app.name")}</span>
-            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span>{dateLabel}</span>
-          </PageHeaderMeta>
-        </div>
-        <PageHeaderActions>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus size={18} />
-            {t("dashboard.header.newOrg") ?? "New Organization"}
-          </Button>
-        </PageHeaderActions>
-      </PageHeader>
-
-      <div className="flex min-h-0 flex-1 flex-col px-4 md:px-6 ">
-        <Tabs value={dashboardTab} onValueChange={setDashboardTab} className="flex h-full w-full flex-col">
-          <div className="flex shrink-0 mb-8 items-center justify-between">
-            <TabsList className="h-auto gap-1 bg-zinc-100/50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800/50">
-              {[
-                { key: "overview", label: t("dashboard.tabs.overview") ?? "Overview" },
-                { key: "prs",      label: t("dashboard.tabs.prs")      ?? "PRs" },
-                { key: "syncs",    label: t("dashboard.tabs.syncs")    ?? "Syncs" },
-              ].map((tab) => (
-                <TabsTrigger key={tab.key} value={tab.key}>
-                  {tab.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            {dashboardTab === "prs" && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => toggleKanbanCompact()}
-                  className={cn(
-                    "cursor-pointer flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
-                    kanbanCompact
-                      ? "border-zinc-600 bg-zinc-800 text-zinc-200"
-                      : "border-zinc-200 bg-zinc-100/50 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-500 hover:border-zinc-600 hover:text-zinc-300",
-                  )}
-                >
-                  <FileText size={13} />
-                  Compact
-                </button>
-                <KanbanFilterPopover />
-              </div>
-            )}
-          </div>
-
-          <div className="min-h-0 flex-1 overflow-auto custom-scrollbar">
-            <TabsContent value="overview" className="mt-0 h-full space-y-10 pb-10">
+      <div className="space-y-6 px-4 pb-6 md:px-6">
 
               {/* Stat Cards */}
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                   label={t("dashboard.stats.organizations")}
                   value={organizations.length}
@@ -153,19 +88,19 @@ export function DashboardPage() {
                   color="text-purple-500"
                   bg="bg-purple-500/10"
                   loading={reposLoading}
-                  onClick={() => setDashboardTab("prs")}
+                  onClick={() => navigateTo("prs")}
                 />
               </div>
 
               {/* Bottom grid */}
-              <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
                 {/* Repositories */}
                 <div className="lg:col-span-2">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
                       <div className="flex items-start gap-3">
-                        <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 shadow-sm bg-indigo-500/10 text-indigo-500">
+                        <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 bg-indigo-500/10 text-indigo-500">
                           <Activity size={16} />
                         </div>
                         <div>
@@ -190,7 +125,7 @@ export function DashboardPage() {
                       {reposLoading ? (
                         <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-800/50">
                           {[...Array(4)].map((_, i) => (
-                            <div key={i} className="flex items-center gap-4 px-6 py-4">
+                            <div key={i} className="flex items-center gap-3 px-4 py-2.5">
                               <Skeleton className="h-10 w-10 rounded-md shrink-0" />
                               <div className="flex flex-col gap-1.5 flex-1">
                                 <Skeleton className="h-3.5 w-40" />
@@ -211,11 +146,11 @@ export function DashboardPage() {
                           <button
                             key={`${repo.organization_id}:${repo.repo_name}`}
                             onClick={() => handleRepoClick(repo)}
-                            className="w-full flex items-center justify-between px-6 py-4 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 text-left cursor-pointer"
+                            className="w-full flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-zinc-50/50 dark:hover:bg-zinc-900/20 text-left cursor-pointer"
                           >
-                            <div className="flex items-center gap-4">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
-                                <span className="text-sm font-bold text-zinc-600 dark:text-zinc-400">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-800/50">
+                                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">
                                   {repo.repo_name.charAt(0).toUpperCase()}
                                 </span>
                               </div>
@@ -244,7 +179,7 @@ export function DashboardPage() {
                               <span className={cn(
                                 "text-[10px] font-medium px-1.5 py-0.5 rounded",
                                 repo.visibility === "private"
-                                  ? "bg-zinc-800 text-zinc-400"
+                                  ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
                               )}>
                                 {repo.visibility}
@@ -262,7 +197,7 @@ export function DashboardPage() {
                   <Card>
                     <CardHeader>
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 shadow-sm bg-purple-500/10 text-purple-500">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800 bg-purple-500/10 text-purple-500">
                           <Sparkles size={16} />
                         </div>
                         <CardTitle className="text-sm font-bold uppercase tracking-[0.15em]">
@@ -279,10 +214,10 @@ export function DashboardPage() {
                         <button
                           key={action.label}
                           onClick={action.onClick}
-                          className="cursor-pointer group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-3 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
+                          className="cursor-pointer group flex w-full items-center gap-2 rounded-md bg-zinc-50/50 dark:bg-zinc-900/40 p-2.5 transition-all hover:bg-zinc-100 dark:hover:bg-zinc-800/50 active:scale-[0.98]"
                         >
-                          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md transition-transform group-hover:scale-110", action.bg, action.color)}>
-                            <action.icon size={20} />
+                          <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-transform group-hover:scale-110", action.bg, action.color)}>
+                            <action.icon size={18} />
                           </div>
                           <span className="text-sm font-bold text-zinc-900 dark:text-zinc-200">{action.label}</span>
                         </button>
@@ -291,17 +226,8 @@ export function DashboardPage() {
                   </Card>
                 </div>
               </div>
-            </TabsContent>
 
-            <TabsContent value="prs" className="mt-0 h-full">
-              <KanbanBoard compact={kanbanCompact} />
-            </TabsContent>
-
-            <TabsContent value="syncs" className="mt-0 h-full">
               <AgendaView organizations={organizations} allRepos={allRepos} />
-            </TabsContent>
-          </div>
-        </Tabs>
       </div>
 
       <AddOrganizationDialog
@@ -311,55 +237,5 @@ export function DashboardPage() {
         onSubmit={createOrganization}
       />
     </PageLayout>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  color,
-  bg,
-  loading,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  sub: string;
-  icon: React.ElementType;
-  color: string;
-  bg: string;
-  loading: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn("text-left w-full rounded-xl", onClick && "cursor-pointer group")}
-    >
-      <Card className={cn("h-full transition-colors", onClick && "group-hover:border-zinc-600 group-hover:bg-zinc-900/60")}>
-        <CardHeader className="flex flex-row items-center justify-between p-5 pb-3 pointer-events-none">
-          <CardDescription className="text-[10px] font-bold uppercase tracking-widest">
-            {label}
-          </CardDescription>
-          <div className={cn("h-8 w-8 rounded-md flex items-center justify-center border border-zinc-100 dark:border-zinc-800 shadow-sm", bg, color)}>
-            <Icon size={16} />
-          </div>
-        </CardHeader>
-        <CardContent className="flex justify-between items-end p-4 pt-4 gap-1.5 border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/30 dark:bg-white/[0.02]">
-          {loading ? (
-            <Skeleton className="h-8 w-12" />
-          ) : (
-            <div className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white leading-none">
-              {value}
-            </div>
-          )}
-          <div className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest pb-0.5">
-            {sub}
-          </div>
-        </CardContent>
-      </Card>
-    </button>
   );
 }

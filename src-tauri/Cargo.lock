@@ -54,10 +54,11 @@ dependencies = [
 
 [[package]]
 name = "akira-billing"
-version = "0.3.7"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf4649c5e071ecd0601255a826dae99aba7ef4342a8703b1bc9a87f7a3cb8622"
+checksum = "5e8c2e448166b98ae93397b552a2038f35f133ef4d6c3bd03eb0908c42eec7ac"
 dependencies = [
+ "aes-gcm",
  "async-trait",
  "base64 0.22.1",
  "chrono",
@@ -65,6 +66,8 @@ dependencies = [
  "futures",
  "hex",
  "hmac",
+ "keyring",
+ "machine-uid",
  "rand 0.8.6",
  "reqwest 0.12.28",
  "serde",
@@ -2542,6 +2545,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyring"
+version = "3.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eebcc3aff044e5944a8fbaf69eb277d11986064cba30c468730e8b9909fb551c"
+dependencies = [
+ "log",
+ "zeroize",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2698,6 +2711,17 @@ dependencies = [
  "objc2",
  "objc2-foundation",
  "time",
+]
+
+[[package]]
+name = "machine-uid"
+version = "0.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d7217d573cdb141d6da43113b098172e057d39915d79c4bdedbc3aacd46bd96"
+dependencies = [
+ "libc",
+ "windows-registry 0.6.1",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5236,8 +5260,8 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "url",
- "windows-registry",
- "windows-result",
+ "windows-registry 0.5.3",
+ "windows-result 0.3.4",
 ]
 
 [[package]]
@@ -5997,7 +6021,7 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "unified-dev"
-version = "0.9.0"
+version = "0.10.1"
 dependencies = [
  "aes-gcm",
  "akira-billing",
@@ -6009,6 +6033,7 @@ dependencies = [
  "futures-util",
  "hex",
  "hmac",
+ "lazy_static",
  "onyx-rs",
  "portable-pty",
  "rand 0.9.4",
@@ -6520,8 +6545,8 @@ dependencies = [
  "windows-implement",
  "windows-interface",
  "windows-link 0.1.3",
- "windows-result",
- "windows-strings",
+ "windows-result 0.3.4",
+ "windows-strings 0.4.2",
 ]
 
 [[package]]
@@ -6586,8 +6611,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b8a9ed28765efc97bbc954883f4e6796c33a06546ebafacbabee9696967499e"
 dependencies = [
  "windows-link 0.1.3",
- "windows-result",
- "windows-strings",
+ "windows-result 0.3.4",
+ "windows-strings 0.4.2",
+]
+
+[[package]]
+name = "windows-registry"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02752bf7fbdcce7f2a27a742f798510f3e5ad88dbe84871e5168e2120c3d5720"
+dependencies = [
+ "windows-link 0.2.1",
+ "windows-result 0.4.1",
+ "windows-strings 0.5.1",
 ]
 
 [[package]]
@@ -6600,12 +6636,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "windows-result"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5"
+dependencies = [
+ "windows-link 0.2.1",
+]
+
+[[package]]
 name = "windows-strings"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56e6c93f3a0c3b36176cb1327a4958a0353d5d166c2a35cb268ace15e91d3b57"
 dependencies = [
  "windows-link 0.1.3",
+]
+
+[[package]]
+name = "windows-strings"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7837d08f69c77cf6b07689544538e017c1bfcf57e34b4c0ff58e6c2cd3b37091"
+dependencies = [
+ "windows-link 0.2.1",
 ]
 
 [[package]]

@@ -1,0 +1,98 @@
+import { useEffect, useState, type ReactNode } from "react";
+import { SearchX } from "lucide-react";
+
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { useSearchStore } from "@/stores/search-store";
+import { useI18n } from "@/i18n/i18n";
+
+function isTyping(): boolean {
+  const el = document.activeElement;
+  return (
+    el instanceof HTMLElement &&
+    (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)
+  );
+}
+
+function highlight(text: string, query: string): ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i === -1) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark className="bg-transparent font-bold text-purple-600 dark:text-purple-400">{text.slice(i, i + q.length)}</mark>
+      {text.slice(i + q.length)}
+    </>
+  );
+}
+
+export function SearchOverlay() {
+  const { t } = useI18n();
+  const open = useSearchStore((s) => s.open);
+  const setOpen = useSearchStore((s) => s.setOpen);
+  const provider = useSearchStore((s) => s.provider);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || isTyping()) return;
+      if (!useSearchStore.getState().provider) return;
+      e.preventDefault();
+      setOpen(true);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [setOpen]);
+
+  useEffect(() => {
+    if (!open) setQuery("");
+  }, [open]);
+
+  if (!provider) return null;
+
+  return (
+    <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandInput
+        placeholder={provider.placeholder}
+        value={query}
+        onValueChange={setQuery}
+        className="h-11"
+      />
+      <CommandList className="h-[400px] custom-scrollbar">
+        <CommandEmpty className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+          <SearchX className="h-5 w-5 text-zinc-600" />
+          <span className="text-[13px] font-medium text-zinc-400">{t("search.noResults")}</span>
+          <span className="text-[11px] text-zinc-600">{t("search.tryDifferent")}</span>
+        </CommandEmpty>
+        <CommandGroup>
+          {provider.items.map((item) => (
+            <CommandItem
+              key={item.id}
+              value={`${item.title} ${item.subtitle ?? ""}`}
+              onSelect={() => {
+                item.onSelect();
+                setOpen(false);
+              }}
+            >
+              {item.icon}
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-[13px] font-medium text-foreground">{highlight(item.title, query)}</span>
+                {item.subtitle && (
+                  <span className="truncate text-xs text-muted-foreground">{item.subtitle}</span>
+                )}
+              </div>
+            </CommandItem>
+          ))}
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
+  );
+}

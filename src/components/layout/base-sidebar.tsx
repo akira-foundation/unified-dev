@@ -34,7 +34,7 @@ export function BaseSidebar({
     <Sidebar
       collapsible="offcanvas"
       variant="floating"
-      className="bg-transparent [&_[data-sidebar=sidebar]]:bg-white/70 [&_[data-sidebar=sidebar]]:backdrop-blur-2xl dark:[&_[data-sidebar=sidebar]]:bg-zinc-950/70"
+      className="bg-transparent [&_[data-sidebar=sidebar]]:bg-white/70 [&_[data-sidebar=sidebar]]:backdrop-blur-2xl dark:[&_[data-sidebar=sidebar]]:bg-[#262626]"
     >
       <SidebarHeader
         data-tauri-drag-region

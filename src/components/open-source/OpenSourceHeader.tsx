@@ -1,9 +1,9 @@
 import {
   PageHeader,
-  PageHeaderActions,
   PageHeaderMeta,
   PageHeaderTitle,
 } from "@/components/layout/page-header";
+import { AppbarActions } from "@/components/layout/appbar-actions";
 import { useI18n } from "@/i18n/i18n";
 import { useDateLabel } from "@/hooks/use-date-label";
 import type { ContributionSummary } from "@/types/openSource";
@@ -35,20 +35,22 @@ export function OpenSourceHeader({ summary }: OpenSourceHeaderProps) {
     : t("openSource.sync.never");
 
   return (
-    <PageHeader>
-      <div>
-        <PageHeaderTitle>{t("openSource.title")}</PageHeaderTitle>
-        <PageHeaderMeta>
-          <span>{t("app.name")}</span>
-          <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-          <span>{dateLabel}</span>
-          <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-          <span>{lastSyncedLabel}</span>
-        </PageHeaderMeta>
-      </div>
-      <PageHeaderActions>
+    <>
+      <AppbarActions>
         <OpenSourceSyncButton />
-      </PageHeaderActions>
-    </PageHeader>
+      </AppbarActions>
+      <PageHeader>
+        <div>
+          <PageHeaderTitle>{t("openSource.title")}</PageHeaderTitle>
+          <PageHeaderMeta>
+            <span>{t("app.name")}</span>
+            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+            <span>{dateLabel}</span>
+            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+            <span>{lastSyncedLabel}</span>
+          </PageHeaderMeta>
+        </div>
+      </PageHeader>
+    </>
   );
 }

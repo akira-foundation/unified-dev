@@ -151,9 +151,9 @@ export function CreateRepositoryDialog({
           <DialogDescription>{t("dialogs.createRepository.description")}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-5 px-5 py-4">
-          <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium">{t("dialogs.createRepository.localOrg")}</Label>
+        <div className="flex flex-col gap-3.5 px-5 py-3">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[13px] font-medium">{t("dialogs.createRepository.localOrg")}</Label>
             <Select value={localOrgId} onValueChange={setLocalOrgId}>
               <SelectTrigger>
                 <SelectValue placeholder={t("dialogs.createRepository.localOrgPlaceholder")} />
@@ -168,10 +168,10 @@ export function CreateRepositoryDialog({
             </Select>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium">{t("dialogs.createRepository.owner")}</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[13px] font-medium">{t("dialogs.createRepository.owner")}</Label>
             {isLoadingOrgs ? (
-              <div className="h-10 rounded-md border border-zinc-200 bg-zinc-100 animate-pulse dark:border-zinc-700 dark:bg-zinc-800" />
+              <div className="h-9 rounded-md border border-zinc-200 bg-zinc-100 animate-pulse dark:border-zinc-700 dark:bg-zinc-800" />
             ) : (
               <Select value={providerOrgLogin} onValueChange={setProviderOrgLogin}>
                 <SelectTrigger>
@@ -190,8 +190,8 @@ export function CreateRepositoryDialog({
 
           <div className="h-px bg-border/50" />
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="repo-name" className="text-sm font-medium">{t("dialogs.createRepository.name")}</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="repo-name" className="text-[13px] font-medium">{t("dialogs.createRepository.name")}</Label>
             <Input
               id="repo-name"
               value={name}
@@ -201,8 +201,8 @@ export function CreateRepositoryDialog({
             />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="repo-description" className="text-sm font-medium">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="repo-description" className="text-[13px] font-medium">
               {t("dialogs.createRepository.descriptionLabel")}
               <span className="ml-1.5 text-xs font-normal text-muted-foreground">({t("common.optional")})</span>
             </Label>
@@ -215,8 +215,8 @@ export function CreateRepositoryDialog({
             />
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label className="text-sm font-medium">{t("dialogs.createRepository.visibility")}</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-[13px] font-medium">{t("dialogs.createRepository.visibility")}</Label>
             <Select value={visibility} onValueChange={(v) => setVisibility(v as "private" | "public")}>
               <SelectTrigger>
                 <SelectValue />

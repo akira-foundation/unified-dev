@@ -12,7 +12,7 @@ export function PageLayout({ children, className, scroll = false }: PageLayoutPr
   return (
     <div
       className={cn(
-        "flex min-h-full flex-1 flex-col space-y-4 p-4 md:p-8",
+        "flex min-h-full flex-1 flex-col space-y-3 p-4 md:p-6",
         scroll && "h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar",
         className,
       )}

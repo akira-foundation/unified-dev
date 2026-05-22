@@ -5,12 +5,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Plus, X, TerminalSquare, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { XTERM_THEME, type TerminalOutputPayload } from "./terminal-theme";
 import "@xterm/xterm/css/xterm.css";
-
-interface TerminalOutputPayload {
-  session_id: string;
-  data: number[];
-}
 
 interface TerminalTab {
   id: string;
@@ -20,29 +16,6 @@ interface TerminalTab {
   fitAddon: FitAddon;
   container: HTMLDivElement;
 }
-
-const XTERM_THEME = {
-  background: "#0c0c0c",
-  foreground: "#d4d4d8",
-  cursor: "#a78bfa",
-  selectionBackground: "#a78bfa33",
-  black: "#18181b",
-  red: "#f87171",
-  green: "#4ade80",
-  yellow: "#fbbf24",
-  blue: "#60a5fa",
-  magenta: "#c084fc",
-  cyan: "#22d3ee",
-  white: "#e4e4e7",
-  brightBlack: "#52525b",
-  brightRed: "#fca5a5",
-  brightGreen: "#86efac",
-  brightYellow: "#fde68a",
-  brightBlue: "#93c5fd",
-  brightMagenta: "#d8b4fe",
-  brightCyan: "#67e8f9",
-  brightWhite: "#fafafa",
-};
 
 interface TerminalPanelProps {
   onClose?: () => void;
@@ -236,8 +209,8 @@ export function TerminalPanel({ onClose, onMinimize, cwd }: TerminalPanelProps) 
   }, [activeTabId]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-background">
-      <div className="flex items-center h-8 shrink-0 bg-muted border-b border-border px-1 gap-0.5">
+    <div className="h-full w-full flex flex-col bg-[#1a1a1a]">
+      <div className="flex items-center h-8 shrink-0 bg-[#1a1a1a] border-b border-white/[0.06] px-1 gap-0.5">
         {tabs.map((tab, i) => (
           <button
             key={tab.id}

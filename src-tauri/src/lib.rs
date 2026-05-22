@@ -3,19 +3,18 @@ mod ai;
 mod commands;
 mod database;
 mod providers;
+mod setup;
 mod state;
 
 #[cfg(test)]
 mod test_utils;
-
-use std::sync::Arc;
 
 use commands::autopilot::{
     autopilot_list_jobs, autopilot_save_job, autopilot_update_job,
     autopilot_save_thread, autopilot_update_thread, autopilot_delete_job, autopilot_delete_thread, autopilot_write_log,
 };
 use commands::agent::{abort_agent, get_available_models, get_messages, send_message};
-use commands::workspace::{check_pr_ci, check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
+use commands::workspace::{check_pr_ci, check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, open_in_editor, read_file, run_workspace_command, search_files};
 use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue, delegate_issue_to_agent};
 use commands::open_source::{
     fetch_github_contribution_summary,
@@ -31,7 +30,7 @@ use commands::organization::{
     create_organization, delete_organization, get_job_logs, get_pr_checks, get_pr_comments, get_pr_files,
     list_all_selected_repositories, list_organizations, list_organizations_by_provider,
     list_selected_repositories, list_repo_pull_requests, list_repo_branches, create_repo_branch,
-    delete_repo_branch, sync_pull_requests, merge_pr, post_pr_comment,
+    delete_repo_branch, sync_pull_requests, merge_pr, post_pr_comment, delete_pr_comment,
     save_selected_repositories, submit_pr_review, sync_repository_stats, sync_single_repo_stats,
     update_organization,
 };
@@ -58,19 +57,13 @@ use commands::notification::{
     mark_all_notifications_read, mark_notification_read, set_notification_prefs,
     unread_notifications_count,
 };
-use commands::license::{activate_license, checkout_license, claim_license_request, claim_license_verify, clear_license, downgrade_license, get_license, get_product_plans, list_invoices, manage_license, register_license, verify_license};
+use commands::license::{activate_license, checkout_url, claim_license_request, claim_license_verify, clear_license, downgrade_license, get_license, get_product_plans, list_invoices, manage_license, resume_license, verify_license};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills, fetch_skills_from_repo};
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
 use commands::updater::{check_for_updates, install_update};
 use commands::usage::{get_feature_usage, get_usage};
 use commands::profile::{get_user_profile, set_user_profile};
-use providers::default_registry;
-use app::support::error::AppResult;
-use app::support::security::{KeyStore, TokenCipher};
-use state::AppState;
-use app::terminal::state::TerminalState;
-use tauri::{Emitter, Listener, Manager};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -81,73 +74,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
-        .setup(|app| {
-            let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
-                let pool = database::init_pool(app.handle()).await?;
-                let key = KeyStore::load_or_create_key(app.handle())?;
-                let cipher = Arc::new(TokenCipher::new(key));
-
-                let provider_factory = Arc::new(default_registry()?);
-
-                app.manage(AppState::new(
-                    provider_factory,
-                    cipher,
-                    pool.clone(),
-                ));
-
-                {
-                    let app_state = app.state::<AppState>();
-                    if let Some(token) = app::license::load_customer_token(&app_state.db_pool, &app_state.token_cipher).await? {
-                        let mut billing = app_state.billing.write().await;
-                        billing.set_customer_token(token);
-                    }
-                }
-
-                let app_state = app.state::<AppState>();
-                if let Ok(remote_settings) = app::settings::remote::get(app_state).await {
-                    if remote_settings.enabled {
-                        let app_state = app.state::<AppState>();
-                        let _ = app::remote::start(
-                            &remote_settings,
-                            app_state.db_pool.clone(),
-                            app_state.abort_handles.clone(),
-                            app.handle().clone(),
-                        ).await;
-                    }
-                }
-
-                let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalState::new()));
-                app.manage(terminal_manager);
-
-                app::settings::poller::start(app.handle().clone());
-
-                {
-                    let app_state = app.state::<AppState>();
-                    app::notifications::refresh_badge(app.handle(), &app_state.db_pool).await;
-                }
-
-                Ok(())
-            });
-
-            setup_result.map_err(|error| Box::new(error) as Box<dyn std::error::Error>)?;
-
-            let app_handle = app.handle().clone();
-            app.listen("deep-link://new-url", move |event: tauri::Event| {
-                if let Ok(urls) = serde_json::from_str::<Vec<String>>(event.payload()) {
-                    for url in urls {
-                        if let Ok(parsed) = reqwest::Url::parse(&url) {
-                            if parsed.scheme() == "akira" && parsed.path() == "/license/activate" {
-                                if let Some(session_id) = parsed.query_pairs().find(|(k, _)| k == "session_id").map(|(_, v): (_, std::borrow::Cow<str>)| v.into_owned()) {
-                                    let _ = app_handle.emit("license://activate", session_id);
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            Ok(())
-        })
+        .setup(setup::init)
         .invoke_handler(tauri::generate_handler![
             get_available_models,
             abort_agent,
@@ -178,6 +105,7 @@ pub fn run() {
             sync_single_repo_stats,
             get_pr_comments,
             post_pr_comment,
+            delete_pr_comment,
             submit_pr_review,
             merge_pr,
             get_pr_files,
@@ -213,6 +141,7 @@ pub fn run() {
             list_files,
             search_files,
             read_file,
+            open_in_editor,
             get_messages,
             send_message,
             run_workspace_command,
@@ -253,15 +182,15 @@ pub fn run() {
             regenerate_remote_pairing_code,
             revoke_remote_device,
             activate_license,
-            checkout_license,
+            checkout_url,
             get_product_plans,
             get_license,
             verify_license,
             clear_license,
             manage_license,
             downgrade_license,
+            resume_license,
             list_invoices,
-            register_license,
             claim_license_request,
             claim_license_verify,
             oauth_login,

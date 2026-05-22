@@ -6,40 +6,7 @@ use crate::state::AppState;
 use crate::app::support::error::AppResult;
 
 use super::types::InstalledSkill;
-
-fn parse_frontmatter(content: &str) -> (Option<String>, Option<String>) {
-    let mut name: Option<String> = None;
-    let mut description: Option<String> = None;
-    let mut lines = content.lines();
-    if lines.next().map(str::trim) != Some("---") {
-        return (name, description);
-    }
-    for line in lines {
-        let trimmed = line.trim();
-        if trimmed == "---" {
-            break;
-        }
-        if let Some(rest) = trimmed.strip_prefix("name:") {
-            name = Some(rest.trim().to_string());
-        } else if let Some(rest) = trimmed.strip_prefix("description:") {
-            description = Some(rest.trim().to_string());
-        }
-    }
-    (name, description)
-}
-
-fn title_case(s: &str) -> String {
-    s.split('-')
-        .map(|w| {
-            let mut c = w.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
+use super::{parse_frontmatter, title_case};
 
 pub async fn sync(
     app_handle: AppHandle,
@@ -48,12 +15,14 @@ pub async fn sync(
 ) -> AppResult<Vec<InstalledSkill>> {
     let dirs = super::skill_dirs(&app_handle, workspace_path.as_deref());
     let mut seen: HashSet<String> = HashSet::new();
+    let mut scanned_scopes: HashSet<&'static str> = HashSet::new();
 
     for (dir, scope) in &dirs {
         let entries = match std::fs::read_dir(dir) {
             Ok(e) => e,
             Err(_) => continue,
         };
+        scanned_scopes.insert(scope);
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -109,5 +78,40 @@ pub async fn sync(
         }
     }
 
+    prune_missing(&state, &scanned_scopes, &seen).await?;
+
     super::get::get(state).await
+}
+
+async fn prune_missing(
+    state: &State<'_, AppState>,
+    scanned_scopes: &HashSet<&'static str>,
+    seen: &HashSet<String>,
+) -> AppResult<()> {
+    if scanned_scopes.is_empty() {
+        return Ok(());
+    }
+
+    let scope_list: Vec<&&str> = scanned_scopes.iter().collect();
+    let seen_list: Vec<&String> = seen.iter().collect();
+
+    let mut sql = String::from("DELETE FROM skills WHERE scope IN (");
+    sql.push_str(&vec!["?"; scope_list.len()].join(","));
+    sql.push(')');
+    if !seen_list.is_empty() {
+        sql.push_str(" AND id NOT IN (");
+        sql.push_str(&vec!["?"; seen_list.len()].join(","));
+        sql.push(')');
+    }
+
+    let mut query = sqlx::query(&sql);
+    for scope in &scope_list {
+        query = query.bind(**scope);
+    }
+    for id in &seen_list {
+        query = query.bind(*id);
+    }
+    query.execute(&state.db_pool).await?;
+
+    Ok(())
 }

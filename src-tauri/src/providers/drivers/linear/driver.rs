@@ -97,6 +97,15 @@ impl VcsProvider for LinearDriver {
         Err(AppError::Provider("Linear: not yet implemented".to_string()))
     }
 
+    async fn delete_pull_request_comment(
+        &self,
+        _owner: &str,
+        _repository: &str,
+        _comment_id: &str,
+    ) -> AppResult<()> {
+        Err(AppError::Provider("Linear: not yet implemented".to_string()))
+    }
+
     async fn submit_pull_request_review(
         &self,
         _owner: &str,

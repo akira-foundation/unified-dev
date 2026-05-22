@@ -66,7 +66,7 @@ pub async fn resolve_provider_for_repo_owner(
     let is_personal_owner = provider_account_login.as_deref() == Some(owner);
 
     if credentials.kind == ProviderKind::GitHub {
-        if let ProviderAuth::GitHubApp { installation_token, .. } = credentials.auth {
+        if let ProviderAuth::GitHubApp { installation_token, oauth_access_token, .. } = credentials.auth {
             let token = if is_personal_owner {
                 installation_token
             } else {
@@ -91,7 +91,9 @@ pub async fn resolve_provider_for_repo_owner(
                 response.token
             };
 
-            let provider = GitHubDriver::new(token).map_err(|e| e.to_string())?;
+            let provider = GitHubDriver::new(token)
+                .map_err(|e| e.to_string())?
+                .with_user_token(Some(oauth_access_token));
             return Ok((Arc::new(provider), is_personal_owner));
         }
     }

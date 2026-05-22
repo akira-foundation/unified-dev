@@ -38,8 +38,8 @@ export function AgentCommander({ runCommand, currentPage, setPage }: AgentComman
     setIsRightSidebarOpen,
     setDiffViewTab,
     setExpandedRepos,
-    isTerminalOpen,
-    setIsTerminalOpen
+    islandPanel,
+    setIslandPanel
   } = useAgentsStore();
 
   const allThreads = React.useMemo(() => {
@@ -60,7 +60,6 @@ export function AgentCommander({ runCommand, currentPage, setPage }: AgentComman
 
   if (appCurrentPage === "dashboard" && currentPage === "root") return null;
 
-  // Root Page entry points
   if (currentPage === "root") {
     return (
       <>
@@ -108,18 +107,21 @@ export function AgentCommander({ runCommand, currentPage, setPage }: AgentComman
                 <span>Toggle Workspace Panels</span>
                 <CommandShortcut>⌘J</CommandShortcut>
               </CommandItem>
-              <CommandItem onSelect={() => runCommand(() => setIsTerminalOpen(!isTerminalOpen))}>
+              <CommandItem onSelect={() => runCommand(() => {
+                if (isRightSidebarOpen && islandPanel === "terminal") setIsRightSidebarOpen(false);
+                else { setIslandPanel("terminal"); setIsRightSidebarOpen(true); }
+              })}>
                 <Terminal className="mr-2 h-4 w-4 text-zinc-500" />
                 <span>Toggle Terminal</span>
                 <CommandShortcut>⌘`</CommandShortcut>
               </CommandItem>
-              <CommandItem onSelect={() => { setDiffViewTab("files"); setIsRightSidebarOpen(true); runCommand(() => { }); }}>
+              <CommandItem onSelect={() => { setIslandPanel("diff"); setDiffViewTab("files"); setIsRightSidebarOpen(true); runCommand(() => { }); }}>
                 <FileCode className="mr-2 h-4 w-4 text-blue-400" />
                 <span>Go to Files</span>
                 <CommandShortcut>⇧⌘F</CommandShortcut>
               </CommandItem>
               {fileChanges.length > 0 && (
-                <CommandItem onSelect={() => { setDiffViewTab("changes"); setIsRightSidebarOpen(true); runCommand(() => { }); }}>
+                <CommandItem onSelect={() => { setIslandPanel("diff"); setDiffViewTab("changes"); setIsRightSidebarOpen(true); runCommand(() => { }); }}>
                   <GitBranch className="mr-2 h-4 w-4 text-emerald-400" />
                   <span>View Active Changes</span>
                   <CommandShortcut>({fileChanges.length})</CommandShortcut>
@@ -133,7 +135,6 @@ export function AgentCommander({ runCommand, currentPage, setPage }: AgentComman
     );
   }
 
-  // Sub-pages
   if (currentPage === "agents") {
     return (
       <>

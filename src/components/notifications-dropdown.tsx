@@ -56,20 +56,20 @@ function NotificationRow({ item, onAction }: { item: NotificationItem; onAction?
   return (
     <div
       className={cn(
-        "group flex items-start gap-2.5 px-3 py-2.5 border-b border-zinc-800/50 last:border-0",
-        action ? "cursor-pointer hover:bg-zinc-800/50" : "cursor-default",
-        isUnread && "bg-zinc-800/20",
+        "group flex items-start gap-2.5 px-3 py-2.5 border-b border-zinc-200/60 last:border-0 dark:border-white/[0.06]",
+        action ? "cursor-pointer hover:bg-zinc-100 dark:hover:bg-white/10" : "cursor-default",
+        isUnread && "bg-zinc-100/60 dark:bg-white/[0.04]",
       )}
       onClick={handleClick}
     >
       <Icon className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", SEVERITY_COLOR[item.severity] ?? "text-zinc-400")} />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
-          <p className="text-[12px] font-medium text-zinc-100 truncate">{item.title}</p>
+          <p className="text-[12px] font-medium text-zinc-900 dark:text-zinc-100 truncate">{item.title}</p>
           <span className="text-[10px] text-zinc-500 shrink-0">{relativeTime(item.created_at)}</span>
         </div>
         {item.body && (
-          <p className="text-[11px] text-zinc-400 mt-0.5 line-clamp-2">{item.body}</p>
+          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">{item.body}</p>
         )}
         {label && (
           <p className="text-[10px] text-purple-400 mt-1 font-medium">{label} →</p>
@@ -113,8 +113,8 @@ export function NotificationsDropdown() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <button className="relative inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-          <Bell className="h-3.5 w-3.5" />
+        <button className="relative inline-flex size-8 items-center justify-center rounded-md border bg-background text-muted-foreground shadow-xs transition-colors hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50">
+          <Bell className="h-4 w-4" />
           {unread > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
               {unread > 99 ? "99+" : unread}
@@ -122,15 +122,15 @@ export function NotificationsDropdown() {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0 bg-zinc-950 border-zinc-800">
-        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
-          <span className="text-[12px] font-semibold text-zinc-200">Notifications</span>
+      <DropdownMenuContent align="end" className="w-80 p-0 bg-popover text-popover-foreground border-border">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 dark:border-white/10">
+          <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-200">Notifications</span>
           {items.length > 0 && (
             <div className="flex items-center gap-2">
               {unread > 0 && (
                 <button
                   onClick={() => void markAllRead()}
-                  className="text-[10px] text-zinc-400 hover:text-zinc-200 flex items-center gap-1"
+                  className="text-[10px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center gap-1"
                 >
                   <CheckCheck className="h-3 w-3" /> Mark all read
                 </button>
@@ -162,7 +162,7 @@ export function NotificationsDropdown() {
               setOpen(false);
               navigateTo("notifications");
             }}
-            className="w-full text-center text-[11px] text-zinc-400 hover:text-zinc-200 py-2 border-t border-zinc-800 hover:bg-zinc-900/50 transition-colors"
+            className="w-full text-center text-[11px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 py-2 border-t border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors"
           >
             View all
           </button>
