@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CreditCard, User } from "lucide-react";
+import { toast } from "sonner";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useI18n } from "@/i18n/i18n";
@@ -30,6 +31,7 @@ export function SubscriptionTab() {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [downgrading, setDowngrading] = useState<"free" | "pro" | null>(null);
+  const [resuming, setResuming] = useState(false);
   const [productPlans, setProductPlans] = useState<ProductPlansDto | null>(null);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export function SubscriptionTab() {
       const url = await invoke<string>("manage_license");
       await openUrl(url);
     } catch {
+      toast.error(t("settings.subscription.manage.error"));
     }
   };
 
@@ -100,10 +103,25 @@ export function SubscriptionTab() {
     try {
       await invoke("downgrade_license", { targetPlan: target });
       await load();
+      toast.success(t("settings.subscription.downgrade.success"));
     } catch {
       setError(t("settings.subscription.downgrade.error"));
+      toast.error(t("settings.subscription.downgrade.error"));
     } finally {
       setDowngrading(null);
+    }
+  };
+
+  const handleResume = async () => {
+    setResuming(true);
+    try {
+      await invoke("resume_license");
+      await load();
+      toast.success(t("settings.subscription.resume.success"));
+    } catch {
+      toast.error(t("settings.subscription.resume.error"));
+    } finally {
+      setResuming(false);
     }
   };
 
@@ -151,6 +169,15 @@ export function SubscriptionTab() {
                       ? t("settings.subscription.downgrade.to_pro") + " · " + new Date(cancelAt).toLocaleDateString()
                       : t("settings.subscription.downgrade.cancels_on", { date: new Date(cancelAt).toLocaleDateString() })}
                   </span>
+                )}
+                {cancelAtPeriodEnd && (
+                  <button
+                    onClick={() => void handleResume()}
+                    disabled={resuming}
+                    className="text-[10px] px-1.5 py-0.5 rounded font-medium border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                  >
+                    {resuming ? t("settings.subscription.resume.resuming") : t("settings.subscription.resume.action")}
+                  </button>
                 )}
               </div>
               {license?.validUntil && currentPlan !== "free" && !cancelAtPeriodEnd && (

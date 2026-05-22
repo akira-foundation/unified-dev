@@ -30,14 +30,28 @@ pub async fn downgrade(billing: &BillingClient, target_plan: String) -> AppResul
         .await
         .map_err(|e| AppError::Internal(format!("downgrade failed: {e}")))?;
 
-    Ok(DowngradeDto {
+    Ok(to_dto(response))
+}
+
+pub async fn resume(billing: &BillingClient) -> AppResult<DowngradeDto> {
+    let response = billing
+        .inner()
+        .resume_subscription(PRODUCT_SLUG)
+        .await
+        .map_err(|e| AppError::Internal(format!("resume failed: {e}")))?;
+
+    Ok(to_dto(response))
+}
+
+fn to_dto(response: akira_billing::types::DowngradeResponse) -> DowngradeDto {
+    DowngradeDto {
         cancel_at_period_end: response.cancel_at_period_end,
         cancel_at: response.cancel_at,
         plan: response.plan,
         valid_until: response.valid_until,
         signature: response.signature,
         target_plan: response.target_plan,
-    })
+    }
 }
 
 pub async fn apply_downgrade(pool: &sqlx::SqlitePool, dto: &DowngradeDto) -> AppResult<()> {

@@ -248,5 +248,11 @@ export const enPart2: Record<string, string> = {
   "settings.subscription.downgrade.confirm": "Downgrade to Free",
   "settings.subscription.downgrade.to_pro": "Downgrade to Pro",
   "settings.subscription.downgrade.downgrading": "Scheduling...",
+  "settings.subscription.downgrade.success": "Cancellation scheduled at period end.",
+  "settings.subscription.manage.error": "Could not open the billing portal. Please try again.",
+  "settings.subscription.resume.action": "Resume",
+  "settings.subscription.resume.resuming": "Resuming...",
+  "settings.subscription.resume.success": "Subscription resumed.",
+  "settings.subscription.resume.error": "Could not resume. Please try again.",
   "settings.subscription.invoices.title": "Payment history",
 };

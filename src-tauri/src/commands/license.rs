@@ -64,6 +64,14 @@ pub async fn downgrade_license(target_plan: String, state: State<'_, AppState>) 
 }
 
 #[tauri::command]
+pub async fn resume_license(state: State<'_, AppState>) -> AppResult<DowngradeDto> {
+    let billing = state.billing.read().await.clone();
+    let dto = license::resume(&billing).await?;
+    license::apply_downgrade(&state.db_pool, &dto).await?;
+    Ok(dto)
+}
+
+#[tauri::command]
 pub async fn list_invoices(cursor: Option<String>, state: State<'_, AppState>) -> AppResult<InvoicesPageDto> {
     let billing = state.billing.read().await.clone();
     license::list_invoices(&billing, cursor).await
