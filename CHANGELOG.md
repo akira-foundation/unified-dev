@@ -1,5 +1,31 @@
 
 
+# [0.11.0](https://github.com/akira-foundation/unified-dev/compare/v0.10.1...v0.11.0) (2026-05-22)
+
+
+### Bug Fixes
+
+* **issues:** kanban drag-drop — drop preview, visible overlay, grab cursor ([879d9b5](https://github.com/akira-foundation/unified-dev/commit/879d9b507a7f2cf3c74acbd13c951ee3b039d454))
+* **license:** preserve account email on verify, top-align identity card ([f35cec9](https://github.com/akira-foundation/unified-dev/commit/f35cec9c792829585e49a13bc91cf30e63178987))
+* **license:** route downgrade through billing SDK instead of dead worker ([3a4ea25](https://github.com/akira-foundation/unified-dev/commit/3a4ea255828ea529146c53d06aa04766538355e3))
+* **license:** route manage subscription through SDK billing_portal ([4e43305](https://github.com/akira-foundation/unified-dev/commit/4e4330536b31cfd4a1f44a1e6f5ce4c2b299bfcb))
+
+
+### Features
+
+* **agents:** docked workspace island + chat changes summary ([bf4fff7](https://github.com/akira-foundation/unified-dev/commit/bf4fff7b81d0a35077f99b494ed41593aaa78d8d))
+* **issues:** Linear-style kanban, board filter, hidden columns, Cmd+N shortcuts ([396cfe4](https://github.com/akira-foundation/unified-dev/commit/396cfe414ec85fc2e49465ecab2c9d1eb423e6a4))
+* **issues:** Linear-style list + detail page, comments, user-authored writes ([8e1b9e2](https://github.com/akira-foundation/unified-dev/commit/8e1b9e251e178c1c27d699fcea363f4267602e59))
+* **license:** add subscription resume and downgrade/resume toasts ([2f81819](https://github.com/akira-foundation/unified-dev/commit/2f81819d842400d0dda132b6547572c1e8185c48))
+* **license:** migrate billing flow to SDK, web checkout + invoices, drop worker ([afc52ef](https://github.com/akira-foundation/unified-dev/commit/afc52ef65f2cd8fb24c6b9f92b8070fd152dc454))
+* **license:** runtime public-key fetch/cache + app-wide validation triggers ([08c1569](https://github.com/akira-foundation/unified-dev/commit/08c156957c4e2f0103c096ebbb3edfef9a076164))
+* **prs:** redesign diff viewer with flat blocks and word-level highlight ([85503de](https://github.com/akira-foundation/unified-dev/commit/85503defaf01e3652421721c15447bd340851455))
+* **prs:** replicate Linear UI on PRs + appbar action consistency ([de2d561](https://github.com/akira-foundation/unified-dev/commit/de2d56197da2b299cac2b6676c18a669db5b0f8c))
+* **prs:** unify PR into single detail page (overview, files, checks) ([74d838d](https://github.com/akira-foundation/unified-dev/commit/74d838d9a85c8ccfabd5b52417f8cb7c14bf29c7)), closes [#262626](https://github.com/akira-foundation/unified-dev/issues/262626)
+* **repos:** per-tab search in repo detail and theme-aware command palette ([c473f08](https://github.com/akira-foundation/unified-dev/commit/c473f0880efc39f85697e0b436e889ccd374d5e5))
+* **skills:** sync button, frontmatter scalar fix, app-pattern detail/notifications ([7b56d53](https://github.com/akira-foundation/unified-dev/commit/7b56d538467f82f64b1422d868728a029f70731c))
+* **ui:** centered appbar search overlay, flat command items, compact empty state ([5332165](https://github.com/akira-foundation/unified-dev/commit/5332165d819df7ce24ca1d4b1a5df758b04dd199))
+
 # [0.10.0](https://github.com/akira-foundation/unified-dev/compare/v0.9.0...v0.10.0) (2026-05-20)
 
 
