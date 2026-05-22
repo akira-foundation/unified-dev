@@ -12,6 +12,15 @@ pub async fn read_file(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
+pub async fn open_in_editor(app: String, path: String) -> Result<(), String> {
+    std::process::Command::new("open")
+        .args(["-a", &app, &path])
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn search_files(workspace_path: String, query: String) -> Result<Vec<FileNode>, String> {
     crate::app::filesystem::search(workspace_path, query).await
 }

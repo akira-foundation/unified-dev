@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import type { NavBadge, NavBadgeTone, NavItem } from "@/types/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -59,6 +60,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const setActiveRepo = useNavigationStore((s) => s.setActiveRepo);
   const navigateTo = useNavigationStore((s) => s.navigateTo);
   const { organizations } = useOrganizations();
+  const activeThreadCount = useAgentsStore((s) => Object.values(s.streamingThreadIds).filter(Boolean).length);
 
   const { data: allRepos = [] } = useQuery({
     queryKey: queryKeys.allRepositories(),
@@ -113,6 +115,9 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
   function badgeFor(item: NavItem): NavBadge | undefined {
     if (item.badge) return item.badge;
+    if (item.id === "agents" && activeThreadCount > 0) {
+      return { text: activeThreadCount, tone: "green" };
+    }
     if (item.id === "issues" && openIssues > 0) {
       return { text: openIssues, tone: "amber" };
     }

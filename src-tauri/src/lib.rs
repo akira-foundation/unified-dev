@@ -14,7 +14,7 @@ use commands::autopilot::{
     autopilot_save_thread, autopilot_update_thread, autopilot_delete_job, autopilot_delete_thread, autopilot_write_log,
 };
 use commands::agent::{abort_agent, get_available_models, get_messages, send_message};
-use commands::workspace::{check_pr_ci, check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, read_file, run_workspace_command, search_files};
+use commands::workspace::{check_pr_ci, check_pr_url, create_draft_pr, discard_file_changes, get_workspace_changes, list_files, open_in_editor, read_file, run_workspace_command, search_files};
 use commands::issue::{sync_issues, list_issues, get_issue, create_issue, update_issue, close_issue, delete_issue, delegate_issue_to_agent};
 use commands::open_source::{
     fetch_github_contribution_summary,
@@ -141,6 +141,7 @@ pub fn run() {
             list_files,
             search_files,
             read_file,
+            open_in_editor,
             get_messages,
             send_message,
             run_workspace_command,

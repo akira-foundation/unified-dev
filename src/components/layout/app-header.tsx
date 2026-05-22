@@ -1,4 +1,4 @@
-import { ChevronLeft, Download, PanelLeft, Search } from "lucide-react";
+import { ChevronLeft, Download, GitBranch, PanelLeft, Search } from "lucide-react";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
 import { useSearchStore } from "@/stores/search-store";
 import { useNavigationStore } from "@/stores/navigation-store";
@@ -33,6 +33,12 @@ export function AppHeader() {
     const setImportSelectedOrg = useImportViewStore((s) => s.setSelectedOrg);
     const { organizations } = useOrganizations();
     const activeOrgName = organizations.find((o) => o.id === activeOrganizationId)?.name;
+    const isAgentMode = useNavigationStore((s) => s.isAgentMode);
+    const selectedIssueId = useAgentsStore((s) => s.selectedIssueId);
+    const agentRepositoryGroups = useAgentsStore((s) => s.repositoryGroups);
+    const activeThread = isAgentMode
+        ? agentRepositoryGroups.flatMap((g) => g.repositories).flatMap((r) => r.issues).find((i) => i.id === selectedIssueId) ?? null
+        : null;
 
     const inImportDetail = currentPage === "import-repositories" && !!importSelectedOrg;
 
@@ -142,6 +148,23 @@ export function AppHeader() {
                                                 className="max-w-[140px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
                                             >
                                                 {detail.title}
+                                            </span>
+                                        </>
+                                    )}
+                                    {isAgentMode && activeTab === "workspace" && activeThread && (
+                                        <>
+                                            <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
+                                            <span
+                                                title={activeThread.title}
+                                                className="max-w-[140px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
+                                            >
+                                                {activeThread.title}
+                                            </span>
+                                            <span className="hidden items-center gap-1.5 text-[11px] leading-none text-muted-foreground/50 lg:inline-flex">
+                                                <span className="text-muted-foreground/30">·</span>
+                                                <span className="max-w-[120px] truncate">{activeThread.repoName}</span>
+                                                <GitBranch className="h-3 w-3" />
+                                                <span className="max-w-[160px] truncate font-mono">{activeThread.branchName}</span>
                                             </span>
                                         </>
                                     )}
