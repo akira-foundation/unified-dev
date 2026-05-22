@@ -17,4 +17,4 @@ pub use claim::{request_otp, verify_otp};
 pub use downgrade::{apply_downgrade, downgrade, DowngradeDto};
 pub use invoices::list_invoices;
 pub use portal::portal;
-pub use verify::{clear, get, get_plan, get_token, load_customer_token, verify};
+pub use verify::{clear, get, get_plan, load_customer_token, verify};

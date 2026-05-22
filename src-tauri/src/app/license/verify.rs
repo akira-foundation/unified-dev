@@ -21,14 +21,6 @@ pub async fn get_plan(pool: &sqlx::SqlitePool) -> AppResult<String> {
     Ok(plan)
 }
 
-pub async fn get_token(pool: &sqlx::SqlitePool) -> AppResult<Option<String>> {
-    Ok(sqlx::query_scalar::<_, String>(
-        "SELECT token FROM license WHERE id = 'local' LIMIT 1",
-    )
-    .fetch_optional(pool)
-    .await?)
-}
-
 pub async fn load_customer_token(
     pool: &sqlx::SqlitePool,
     cipher: &crate::app::support::security::TokenCipher,
