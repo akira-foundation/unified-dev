@@ -86,7 +86,7 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
         .map_err(|e| e.to_string())?;
 
     let token = match credentials.auth {
-        ProviderAuth::GitHubApp { installation_token, .. } => installation_token,
+        ProviderAuth::GitHubApp { oauth_access_token, .. } => oauth_access_token,
         _ => return Err("not a github app provider".to_string()),
     };
 

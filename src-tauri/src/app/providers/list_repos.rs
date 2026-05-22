@@ -30,8 +30,8 @@ async fn resolve_installation_id_for_login(state: &State<'_, AppState>, provider
         .await
         .map_err(|error| error.to_string())?;
 
-    if let ProviderAuth::GitHubApp { installation_token, .. } = credentials.auth {
-        let installations = crate::app::orgs::resolve_provider::get_cached_or_fetch_installations(&installation_token).await?;
+    if let ProviderAuth::GitHubApp { oauth_access_token, .. } = credentials.auth {
+        let installations = crate::app::orgs::resolve_provider::get_cached_or_fetch_installations(&oauth_access_token).await?;
         installations
             .iter()
             .find(|installation| installation.account.login == login)
