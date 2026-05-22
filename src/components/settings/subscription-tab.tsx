@@ -130,7 +130,7 @@ export function SubscriptionTab() {
         icon={CreditCard}
       >
         <div className="px-4 py-5 border-b border-zinc-100 dark:border-zinc-800/50">
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-start gap-3 mb-4">
             <div className="h-9 w-9 rounded-full bg-zinc-800 overflow-hidden shrink-0">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />

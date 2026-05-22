@@ -1,6 +1,6 @@
 use akira_billing::desktop::VerifiedLicense;
 
-use crate::app::support::error::AppResult;
+use crate::app::support::error::{AppError, AppResult};
 
 use super::signed_license::SignedLicenseEnvelope;
 use super::types::LicenseDto;
@@ -42,21 +42,9 @@ pub async fn store_verified(pool: &sqlx::SqlitePool, verified: &VerifiedLicense)
     .execute(pool)
     .await?;
 
-    Ok(LicenseDto {
-        token: String::new(),
-        plan,
-        cycle,
-        email: verified.payload.customer_id.clone(),
-        status: "active".to_string(),
-        valid_until: verified.payload.valid_until.clone(),
-        activated_at: verified.payload.issued_at.clone(),
-        last_verified_at: now,
-        signature: verified.signed.signature.clone(),
-        grace_period: false,
-        cancel_at_period_end: None,
-        cancel_at: None,
-        target_plan: None,
-    })
+    super::verify::get(pool)
+        .await?
+        .ok_or_else(|| AppError::Internal("license row missing after store_verified".into()))
 }
 
 pub async fn load_envelope(pool: &sqlx::SqlitePool) -> AppResult<Option<SignedLicenseEnvelope>> {
@@ -107,5 +95,53 @@ mod tests {
         let pool = setup_test_db().await;
         seed_license(&pool, "free", false).await;
         assert!(load_envelope(&pool).await.expect("load").is_none());
+    }
+
+    #[tokio::test]
+    async fn store_verified_keeps_db_email_and_splits_plan() {
+        use akira_billing::types::{LicenseSnapshotPayload, SignedLicense};
+        use std::collections::HashMap;
+
+        let pool = setup_test_db().await;
+        seed_license(&pool, "free", false).await;
+
+        let verified = VerifiedLicense {
+            signed: SignedLicense {
+                key_id: "k1".to_string(),
+                algorithm: "ed25519".to_string(),
+                payload: "cGF5".to_string(),
+                signature: "c2ln".to_string(),
+                valid_until: "2099-01-01T00:00:00+00:00".to_string(),
+            },
+            payload: LicenseSnapshotPayload {
+                v: None,
+                key_id: "k1".to_string(),
+                customer_id: "019e2e53-cde8-7218".to_string(),
+                product_key: "unified-dev".to_string(),
+                plan_key: "pro_monthly".to_string(),
+                licensing_mode: None,
+                features: HashMap::new(),
+                usage: HashMap::new(),
+                fingerprint_hash: "fp".to_string(),
+                serial: 0,
+                issued_at: "2026-01-01T00:00:00+00:00".to_string(),
+                valid_until: "2099-01-01T00:00:00+00:00".to_string(),
+                paid_up_until: None,
+                fallback_release_date: None,
+                updates_window_days: None,
+                offline_grace_days: None,
+            },
+            plan: "pro_monthly".to_string(),
+            features: HashMap::new(),
+            device_id: "dev1".to_string(),
+        };
+
+        let dto = store_verified(&pool, &verified).await.expect("store_verified");
+
+        assert_eq!(dto.email, "a@b.c");
+        assert_ne!(dto.email, verified.payload.customer_id);
+        assert_eq!(dto.plan, "pro");
+        assert_eq!(dto.cycle, "monthly");
+        assert_eq!(dto.status, "active");
     }
 }
