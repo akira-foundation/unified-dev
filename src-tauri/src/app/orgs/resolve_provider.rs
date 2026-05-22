@@ -70,7 +70,7 @@ pub async fn resolve_provider_for_repo_owner(
             let token = if is_personal_owner {
                 installation_token
             } else {
-                let installations = get_cached_or_fetch_installations(&installation_token).await?;
+                let installations = get_cached_or_fetch_installations(&oauth_access_token).await?;
 
                 let installation = installations
                     .iter()
