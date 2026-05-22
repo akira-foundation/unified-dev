@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -17,6 +18,7 @@ import { LicenseActivationDialog } from "./components/license-activation-dialog"
 import { OnboardingOverlay } from "./components/onboarding-overlay";
 import { UpgradeModal } from "./components/upgrade-modal";
 import { useOnboardingStore } from "./stores/onboarding-store";
+import { useLicenseStore } from "./stores/license-store";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationPage } from "./pages/organization";
 import { OrganizationsPage } from "./pages/organizations";
@@ -59,7 +61,16 @@ export default function App() {
   const loadRepositories = useAgentsStore((state) => state.loadRepositories);
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
   const loadAutopilotJobs = useAutopilotStore((state) => state.loadJobs);
+  const verifyLicense = useLicenseStore((s) => s.verify);
+  const lastVerifyRef = useRef(0);
   const [activationSessionId, setActivationSessionId] = useState<string | null>(null);
+
+  const verifyThrottled = useCallback(() => {
+    const now = Date.now();
+    if (now - lastVerifyRef.current < 30_000) return;
+    lastVerifyRef.current = now;
+    void verifyLicense();
+  }, [verifyLicense]);
 
   useEffect(() => {
     loadRepositories();
@@ -72,11 +83,33 @@ export default function App() {
     void (async () => {
       try {
         const authed = await invoke<boolean>("is_authenticated");
-        if (!authed) requireOnboardingAuth();
+        if (!authed) {
+          requireOnboardingAuth();
+          return;
+        }
+        lastVerifyRef.current = Date.now();
+        void verifyLicense();
       } catch {
       }
     })();
-  }, [onboardingCompleted]);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") verifyThrottled();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", verifyThrottled);
+    const unlistenFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
+      if (focused) verifyThrottled();
+    });
+    const interval = setInterval(verifyThrottled, 30 * 60 * 1000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", verifyThrottled);
+      void unlistenFocus.then((fn) => fn());
+      clearInterval(interval);
+    };
+  }, [onboardingCompleted, verifyLicense, verifyThrottled]);
 
   useEffect(() => {
     const unlisten = listen<string>("license://activate", (event) => {

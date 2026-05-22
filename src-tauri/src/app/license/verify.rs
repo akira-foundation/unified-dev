@@ -1,11 +1,11 @@
-use akira_billing::types::LicenseRefreshPayload;
+use akira_billing::desktop::{activate_or_refresh, ActivateOrRefreshOptions};
 use akira_billing::Error as BillingError;
 
 use crate::app::billing::{BillingClient, PRODUCT_SLUG};
 use crate::app::support::error::AppResult;
 
 use super::persist;
-use super::signed_license::Keyring;
+use super::signed_license::{refresh_public_keys, Keyring};
 use super::types::LicenseDto;
 
 const GRACE_PERIOD_DAYS: i64 = 5;
@@ -77,16 +77,20 @@ pub async fn verify(
         return Ok(Some(license));
     }
 
-    match billing
-        .inner()
-        .license_refresh(LicenseRefreshPayload {
-            product: PRODUCT_SLUG,
-            fingerprint,
-        })
-        .await
-    {
-        Ok(response) => Ok(Some(persist::store_activation(pool, &response, fingerprint).await?)),
-        Err(BillingError::Api { status, .. }) if matches!(status, 401 | 402 | 403 | 404) => {
+    let options = ActivateOrRefreshOptions {
+        product: PRODUCT_SLUG,
+        fingerprint,
+        device_type: "desktop",
+        platform: Some(std::env::consts::OS),
+        device_name: None,
+        app_version: Some(env!("CARGO_PKG_VERSION")),
+    };
+
+    let keys = refresh_public_keys(pool, billing.inner()).await?;
+
+    match activate_or_refresh(billing.inner(), &options, &keys).await {
+        Ok(verified) => Ok(Some(persist::store_verified(pool, &verified).await?)),
+        Err(BillingError::Api { status, .. }) if matches!(status, 401 | 402 | 403) => {
             Ok(Some(downgrade_to_free(pool).await?))
         }
         Err(_) => offline_fallback(pool, license).await,
@@ -98,7 +102,7 @@ async fn offline_fallback(pool: &sqlx::SqlitePool, license: LicenseDto) -> AppRe
         return Ok(Some(license));
     };
 
-    let keyring = Keyring::from_build_env()?;
+    let keyring = Keyring::from_cache(pool).await?;
     if keyring.verify(&envelope).is_err() {
         return Ok(Some(downgrade_to_free(pool).await?));
     }

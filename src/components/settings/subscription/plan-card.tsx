@@ -85,9 +85,9 @@ export function PlanCard({
       ) : plan.is_coming_soon ? (
         <button
           disabled
-          className="text-[12px] font-semibold py-1.5 px-3 rounded-md bg-zinc-700/50 text-zinc-500 cursor-not-allowed border border-zinc-700"
+          className="text-[12px] font-semibold py-1.5 px-3 rounded-md cursor-not-allowed bg-zinc-100 text-zinc-400 border border-zinc-200 dark:bg-zinc-700/50 dark:text-zinc-500 dark:border-zinc-700"
         >
-          Coming soon
+          {t("common.comingSoon")}
         </button>
       ) : isUpgradeable ? (
         <button

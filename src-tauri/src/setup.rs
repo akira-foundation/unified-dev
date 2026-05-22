@@ -21,7 +21,8 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
         {
             let app_state = app.state::<AppState>();
-            if let Some(token) = app::license::load_customer_token(&app_state.db_pool, &app_state.token_cipher).await? {
+            let loaded = app::license::load_customer_token(&app_state.db_pool, &app_state.token_cipher).await?;
+            if let Some(token) = loaded {
                 let mut billing = app_state.billing.write().await;
                 billing.set_customer_token(token);
             }

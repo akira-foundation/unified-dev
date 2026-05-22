@@ -74,9 +74,7 @@ export function SubscriptionTab() {
   }, [currentPlan]);
 
   useEffect(() => {
-    const onFocus = () => void verify();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    void verify();
   }, [verify]);
 
   const handleManage = async () => {
