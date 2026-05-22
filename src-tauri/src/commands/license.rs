@@ -2,14 +2,14 @@ use tauri::{AppHandle, State};
 
 use crate::app::license;
 use crate::app::license::plans::ProductPlansDto;
-use crate::app::license::types::{ActivateLicenseRequest, CheckoutDto, InvoicesPageDto, LicenseDto};
+use crate::app::license::types::{ActivateLicenseRequest, InvoicesPageDto, LicenseDto};
 use crate::app::license::DowngradeDto;
 use crate::app::support::error::AppResult;
 use crate::state::AppState;
 
 #[tauri::command]
-pub async fn checkout_license(plan: String, cycle: String) -> AppResult<CheckoutDto> {
-    license::checkout(plan, cycle).await
+pub fn checkout_url(plan_key: String) -> String {
+    license::checkout_url(&plan_key)
 }
 
 #[tauri::command]
@@ -20,11 +20,6 @@ pub async fn get_product_plans(state: State<'_, AppState>) -> AppResult<ProductP
 #[tauri::command]
 pub async fn activate_license(input: ActivateLicenseRequest, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
     license::activate(input, state, &app).await
-}
-
-#[tauri::command]
-pub async fn register_license(token: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
-    license::register(token, &state.db_pool, &app).await
 }
 
 #[tauri::command]
@@ -43,8 +38,10 @@ pub async fn get_license(state: State<'_, AppState>) -> AppResult<Option<License
 }
 
 #[tauri::command]
-pub async fn verify_license(state: State<'_, AppState>) -> AppResult<Option<LicenseDto>> {
-    license::verify(&state.db_pool).await
+pub async fn verify_license(state: State<'_, AppState>, app: AppHandle) -> AppResult<Option<LicenseDto>> {
+    let fingerprint = license::machine_id::get_or_create(&app)?.id;
+    let billing = state.billing.read().await.clone();
+    license::verify(&state.db_pool, &billing, &fingerprint).await
 }
 
 #[tauri::command]
@@ -72,9 +69,7 @@ pub async fn downgrade_license(target_plan: String, state: State<'_, AppState>) 
 
 #[tauri::command]
 pub async fn list_invoices(cursor: Option<String>, state: State<'_, AppState>) -> AppResult<InvoicesPageDto> {
-    let token = license::get_token(&state.db_pool)
-        .await?
-        .ok_or_else(|| crate::app::support::error::AppError::Internal("No license found".into()))?;
-    license::list_invoices(token, cursor).await
+    let billing = state.billing.read().await.clone();
+    license::list_invoices(&billing, cursor).await
 }
 

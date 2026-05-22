@@ -39,6 +39,25 @@ pub async fn make_test_state() -> AppState {
     AppState::new(Arc::new(factory), Arc::new(cipher), pool)
 }
 
+pub async fn seed_license(pool: &SqlitePool, plan: &str, with_envelope: bool) {
+    let envelope: Option<&str> = if with_envelope { Some("blob") } else { None };
+    sqlx::query(
+        "INSERT INTO license
+            (id, token, plan, cycle, email, status, valid_until, activated_at, last_verified_at,
+             license_key_id, license_algorithm, license_payload, license_signature)
+         VALUES ('local', '', ?, '', 'a@b.c', 'active', '2099-01-01T00:00:00+00:00',
+             '2026-01-01T00:00:00+00:00', '2026-01-01T00:00:00+00:00', ?, ?, ?, ?)",
+    )
+    .bind(plan)
+    .bind(envelope.map(|_| "k1"))
+    .bind(envelope.map(|_| "ed25519"))
+    .bind(envelope)
+    .bind(envelope)
+    .execute(pool)
+    .await
+    .expect("failed to insert license");
+}
+
 /// Inserts a provider row and returns its id. Mirrors the columns used by
 /// `app::providers::credentials` so production code paths can read it back.
 pub async fn seed_provider(pool: &SqlitePool, id: &str, kind: &str) -> String {
