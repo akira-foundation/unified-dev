@@ -12,7 +12,7 @@ interface DelegateResponse {
 
 export function useDelegateIssue() {
   const { t } = useI18n();
-  const { repositoryGroups, addThread, addRepository, sendMessage, selectedModelId } = useAgentsStore();
+  const { repositoryGroups, addThread, addRepository, setSelectedIssueId, sendMessage, selectedModelId } = useAgentsStore();
   const { navigateTo } = useNavigationStore();
 
   const delegateIssue = async (issue: IssueDto) => {
@@ -36,15 +36,14 @@ export function useDelegateIssue() {
         addRepository(repository, thread);
       }
 
+      setSelectedIssueId(thread.id);
+
       toast.success(t("issues.detail.delegate"), { id: loadingToast });
 
       const model = selectedModelId ?? "";
       const message = `Implement the following issue:\n\n**${issue.title}**\n\n${issue.body ?? ""}`;
 
       if (model) {
-        // Start streaming before navigating so streamingThreadIds[thread.id] is
-        // already true when the workspace layout mounts and its useEffect fires.
-        // This prevents loadMessages from wiping the optimistic user message.
         const sendPromise = sendMessage(thread.id, message, model, false);
         navigateTo("agents");
         await sendPromise;
