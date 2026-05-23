@@ -334,6 +334,7 @@ jobs:
   sync-main:
     name: Sync version and changelog to main
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: write
     steps:
