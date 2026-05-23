@@ -30,12 +30,7 @@ export function StatCard({
       onClick={onClick}
       className={cn("text-left w-full rounded-lg", onClick && "cursor-pointer group")}
     >
-      <Card
-        className={cn(
-          "h-full transition-colors",
-          onClick && "group-hover:border-zinc-600 group-hover:bg-zinc-900/60",
-        )}
-      >
+      <Card className="h-full">
         <CardContent className="flex items-center gap-3 p-3 pointer-events-none">
           <div
             className={cn(
