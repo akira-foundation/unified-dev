@@ -21,7 +21,7 @@ export function StatCard({ label, value, sub, icon: Icon, color, bg, loading = f
       onClick={onClick}
       className={cn("w-full rounded-xl text-left", onClick && "group cursor-pointer")}
     >
-      <Card className={cn("h-full transition-colors", onClick && "group-hover:border-zinc-600 group-hover:bg-zinc-900/60")}>
+      <Card className="h-full">
         <CardContent className="pointer-events-none flex items-center gap-3 p-3">
           <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-100 dark:border-zinc-800", bg, color)}>
             <Icon size={15} />
