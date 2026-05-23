@@ -1,5 +1,13 @@
 
 
+## [0.11.2](https://github.com/akira-foundation/unified-dev/compare/v0.11.0...v0.11.2) (2026-05-23)
+
+
+### Bug Fixes
+
+* **org:** correct GitHub API response struct for user installations ([abf1f5f](https://github.com/akira-foundation/unified-dev/commit/abf1f5f7f77923f97c3d61cc49ee54d5c94ed8f7))
+* **org:** correct GitHub token type for API authentication ([6eeb7cd](https://github.com/akira-foundation/unified-dev/commit/6eeb7cd57092500bdcaa517c520c5a1bbb0d48e8))
+
 # [0.11.0](https://github.com/akira-foundation/unified-dev/compare/v0.10.1...v0.11.0) (2026-05-22)
 
 
