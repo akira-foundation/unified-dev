@@ -93,7 +93,7 @@ export function RepoList({
                     <MoreVertical className="h-4 w-4" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenuLabel className="text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.open")}</DropdownMenuLabel>
                   <DropdownMenuItem onSelect={() => handleViewRepo(repo)}>
                     <Eye className="mr-2 h-4 w-4" />
