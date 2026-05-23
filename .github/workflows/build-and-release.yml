@@ -35,6 +35,12 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));p.version='${VERSION}';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          node scripts/sync-version.js
+
       - name: Import Apple certificate
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -161,6 +167,12 @@ jobs:
 
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));p.version='${VERSION}';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          node scripts/sync-version.js
 
       - name: Import Apple certificate
         env:
@@ -318,6 +330,43 @@ jobs:
             --cache-control "no-cache"
 
           echo "latest.json uploaded"
+
+  sync-main:
+    name: Sync version and changelog to main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));p.version='${VERSION}';fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+          node scripts/sync-version.js
+          awk -v v="$VERSION" '/^name = "unified-dev"$/{print;getline;sub(/version = ".*"/,"version = \"" v "\"");print;next}1' src-tauri/Cargo.lock > Cargo.lock.tmp && mv Cargo.lock.tmp src-tauri/Cargo.lock
+
+      - name: Generate CHANGELOG
+        uses: orhun/git-cliff-action@v3
+        with:
+          config: cliff.toml
+          args: --tag ${{ github.ref_name }} --output CHANGELOG.md
+
+      - name: Commit version and changelog to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json src-tauri/Cargo.lock CHANGELOG.md
+          git diff --cached --quiet || git commit -m "chore: release ${{ github.ref_name }}"
+          git push origin HEAD:main
 
   # - name: Upload Linux artifacts to GitHub Release
   #   if: runner.os == 'Linux'
