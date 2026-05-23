@@ -69,7 +69,7 @@ function NotificationRow({ item }: { item: NotificationItem }) {
   }
 
   return (
-    <div className="group rounded-md">
+    <div className="group rounded-md transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
       <div
         className={cn("flex h-9 items-center gap-2.5 pl-3 pr-2", hasBody && "cursor-pointer")}
         onClick={handleToggle}
