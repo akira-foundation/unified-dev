@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.4](https://github.com/akira-foundation/unified-dev/compare/v0.11.3...v0.11.4) (2026-05-23)
+
+### Bug Fixes
+
+- **sync:** Use OAuth token for GitHub GraphQL, not the installation token ([24d0a83](https://github.com/akira-foundation/unified-dev/commit/24d0a832abc568cbee1540843f3f57a85200457d))
+- **notifications:** Remove hover background from notification cards ([c665e7e](https://github.com/akira-foundation/unified-dev/commit/c665e7e3a23e70fef3573cc0123711a15a25723e))
+
 ## [0.11.3](https://github.com/akira-foundation/unified-dev/compare/v0.11.0...v0.11.3) (2026-05-23)
 
 ### Bug Fixes
