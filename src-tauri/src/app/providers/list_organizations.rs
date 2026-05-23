@@ -30,7 +30,6 @@ struct Account {
 
 #[derive(serde::Deserialize, Clone)]
 struct UserInstallationsResponse {
-    user: GitHubUser,
     installations: Vec<GitHubInstallationFull>,
 }
 
@@ -91,6 +90,7 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
     };
 
     let response = get_cached_or_fetch_user_installations(&token).await?;
+    let user = fetch_github_user(&token).await?;
 
     let installed_logins: HashSet<String> = response
         .installations
@@ -101,17 +101,17 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
     let mut organizations = Vec::new();
 
     organizations.push(ProviderOrg {
-        id: response.user.id.to_string(),
-        login: response.user.login.clone(),
+        id: user.id.to_string(),
+        login: user.login.clone(),
         kind: ProviderOrgKind::Personal,
-        app_installed: Some(installed_logins.contains(&response.user.login)),
-        app_install_url: (!installed_logins.contains(&response.user.login)).then(|| {
+        app_installed: Some(installed_logins.contains(&user.login)),
+        app_install_url: (!installed_logins.contains(&user.login)).then(|| {
             format!("https://github.com/apps/akira/installations/new")
         }),
         app_manage_url: response
             .installations
             .iter()
-            .find(|installation| installation.account.login == response.user.login)
+            .find(|installation| installation.account.login == user.login)
             .map(|installation| installation.html_url.clone()),
     });
 
@@ -144,6 +144,15 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
     });
 
     Ok(organizations)
+}
+
+async fn fetch_github_user(token: &str) -> Result<GitHubUser, String> {
+    let driver = GitHubDriver::new(token.to_string()).map_err(|e| e.to_string())?;
+    let url = format!("{GITHUB_API}/user");
+    driver
+        .get_json(url)
+        .await
+        .map_err(|e| format!("failed to fetch user: {e}"))
 }
 
 async fn get_cached_or_fetch_user_installations(token: &str) -> Result<UserInstallationsResponse, String> {
