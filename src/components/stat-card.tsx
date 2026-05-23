@@ -19,7 +19,7 @@ export function StatCard({ label, value, sub, icon: Icon, color, bg, loading = f
   return (
     <button
       onClick={onClick}
-      className={cn("w-full rounded-xl text-left", onClick && "group cursor-pointer")}
+      className="w-full cursor-pointer rounded-xl text-left"
     >
       <Card className="h-full">
         <CardContent className="pointer-events-none flex items-center gap-3 p-3">

@@ -28,7 +28,7 @@ export function StatCard({
   return (
     <button
       onClick={onClick}
-      className={cn("text-left w-full rounded-lg", onClick && "cursor-pointer group")}
+      className="text-left w-full rounded-lg cursor-pointer"
     >
       <Card className="h-full">
         <CardContent className="flex items-center gap-3 p-3 pointer-events-none">
