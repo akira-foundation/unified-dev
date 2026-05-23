@@ -25,7 +25,7 @@ impl GitHubDriver {
         self
     }
 
-    fn write_token(&self) -> &str {
+    pub(crate) fn write_token(&self) -> &str {
         self.user_token.as_deref().unwrap_or(&self.token)
     }
 
