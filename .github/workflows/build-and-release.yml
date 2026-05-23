@@ -354,11 +354,13 @@ jobs:
           node scripts/sync-version.js
           awk -v v="$VERSION" '/^name = "unified-dev"$/{print;getline;sub(/version = ".*"/,"version = \"" v "\"");print;next}1' src-tauri/Cargo.lock > Cargo.lock.tmp && mv Cargo.lock.tmp src-tauri/Cargo.lock
 
-      - name: Generate CHANGELOG
-        uses: orhun/git-cliff-action@v3
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
         with:
-          config: cliff.toml
-          args: --tag ${{ github.ref_name }} --output CHANGELOG.md
+          tool: git-cliff
+
+      - name: Generate CHANGELOG
+        run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --output CHANGELOG.md
 
       - name: Commit version and changelog to main
         run: |
