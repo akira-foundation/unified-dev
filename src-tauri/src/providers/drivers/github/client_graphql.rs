@@ -37,7 +37,7 @@ impl GitHubDriver {
         let response = self
             .client
             .post("https://api.github.com/graphql")
-            .bearer_auth(&self.token)
+            .bearer_auth(self.write_token())
             .json(&GraphQlRequest { query, variables })
             .send()
             .await?;
@@ -96,7 +96,7 @@ impl GitHubDriver {
             let response = self
                 .client
                 .post("https://api.github.com/graphql")
-                .bearer_auth(&self.token)
+                .bearer_auth(self.write_token())
                 .json(&GraphQlRequest { query, variables: vars })
                 .send()
                 .await?;
