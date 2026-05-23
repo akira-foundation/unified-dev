@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **sync:** Use OAuth token for GitHub GraphQL, not the installation token ([24d0a83](https://github.com/akira-foundation/unified-dev/commit/24d0a832abc568cbee1540843f3f57a85200457d))
 - **notifications:** Remove hover background from notification cards ([c665e7e](https://github.com/akira-foundation/unified-dev/commit/c665e7e3a23e70fef3573cc0123711a15a25723e))
+- **github:** Make write_token crate-visible for graphql client ([1335c19](https://github.com/akira-foundation/unified-dev/commit/1335c192258a2f0cb6c73b4770097379d6cc62ae))
 
 ## [0.11.3](https://github.com/akira-foundation/unified-dev/compare/v0.11.0...v0.11.3) (2026-05-23)
 
