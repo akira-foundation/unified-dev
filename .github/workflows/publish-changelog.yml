@@ -11,6 +11,7 @@ jobs:
       - name: Checkout app repo
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - name: Checkout landing page repo
@@ -51,7 +52,7 @@ jobs:
 
               const entries = [];
               // Commit refs appear as ([abc123](url)) or (abc123...) — match either
-              const re = /^\* (?:\*\*([^*]+)\*\*: )?(.+?) \(\[?[a-f0-9]/gm;
+              const re = /^- (?:\*\*([^*]+?):\*\* )?(.+?) \(\[?[a-f0-9]/gm;
               let m;
               while ((m = re.exec(sectionMatch[1])) !== null) {
                 const scope = m[1] ?? 'general';
