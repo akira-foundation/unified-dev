@@ -66,32 +66,26 @@ pub async fn resolve_provider_for_repo_owner(
     let is_personal_owner = provider_account_login.as_deref() == Some(owner);
 
     if credentials.kind == ProviderKind::GitHub {
-        if let ProviderAuth::GitHubApp { installation_token, oauth_access_token, .. } = credentials.auth {
-            let token = if is_personal_owner {
-                installation_token
-            } else {
-                let installations = get_cached_or_fetch_installations(&oauth_access_token).await?;
+        if let ProviderAuth::GitHubApp { oauth_access_token, .. } = credentials.auth {
+            let installations = get_cached_or_fetch_installations(&oauth_access_token).await?;
 
-                let installation = installations
-                    .iter()
-                    .find(|i| i.account.login == owner)
-                    .ok_or_else(|| format!("no installation found for {owner}"))?;
+            let installation = installations
+                .iter()
+                .find(|i| i.account.login == owner)
+                .ok_or_else(|| format!("no installation found for {owner}"))?;
 
-                let response = {
-                    let billing = state.billing.read().await;
-                    billing
-                        .inner()
-                        .github_installation_token(GithubInstallationTokenPayload {
-                            installation_id: Some(installation.id),
-                        })
-                        .await
-                        .map_err(|e| format!("installation token request failed: {e}"))?
-                };
-
-                response.token
+            let response = {
+                let billing = state.billing.read().await;
+                billing
+                    .inner()
+                    .github_installation_token(GithubInstallationTokenPayload {
+                        installation_id: Some(installation.id),
+                    })
+                    .await
+                    .map_err(|e| format!("installation token request failed: {e}"))?
             };
 
-            let provider = GitHubDriver::new(token)
+            let provider = GitHubDriver::new(response.token)
                 .map_err(|e| e.to_string())?
                 .with_user_token(Some(oauth_access_token));
             return Ok((Arc::new(provider), is_personal_owner));
