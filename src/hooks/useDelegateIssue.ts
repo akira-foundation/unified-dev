@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useAgentsStore } from "../stores/useAgentsStore";
 import { useNavigationStore } from "../stores/navigation-store";
+import { useIssueKanbanStore } from "../stores/useIssueKanbanStore";
 import { useI18n } from "../i18n/i18n";
 import type { IssueDto } from "../types/issue";
 
@@ -12,8 +13,9 @@ interface DelegateResponse {
 
 export function useDelegateIssue() {
   const { t } = useI18n();
-  const { repositoryGroups, addThread, addRepository, sendMessage, selectedModelId } = useAgentsStore();
-  const { navigateTo } = useNavigationStore();
+  const { loadRepositories, setSelectedIssueId, sendMessage, selectedModelId } = useAgentsStore();
+  const { navigateTo, setIsAgentMode } = useNavigationStore();
+  const setIssueColumn = useIssueKanbanStore((s) => s.setOverride);
 
   const delegateIssue = async (issue: IssueDto) => {
     const loadingToast = toast.loading(t("issues.detail.delegating"));
@@ -25,16 +27,12 @@ export function useDelegateIssue() {
         issueIdentifier: issue.externalId ?? null,
       });
 
-      const { repository, thread } = response;
+      const { thread } = response;
 
-      const allRepos = repositoryGroups.flatMap((g) => g.repositories);
-      const existing = allRepos.find((r) => r.id === repository.id);
-
-      if (existing) {
-        addThread(repository.id, thread);
-      } else {
-        addRepository(repository, thread);
-      }
+      await loadRepositories();
+      setSelectedIssueId(thread.id);
+      setIssueColumn(issue.id, "in_progress");
+      setIsAgentMode(true);
 
       toast.success(t("issues.detail.delegate"), { id: loadingToast });
 
@@ -42,9 +40,6 @@ export function useDelegateIssue() {
       const message = `Implement the following issue:\n\n**${issue.title}**\n\n${issue.body ?? ""}`;
 
       if (model) {
-        // Start streaming before navigating so streamingThreadIds[thread.id] is
-        // already true when the workspace layout mounts and its useEffect fires.
-        // This prevents loadMessages from wiping the optimistic user message.
         const sendPromise = sendMessage(thread.id, message, model, false);
         navigateTo("agents");
         await sendPromise;
