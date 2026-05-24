@@ -406,7 +406,7 @@ jobs:
 
             const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
 
-            const blockMatch = changelog.match(/^#+ \[[\d.]+\].*\n([\s\S]*?)(?=\n#+ \[|\n## \[|$)/m);
+            const blockMatch = changelog.match(/^#+ \[[\d.]+\].*\n([\s\S]*?)(?=\n#+ \[|$(?![\s\S]))/m);
             if (!blockMatch) core.setFailed('Could not find release block in CHANGELOG.md');
 
             const block = blockMatch[1];
@@ -487,8 +487,8 @@ jobs:
       - name: Commit and push to landing page
         working-directory: landing
         run: |
-          git config user.name  "Akira Release Bot"
-          git config user.email "release-bot@akira.foundation"
+          git config user.name  "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           git add src/pages/changelog.astro src/pages/index.astro
           git diff --staged --quiet && echo "No changes to commit." || git commit -m "chore(changelog): add ${{ github.ref_name }}"
           git diff --staged --quiet || git push
