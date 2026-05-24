@@ -16,6 +16,10 @@ pub struct ProviderReposInput {
 }
 
 async fn fetch_installation_token(state: &State<'_, AppState>, installation_id: Option<u64>) -> Result<String, String> {
+    if let Some(id) = installation_id {
+        return crate::app::orgs::resolve_provider::get_cached_or_mint_token(state.inner(), id).await;
+    }
+
     let billing = state.billing.read().await;
     let response = billing
         .inner()
@@ -55,14 +59,19 @@ pub async fn list_repos(state: State<'_, AppState>, input: ProviderReposInput) -
                 _ => return Err("invalid scope".to_string()),
             };
 
-            let token = if let Some(ref login) = target_login {
-                let org_installation_id = resolve_installation_id_for_login(&state, &input.provider_id, login).await?;
-                fetch_installation_token(&state, Some(org_installation_id)).await?
+            let (token, org_installation_id) = if let Some(ref login) = target_login {
+                let id = resolve_installation_id_for_login(&state, &input.provider_id, login).await?;
+                (fetch_installation_token(&state, Some(id)).await?, Some(id))
             } else {
-                installation_token
+                (installation_token, None)
             };
 
-            let provider = GitHubDriver::new(token).map_err(|error| error.to_string())?;
+            let mut provider = GitHubDriver::new(token).map_err(|error| error.to_string())?;
+            if let Some(id) = org_installation_id {
+                provider = provider.with_auth_failure_hook(std::sync::Arc::new(move || {
+                    crate::app::orgs::resolve_provider::invalidate_installation_token(id)
+                }));
+            }
 
             return match input.scope.as_str() {
                 "personal" => provider.list_repositories().await.map_err(|error| error.to_string()),

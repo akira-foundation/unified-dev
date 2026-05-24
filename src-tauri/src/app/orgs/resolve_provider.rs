@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -30,11 +31,64 @@ struct CachedInstallations {
     cached_at: Instant,
 }
 
+struct CachedToken {
+    token: String,
+    expires_at_unix: i64,
+}
+
 lazy_static::lazy_static! {
     static ref INSTALLATIONS_CACHE: RwLock<Option<CachedInstallations>> = RwLock::new(None);
+    static ref INSTALLATION_TOKEN_CACHE: std::sync::RwLock<HashMap<u64, CachedToken>> =
+        std::sync::RwLock::new(HashMap::new());
 }
 
 const CACHE_TTL: Duration = Duration::from_secs(300);
+const TOKEN_EXPIRY_BUFFER_SECS: i64 = 60;
+
+fn parse_expiry_unix(value: &str) -> i64 {
+    chrono::DateTime::parse_from_rfc3339(value)
+        .map(|dt| dt.timestamp())
+        .unwrap_or(0)
+}
+
+pub async fn get_cached_or_mint_token(state: &AppState, installation_id: u64) -> Result<String, String> {
+    let now = chrono::Utc::now().timestamp();
+
+    if let Ok(cache) = INSTALLATION_TOKEN_CACHE.read() {
+        if let Some(cached) = cache.get(&installation_id) {
+            if now < cached.expires_at_unix - TOKEN_EXPIRY_BUFFER_SECS {
+                return Ok(cached.token.clone());
+            }
+        }
+    }
+
+    let response = {
+        let billing = state.billing.read().await;
+        billing
+            .inner()
+            .github_installation_token(GithubInstallationTokenPayload {
+                installation_id: Some(installation_id),
+            })
+            .await
+            .map_err(|e| format!("installation token request failed: {e}"))?
+    };
+
+    let expires_at_unix = parse_expiry_unix(&response.expires_at);
+    if let Ok(mut cache) = INSTALLATION_TOKEN_CACHE.write() {
+        cache.insert(
+            installation_id,
+            CachedToken { token: response.token.clone(), expires_at_unix },
+        );
+    }
+
+    Ok(response.token)
+}
+
+pub fn invalidate_installation_token(installation_id: u64) {
+    if let Ok(mut cache) = INSTALLATION_TOKEN_CACHE.write() {
+        cache.remove(&installation_id);
+    }
+}
 
 pub async fn resolve_provider_for_repo_owner(
     state: &AppState,
@@ -69,25 +123,23 @@ pub async fn resolve_provider_for_repo_owner(
         if let ProviderAuth::GitHubApp { oauth_access_token, .. } = credentials.auth {
             let installations = get_cached_or_fetch_installations(&oauth_access_token).await?;
 
-            let installation = installations
-                .iter()
-                .find(|i| i.account.login == owner)
-                .ok_or_else(|| format!("no installation found for {owner}"))?;
+            let installation = installations.iter().find(|i| i.account.login == owner);
 
-            let response = {
-                let billing = state.billing.read().await;
-                billing
-                    .inner()
-                    .github_installation_token(GithubInstallationTokenPayload {
-                        installation_id: Some(installation.id),
-                    })
-                    .await
-                    .map_err(|e| format!("installation token request failed: {e}"))?
+            let provider = match installation {
+                Some(installation) => {
+                    let installation_id = installation.id;
+                    let token = get_cached_or_mint_token(state, installation_id).await?;
+                    GitHubDriver::new(token)
+                        .map_err(|e| e.to_string())?
+                        .with_user_token(Some(oauth_access_token))
+                        .with_auth_failure_hook(Arc::new(move || {
+                            invalidate_installation_token(installation_id)
+                        }))
+                }
+                None => GitHubDriver::new(oauth_access_token.clone())
+                    .map_err(|e| e.to_string())?
+                    .with_user_token(Some(oauth_access_token)),
             };
-
-            let provider = GitHubDriver::new(response.token)
-                .map_err(|e| e.to_string())?
-                .with_user_token(Some(oauth_access_token));
             return Ok((Arc::new(provider), is_personal_owner));
         }
     }

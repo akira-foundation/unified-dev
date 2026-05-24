@@ -48,7 +48,7 @@ pub(super) async fn list_installation_repositories(driver: &GitHubDriver) -> App
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!("GitHub installation repositories error: {status} {body}")));
+            return Err(driver.api_error(status, body));
         }
 
         let chunk: InstallationRepositoriesResponse = response.json().await?;
