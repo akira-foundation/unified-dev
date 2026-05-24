@@ -56,5 +56,40 @@ pub async fn merge(
     .await
     .map_err(|e| e.to_string())?;
 
+    close_linked_issues(&state, &organization_id, &repo_name, pr_number).await;
+
     Ok(())
+}
+
+async fn close_linked_issues(
+    state: &State<'_, AppState>,
+    organization_id: &str,
+    repo_name: &str,
+    pr_number: u64,
+) {
+    let body: Option<String> = sqlx::query_scalar::<_, Option<String>>(
+        "SELECT body FROM pull_requests WHERE org_id = ? AND repo_name = ? AND number = ?",
+    )
+    .bind(organization_id)
+    .bind(repo_name)
+    .bind(pr_number as i64)
+    .fetch_optional(&state.db_pool)
+    .await
+    .ok()
+    .flatten()
+    .flatten();
+
+    for number in super::linked_issues::parse_closing_issue_numbers(body.as_deref()) {
+        if let Err(e) = crate::app::issues::close(
+            state.clone(),
+            organization_id.to_string(),
+            repo_name.to_string(),
+            number as i64,
+            Some("completed".to_string()),
+        )
+        .await
+        {
+            eprintln!("failed to close issue #{number} linked to PR #{pr_number}: {e}");
+        }
+    }
 }

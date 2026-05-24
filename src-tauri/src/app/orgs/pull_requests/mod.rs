@@ -4,6 +4,7 @@ pub mod get_comments;
 pub mod delete_comment;
 pub mod get_files;
 pub mod get_job_logs;
+pub mod linked_issues;
 pub mod list;
 pub mod merge;
 pub mod post_comment;

@@ -51,6 +51,8 @@ export function PrMergePanel({ pr, organizationId, repoName, owner, onMerged }: 
       queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
       queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(organizationId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(organizationId, repoName) });
+      queryClient.invalidateQueries({ queryKey: ["issues", organizationId, repoName] });
+      queryClient.invalidateQueries({ queryKey: ["issue-detail", organizationId, repoName] });
       onMerged();
     } catch (err) {
       toast.dismiss(toastId);
