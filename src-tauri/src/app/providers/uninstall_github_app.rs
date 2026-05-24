@@ -18,7 +18,7 @@ pub async fn uninstall_github_app(state: State<'_, AppState>, provider_id: Strin
         _ => return Err("provider is not connected with GitHub App auth".to_string()),
     };
 
-    let api_url = env!("AKIRA_BILLING_URL");
+    let api_url = crate::app::billing::base_url(env!("AKIRA_BILLING_URL"));
 
     let client = reqwest::Client::builder()
         .user_agent("UnifiedDev/1.0")

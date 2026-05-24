@@ -36,7 +36,7 @@ export const useNotificationsStore = create<NotificationsState>()((set, get) => 
     try {
       const [items, unread] = await Promise.all([
         invoke<NotificationItem[]>("list_notifications", {
-          limit: opts?.limit ?? 50,
+          limit: opts?.limit ?? 500,
           onlyUnread: opts?.onlyUnread ?? false,
         }),
         invoke<number>("unread_notifications_count"),

@@ -114,12 +114,7 @@ pub async fn login_with_provider(
 }
 
 fn billing_base_url() -> String {
-    let raw = option_env!("AKIRA_BILLING_URL").unwrap_or("http://billing.test");
-    if raw.is_empty() {
-        "http://billing.test".to_string()
-    } else {
-        raw.to_string()
-    }
+    crate::app::billing::base_url(option_env!("AKIRA_BILLING_URL").unwrap_or(""))
 }
 
 async fn bind_ephemeral_loopback() -> AppResult<TcpListener> {

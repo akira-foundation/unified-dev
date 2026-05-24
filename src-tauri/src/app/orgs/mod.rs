@@ -7,6 +7,7 @@ pub mod pull_requests;
 pub mod request;
 pub mod resolve_provider;
 pub mod repos;
+pub mod throttle;
 pub mod update;
 
 pub use branches::{create as create_repo_branch, delete as delete_repo_branch, list as list_repo_branches};

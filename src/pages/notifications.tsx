@@ -64,8 +64,8 @@ function NotificationRow({ item }: { item: NotificationItem }) {
   const label = actionLabel(item.action_type);
 
   function handleToggle() {
-    if (isUnread) void markRead(item.id);
     if (hasBody) setExpanded((v) => !v);
+    if (isUnread) void markRead(item.id);
   }
 
   return (
@@ -136,16 +136,26 @@ export function NotificationsPage() {
   const dateLabel = useDateLabel(locale);
   const { items, unread, loading, load, markAllRead, clear } = useNotificationsStore();
   const [activeTab, setActiveTab] = useState<string>("all");
+  const [unreadView, setUnreadView] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    void load({ limit: 200 });
+    void load();
   }, []);
+
+  const unreadCount = useMemo(() => items.filter((n) => n.read_at === null).length, [items]);
+
+  function selectTab(id: string) {
+    if (id === "unread") {
+      setUnreadView(new Set(items.filter((n) => n.read_at === null).map((n) => n.id)));
+    }
+    setActiveTab(id);
+  }
 
   const filtered = useMemo(() => {
     if (activeTab === "all") return items;
-    if (activeTab === "unread") return items.filter((n) => n.read_at === null);
+    if (activeTab === "unread") return items.filter((n) => n.read_at === null || unreadView.has(n.id));
     return items.filter((n) => n.category === activeTab);
-  }, [items, activeTab]);
+  }, [items, activeTab, unreadView]);
 
   const categories = useMemo(() => {
     const counts = new Map<string, number>();
@@ -155,7 +165,7 @@ export function NotificationsPage() {
 
   const tabs: Array<{ id: string; label: string; count: number }> = [
     { id: "all", label: "All", count: items.length },
-    { id: "unread", label: "Unread", count: unread },
+    { id: "unread", label: "Unread", count: unreadCount },
     ...categories.map(([cat, count]) => ({ id: cat, label: CATEGORY_LABEL[cat] ?? cat, count })),
   ];
 
@@ -198,7 +208,7 @@ export function NotificationsPage() {
           return (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => selectTab(id)}
               className={cn(
                 "relative flex h-10 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider transition-colors",
                 active

@@ -66,15 +66,27 @@ pub async fn get_cached_or_mint_token(state: &AppState, installation_id: u64) ->
         }
     }
 
+    if let Some(retry_in) = super::throttle::cooldown_remaining(installation_id, now) {
+        return Err(format!("installation token throttled; retry in {retry_in}s"));
+    }
+
     let response = {
         let billing = state.billing.read().await;
-        billing
+        match billing
             .inner()
             .github_installation_token(GithubInstallationTokenPayload {
                 installation_id: Some(installation_id),
             })
             .await
-            .map_err(|e| format!("installation token request failed: {e}"))?
+        {
+            Ok(response) => response,
+            Err(akira_billing::Error::Throttled { retry_after }) => {
+                let cooldown = retry_after.unwrap_or(super::throttle::DEFAULT_THROTTLE_COOLDOWN_SECS);
+                super::throttle::set_cooldown(installation_id, now + cooldown as i64);
+                return Err(format!("installation token throttled; retry in {cooldown}s"));
+            }
+            Err(error) => return Err(format!("installation token request failed: {error}")),
+        }
     };
 
     let expires_at_unix = parse_expiry_unix(&response.expires_at);
