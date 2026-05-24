@@ -124,7 +124,7 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
 fn is_app_not_installed(error: &akira_billing::Error) -> bool {
     matches!(
         error,
-        akira_billing::Error::Api { status: 412, code } if code == APP_NOT_INSTALLED_CODE
+        akira_billing::Error::Api { status: 412, code, .. } if code == APP_NOT_INSTALLED_CODE
     )
 }
 
@@ -135,7 +135,7 @@ fn is_unauthorized(error: &akira_billing::Error) -> bool {
 fn translate_billing_error(error: akira_billing::Error) -> AppError {
     use akira_billing::Error as BErr;
     match error {
-        BErr::Api { status, code } if !code.is_empty() => {
+        BErr::Api { status, code, .. } if !code.is_empty() => {
             AppError::Provider(format!("github_installation_token failed ({status}): {code}"))
         }
         BErr::Api { status, .. } => {

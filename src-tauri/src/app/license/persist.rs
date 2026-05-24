@@ -130,6 +130,7 @@ mod tests {
                 fallback_release_date: None,
                 updates_window_days: None,
                 offline_grace_days: None,
+                device_limit: None,
             },
             plan: "pro_monthly".to_string(),
             features: HashMap::new(),

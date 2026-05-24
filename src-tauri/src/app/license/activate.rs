@@ -42,7 +42,7 @@ pub async fn activate(
 fn translate_billing_error(err: akira_billing::Error, context: &str) -> AppError {
     use akira_billing::Error as BErr;
     match err {
-        BErr::Api { status, code } => {
+        BErr::Api { status, code, .. } => {
             if !code.is_empty() {
                 AppError::Internal(code)
             } else {
