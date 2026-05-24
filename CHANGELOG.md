@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.5](https://github.com/akira-foundation/unified-dev/compare/v0.11.4...v0.11.5) (2026-05-24)
+
+### Bug Fixes
+
+- **dashboard:** Remove dark hover from stat cards ([ef4ee9e](https://github.com/akira-foundation/unified-dev/commit/ef4ee9e9d267ac0c58aec3e118ba0a6afba9806b))
+- **open-source:** Remove dark hover from stat cards ([4c9f419](https://github.com/akira-foundation/unified-dev/commit/4c9f419cae114f9ca2011b6842d9f5e1f63ad044))
+- **ui:** Always show pointer cursor on stat cards ([d7bc03d](https://github.com/akira-foundation/unified-dev/commit/d7bc03d12e644d391a6469ee341473a6667ac3ae))
+- **repos:** Stop menu clicks from navigating to repo detail ([5a202fa](https://github.com/akira-foundation/unified-dev/commit/5a202fab07eb5da2fb95114900bcfaa3cb190146))
+- **ui:** Stop dropdown menu clicks from bubbling to ancestors ([45e9c66](https://github.com/akira-foundation/unified-dev/commit/45e9c66c7e83911a51ff4b7edb1de7661bda6d70))
+- **issues:** Open the thread chat after Resolve with AI ([109e9ff](https://github.com/akira-foundation/unified-dev/commit/109e9ff27da4ba5a81574e16af1f33bb168863dd))
+- **issues:** Activate thread chat on delegate via authoritative reload ([424a738](https://github.com/akira-foundation/unified-dev/commit/424a7385dadc31fb03a0338709dcb046abef33a4))
+- **agents:** Resolve gh binary path for PR detection and CI ([d1aebf2](https://github.com/akira-foundation/unified-dev/commit/d1aebf2891ef32e1311749dfe3e3ac1cc120a4a4))
+- **providers:** Cache github installation tokens to stop billing 429 ([a06b05a](https://github.com/akira-foundation/unified-dev/commit/a06b05a66f8ffaa7bf5083433019a09f6324d047))
+- **providers:** Https billing url fallback, bump SDK 0.4.0, back off on 429 ([ff2dfc8](https://github.com/akira-foundation/unified-dev/commit/ff2dfc8330f021afe3de049112658d8ec83861c8))
+- **notifications:** Correct tab counts and open without vanishing ([b9bbe92](https://github.com/akira-foundation/unified-dev/commit/b9bbe921cd77959d168b920f3352c1dbda5b256f))
+
+
+### Code Refactoring
+
+- **issues:** Use local kanban override for delegate status ([c8a7a4a](https://github.com/akira-foundation/unified-dev/commit/c8a7a4a838113c93f1329a8b8d1b11f0f7e5b314))
+
+
+### Features
+
+- **issues:** Move issue to in progress when delegated to AI ([d4d0f1b](https://github.com/akira-foundation/unified-dev/commit/d4d0f1bf25930a34d7ffd6b018118133831f0243))
+- **pr:** Close linked issues on merge ([f2c8e77](https://github.com/akira-foundation/unified-dev/commit/f2c8e77e74c6b60a20a192fc5d4d1c445f907cef))
+- **threads:** Name thread branches after issue slug instead of UUID ([ab4b979](https://github.com/akira-foundation/unified-dev/commit/ab4b979e97a2e30dae88be7d2c8f08043d8ff3a6))
+- **agents:** Dockable CI panel, action loading feedback, CLI tool-call streaming ([dc932ee](https://github.com/akira-foundation/unified-dev/commit/dc932ee358cce32ba405e3023dfe9515151f25ac))
+
+
+### Other
+
+- **notifications:** Restore card hover background ([a24f856](https://github.com/akira-foundation/unified-dev/commit/a24f85635419c87ededc669b276a5f264ebe6e38))
+
 ## [0.11.4](https://github.com/akira-foundation/unified-dev/compare/v0.11.3...v0.11.4) (2026-05-23)
 
 ### Bug Fixes
