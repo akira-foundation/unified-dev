@@ -101,6 +101,8 @@ export const ptPart4: Record<string, string> = {
   "agents.workspace.shortcut.toggleTerminal": "Alternar terminal",
   "agents.header.viewPr": "Ver PR",
   "agents.header.pushChanges": "Enviar alterações",
+  "agents.header.syncPr": "Sincronizar PR",
+  "agents.header.syncing": "Sincronizando...",
   "agents.header.stopAgent": "Parar agente",
   "agents.header.action.mergeLocal.label": "Merge local",
   "agents.header.action.mergeLocal.description": "Sincroniza alterações com a branch base local",

@@ -114,6 +114,8 @@ export const enPart4: Record<string, string> = {
   "agents.workspace.shortcut.toggleTerminal": "Toggle terminal",
   "agents.header.viewPr": "View PR",
   "agents.header.pushChanges": "Push changes",
+  "agents.header.syncPr": "Sync PR",
+  "agents.header.syncing": "Syncing...",
   "agents.header.stopAgent": "Stop agent",
   "agents.header.action.mergeLocal.label": "Merge locally",
   "agents.header.action.mergeLocal.description": "Sync changes with your local base branch",

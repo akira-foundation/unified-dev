@@ -1,5 +1,6 @@
 mod api;
 mod cli;
+mod cli_stream;
 
 pub use api::AnthropicProvider;
 pub use cli::AnthropicCliProvider;

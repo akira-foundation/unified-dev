@@ -44,19 +44,9 @@ export const useAgentsStore = create<AgentsState>()(
         prUrlByThread: { ...state.prUrlByThread, [threadId]: prInfo },
       })),
       prCiByThread: {},
-      prCiCardOpenByThread: {},
       mergedBannerDismissedByThread: {},
       dismissMergedBanner: (threadId) => set((state) => ({
         mergedBannerDismissedByThread: { ...state.mergedBannerDismissedByThread, [threadId]: true },
-      })),
-      toggleCiCard: (threadId) => set((state) => ({
-        prCiCardOpenByThread: {
-          ...state.prCiCardOpenByThread,
-          [threadId]: !state.prCiCardOpenByThread[threadId],
-        },
-      })),
-      setCiCardOpen: (threadId, open) => set((state) => ({
-        prCiCardOpenByThread: { ...state.prCiCardOpenByThread, [threadId]: open },
       })),
       messagesByThread: {},
       messagesLoadingByThread: {},
@@ -88,7 +78,16 @@ export const useAgentsStore = create<AgentsState>()(
       })),
       installedSkills: [],
       setInstalledSkills: (skills) => set({ installedSkills: skills }),
-      setSelectedIssueId: (id) => set({ selectedIssueId: id, activeTab: "workspace" }),
+      setSelectedIssueId: (id) => set((state) => {
+        const repoId = id
+          ? state.repositoryGroups.flatMap((g) => g.repositories).find((r) => r.issues.some((i) => i.id === id))?.id
+          : undefined;
+        return {
+          selectedIssueId: id,
+          activeTab: "workspace",
+          expandedRepos: repoId ? { ...state.expandedRepos, [repoId]: true } : state.expandedRepos,
+        };
+      }),
       setSelectedFilePath: (path) => set({ selectedFilePath: path }),
       setActiveTab: (tab) => set((state) => ({ previousTab: state.activeTab, activeTab: tab })),
       setSelectedSkill: (skill) => set((state) => ({ selectedSkill: skill, previousTab: state.activeTab, activeTab: "manage-skill" })),

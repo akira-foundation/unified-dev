@@ -105,11 +105,8 @@ export interface AgentsState {
   setThreadPrInfo: (threadId: string, prInfo: PrInfo) => void;
   loadPrUrl: (threadId: string, workspacePath: string) => Promise<void>;
   prCiByThread: Record<string, PrCiStatus | null>;
-  prCiCardOpenByThread: Record<string, boolean>;
   mergedBannerDismissedByThread: Record<string, boolean>;
   dismissMergedBanner: (threadId: string) => void;
-  toggleCiCard: (threadId: string) => void;
-  setCiCardOpen: (threadId: string, open: boolean) => void;
   loadPrCi: (threadId: string, workspacePath: string) => Promise<void>;
   isFilesAllExpanded: boolean;
   setIsFilesAllExpanded: (expanded: boolean) => void;
@@ -121,8 +118,8 @@ export interface AgentsState {
   setDiffViewTab: (tab: "changes" | "files") => void;
   diffSplitView: boolean;
   setDiffSplitView: (split: boolean) => void;
-  islandPanel: "diff" | "terminal";
-  setIslandPanel: (panel: "diff" | "terminal") => void;
+  islandPanel: "diff" | "terminal" | "ci";
+  setIslandPanel: (panel: "diff" | "terminal" | "ci") => void;
   expandedRepos: Record<string, boolean>;
   setExpandedRepos: (update: Record<string, boolean> | ((prev: Record<string, boolean>) => Record<string, boolean>)) => void;
   collapsedFilesByThread: Record<string, Record<string, boolean>>;
