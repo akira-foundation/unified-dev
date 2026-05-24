@@ -2,6 +2,8 @@ use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
+use crate::app::support::bin::resolve_binary;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PrCheck {
     pub name: String,
@@ -30,7 +32,11 @@ pub async fn check_pr_ci(workspace_path: String) -> Result<PrCiStatus, String> {
         return Ok(empty_status());
     }
 
-    let output = tokio::process::Command::new("gh")
+    let Some(gh) = resolve_binary("gh") else {
+        return Ok(empty_status());
+    };
+
+    let output = tokio::process::Command::new(gh)
         .args([
             "pr",
             "checks",
@@ -42,13 +48,8 @@ pub async fn check_pr_ci(workspace_path: String) -> Result<PrCiStatus, String> {
         .await
         .map_err(|e| format!("Failed to run gh pr checks: {e}"))?;
 
-    if !output.status.success() {
-        let code = output.status.code().unwrap_or(-1);
-        if code == 8 {
-            // pending — gh exits 8 but JSON valid
-        } else {
-            return Ok(empty_status());
-        }
+    if !output.status.success() && output.status.code().unwrap_or(-1) != 8 {
+        return Ok(empty_status());
     }
 
     let raw = String::from_utf8_lossy(&output.stdout);
