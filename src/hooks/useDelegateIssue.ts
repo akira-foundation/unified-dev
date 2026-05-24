@@ -13,8 +13,8 @@ interface DelegateResponse {
 
 export function useDelegateIssue() {
   const { t } = useI18n();
-  const { repositoryGroups, addThread, addRepository, setSelectedIssueId, sendMessage, selectedModelId } = useAgentsStore();
-  const { navigateTo } = useNavigationStore();
+  const { loadRepositories, setSelectedIssueId, sendMessage, selectedModelId } = useAgentsStore();
+  const { navigateTo, setIsAgentMode } = useNavigationStore();
   const setIssueColumn = useIssueKanbanStore((s) => s.setOverride);
 
   const delegateIssue = async (issue: IssueDto) => {
@@ -27,19 +27,12 @@ export function useDelegateIssue() {
         issueIdentifier: issue.externalId ?? null,
       });
 
-      const { repository, thread } = response;
+      const { thread } = response;
 
-      const allRepos = repositoryGroups.flatMap((g) => g.repositories);
-      const existing = allRepos.find((r) => r.id === repository.id);
-
-      if (existing) {
-        addThread(repository.id, thread);
-      } else {
-        addRepository(repository, thread);
-      }
-
+      await loadRepositories();
       setSelectedIssueId(thread.id);
       setIssueColumn(issue.id, "in_progress");
+      setIsAgentMode(true);
 
       toast.success(t("issues.detail.delegate"), { id: loadingToast });
 
