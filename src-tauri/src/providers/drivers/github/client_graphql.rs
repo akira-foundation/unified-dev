@@ -1,9 +1,20 @@
+use std::time::Duration;
+
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::app::support::error::{AppError, AppResult};
 
 use super::client::GitHubDriver;
+
+const GRAPHQL_URL: &str = "https://api.github.com/graphql";
+const MAX_ATTEMPTS: u32 = 3;
+
+#[derive(Serialize)]
+struct GraphQlRequest<'a> {
+    query: &'a str,
+    variables: serde_json::Value,
+}
 
 fn format_graphql_errors(errors: &[serde_json::Value]) -> String {
     let messages: Vec<String> = errors
@@ -22,35 +33,67 @@ fn format_graphql_errors(errors: &[serde_json::Value]) -> String {
 }
 
 impl GitHubDriver {
-    pub async fn graphql<T: DeserializeOwned>(&self, query: &str, variables: serde_json::Value) -> AppResult<T> {
-        #[derive(Serialize)]
-        struct GraphQlRequest<'a> {
-            query: &'a str,
-            variables: serde_json::Value,
+    async fn execute_graphql(&self, query: &str, variables: &serde_json::Value) -> AppResult<String> {
+        let mut last_transient = String::new();
+
+        for attempt in 1..=MAX_ATTEMPTS {
+            if attempt > 1 {
+                tokio::time::sleep(Duration::from_millis(300 * u64::from(attempt - 1))).await;
+            }
+
+            let sent = self
+                .client
+                .post(GRAPHQL_URL)
+                .bearer_auth(self.write_token())
+                .json(&GraphQlRequest { query, variables: variables.clone() })
+                .send()
+                .await;
+
+            let response = match sent {
+                Ok(response) => response,
+                Err(error) => {
+                    last_transient = format!("request failed: {error}");
+                    continue;
+                }
+            };
+
+            let status = response.status();
+            let body = match response.text().await {
+                Ok(body) => body,
+                Err(error) => {
+                    last_transient = format!("response read failed: {error}");
+                    continue;
+                }
+            };
+
+            if !status.is_success() {
+                return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
+            }
+
+            if body.trim().is_empty() {
+                last_transient = "empty response body".to_string();
+                continue;
+            }
+
+            return Ok(body);
         }
+
+        Err(AppError::Provider(format!(
+            "GitHub GraphQL request did not return a body after {MAX_ATTEMPTS} attempts: {last_transient}"
+        )))
+    }
+
+    pub async fn graphql<T: DeserializeOwned>(&self, query: &str, variables: serde_json::Value) -> AppResult<T> {
         #[derive(Deserialize)]
         struct GraphQlResponse<T> {
             data: Option<T>,
             errors: Option<Vec<serde_json::Value>>,
         }
 
-        let response = self
-            .client
-            .post("https://api.github.com/graphql")
-            .bearer_auth(self.write_token())
-            .json(&GraphQlRequest { query, variables })
-            .send()
-            .await?;
-
-        let status = response.status();
-        let body = response.text().await.unwrap_or_default();
-
-        if !status.is_success() {
-            return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
-        }
+        let body = self.execute_graphql(query, &variables).await?;
 
         let result: GraphQlResponse<T> = serde_json::from_str(&body)
-            .map_err(|e| AppError::Provider(format!("GitHub GraphQL decode failed: {e} — body: {body}")))?;
+            .map_err(|e| AppError::Provider(format!("GitHub GraphQL decode failed: {e} - body: {body}")))?;
 
         if let Some(errors) = result.errors {
             if !errors.is_empty() {
@@ -71,11 +114,6 @@ impl GitHubDriver {
         R: DeserializeOwned,
         F: Fn(R) -> (Vec<T>, bool, Option<String>),
     {
-        #[derive(Serialize)]
-        struct GraphQlRequest<'a> {
-            query: &'a str,
-            variables: serde_json::Value,
-        }
         #[derive(Deserialize)]
         struct GraphQlResponse<D> {
             data: Option<D>,
@@ -87,41 +125,28 @@ impl GitHubDriver {
 
         loop {
             let mut vars = variables.clone();
-            if let Some(c) = &cursor {
-                vars["after"] = serde_json::Value::String(c.clone());
-            } else {
-                vars["after"] = serde_json::Value::Null;
-            }
+            vars["after"] = cursor
+                .as_ref()
+                .map(|c| serde_json::Value::String(c.clone()))
+                .unwrap_or(serde_json::Value::Null);
 
-            let response = self
-                .client
-                .post("https://api.github.com/graphql")
-                .bearer_auth(self.write_token())
-                .json(&GraphQlRequest { query, variables: vars })
-                .send()
-                .await?;
-
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-
-            if !status.is_success() {
-                return Err(AppError::Provider(format!("GitHub GraphQL error: {status} {body}")));
-            }
+            let body = self.execute_graphql(query, &vars).await?;
 
             let result: GraphQlResponse<R> = serde_json::from_str(&body)
-                .map_err(|e| AppError::Provider(format!("GitHub GraphQL decode failed: {e} — body: {body}")))?;
+                .map_err(|e| AppError::Provider(format!("GitHub GraphQL decode failed: {e} - body: {body}")))?;
 
             if let Some(errors) = result.errors {
-                let fatal: Vec<_> = errors.iter().filter(|e| {
-                    e.get("type").and_then(|t| t.as_str()) != Some("FORBIDDEN")
-                }).collect();
+                let fatal: Vec<_> = errors
+                    .iter()
+                    .filter(|e| e.get("type").and_then(|t| t.as_str()) != Some("FORBIDDEN"))
+                    .collect();
                 if !fatal.is_empty() {
                     return Err(AppError::Provider(format_graphql_errors(&errors)));
                 }
             }
 
             let data = match result.data {
-                Some(d) => d,
+                Some(data) => data,
                 None => break,
             };
             let (items, has_next, end_cursor) = extract(data);
