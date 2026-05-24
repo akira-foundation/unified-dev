@@ -51,12 +51,16 @@ fn parse_expiry_unix(value: &str) -> i64 {
         .unwrap_or(0)
 }
 
+fn token_is_fresh(expires_at_unix: i64, now: i64) -> bool {
+    now < expires_at_unix - TOKEN_EXPIRY_BUFFER_SECS
+}
+
 pub async fn get_cached_or_mint_token(state: &AppState, installation_id: u64) -> Result<String, String> {
     let now = chrono::Utc::now().timestamp();
 
     if let Ok(cache) = INSTALLATION_TOKEN_CACHE.read() {
         if let Some(cached) = cache.get(&installation_id) {
-            if now < cached.expires_at_unix - TOKEN_EXPIRY_BUFFER_SECS {
+            if token_is_fresh(cached.expires_at_unix, now) {
                 return Ok(cached.token.clone());
             }
         }
@@ -239,6 +243,9 @@ pub async fn fetch_and_persist_github_parent(
 
     Some((fork_owner, fork_repo))
 }
+
+#[cfg(test)]
+mod tests;
 
 pub async fn get_cached_or_fetch_installations(token: &str) -> Result<Vec<GitHubInstallation>, String> {
     let cache = INSTALLATIONS_CACHE.read().await;
