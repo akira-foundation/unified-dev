@@ -56,7 +56,7 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
         return Ok(auth);
     };
 
-    let api_url = env!("AKIRA_BILLING_URL");
+    let api_url = crate::app::billing::base_url(env!("AKIRA_BILLING_URL"));
 
     #[derive(serde::Deserialize)]
     struct RefreshResponse {

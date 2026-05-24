@@ -1,6 +1,15 @@
 use akira_billing::Client;
 
 pub const PRODUCT_SLUG: &str = "unified-dev";
+pub const DEFAULT_BILLING_URL: &str = "https://billing.test";
+
+pub fn base_url(raw: &str) -> String {
+    if raw.is_empty() {
+        DEFAULT_BILLING_URL.to_string()
+    } else {
+        raw.to_string()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BillingClient {
@@ -10,14 +19,9 @@ pub struct BillingClient {
 
 impl BillingClient {
     pub fn from_build_env() -> Self {
-        let base_url = if env!("AKIRA_BILLING_URL").is_empty() {
-            "http://billing.test".to_string()
-        } else {
-            env!("AKIRA_BILLING_URL").to_string()
-        };
         let secret = env!("AKIRA_BILLING_SECRET").to_string();
         Self {
-            inner: Client::new(base_url, PRODUCT_SLUG, secret),
+            inner: Client::new(base_url(env!("AKIRA_BILLING_URL")), PRODUCT_SLUG, secret),
             has_customer_token: false,
         }
     }
@@ -42,5 +46,20 @@ impl BillingClient {
     pub fn clear_customer_token(&mut self) {
         self.inner.clear_customer_token();
         self.has_customer_token = false;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_env_falls_back_to_https_default() {
+        assert_eq!(base_url(""), "https://billing.test");
+    }
+
+    #[test]
+    fn configured_url_passes_through() {
+        assert_eq!(base_url("https://billing.akira-io.com"), "https://billing.akira-io.com");
     }
 }
