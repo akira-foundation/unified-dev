@@ -82,7 +82,7 @@ pub async fn verify(
 
     match activate_or_refresh(billing.inner(), &options, &keys).await {
         Ok(verified) => Ok(Some(persist::store_verified(pool, &verified).await?)),
-        Err(BillingError::Api { status, .. }) if matches!(status, 401 | 402 | 403) => {
+        Err(BillingError::Api { status: 401..=403, .. }) => {
             Ok(Some(downgrade_to_free(pool).await?))
         }
         Err(_) => offline_fallback(pool, license).await,

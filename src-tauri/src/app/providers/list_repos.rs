@@ -30,7 +30,7 @@ async fn fetch_installation_token(state: &State<'_, AppState>, installation_id: 
 }
 
 async fn resolve_installation_id_for_login(state: &State<'_, AppState>, provider_id: &str, login: &str) -> Result<u64, String> {
-    let credentials = crate::app::providers::credentials::credentials(&state, provider_id)
+    let credentials = crate::app::providers::credentials::credentials(state, provider_id)
         .await
         .map_err(|error| error.to_string())?;
 

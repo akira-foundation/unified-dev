@@ -150,7 +150,7 @@ pub async fn connect(server_url: &str, app: &AppHandle) -> AppResult<OAuthFlowRe
             ("state", &state),
             ("scope", "read write"),
             ("code_challenge", &code_challenge),
-            ("code_challenge_method", &"S256".to_string()),
+            ("code_challenge_method", "S256"),
         ],
     )
     .map(|u| u.to_string())

@@ -128,9 +128,10 @@ async fn build_thread_title(
     let base = match issue_identifier {
         Some(id) if !id.is_empty() => {
             let prefix = to_kebab_case(id);
-            if prefix.is_empty() {
-                kebab_title
-            } else if kebab_title.starts_with(&format!("{}-", prefix)) || kebab_title == prefix {
+            if prefix.is_empty()
+                || kebab_title.starts_with(&format!("{}-", prefix))
+                || kebab_title == prefix
+            {
                 kebab_title
             } else {
                 format!("{}-{}", prefix, kebab_title)
