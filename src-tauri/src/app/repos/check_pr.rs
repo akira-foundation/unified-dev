@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use crate::app::repos::types::PrInfo;
+use crate::app::support::bin::resolve_binary;
 
 fn empty() -> PrInfo {
     PrInfo {
@@ -17,7 +18,11 @@ pub async fn check_pr(workspace_path: String) -> Result<PrInfo, String> {
         return Ok(empty());
     }
 
-    let output = tokio::process::Command::new("gh")
+    let Some(gh) = resolve_binary("gh") else {
+        return Ok(empty());
+    };
+
+    let output = tokio::process::Command::new(gh)
         .args(["pr", "view", "--json", "url,isDraft,state,mergedAt"])
         .current_dir(workspace)
         .output()
