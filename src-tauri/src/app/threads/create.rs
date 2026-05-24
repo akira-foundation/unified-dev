@@ -5,6 +5,7 @@ use uuid::Uuid;
 
 use crate::app::support::error::{AppError, AppResult};
 use crate::app::repos::git;
+use super::naming;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ThreadConfig {
@@ -204,10 +205,10 @@ async fn create_with_options(
 
     let thread_uuid = Uuid::new_v4();
     let thread_id = thread_uuid.to_string().to_uppercase();
-    let thread_branch = format!("thread/{}", thread_id);
     let title = title_override
-        .map(|value| sanitize_thread_title(&value))
-        .unwrap_or_else(|| generate_thread_name(thread_uuid.as_u64_pair().0));
+        .map(|value| naming::sanitize_thread_title(&value))
+        .unwrap_or_else(|| naming::generate_thread_name(thread_uuid.as_u64_pair().0));
+    let thread_branch = naming::unique_thread_branch(&repo_id, &title, pool).await?;
     let workspace_path = workspace_root.join(&thread_id);
 
     git::clone_repository(base_repo_path, &workspace_path)?;
@@ -262,40 +263,4 @@ async fn create_with_options(
     .await?;
 
     Ok(thread)
-}
-
-pub fn sanitize_thread_title(value: &str) -> String {
-    let title = value
-        .to_lowercase()
-        .chars()
-        .map(|c| if c.is_alphanumeric() { c } else { '-' })
-        .collect::<String>()
-        .split('-')
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("-");
-
-    if title.is_empty() {
-        "thread".to_string()
-    } else {
-        title
-    }
-}
-
-fn generate_thread_name(seed: u64) -> String {
-    const ADJECTIVES: &[&str] = &[
-        "gentle", "silver", "amber", "crimson", "silent", "hollow", "golden",
-        "swift", "ancient", "bright", "calm", "dark", "eager", "faint",
-        "grand", "heavy", "idle", "jade", "keen", "lean", "misty", "noble",
-        "pale", "quiet", "rough", "sharp", "tall", "vast", "warm", "young",
-    ];
-    const NOUNS: &[&str] = &[
-        "river", "hawk", "pine", "stone", "cloud", "flame", "ridge",
-        "creek", "dawn", "dusk", "field", "forge", "gate", "grove",
-        "hill", "isle", "lake", "marsh", "peak", "plain", "reef",
-        "crest", "shade", "shore", "slope", "storm", "vale", "wave", "wind", "wood",
-    ];
-    let adj = ADJECTIVES[(seed as usize) % ADJECTIVES.len()];
-    let noun = NOUNS[((seed >> 8) as usize) % NOUNS.len()];
-    format!("{}-{}", adj, noun)
 }
