@@ -49,11 +49,10 @@ pub async fn list_organizations(state: State<'_, AppState>, app: AppHandle, prov
         .await
         .map_err(|error| error.to_string())?;
 
-    if credentials.kind == ProviderKind::GitHub {
-        if matches!(credentials.auth, ProviderAuth::GitHubApp { .. }) {
+    if credentials.kind == ProviderKind::GitHub
+        && matches!(credentials.auth, ProviderAuth::GitHubApp { .. }) {
             return list_github_organizations(state, app).await;
         }
-    }
 
     let provider = state
         .provider_factory
@@ -106,7 +105,7 @@ async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -
         kind: ProviderOrgKind::Personal,
         app_installed: Some(installed_logins.contains(&user.login)),
         app_install_url: (!installed_logins.contains(&user.login)).then(|| {
-            format!("https://github.com/apps/akira/installations/new")
+            "https://github.com/apps/akira/installations/new".to_string()
         }),
         app_manage_url: response
             .installations

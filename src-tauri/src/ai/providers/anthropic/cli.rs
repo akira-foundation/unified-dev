@@ -41,8 +41,8 @@ fn resolve_cli_model(model: &str) -> &str {
 }
 
 fn normalize_mcp_url(url: &str) -> String {
-    if url.ends_with("/sse") {
-        return format!("{}/mcp", &url[..url.len() - 4]);
+    if let Some(stripped) = url.strip_suffix("/sse") {
+        return format!("{stripped}/mcp");
     }
     if url.ends_with("/mcp") {
         return url.to_string();
