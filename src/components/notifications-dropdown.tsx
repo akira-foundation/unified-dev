@@ -94,12 +94,12 @@ export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    void load({ limit: 10 });
+    void load();
   }, []);
 
   useEffect(() => {
     const unlisten = listen("notification:new", () => {
-      void load({ limit: 10 });
+      void load();
     });
     return () => {
       void unlisten.then((fn) => fn());
@@ -107,7 +107,7 @@ export function NotificationsDropdown() {
   }, []);
 
   useEffect(() => {
-    if (open) void load({ limit: 10 });
+    if (open) void load();
   }, [open]);
 
   return (
@@ -151,7 +151,7 @@ export function NotificationsDropdown() {
               <p className="text-[11px] text-zinc-500">No notifications</p>
             </div>
           ) : (
-            items.map((item) => (
+            items.slice(0, 10).map((item) => (
               <NotificationRow key={item.id} item={item} onAction={() => setOpen(false)} />
             ))
           )}

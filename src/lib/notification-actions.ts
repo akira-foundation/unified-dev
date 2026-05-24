@@ -14,8 +14,6 @@ export function actionLabel(action_type: string | null): string | null {
   switch (action_type) {
     case "update.cli":
       return "Update";
-    case "sync.retry":
-      return "Open repo";
     case "upgrade.pro":
       return "Upgrade";
     case "autopilot.open":
@@ -37,11 +35,6 @@ export function runAction(item: NotificationActionTarget): void {
   switch (item.action_type) {
     case "upgrade.pro": {
       nav.setSettingsTab("subscription");
-      nav.navigateTo("settings");
-      return;
-    }
-    case "sync.retry": {
-      nav.setSettingsTab("sync");
       nav.navigateTo("settings");
       return;
     }
