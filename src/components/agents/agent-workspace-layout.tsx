@@ -3,9 +3,9 @@ import { useNavigationStore } from "@/stores/navigation-store";
 import { useI18n } from "@/i18n/i18n";
 import { AgentHeader } from "./agent-header";
 import { AgentTimeline } from "./agent-timeline";
-import { PrCiCard } from "./pr-ci-card";
 import { PrMergedBanner } from "./pr-merged-banner";
 import { AgentDiffIsland } from "./agent-diff-island";
+import { PrCiPanel } from "./pr-ci-panel";
 import { AgentChatInput } from "./agent-chat-input";
 import { AgentStatusBar } from "./agent-status-bar";
 import type { AgentIssue, AgentRepository, RepositoryGroup } from "@/types/agents";
@@ -55,9 +55,9 @@ export function AgentWorkspaceLayout() {
         if (isRightSidebarOpen && islandPanel === "diff" && diffViewTab === tab) setIsRightSidebarOpen(false);
         else { setIslandPanel("diff"); setDiffViewTab(tab); setIsRightSidebarOpen(true); }
       };
-      if (mod && e.shiftKey && e.key.toLowerCase() === "d") toggleDiff("changes");
-      else if (mod && e.shiftKey && e.key.toLowerCase() === "f") toggleDiff("files");
-      else if (e.ctrlKey && e.key === "`") {
+      if (mod && e.shiftKey && e.key.toLowerCase() === "d") { toggleDiff("changes"); return; }
+      if (mod && e.shiftKey && e.key.toLowerCase() === "f") { toggleDiff("files"); return; }
+      if (e.ctrlKey && e.key === "`") {
         e.preventDefault();
         if (isRightSidebarOpen && islandPanel === "terminal") setIsRightSidebarOpen(false);
         else { setIslandPanel("terminal"); setIsRightSidebarOpen(true); }
@@ -219,7 +219,6 @@ export function AgentWorkspaceLayout() {
           <AgentHeader issue={selectedIssue} />
 
           <div className="flex-1 flex flex-col overflow-hidden max-w-5xl mx-auto w-full px-6">
-            <PrCiCard threadId={selectedIssue.id} className="mt-3" />
             <div className="flex-1 overflow-y-auto py-8" style={{ scrollbarWidth: "none" }}>
               <AgentTimeline
                 steps={timelineSteps}
@@ -237,14 +236,19 @@ export function AgentWorkspaceLayout() {
           </div>
         </div>
 
-        {isRightSidebarOpen && (
+        {isRightSidebarOpen && islandPanel === "ci" ? (
+          <PrCiPanel
+            threadId={selectedIssue.id}
+            onClose={() => setIsRightSidebarOpen(false)}
+          />
+        ) : isRightSidebarOpen ? (
           <AgentDiffIsland
             branchName={selectedIssue.branchName}
             files={fileChanges}
             workspacePath={selectedIssue.workspacePath}
             onClose={() => { setIsRightSidebarOpen(false); setSelectedFilePath(null); }}
           />
-        )}
+        ) : null}
       </div>
 
       <AgentStatusBar

@@ -80,11 +80,18 @@ export const createLoadersSlice: AgentsSliceCreator<LoadersSlice> = (set, get) =
           };
         }),
       }));
-      set({
+      const selectedId = get().selectedIssueId;
+      const selectedRepoId = selectedId
+        ? repositories.find((r) => r.issues.some((i) => i.id === selectedId))?.id
+        : undefined;
+      set((state) => ({
         repositoryGroups: [{ name: "THREADS", repositories }],
         repositoriesLoaded: true,
         prUrlByThread,
-      });
+        expandedRepos: selectedRepoId
+          ? { ...state.expandedRepos, [selectedRepoId]: true }
+          : state.expandedRepos,
+      }));
     } catch {
       set({ repositoriesLoaded: true });
     }

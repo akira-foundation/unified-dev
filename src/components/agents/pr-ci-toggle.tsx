@@ -8,10 +8,13 @@ interface PrCiToggleProps {
 
 export function PrCiToggle({ threadId }: PrCiToggleProps) {
   const ci = useAgentsStore((s) => s.prCiByThread[threadId]);
-  const isOpen = useAgentsStore((s) => s.prCiCardOpenByThread[threadId]);
-  const toggleCiCard = useAgentsStore((s) => s.toggleCiCard);
+  const islandPanel = useAgentsStore((s) => s.islandPanel);
+  const isRightSidebarOpen = useAgentsStore((s) => s.isRightSidebarOpen);
+  const setIslandPanel = useAgentsStore((s) => s.setIslandPanel);
+  const setIsRightSidebarOpen = useAgentsStore((s) => s.setIsRightSidebarOpen);
   if (!ci || ci.total === 0) return null;
 
+  const isOpen = isRightSidebarOpen && islandPanel === "ci";
   const failing = ci.failing > 0;
   const pending = ci.pending > 0;
   const allPass = !failing && !pending && ci.passing === ci.total;
@@ -25,10 +28,18 @@ export function PrCiToggle({ threadId }: PrCiToggleProps) {
         ? "text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 hover:border-emerald-500/40"
         : "text-zinc-400 border-zinc-500/30 hover:bg-zinc-500/10 hover:border-zinc-500/40";
 
+  const toggle = () => {
+    if (isOpen) setIsRightSidebarOpen(false);
+    else {
+      setIslandPanel("ci");
+      setIsRightSidebarOpen(true);
+    }
+  };
+
   return (
     <button
       type="button"
-      onClick={() => toggleCiCard(threadId)}
+      onClick={toggle}
       title={`CI: ${ci.passing}/${ci.total} (${isOpen ? "hide" : "show"} details)`}
       className={cn(
         "h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md border text-[12px] font-semibold tabular-nums transition-all cursor-pointer",

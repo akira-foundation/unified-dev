@@ -3,7 +3,10 @@ use serde_json::json;
 use tauri::AppHandle;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
+use std::collections::HashMap;
+
 use crate::ai::provider::{AiProvider, AiRequest};
+use crate::ai::providers::anthropic::cli_stream::{emit_tool_result, emit_tool_use};
 use crate::app::chat::message::{parse_content_to_api, content_has_image};
 use crate::app::chat::stream::emit_token;
 use crate::app::mcp::types::McpServer;
@@ -37,6 +40,16 @@ fn resolve_cli_model(model: &str) -> &str {
     }
 }
 
+fn normalize_mcp_url(url: &str) -> String {
+    if url.ends_with("/sse") {
+        return format!("{}/mcp", &url[..url.len() - 4]);
+    }
+    if url.ends_with("/mcp") {
+        return url.to_string();
+    }
+    format!("{}/mcp", url.trim_end_matches('/'))
+}
+
 fn build_mcp_config(servers: &[McpServer]) -> Option<String> {
     if servers.is_empty() {
         return None;
@@ -47,13 +60,7 @@ fn build_mcp_config(servers: &[McpServer]) -> Option<String> {
         let Some(ref token) = server.access_token else { continue };
         if token.is_empty() { continue }
 
-        let url = if server.url.ends_with("/sse") {
-            format!("{}/mcp", &server.url[..server.url.len() - 4])
-        } else         if server.url.ends_with("/mcp") {
-            server.url.clone()
-        } else {
-            format!("{}/mcp", server.url.trim_end_matches('/'))
-        };
+        let url = normalize_mcp_url(&server.url);
 
         let entry = json!({
             "type": "http",
@@ -161,6 +168,7 @@ impl AnthropicCliProvider {
 
         let mut lines = BufReader::new(stdout).lines();
         let mut full_response = String::new();
+        let mut tool_labels: HashMap<String, String> = HashMap::new();
 
         while let Some(line) = lines.next_line().await.map_err(|e| {
             AppError::Internal(format!("Error reading claude CLI output: {e}"))
@@ -182,6 +190,10 @@ impl AnthropicCliProvider {
                         .and_then(|c| c.as_array())
                     {
                         for item in content_arr {
+                            if item.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
+                                emit_tool_use(app, &request.thread_id, item, &mut tool_labels);
+                                continue;
+                            }
                             if item.get("type").and_then(|t| t.as_str()) == Some("text") {
                                 if let Some(text) = item.get("text").and_then(|t| t.as_str()) {
                                     let new_text = if text.len() > full_response.len() {
@@ -206,6 +218,19 @@ impl AnthropicCliProvider {
                                     }
                                     full_response = text.to_string();
                                 }
+                            }
+                        }
+                    }
+                }
+                Some("user") => {
+                    if let Some(content_arr) = val
+                        .get("message")
+                        .and_then(|m| m.get("content"))
+                        .and_then(|c| c.as_array())
+                    {
+                        for item in content_arr {
+                            if item.get("type").and_then(|t| t.as_str()) == Some("tool_result") {
+                                emit_tool_result(app, &request.thread_id, item, &mut tool_labels);
                             }
                         }
                     }

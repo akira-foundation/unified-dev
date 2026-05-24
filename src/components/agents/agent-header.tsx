@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import type { AgentIssue } from "@/types/agents";
-import { ChevronDown, ExternalLink, GitCommitHorizontal, GitMerge, Eye } from "lucide-react";
+import { ChevronDown, ExternalLink, GitMerge, Eye, RefreshCw, Loader2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
@@ -34,6 +34,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const [isActioning, setIsActioning] = useState(false);
   const [sheetCtx, setSheetCtx] = useState<{ pr: PullRequestDto; orgId: string; repo: string; owner: string } | null>(null);
   const [isMerging, setIsMerging] = useState(false);
+  const [pendingLabel, setPendingLabel] = useState<string | null>(null);
   const ci = useAgentsStore((s) => s.prCiByThread[issue.id]);
   const allChecksPass = !!ci && ci.total > 0 && ci.passing === ci.total && ci.failing === 0 && ci.pending === 0;
   const { fileChanges, sendMessage, repositoryGroups, getEffectiveModelId, prUrlByThread, loadPrUrl, setThreadPrInfo } = useAgentsStore();
@@ -48,6 +49,10 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   const effectiveModelId = getEffectiveModelId(repoId, issue.id);
   const prUrl = prUrlByThread[issue.id] ?? null;
   usePRChecksPolling(issue.id, issue.workspacePath);
+
+  useEffect(() => {
+    if (pendingLabel && !isStreaming && fileChanges.length === 0) setPendingLabel(null);
+  }, [pendingLabel, isStreaming, fileChanges.length]);
 
   const fetchContext = async () => {
     if (sheetCtx) return sheetCtx;
@@ -123,6 +128,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
       await sendMessage(issue.id, prompt, effectiveModelId, true);
     } catch (err) {
       toast.error(`Failed to start action: ${err}`);
+      setPendingLabel(null);
     } finally {
       setIsActioning(false);
     }
@@ -133,15 +139,22 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
   return (
     <AppbarActions>
       <div className="flex items-center gap-2">
-        {fileChanges.length > 0 && !isStreaming && (
+        {pendingLabel && (
+          <Button disabled title={pendingLabel}>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="hidden xl:inline">{pendingLabel}</span>
+          </Button>
+        )}
+
+        {!pendingLabel && fileChanges.length > 0 && !isStreaming && (
           prUrl ? (
-            <Button onClick={() => void handleAction()} disabled={isActioning} title={t("agents.header.pushChanges")}>
-              <GitCommitHorizontal className="h-4 w-4" />
-              <span className="hidden xl:inline">{t("agents.header.pushChanges")}</span>
+            <Button onClick={() => { setPendingLabel(t("agents.header.syncing")); void handleAction(); }} disabled={isActioning} title={t("agents.header.syncPr")}>
+              <RefreshCw className="h-4 w-4" />
+              <span className="hidden xl:inline">{t("agents.header.syncPr")}</span>
             </Button>
           ) : (
             <div className="flex items-center">
-              <Button onClick={() => void handleAction()} disabled={isActioning} className="rounded-r-none" title={currentAction.label}>
+              <Button onClick={() => { setPendingLabel(currentAction.label); void handleAction(); }} disabled={isActioning} className="rounded-r-none" title={currentAction.label}>
                 <currentAction.icon className="h-4 w-4" />
                 <span className="hidden xl:inline">{currentAction.label}</span>
               </Button>
@@ -157,7 +170,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
                     .map(([key, config]) => (
                       <DropdownMenuItem
                         key={key}
-                        onSelect={() => { setSelectedAction(key); void handleAction(key); }}
+                        onSelect={() => { setSelectedAction(key); setPendingLabel(config.label); void handleAction(key); }}
                         className={cn(
                           "flex items-start gap-3 p-3 rounded-lg cursor-pointer group",
                           selectedAction === key && "dark:bg-white/[0.04] bg-black/[0.04]"
@@ -181,7 +194,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           )
         )}
 
-        {prUrl && prUrl.state !== "MERGED" && allChecksPass && (
+        {prUrl && prUrl.state !== "MERGED" && allChecksPass && fileChanges.length === 0 && (
           <Button
             variant="ghost"
             onClick={handleMergePr}
@@ -206,6 +219,7 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
           </Button>
         )}
 
+        {prUrl && prUrl.state !== "MERGED" && <PrCiToggle threadId={issue.id} />}
         {prUrl && prUrl.state !== "MERGED" && (
           <Button variant="outline" size="icon-sm" onClick={() => openUrl(prUrl.url)} title={t("agents.header.viewPr")}>
             <ExternalLink className="h-4 w-4" />
@@ -216,7 +230,6 @@ export function AgentHeader({ issue }: AgentHeaderProps) {
             <Eye className="h-4 w-4" />
           </Button>
         )}
-        {prUrl && prUrl.state !== "MERGED" && <PrCiToggle threadId={issue.id} />}
         <AgentPanelSelector />
       </div>
     </AppbarActions>
