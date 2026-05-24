@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
@@ -5,10 +7,13 @@ use crate::app::support::error::{AppError, AppResult};
 
 pub const GITHUB_API: &str = "https://api.github.com";
 
+pub type AuthFailureHook = Arc<dyn Fn() + Send + Sync>;
+
 pub struct GitHubDriver {
     pub client: reqwest::Client,
     pub token: String,
     pub user_token: Option<String>,
+    pub on_auth_failure: Option<AuthFailureHook>,
 }
 
 impl GitHubDriver {
@@ -17,7 +22,7 @@ impl GitHubDriver {
             .user_agent("UnifiedDev/1.0")
             .build()?;
 
-        Ok(Self { client, token, user_token: None })
+        Ok(Self { client, token, user_token: None, on_auth_failure: None })
     }
 
     pub fn with_user_token(mut self, user_token: Option<String>) -> Self {
@@ -25,8 +30,22 @@ impl GitHubDriver {
         self
     }
 
+    pub fn with_auth_failure_hook(mut self, hook: AuthFailureHook) -> Self {
+        self.on_auth_failure = Some(hook);
+        self
+    }
+
     pub(crate) fn write_token(&self) -> &str {
         self.user_token.as_deref().unwrap_or(&self.token)
+    }
+
+    pub(crate) fn api_error(&self, status: reqwest::StatusCode, body: String) -> AppError {
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            if let Some(hook) = &self.on_auth_failure {
+                hook();
+            }
+        }
+        AppError::Provider(format!("GitHub API error: {status} {body}"))
     }
 
     pub async fn get_json<T: DeserializeOwned>(&self, url: String) -> AppResult<T> {
@@ -41,9 +60,7 @@ impl GitHubDriver {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
+            return Err(self.api_error(status, body));
         }
 
         Ok(response.json::<T>().await?)
@@ -75,7 +92,7 @@ impl GitHubDriver {
 
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!("GitHub API error: {status} {body}")));
+            return Err(self.api_error(status, body));
         }
 
         Ok(response.text().await?)
@@ -98,9 +115,7 @@ impl GitHubDriver {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
+            return Err(self.api_error(status, body));
         }
 
         Ok(response.json::<T>().await?)
@@ -118,9 +133,7 @@ impl GitHubDriver {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
+            return Err(self.api_error(status, body));
         }
 
         Ok(())
@@ -143,9 +156,7 @@ impl GitHubDriver {
         if !response.status().is_success() {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
-            return Err(AppError::Provider(format!(
-                "GitHub API error: {status} {body}"
-            )));
+            return Err(self.api_error(status, body));
         }
 
         Ok(response.json::<T>().await?)
