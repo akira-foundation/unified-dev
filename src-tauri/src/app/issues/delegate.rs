@@ -193,7 +193,8 @@ async fn create_thread_with_title(
 ) -> AppResult<ThreadConfig> {
     let thread_uuid = Uuid::new_v4();
     let thread_id = thread_uuid.to_string().to_uppercase();
-    let thread_branch = format!("thread/{}", thread_id);
+    let thread_branch =
+        crate::app::threads::naming::unique_thread_branch(&repo_id, &title, pool).await?;
     let workspace_path = workspace_root.join(&thread_id);
 
     git::clone_repository(base_repo_path, &workspace_path)?;
