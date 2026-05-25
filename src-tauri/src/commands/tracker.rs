@@ -2,7 +2,9 @@ use tauri::State;
 
 use crate::app::tracker;
 use crate::state::AppState;
-use crate::tracker::dto::{TrackerIssue, TrackerIssueFilter, TrackerNamed};
+use crate::tracker::dto::{
+    TrackerIssue, TrackerIssueDraft, TrackerIssueFilter, TrackerIssuePatch, TrackerNamed,
+};
 
 #[tauri::command]
 pub async fn tracker_connect(
@@ -52,4 +54,49 @@ pub async fn tracker_get_issue(
     id: String,
 ) -> Result<TrackerIssue, String> {
     tracker::get(&state, &id).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tracker_create_issue(
+    state: State<'_, AppState>,
+    provider: String,
+    draft: TrackerIssueDraft,
+) -> Result<TrackerIssue, String> {
+    tracker::create(&state, provider, draft)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tracker_update_issue(
+    state: State<'_, AppState>,
+    provider: String,
+    id: String,
+    patch: TrackerIssuePatch,
+) -> Result<TrackerIssue, String> {
+    tracker::update(&state, provider, id, patch)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tracker_close_issue(
+    state: State<'_, AppState>,
+    provider: String,
+    id: String,
+) -> Result<TrackerIssue, String> {
+    tracker::close(&state, provider, id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tracker_delete_issue(
+    state: State<'_, AppState>,
+    provider: String,
+    id: String,
+) -> Result<(), String> {
+    tracker::delete(&state, provider, id)
+        .await
+        .map_err(|e| e.to_string())
 }
