@@ -10,12 +10,15 @@ import { SettingsItem } from "./settings-item";
 import { trackerService } from "@/services/trackerService";
 
 const LINEAR = "linear";
+const OUTLINE_BUTTON =
+  "h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300";
 
-function LinearIntegration() {
-  const [token, setToken] = useState("");
+function useLinearConnection() {
   const [connected, setConnected] = useState(false);
   const [account, setAccount] = useState<string | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -34,6 +37,7 @@ function LinearIntegration() {
       setConnected(true);
       setAccount(user.name);
       setToken("");
+      setEditing(false);
       toast.success(`Linear connected as ${user.name}`);
     } catch (error) {
       toast.error(`Linear connect failed: ${error}`);
@@ -55,57 +59,76 @@ function LinearIntegration() {
     }
   }
 
-  return (
-    <SettingsSection
-      title="Linear"
-      description="Connect your Linear workspace to sync issues into local storage."
-      icon={Blocks}
-    >
-      {connected ? (
-        <SettingsItem
-          label={account ? `Connected as ${account}` : "Connected"}
-          description={count !== null ? `${count} issue(s) synced` : "Pull your workspace issues."}
-          action={
-            <Button
-              variant="outline"
-              disabled={busy}
-              onClick={sync}
-              className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300"
-            >
-              <RefreshCw className="h-4 w-4" /> Sync
-            </Button>
-          }
+  return {
+    connected,
+    account,
+    count,
+    editing,
+    token,
+    busy,
+    setEditing,
+    setToken,
+    connect,
+    sync,
+  };
+}
+
+function LinearRow() {
+  const linear = useLinearConnection();
+
+  const description = linear.connected
+    ? linear.account
+      ? `Connected as ${linear.account}${linear.count !== null ? ` · ${linear.count} synced` : ""}`
+      : "Connected"
+    : "Sync your Linear workspace issues into local storage.";
+
+  let action;
+  if (linear.connected) {
+    action = (
+      <Button variant="outline" disabled={linear.busy} onClick={linear.sync} className={OUTLINE_BUTTON}>
+        <RefreshCw className="h-4 w-4" /> Sync
+      </Button>
+    );
+  } else if (linear.editing) {
+    action = (
+      <div className="flex items-center gap-2">
+        <Input
+          type="password"
+          autoFocus
+          placeholder="lin_api_..."
+          value={linear.token}
+          onChange={(event) => linear.setToken(event.target.value)}
+          onKeyDown={(event) => event.key === "Enter" && linear.connect()}
+          className="h-8 w-52"
         />
-      ) : (
-        <div className="flex items-center gap-2 px-1 py-2">
-          <Input
-            type="password"
-            placeholder="lin_api_..."
-            value={token}
-            onChange={(event) => setToken(event.target.value)}
-            className="h-8 flex-1"
-          />
-          <Button disabled={busy || !token.trim()} onClick={connect} className="h-8 gap-2">
-            <Link2 className="h-4 w-4" /> Connect
-          </Button>
-        </div>
-      )}
-    </SettingsSection>
-  );
+        <Button disabled={linear.busy || !linear.token.trim()} onClick={linear.connect} className="h-8 gap-2">
+          <Link2 className="h-4 w-4" /> Connect
+        </Button>
+      </div>
+    );
+  } else {
+    action = (
+      <Button variant="outline" onClick={() => linear.setEditing(true)} className={OUTLINE_BUTTON}>
+        <Link2 className="h-4 w-4" /> Connect
+      </Button>
+    );
+  }
+
+  return <SettingsItem label="Linear" description={description} action={action} />;
 }
 
 export function IntegrationsTab() {
   const { t } = useI18n();
 
   return (
-    <div className="animate-in fade-in duration-300 space-y-6">
-      <LinearIntegration />
+    <div className="animate-in fade-in duration-300">
       <SettingsSection title={t("settings.integrations.title")} description={t("settings.integrations.description")} icon={Blocks}>
+        <LinearRow />
         <SettingsItem
           label={t("settings.integrations.nightwatch.label")}
           description={t("settings.integrations.nightwatch.description")}
           action={
-            <Button variant="outline" className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300">
+            <Button variant="outline" className={OUTLINE_BUTTON}>
               <Unplug className="h-4 w-4" /> {t("common.disconnect")}
             </Button>
           }
@@ -114,7 +137,7 @@ export function IntegrationsTab() {
           label={t("settings.integrations.sentry.label")}
           description={t("settings.integrations.sentry.description")}
           action={
-            <Button variant="outline" className="h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300">
+            <Button variant="outline" className={OUTLINE_BUTTON}>
               <Link2 className="h-4 w-4" /> {t("common.connect")}
             </Button>
           }
