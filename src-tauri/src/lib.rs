@@ -63,7 +63,8 @@ use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
 use commands::tracker::{
-    tracker_connect, tracker_get_issue, tracker_list_issues, tracker_status, tracker_sync,
+    tracker_close_issue, tracker_connect, tracker_create_issue, tracker_delete_issue,
+    tracker_get_issue, tracker_list_issues, tracker_status, tracker_sync, tracker_update_issue,
 };
 use commands::updater::{check_for_updates, install_update};
 use commands::usage::{get_feature_usage, get_usage};
@@ -179,6 +180,10 @@ pub fn run() {
             tracker_sync,
             tracker_list_issues,
             tracker_get_issue,
+            tracker_create_issue,
+            tracker_update_issue,
+            tracker_close_issue,
+            tracker_delete_issue,
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,

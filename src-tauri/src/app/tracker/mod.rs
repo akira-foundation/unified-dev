@@ -4,7 +4,8 @@ use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::tracker::Tracker;
 use crate::tracker::dto::{
-    StatusCategory, TrackerIssue, TrackerIssueFilter, TrackerNamed, TrackerPageRequest,
+    StatusCategory, TrackerIssue, TrackerIssueDraft, TrackerIssueFilter, TrackerIssuePatch,
+    TrackerNamed, TrackerPageRequest,
 };
 
 fn category_to_str(category: StatusCategory) -> &'static str {
@@ -225,6 +226,49 @@ pub async fn get(state: &AppState, id: &str) -> AppResult<TrackerIssue> {
         .await?
         .ok_or_else(|| AppError::Provider(format!("issue not found: {id}")))?;
     Ok(TrackerIssue::from(row))
+}
+
+pub async fn create(
+    state: &AppState,
+    provider: String,
+    draft: TrackerIssueDraft,
+) -> AppResult<TrackerIssue> {
+    let tracker = resolve_tracker(state, &provider).await?;
+    let issue = tracker.create_issue(draft).await?;
+    let now = chrono::Utc::now().to_rfc3339();
+    upsert_issue(state, &provider, &issue, &now).await?;
+    Ok(issue)
+}
+
+pub async fn update(
+    state: &AppState,
+    provider: String,
+    id: String,
+    patch: TrackerIssuePatch,
+) -> AppResult<TrackerIssue> {
+    let tracker = resolve_tracker(state, &provider).await?;
+    let issue = tracker.update_issue(&id, patch).await?;
+    let now = chrono::Utc::now().to_rfc3339();
+    upsert_issue(state, &provider, &issue, &now).await?;
+    Ok(issue)
+}
+
+pub async fn close(state: &AppState, provider: String, id: String) -> AppResult<TrackerIssue> {
+    let tracker = resolve_tracker(state, &provider).await?;
+    let issue = tracker.close_issue(&id).await?;
+    let now = chrono::Utc::now().to_rfc3339();
+    upsert_issue(state, &provider, &issue, &now).await?;
+    Ok(issue)
+}
+
+pub async fn delete(state: &AppState, provider: String, id: String) -> AppResult<()> {
+    let tracker = resolve_tracker(state, &provider).await?;
+    tracker.delete_issue(&id).await?;
+    sqlx::query("DELETE FROM external_issues WHERE id = ?")
+        .bind(&id)
+        .execute(&state.db_pool)
+        .await?;
+    Ok(())
 }
 
 #[cfg(test)]
