@@ -20,3 +20,4 @@ pub mod skills;
 pub mod support;
 pub mod terminal;
 pub mod threads;
+pub mod tracker;
