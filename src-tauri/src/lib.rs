@@ -62,6 +62,9 @@ use commands::license::{activate_license, checkout_url, claim_license_request, c
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills, fetch_skills_from_repo};
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
+use commands::tracker::{
+    tracker_connect, tracker_get_issue, tracker_list_issues, tracker_status, tracker_sync,
+};
 use commands::updater::{check_for_updates, install_update};
 use commands::usage::{get_feature_usage, get_usage};
 use commands::profile::{get_user_profile, set_user_profile};
@@ -171,6 +174,11 @@ pub fn run() {
             close_issue,
             delete_issue,
             delegate_issue_to_agent,
+            tracker_connect,
+            tracker_status,
+            tracker_sync,
+            tracker_list_issues,
+            tracker_get_issue,
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,
