@@ -5,6 +5,7 @@ mod database;
 mod providers;
 mod setup;
 mod state;
+mod tracker;
 
 #[cfg(test)]
 mod test_utils;
