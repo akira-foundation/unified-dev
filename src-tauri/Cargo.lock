@@ -54,9 +54,9 @@ dependencies = [
 
 [[package]]
 name = "akira-billing"
-version = "0.5.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8287f06d1f977f72159c57aeb5d4cef596027bc12ec6e2626a3cff3502a244c5"
+checksum = "a02c7be72e042708820f7a70520187628cba9b7f48cf6699772e7b445eb9e484"
 dependencies = [
  "aes-gcm",
  "async-trait",
