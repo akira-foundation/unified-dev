@@ -96,13 +96,7 @@ export function PrCard({ card, onSelect }: { card: PrCardType; onSelect?: (card:
   return (
     <div
       ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0 : 1,
-        contentVisibility: "auto",
-        containIntrinsicSize: "auto 80px",
-      }}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
       {...attributes}
       {...listeners}
     >
