@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, X, MoreVertical, Link2, Check, Folder } from "lucide-react";
+import { Plus, Trash2, X, MoreVertical, Link2, Check, Folder, FolderGit2 } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
@@ -166,8 +166,12 @@ export function ProjectDetailPage() {
   );
 }
 
+const VCS_KINDS = ["github", "gitlab", "bitbucket", "local"];
+
 function sourceLabel(source: RepoSource, named: Record<string, ProviderNamed>): string {
-  if (source.provider === "github") return source.ref;
+  if (VCS_KINDS.includes(source.provider)) {
+    return source.ref.split("/").filter(Boolean).pop() ?? source.ref;
+  }
   const list = source.refType === "team" ? named[source.provider]?.teams : named[source.provider]?.projects;
   return (list ?? []).find((entry) => entry.id === source.ref)?.name ?? source.ref;
 }
@@ -194,8 +198,9 @@ function RepoRow({ repo, sources, named, onAddSource, onRemove, onChange }: Repo
   }
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-md px-3 py-2.5 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
-      <div className="flex items-center gap-2.5">
+    <div className="flex flex-col gap-1.5 rounded-md px-3 py-2 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
+      <div className="flex h-7 items-center gap-2.5">
+        <FolderGit2 className="h-4 w-4 shrink-0 text-zinc-400" />
         <span className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{repo.name}</span>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -222,7 +227,7 @@ function RepoRow({ repo, sources, named, onAddSource, onRemove, onChange }: Repo
       </div>
 
       {sources.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 pl-[26px]">
           {sources.map((source) => (
             <span
               key={source.id}
