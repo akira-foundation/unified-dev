@@ -88,14 +88,19 @@ export function IssuesPage() {
     queryFn: () => projectService.list(),
     staleTime: cache.staleTime.short,
   });
-  const { data: projectSources = [] } = useQuery({
-    queryKey: ["project-sources"],
+  const { data: projectRepos = [] } = useQuery({
+    queryKey: ["project-repos"],
+    queryFn: () => projectService.listRepos(),
+    staleTime: cache.staleTime.short,
+  });
+  const { data: repoSources = [] } = useQuery({
+    queryKey: ["repo-sources"],
     queryFn: () => projectService.listSources(),
     staleTime: cache.staleTime.short,
   });
   const projectMap = useMemo(
-    () => buildProjectSourceMap(projectList, projectSources),
-    [projectList, projectSources],
+    () => buildProjectSourceMap(projectList, projectRepos, repoSources),
+    [projectList, projectRepos, repoSources],
   );
 
   const isLoading = reposLoading || issueQueries.some((q) => q.isLoading);

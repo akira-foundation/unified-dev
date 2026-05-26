@@ -6,16 +6,28 @@ export interface Project {
   provider: string;
   externalId?: string | null;
   color?: string | null;
+  orgId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ProjectSource {
+export interface ProjectRepo {
   id: string;
   projectId: string;
+  name: string;
+  defaultVcsSourceId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RepoSource {
+  id: string;
+  projectRepoId: string;
   provider: string;
   refType: string;
   ref: string;
+  isIssueSource: boolean;
+  isVcsTarget: boolean;
   createdAt: string;
 }
 
@@ -23,11 +35,8 @@ export const projectService = {
   list(): Promise<Project[]> {
     return invoke<Project[]>("project_list");
   },
-  listSources(): Promise<ProjectSource[]> {
-    return invoke<ProjectSource[]>("project_list_sources");
-  },
-  create(name: string, color?: string | null): Promise<Project> {
-    return invoke<Project>("project_create", { name, color: color ?? null });
+  create(name: string, orgId?: string | null, color?: string | null): Promise<Project> {
+    return invoke<Project>("project_create", { name, orgId: orgId ?? null, color: color ?? null });
   },
   update(id: string, name?: string | null, color?: string | null): Promise<Project> {
     return invoke<Project>("project_update", { id, name: name ?? null, color: color ?? null });
@@ -35,24 +44,44 @@ export const projectService = {
   remove(id: string): Promise<void> {
     return invoke<void>("project_delete", { id });
   },
+  listRepos(): Promise<ProjectRepo[]> {
+    return invoke<ProjectRepo[]>("project_repo_list");
+  },
+  createRepo(projectId: string, name: string): Promise<ProjectRepo> {
+    return invoke<ProjectRepo>("project_repo_create", { projectId, name });
+  },
+  updateRepo(id: string, name?: string | null, defaultVcsSourceId?: string | null): Promise<ProjectRepo> {
+    return invoke<ProjectRepo>("project_repo_update", {
+      id,
+      name: name ?? null,
+      defaultVcsSourceId: defaultVcsSourceId ?? null,
+    });
+  },
+  removeRepo(id: string): Promise<void> {
+    return invoke<void>("project_repo_delete", { id });
+  },
+  listSources(): Promise<RepoSource[]> {
+    return invoke<RepoSource[]>("repo_source_list");
+  },
   addSource(
-    projectId: string,
+    projectRepoId: string,
     provider: string,
     refType: string,
     reference: string,
-  ): Promise<ProjectSource> {
-    return invoke<ProjectSource>("project_add_source", {
-      projectId,
+    isIssueSource: boolean,
+    isVcsTarget: boolean,
+  ): Promise<RepoSource> {
+    return invoke<RepoSource>("repo_source_add", {
+      projectRepoId,
       provider,
       refType,
       reference,
+      isIssueSource,
+      isVcsTarget,
     });
   },
   removeSource(id: string): Promise<void> {
-    return invoke<void>("project_remove_source", { id });
-  },
-  import(provider: string): Promise<Project[]> {
-    return invoke<Project[]>("project_import", { provider });
+    return invoke<void>("repo_source_remove", { id });
   },
 };
 
@@ -62,12 +91,15 @@ export function sourceKey(provider: string, refType: string, ref: string): strin
 
 export function buildProjectSourceMap(
   projects: Project[],
-  sources: ProjectSource[],
+  repos: ProjectRepo[],
+  sources: RepoSource[],
 ): Map<string, Project> {
-  const byId = new Map(projects.map((project) => [project.id, project]));
+  const projectById = new Map(projects.map((project) => [project.id, project]));
+  const repoById = new Map(repos.map((repo) => [repo.id, repo]));
   const map = new Map<string, Project>();
   for (const source of sources) {
-    const project = byId.get(source.projectId);
+    const repo = repoById.get(source.projectRepoId);
+    const project = repo ? projectById.get(repo.projectId) : undefined;
     if (project) map.set(sourceKey(source.provider, source.refType, source.ref), project);
   }
   return map;

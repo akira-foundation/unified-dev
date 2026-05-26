@@ -68,8 +68,9 @@ use commands::tracker::{
     tracker_list_teams, tracker_providers, tracker_status, tracker_sync, tracker_update_issue,
 };
 use commands::projects::{
-    project_add_source, project_create, project_delete, project_import, project_list,
-    project_list_sources, project_remove_source, project_update,
+    project_create, project_delete, project_list, project_repo_create, project_repo_delete,
+    project_repo_list, project_repo_update, project_update, repo_source_add, repo_source_list,
+    repo_source_remove,
 };
 use commands::updater::{check_for_updates, install_update};
 use commands::usage::{get_feature_usage, get_usage};
@@ -194,13 +195,16 @@ pub fn run() {
             tracker_list_projects,
             tracker_list_teams,
             project_list,
-            project_list_sources,
             project_create,
             project_update,
             project_delete,
-            project_add_source,
-            project_remove_source,
-            project_import,
+            project_repo_list,
+            project_repo_create,
+            project_repo_update,
+            project_repo_delete,
+            repo_source_list,
+            repo_source_add,
+            repo_source_remove,
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,
