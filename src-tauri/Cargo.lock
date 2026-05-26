@@ -2396,6 +2396,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "issue-provider-jira"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "930c388b0169ee1a8d2e7f72082f51c41172e4f14865e586d517eb2bea5bd3bf"
+dependencies = [
+ "issue-provider-core",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "issue-provider-linear"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6055,6 +6067,7 @@ dependencies = [
  "hex",
  "hmac",
  "issue-provider-core",
+ "issue-provider-jira",
  "issue-provider-linear",
  "lazy_static",
  "onyx-rs",

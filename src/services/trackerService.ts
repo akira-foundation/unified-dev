@@ -134,12 +134,13 @@ export function trackerIssueToDto(
     (issue.team && projectMap?.get(sourceKey(provider, "team", issue.team))) ||
     undefined;
   const project = target?.project;
+  const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
   return {
     id: issue.id,
     externalId: issue.id,
     provider,
     orgId: provider,
-    repoName: project?.name ?? issue.teamName ?? "Linear",
+    repoName: project?.name ?? issue.teamName ?? providerLabel,
     number,
     title: issue.title,
     body: issue.description ?? null,

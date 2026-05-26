@@ -79,10 +79,17 @@ export function IssuesPage() {
     })),
   });
 
-  const trackerIssuesQuery = useQuery({
-    queryKey: ["tracker-issues", "linear"],
-    queryFn: () => trackerService.listIssues("linear"),
+  const { data: trackerProviders = [] } = useQuery({
+    queryKey: ["tracker-providers"],
+    queryFn: () => trackerService.providers(),
     staleTime: cache.staleTime.long,
+  });
+  const trackerIssueQueries = useQueries({
+    queries: trackerProviders.map((provider) => ({
+      queryKey: ["tracker-issues", provider],
+      queryFn: () => trackerService.listIssues(provider),
+      staleTime: cache.staleTime.long,
+    })),
   });
 
   const { data: projectList = [] } = useQuery({
@@ -124,8 +131,10 @@ export function IssuesPage() {
         : {}),
     };
   });
-  const trackerIssues: IssueDto[] = (trackerIssuesQuery.data ?? []).map((issue) =>
-    trackerIssueToDto(issue, "linear", projectMap),
+  const trackerIssues: IssueDto[] = trackerProviders.flatMap((provider, index) =>
+    (trackerIssueQueries[index]?.data ?? []).map((issue) =>
+      trackerIssueToDto(issue, provider, projectMap),
+    ),
   );
   const allIssues: IssueDto[] = [...githubIssues, ...trackerIssues];
   const filteredIssues = useFilteredIssues(allIssues, "issues");
