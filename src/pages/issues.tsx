@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LayoutGrid, List, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AppbarActions } from "@/components/layout/appbar-actions";
@@ -41,6 +41,7 @@ export function IssuesPage() {
   const { organizations } = useOrganizations();
   const { providers } = useProviders();
   const { resolveIssueScope, assignIssuesToSelfByDefault } = useSettingsStore();
+  const listScrollRef = useRef<HTMLDivElement>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const viewMode = useIssueViewStore((s) => s.viewMode);
@@ -219,7 +220,7 @@ export function IssuesPage() {
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
-        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
+        <div ref={listScrollRef} className="min-w-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
           {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-24 w-full" />
@@ -231,6 +232,7 @@ export function IssuesPage() {
             <IssueTable
               issues={allIssues}
               showToolbar={false}
+              scrollParentRef={listScrollRef}
               onSelect={handleSelectIssue}
               onNavigateToPrs={handleNavigateToPrs}
               onNavigateToRepo={handleNavigateToRepo}

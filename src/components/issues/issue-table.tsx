@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode, type RefObject } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { EmptyState } from "../ui/empty-state";
 import { toast } from "sonner";
 
@@ -37,6 +38,7 @@ interface IssueTableProps {
   onOpenUrl?: (url: string) => void;
   onDelete?: (issue: IssueDto) => Promise<void>;
   onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
+  scrollParentRef?: RefObject<HTMLElement | null>;
 }
 
 function ToolbarActions({ inAppbar, children }: { inAppbar: boolean; children: ReactNode }) {
@@ -58,6 +60,7 @@ export function IssueTable({
   onOpenUrl,
   onDelete,
   onAssignToMe,
+  scrollParentRef,
 }: IssueTableProps) {
   const { t } = useI18n();
   const [issueToDelete, setIssueToDelete] = useState<IssueDto | null>(null);
@@ -81,6 +84,28 @@ export function IssueTable({
       else next.add(col);
       return next;
     });
+
+  type FlatItem =
+    | { kind: "header"; col: IssueColumnId; count: number }
+    | { kind: "row"; issue: IssueDto; col: IssueColumnId };
+
+  const flatItems = useMemo(() => {
+    const out: FlatItem[] = [];
+    GROUP_ORDER.forEach((col) => {
+      const rows = grouped[col];
+      if (rows.length === 0) return;
+      out.push({ kind: "header", col, count: rows.length });
+      if (!collapsed.has(col)) rows.forEach((issue) => out.push({ kind: "row", issue, col }));
+    });
+    return out;
+  }, [grouped, collapsed]);
+
+  const virtualizer = useVirtualizer({
+    count: flatItems.length,
+    getScrollElement: () => scrollParentRef?.current ?? null,
+    estimateSize: (index) => (flatItems[index].kind === "header" ? 34 : 36),
+    overscan: 12,
+  });
 
   const handleConfirmDelete = async () => {
     if (!issueToDelete || !onDelete) return;
@@ -115,45 +140,52 @@ export function IssueTable({
       {filteredIssues.length === 0 ? (
         <EmptyState title={t("issues.table.empty")} />
       ) : (
-        <div className="flex flex-col">
-          {GROUP_ORDER.map((col) => {
-            const rows = grouped[col];
-            if (rows.length === 0) return null;
-            const isCollapsed = collapsed.has(col);
+        <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+          {virtualizer.getVirtualItems().map((virtualItem) => {
+            const item = flatItems[virtualItem.index];
             return (
-              <section key={col}>
-                <button
-                  onClick={() => toggleGroup(col)}
-                  className="sticky top-0 z-10 flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
-                >
-                  <StatusIcon column={col} />
-                  <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{COLUMN_LABEL[col]}</span>
-                  <span className="text-[12px] font-medium text-zinc-500">{rows.length}</span>
-                  {isCollapsed ? (
-                    <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-                  ) : (
-                    <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-                  )}
-                </button>
-
-                {!isCollapsed &&
-                  rows.map((issue) => (
-                    <IssueRow
-                      key={issue.id}
-                      issue={issue}
-                      column={col}
-                      onSelect={onSelect}
-                      onNavigateToPrs={onNavigateToPrs}
-                      onNavigateToRepo={onNavigateToRepo}
-                      onOpenUrl={onOpenUrl}
-                      onDelete={onDelete}
-                      onAssignToMe={onAssignToMe}
-                      delegateIssue={delegateIssue}
-                      t={t}
-                      setIssueToDelete={setIssueToDelete}
-                    />
-                  ))}
-              </section>
+              <div
+                key={virtualItem.key}
+                data-index={virtualItem.index}
+                ref={virtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualItem.start}px)`,
+                }}
+              >
+                {item.kind === "header" ? (
+                  <button
+                    onClick={() => toggleGroup(item.col)}
+                    className="flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
+                  >
+                    <StatusIcon column={item.col} />
+                    <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{COLUMN_LABEL[item.col]}</span>
+                    <span className="text-[12px] font-medium text-zinc-500">{item.count}</span>
+                    {collapsed.has(item.col) ? (
+                      <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+                    ) : (
+                      <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+                    )}
+                  </button>
+                ) : (
+                  <IssueRow
+                    issue={item.issue}
+                    column={item.col}
+                    onSelect={onSelect}
+                    onNavigateToPrs={onNavigateToPrs}
+                    onNavigateToRepo={onNavigateToRepo}
+                    onOpenUrl={onOpenUrl}
+                    onDelete={onDelete}
+                    onAssignToMe={onAssignToMe}
+                    delegateIssue={delegateIssue}
+                    t={t}
+                    setIssueToDelete={setIssueToDelete}
+                  />
+                )}
+              </div>
             );
           })}
         </div>
