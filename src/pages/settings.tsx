@@ -4,7 +4,7 @@ import {
   Palette,
   SlidersHorizontal,
   Bell,
-  // Blocks,
+  Blocks,
   // Bot,
   // Keyboard,
   // Mic,
@@ -46,7 +46,7 @@ type TabId =
   | "integrations" | "agents" | "remote" | "sync" | "shortcuts" | "dictation"
   | "advanced" | "vcs-providers" | "workspaces" | "prompts" | "subscription";
 
-const COMING_SOON_TABS: TabId[] = ["integrations", "agents", "dictation", "workspaces", "remote", "shortcuts", "advanced"];
+const COMING_SOON_TABS: TabId[] = ["agents", "dictation", "workspaces", "remote", "shortcuts", "advanced"];
 
 const SHOW_COMING_SOON = import.meta.env.DEV;
 
@@ -89,7 +89,7 @@ export function SettingsPage() {
       id: "features",
       group: t("settings.groups.features"),
       items: [
-        // { id: "integrations" as TabId, label: t("settings.tabs.integrations"), icon: <Blocks className="h-4 w-4" /> },
+        { id: "integrations" as TabId, label: t("settings.tabs.integrations"), icon: <Blocks className="h-4 w-4" /> },
         // { id: "agents" as TabId,       label: t("settings.tabs.agents"),        icon: <Bot className="h-4 w-4" /> },
         // { id: "remote" as TabId,       label: t("settings.tabs.remote"),        icon: <Smartphone className="h-4 w-4" /> },
         { id: "sync" as TabId,         label: t("settings.tabs.sync"),          icon: <RefreshCw className="h-4 w-4" /> },

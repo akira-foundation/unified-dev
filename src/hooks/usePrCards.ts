@@ -51,7 +51,7 @@ export function usePrCards(): UsePrCardsResult {
           scope: resolvePrScope(repo.organization_id, repo.repo_name),
           currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
         }),
-      staleTime: cache.staleTime.realtime,
+      staleTime: cache.staleTime.short,
     })),
   });
 

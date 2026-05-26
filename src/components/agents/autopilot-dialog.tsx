@@ -101,7 +101,7 @@ export function AutopilotDialog({ open, onOpenChange, repoId, repoName }: Autopi
   const count = filteredCount();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[420px] p-0 gap-0 overflow-hidden">
         {/* Header */}
         <DialogHeader className="px-5 pt-5 pb-4 border-b border-border">
