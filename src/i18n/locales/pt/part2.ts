@@ -68,6 +68,8 @@ export const ptPart2: Record<string, string> = {
   "settings.projects.addProviderDescription": "Puxa issues de um tracker para este repositório.",
   "settings.projects.selectProvider": "Selecionar provedor",
   "settings.projects.viewIssues": "Ver issues",
+  "settings.projects.viewRepo": "Ver repo",
+  "settings.projects.noVcsTarget": "Sem repo VCS ligado para abrir.",
   "settings.projects.sourceLabel": "Fonte",
   "settings.projects.sourceCount": "fontes",
   "settings.projects.sourceCountSingular": "fonte",

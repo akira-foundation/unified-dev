@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, MoreVertical, Link2, Check, Folder, FolderGit2, CircleDot } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Link2, Check, Folder, FolderGit2, CircleDot, ExternalLink } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
@@ -58,6 +58,7 @@ export function ProjectDetailPage() {
   const queryClient = useQueryClient();
   const activeProjectId = useNavigationStore((s) => s.activeProjectId);
   const navigateTo = useNavigationStore((s) => s.navigateTo);
+  const setActiveRepo = useNavigationStore((s) => s.setActiveRepo);
   const setFilter = useFiltersStore((s) => s.setFilter);
   const [addRepoOpen, setAddRepoOpen] = useState(false);
   const [sourceRepo, setSourceRepo] = useState<ProjectRepo | null>(null);
@@ -117,6 +118,21 @@ export function ProjectDetailPage() {
     navigateTo("issues");
   }
 
+  function viewRepo(repo: ProjectRepo) {
+    const vcs = sources.find(
+      (source) => source.projectRepoId === repo.id && source.isVcsTarget && source.provider === "github",
+    );
+    if (!vcs) {
+      toast.error(t("settings.projects.noVcsTarget"));
+      return;
+    }
+    const [orgId, repoName] = vcs.ref.split("/");
+    const gh = githubRepos.find((entry) => entry.organization_id === orgId && entry.repo_name === repoName);
+    if (!gh) return;
+    setActiveRepo({ name: gh.repo_name, owner: gh.owner, organizationId: gh.organization_id });
+    navigateTo("repository-detail");
+  }
+
   if (!project) {
     return (
       <PageLayout scroll>
@@ -146,6 +162,7 @@ export function ProjectDetailPage() {
                   repo={repo}
                   sources={sources.filter((source) => source.projectRepoId === repo.id)}
                   named={named}
+                  onViewRepo={() => viewRepo(repo)}
                   onViewIssues={viewIssues}
                   onAddSource={() => setSourceRepo(repo)}
                   onRemove={() => removeRepo(repo.id)}
@@ -187,19 +204,25 @@ interface RepoRowProps {
   repo: ProjectRepo;
   sources: RepoSource[];
   named: Record<string, ProviderNamed>;
+  onViewRepo: () => void;
   onViewIssues: () => void;
   onAddSource: () => void;
   onRemove: () => void;
   onChange: () => void;
 }
 
-function RepoRow({ repo, sources, named, onViewIssues, onAddSource, onRemove }: RepoRowProps) {
+function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, onRemove }: RepoRowProps) {
   const { t } = useI18n();
 
   return (
     <div className="group flex h-10 items-center gap-2.5 rounded-md px-3 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
       <FolderGit2 className="h-4 w-4 shrink-0 text-zinc-400" />
-      <span className="shrink-0 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{repo.name}</span>
+      <button
+        onClick={onViewRepo}
+        className="shrink-0 cursor-pointer truncate text-[13px] font-medium text-zinc-800 hover:underline dark:text-zinc-100"
+      >
+        {repo.name}
+      </button>
 
       <div className="ml-auto flex min-w-0 items-center gap-2">
         <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
@@ -220,6 +243,10 @@ function RepoRow({ repo, sources, named, onViewIssues, onAddSource, onRemove }: 
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onViewRepo}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {t("settings.projects.viewRepo")}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={onViewIssues}>
               <CircleDot className="mr-2 h-4 w-4" />
               {t("settings.projects.viewIssues")}
