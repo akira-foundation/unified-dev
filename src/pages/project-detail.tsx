@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AppbarActions } from "@/components/layout/appbar-actions";
 import { PageLayout } from "@/components/layout/page-layout";
@@ -150,6 +151,7 @@ export function ProjectDetailPage() {
         open={addRepoOpen}
         onOpenChange={setAddRepoOpen}
         projectId={project.id}
+        githubRepos={githubRepos}
         onCreated={refresh}
       />
       <AddSourceDialog
@@ -242,19 +244,75 @@ interface AddRepoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   projectId: string;
+  githubRepos: { organization_id: string; repo_name: string }[];
   onCreated: () => void;
 }
 
-function AddRepoDialog({ open, onOpenChange, projectId, onCreated }: AddRepoDialogProps) {
-  const { t } = useI18n();
-  const [name, setName] = useState("");
-
-  async function create() {
-    const value = name.trim();
-    if (!value) return;
+function parseGitUrl(input: string): { provider: string; owner: string; name: string } | null {
+  const value = input.trim();
+  if (!value) return null;
+  let host = "";
+  let path = "";
+  const ssh = value.match(/^git@([^:]+):(.+)$/);
+  if (ssh) {
+    host = ssh[1];
+    path = ssh[2];
+  } else {
     try {
-      await projectService.createRepo(projectId, value);
-      setName("");
+      const url = new URL(value);
+      host = url.hostname;
+      path = url.pathname.replace(/^\//, "");
+    } catch {
+      return null;
+    }
+  }
+  path = path.replace(/\.git$/, "");
+  const [owner, name] = path.split("/");
+  if (!owner || !name) return null;
+  const provider = host.includes("gitlab") ? "gitlab" : host.includes("bitbucket") ? "bitbucket" : "github";
+  return { provider, owner, name };
+}
+
+function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }: AddRepoDialogProps) {
+  const { t } = useI18n();
+  const [tab, setTab] = useState("existing");
+  const [existing, setExisting] = useState("");
+  const [url, setUrl] = useState("");
+  const [localPath, setLocalPath] = useState("");
+
+  function reset() {
+    setExisting("");
+    setUrl("");
+    setLocalPath("");
+    setTab("existing");
+  }
+
+  async function addRepoWithSource(provider: string, ref: string, name: string) {
+    const repo = await projectService.createRepo(projectId, name);
+    await projectService.addSource(repo.id, provider, "repo", ref, true, true);
+  }
+
+  async function submit() {
+    try {
+      if (tab === "existing") {
+        if (!existing) return;
+        const repo = githubRepos.find((entry) => `${entry.organization_id}/${entry.repo_name}` === existing);
+        if (!repo) return;
+        await addRepoWithSource("github", existing, repo.repo_name);
+      } else if (tab === "url") {
+        const parsed = parseGitUrl(url);
+        if (!parsed) {
+          toast.error(t("settings.projects.invalidUrl"));
+          return;
+        }
+        await addRepoWithSource(parsed.provider, `${parsed.owner}/${parsed.name}`, parsed.name);
+      } else {
+        const path = localPath.trim();
+        if (!path) return;
+        const name = path.split("/").filter(Boolean).pop() ?? path;
+        await addRepoWithSource("local", path, name);
+      }
+      reset();
       onOpenChange(false);
       onCreated();
     } catch (error) {
@@ -262,40 +320,71 @@ function AddRepoDialog({ open, onOpenChange, projectId, onCreated }: AddRepoDial
     }
   }
 
+  const canSubmit = tab === "existing" ? !!existing : tab === "url" ? !!url.trim() : !!localPath.trim();
+
   return (
     <Dialog
       open={open}
       onOpenChange={(value) => {
         onOpenChange(value);
-        if (!value) setName("");
+        if (!value) reset();
       }}
     >
-      <DialogContent className="max-w-[420px] gap-0 overflow-hidden p-0">
+      <DialogContent className="max-w-[440px] gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-5 pt-5 pb-4">
           <DialogTitle className="text-base">{t("settings.projects.addRepo")}</DialogTitle>
           <p className="mt-1.5 text-sm text-muted-foreground">{t("settings.projects.addRepoDescription")}</p>
         </DialogHeader>
         <div className="flex flex-col gap-4 px-5 py-4">
-          <div className="flex flex-col gap-2">
-            <Label>{t("settings.projects.repoNameLabel")}</Label>
-            <Input
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") create();
-              }}
-              placeholder={t("settings.projects.repoNamePlaceholder")}
-            />
-          </div>
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList variant="line" className="mb-4 h-auto gap-6">
+              <TabsTrigger value="existing">{t("settings.projects.addRepo.existing")}</TabsTrigger>
+              <TabsTrigger value="url">{t("settings.projects.addRepo.url")}</TabsTrigger>
+              <TabsTrigger value="local">{t("settings.projects.addRepo.local")}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="existing" className="mt-0">
+              <Select value={existing} onValueChange={setExisting}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("settings.projects.selectRepo")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {githubRepos.map((entry) => (
+                    <SelectItem key={`${entry.organization_id}/${entry.repo_name}`} value={`${entry.organization_id}/${entry.repo_name}`}>
+                      {entry.repo_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </TabsContent>
+
+            <TabsContent value="url" className="mt-0">
+              <Input
+                autoFocus
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="https://github.com/owner/repo.git"
+              />
+            </TabsContent>
+
+            <TabsContent value="local" className="mt-0">
+              <Input
+                autoFocus
+                value={localPath}
+                onChange={(event) => setLocalPath(event.target.value)}
+                placeholder="/path/to/repo"
+              />
+            </TabsContent>
+          </Tabs>
+
           <DialogFooter className="flex gap-2 px-0 pb-0 pt-0">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               {t("common.cancel")}
             </Button>
             <Button
               size="sm"
-              onClick={create}
-              disabled={!name.trim()}
+              onClick={submit}
+              disabled={!canSubmit}
               className="flex-1 bg-purple-600 text-white hover:bg-purple-700"
             >
               {t("settings.projects.addRepo")}

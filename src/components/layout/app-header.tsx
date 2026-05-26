@@ -142,19 +142,19 @@ export function AppHeader() {
                                     {detail ? (
                                         <button
                                             onClick={() => navigateTo(detail.page)}
-                                            className="hidden shrink-0 text-[12px] font-medium leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline lg:inline"
+                                            className="hidden shrink-0 text-[12px] font-medium lowercase leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline lg:inline"
                                         >
                                             {t(detail.labelKey)}
                                         </button>
                                     ) : (
-                                        <span className="shrink-0 text-[12px] font-medium leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
+                                        <span className="shrink-0 text-[12px] font-medium lowercase leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
                                     )}
                                     {detail?.title && (
                                         <>
                                             <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
                                             <span
                                                 title={detail.title}
-                                                className="max-w-[140px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
+                                                className="max-w-[140px] truncate text-[12px] font-medium lowercase leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
                                             >
                                                 {detail.title}
                                             </span>
@@ -165,7 +165,7 @@ export function AppHeader() {
                                             <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
                                             <span
                                                 title={activeThread.title}
-                                                className="max-w-[140px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
+                                                className="max-w-[140px] truncate text-[12px] font-medium lowercase leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
                                             >
                                                 {activeThread.title}
                                             </span>
