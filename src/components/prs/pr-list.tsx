@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, CheckCircle2, Clock, ExternalLink, FileCode, MoreVertical, XCircle } from "lucide-react";
-import { useMemo, useState, type RefObject } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 
 import {
@@ -93,14 +93,13 @@ export function PrList({
   cards,
   onSelect,
   onOpenUrl,
-  scrollParentRef,
 }: {
   cards: PrCardType[];
   onSelect?: (card: PrCardType) => void;
   onOpenUrl?: (url: string) => void;
-  scrollParentRef?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useI18n();
+  const parentRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState<Set<PrColumnId>>(new Set());
 
   const grouped = useMemo(() => {
@@ -135,7 +134,7 @@ export function PrList({
 
   const virtualizer = useVirtualizer({
     count: flatItems.length,
-    getScrollElement: () => scrollParentRef?.current ?? null,
+    getScrollElement: () => parentRef.current,
     estimateSize: (index) => (flatItems[index].kind === "header" ? 34 : 36),
     overscan: 12,
   });
@@ -145,7 +144,8 @@ export function PrList({
   }
 
   return (
-    <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+    <div ref={parentRef} className="h-full overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
+      <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
       {virtualizer.getVirtualItems().map((virtualItem) => {
         const item = flatItems[virtualItem.index];
         return (
@@ -183,6 +183,7 @@ export function PrList({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

@@ -55,7 +55,7 @@ export function usePrCards(): UsePrCardsResult {
     })),
   });
 
-  const isLoading = reposLoading || prQueries.some((q) => q.isLoading);
+  const isLoading = reposLoading || (prQueries.length > 0 && prQueries.every((q) => q.isLoading));
 
   const allCards = useMemo<PrCardType[]>(() => {
     return allRepos.flatMap((repo: OrganizationRepoWithOrg, idx: number) => {

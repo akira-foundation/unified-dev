@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useMemo, useState, type ReactNode, type RefObject } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { EmptyState } from "../ui/empty-state";
 import { toast } from "sonner";
@@ -38,7 +38,6 @@ interface IssueTableProps {
   onOpenUrl?: (url: string) => void;
   onDelete?: (issue: IssueDto) => Promise<void>;
   onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
-  scrollParentRef?: RefObject<HTMLElement | null>;
 }
 
 function ToolbarActions({ inAppbar, children }: { inAppbar: boolean; children: ReactNode }) {
@@ -60,9 +59,9 @@ export function IssueTable({
   onOpenUrl,
   onDelete,
   onAssignToMe,
-  scrollParentRef,
 }: IssueTableProps) {
   const { t } = useI18n();
+  const parentRef = useRef<HTMLDivElement>(null);
   const [issueToDelete, setIssueToDelete] = useState<IssueDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<IssueColumnId>>(new Set());
@@ -102,7 +101,7 @@ export function IssueTable({
 
   const virtualizer = useVirtualizer({
     count: flatItems.length,
-    getScrollElement: () => scrollParentRef?.current ?? null,
+    getScrollElement: () => parentRef.current,
     estimateSize: (index) => (flatItems[index].kind === "header" ? 34 : 36),
     overscan: 12,
   });
@@ -137,6 +136,7 @@ export function IssueTable({
         </ToolbarActions>
       )}
 
+      <div ref={parentRef} className="h-full overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
       {filteredIssues.length === 0 ? (
         <EmptyState title={t("issues.table.empty")} />
       ) : (
@@ -190,6 +190,7 @@ export function IssueTable({
           })}
         </div>
       )}
+      </div>
 
       <AlertDialog open={!!issueToDelete} onOpenChange={(open) => { if (!open) setIssueToDelete(null); }}>
         <AlertDialogContent className="max-w-[420px]">

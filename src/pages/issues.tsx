@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { LayoutGrid, List, Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AppbarActions } from "@/components/layout/appbar-actions";
@@ -41,7 +41,6 @@ export function IssuesPage() {
   const { organizations } = useOrganizations();
   const { providers } = useProviders();
   const { resolveIssueScope, assignIssuesToSelfByDefault } = useSettingsStore();
-  const listScrollRef = useRef<HTMLDivElement>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const viewMode = useIssueViewStore((s) => s.viewMode);
@@ -104,7 +103,7 @@ export function IssuesPage() {
     [projectList, projectRepos, repoSources],
   );
 
-  const isLoading = reposLoading || issueQueries.some((q) => q.isLoading);
+  const isLoading = reposLoading || (issueQueries.length > 0 && issueQueries.every((q) => q.isLoading));
   const githubIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []).map((issue) => {
     const project = projectMap.get(sourceKey("github", "repo", `${issue.orgId}/${issue.repoName}`));
     return project ? { ...issue, projectId: project.id, projectName: project.name } : issue;
@@ -220,9 +219,9 @@ export function IssuesPage() {
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
-        <div ref={listScrollRef} className="min-w-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
+        <div className="min-w-0 flex-1 min-h-0">
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-4 md:p-6">
               <Skeleton className="h-24 w-full" />
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
@@ -232,7 +231,6 @@ export function IssuesPage() {
             <IssueTable
               issues={allIssues}
               showToolbar={false}
-              scrollParentRef={listScrollRef}
               onSelect={handleSelectIssue}
               onNavigateToPrs={handleNavigateToPrs}
               onNavigateToRepo={handleNavigateToRepo}
@@ -244,7 +242,9 @@ export function IssuesPage() {
               onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
             />
           ) : (
-            <IssueKanban issues={filteredIssues} onSelect={handleSelectIssue} onNewIssue={handleCreateClick} />
+            <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
+              <IssueKanban issues={filteredIssues} onSelect={handleSelectIssue} onNewIssue={handleCreateClick} />
+            </div>
           )}
         </div>
 
