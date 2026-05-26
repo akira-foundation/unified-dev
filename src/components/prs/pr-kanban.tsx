@@ -147,7 +147,7 @@ export function PrKanban({ cards, onSelect }: { cards: PrCardType[]; onSelect?: 
       : resolved.find((c) => c.id === overId)?.columnId;
 
   const columnCards = useMemo(() => {
-    const map: Record<PrColumnId, PrCardType[]> = { todo: [], inprogress: [], review: [], done: [] };
+    const map: Record<PrColumnId, PrCardType[]> = { todo: [], failed: [], inprogress: [], review: [], done: [] };
     for (const card of resolved) {
       (map[card.columnId] ?? map.todo).push(card);
     }
@@ -202,6 +202,7 @@ export function PrKanban({ cards, onSelect }: { cards: PrCardType[]; onSelect?: 
           ids={PR_COLUMN_ORDER.filter((id) => hiddenColumns.includes(id))}
           counts={{
             todo: columnCards.todo.length,
+            failed: columnCards.failed.length,
             inprogress: columnCards.inprogress.length,
             review: columnCards.review.length,
             done: columnCards.done.length,

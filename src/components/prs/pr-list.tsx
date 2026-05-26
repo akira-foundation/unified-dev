@@ -8,7 +8,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/i18n";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatRelativeDate } from "@/components/repos/pr-item";
@@ -103,7 +102,7 @@ export function PrList({
   const [collapsed, setCollapsed] = useState<Set<PrColumnId>>(new Set());
 
   const grouped = useMemo(() => {
-    const map: Record<PrColumnId, PrCardType[]> = { todo: [], inprogress: [], review: [], done: [] };
+    const map: Record<PrColumnId, PrCardType[]> = { todo: [], failed: [], inprogress: [], review: [], done: [] };
     cards.forEach((card) => (map[card.columnId] ?? map.todo).push(card));
     PR_COLUMN_ORDER.forEach((col) => map[col].sort((a, b) => b.pr.updated_at.localeCompare(a.pr.updated_at)));
     return map;
@@ -167,8 +166,8 @@ export function PrList({
                 className="flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
               >
                 <PrStatusIcon column={item.col} />
-                <span className={cn("text-[13px] font-semibold capitalize text-zinc-700 dark:text-zinc-200")}>
-                  {t(PR_COLUMN_LABEL_KEY[item.col]).toLowerCase()}
+                <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">
+                  {t(PR_COLUMN_LABEL_KEY[item.col])}
                 </span>
                 <span className="text-[12px] font-medium text-zinc-500">{item.count}</span>
                 {collapsed.has(item.col) ? (
