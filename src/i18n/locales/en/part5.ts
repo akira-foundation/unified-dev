@@ -243,6 +243,7 @@ export const enPart5: Record<string, string> = {
   "issues.filter.title": "Filter",
   "issues.filter.clear": "Clear",
   "issues.filter.projects": "Projects",
+  "issues.filter.repos": "Repos",
   "issues.filter.provider": "Provider",
   "issues.filter.noAssignee": "No assignee",
   "issues.filter.noData": "No data",

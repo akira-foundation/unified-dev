@@ -13,13 +13,14 @@ interface IssueInsightsPanelProps {
   className?: string;
 }
 
-type TabId = "status" | "assignees" | "labels" | "projects" | "provider" | "source";
+type TabId = "status" | "assignees" | "labels" | "projects" | "repos" | "provider" | "source";
 
 const TABS: Array<{ id: TabId; labelKey: string; filterKey: string }> = [
   { id: "status", labelKey: "issues.detail.labelStatus", filterKey: "statuses" },
   { id: "assignees", labelKey: "issues.detail.labelAssignees", filterKey: "assignees" },
   { id: "labels", labelKey: "issues.detail.labelLabels", filterKey: "labels" },
   { id: "projects", labelKey: "issues.filter.projects", filterKey: "projects" },
+  { id: "repos", labelKey: "issues.filter.repos", filterKey: "repos" },
   { id: "provider", labelKey: "issues.filter.provider", filterKey: "providers" },
   { id: "source", labelKey: "issues.detail.source", filterKey: "sources" },
 ];
@@ -52,6 +53,7 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
     const assignees = new Map<string, number>();
     const labels = new Map<string, number>();
     const projects = new Map<string, number>();
+    const repos = new Map<string, number>();
     const provider = new Map<string, number>();
     const source = new Map<string, number>();
     let noAssignee = 0;
@@ -59,12 +61,13 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
       tally(status, issue.status);
       tally(source, issue.syncWithProvider ? "synced" : "local");
       tally(projects, issue.projectName ?? "No project");
+      tally(repos, issue.repoName);
       tally(provider, issue.provider);
       if (issue.assignees.length === 0) noAssignee += 1;
       else issue.assignees.forEach((a) => tally(assignees, a));
       issue.labels.forEach((l) => tally(labels, l));
     });
-    return { status, assignees, labels, projects, provider, source, noAssignee };
+    return { status, assignees, labels, projects, repos, provider, source, noAssignee };
   }, [issues]);
 
   const current = TABS.find((tabItem) => tabItem.id === tab)!;

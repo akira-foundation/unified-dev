@@ -238,6 +238,7 @@ export const ptPart5: Record<string, string> = {
   "issues.filter.title": "Filtro",
   "issues.filter.clear": "Limpar",
   "issues.filter.projects": "Projetos",
+  "issues.filter.repos": "Repositórios",
   "issues.filter.provider": "Provedor",
   "issues.filter.noAssignee": "Sem responsável",
   "issues.filter.noData": "Sem dados",
