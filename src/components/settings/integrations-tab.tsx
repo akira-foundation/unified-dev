@@ -1,12 +1,13 @@
-import { Blocks, Link2, RefreshCw } from "lucide-react";
+import { Blocks, Link2, RefreshCw, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/i18n";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -17,6 +18,12 @@ import { trackerService } from "@/services/trackerService";
 const LINEAR = "linear";
 const OUTLINE_BUTTON =
   "h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300";
+const FIELD_INPUT =
+  "h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs text-zinc-600 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:placeholder:text-zinc-500";
+
+function cleanError(error: unknown): string {
+  return String(error).replace(/^provider error:\s*/i, "");
+}
 
 function LinearRow() {
   const [connected, setConnected] = useState(false);
@@ -25,6 +32,7 @@ function LinearRow() {
   const [open, setOpen] = useState(false);
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     trackerService
@@ -37,6 +45,7 @@ function LinearRow() {
     const value = token.trim();
     if (!value) return;
     setBusy(true);
+    setError(null);
     try {
       const user = await trackerService.connect(LINEAR, value);
       setConnected(true);
@@ -44,8 +53,8 @@ function LinearRow() {
       setToken("");
       setOpen(false);
       toast.success(`Linear connected as ${user.name}`);
-    } catch (error) {
-      toast.error(`Linear connect failed: ${error}`);
+    } catch (err) {
+      setError(cleanError(err));
     } finally {
       setBusy(false);
     }
@@ -57,8 +66,8 @@ function LinearRow() {
       const synced = await trackerService.sync(LINEAR);
       setCount(synced);
       toast.success(`Synced ${synced} Linear issue(s)`);
-    } catch (error) {
-      toast.error(`Linear sync failed: ${error}`);
+    } catch (err) {
+      toast.error(cleanError(err));
     } finally {
       setBusy(false);
     }
@@ -78,10 +87,22 @@ function LinearRow() {
         action={
           connected ? (
             <Button variant="outline" disabled={busy} onClick={sync} className={OUTLINE_BUTTON}>
-              <RefreshCw className="h-4 w-4" /> Sync
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {busy ? "Syncing…" : "Sync"}
             </Button>
           ) : (
-            <Button variant="outline" onClick={() => setOpen(true)} className={OUTLINE_BUTTON}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setError(null);
+                setOpen(true);
+              }}
+              className={OUTLINE_BUTTON}
+            >
               <Link2 className="h-4 w-4" /> Connect
             </Button>
           )
@@ -91,39 +112,59 @@ function LinearRow() {
       <Dialog
         open={open}
         onOpenChange={(value) => {
-          if (!value) setOpen(false);
+          if (!value) {
+            setOpen(false);
+            setToken("");
+            setError(null);
+          }
         }}
       >
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>Connect Linear</DialogTitle>
-            <DialogDescription>
-              Paste a Linear personal API key to sync your workspace. The key is encrypted and
-              stored only on this device.
-            </DialogDescription>
+        <DialogContent className="max-w-[420px] p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-4 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Blocks className="h-4 w-4 text-purple-500" />
+              <DialogTitle className="text-base">Connect Linear</DialogTitle>
+            </div>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Paste a Linear personal API key. It is encrypted and stored only on this device.
+            </p>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
-            <input
-              type="password"
-              autoFocus
-              value={token}
-              onChange={(event) => setToken(event.target.value)}
-              placeholder="lin_api_..."
-              className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-              onKeyDown={(event) => {
-                if (event.key === "Enter") connect();
-              }}
-            />
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
-                Cancel
-              </Button>
-              <Button onClick={connect} disabled={busy || !token.trim()}>
-                {busy ? "Connecting…" : "Connect"}
-              </Button>
+          <div className="px-5 py-4 space-y-3">
+            <div className="space-y-1">
+              <p className="text-[11px] text-muted-foreground">API key</p>
+              <Input
+                type="password"
+                autoFocus
+                placeholder="lin_api_..."
+                value={token}
+                onChange={(event) => {
+                  setToken(event.target.value);
+                  if (error) setError(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") connect();
+                }}
+                className={FIELD_INPUT}
+              />
             </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
           </div>
+
+          <DialogFooter className="px-5 pb-5 pt-0 flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={connect}
+              disabled={busy || !token.trim()}
+              className="flex-1 gap-2 bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {busy ? "Connecting…" : "Connect"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

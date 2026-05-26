@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use issue_provider_core::{
-    CommentId, Comments, Cycles, IssueError, IssueId, Issues, Labels, Milestones, Projects, Teams,
-    Users, Viewer,
+    CommentId, Comments, Cycles, ErrorKind, IssueError, IssueId, Issues, Labels, Milestones,
+    Projects, Teams, Users, Viewer,
 };
 use issue_provider_linear::{linear, LinearClient};
 
@@ -27,7 +27,28 @@ impl LinearTracker {
 }
 
 fn provider_err(error: IssueError) -> AppError {
-    AppError::Provider(error.to_string())
+    let message = match error.kind() {
+        ErrorKind::Unauthorized => {
+            "Unauthorized — check your Linear API key.".to_string()
+        }
+        ErrorKind::RateLimited => {
+            "Linear rate limit reached. Try again in a moment.".to_string()
+        }
+        ErrorKind::NotFound => "Not found on Linear.".to_string(),
+        ErrorKind::Transport | ErrorKind::TransportNotConfigured => {
+            "Could not reach Linear. Check your connection.".to_string()
+        }
+        ErrorKind::Decode => "Unexpected response from Linear.".to_string(),
+        ErrorKind::Provider => {
+            let detail = error.message().trim();
+            if detail.is_empty() {
+                "Linear request failed.".to_string()
+            } else {
+                detail.to_string()
+            }
+        }
+    };
+    AppError::Provider(message)
 }
 
 #[async_trait]
