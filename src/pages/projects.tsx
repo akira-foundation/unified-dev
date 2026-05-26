@@ -28,7 +28,7 @@ import { PageLayout } from "@/components/layout/page-layout";
 import { projectService, type Project } from "@/services/projectService";
 
 const SELECT =
-  "h-9 rounded-md border border-zinc-200 bg-zinc-100 px-2 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
+  "h-8 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 text-[13px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
 
 export function ProjectsPage() {
   const { t } = useI18n();
@@ -131,7 +131,6 @@ export function ProjectsPage() {
                 if (event.key === "Enter") createProject();
               }}
               placeholder={t("settings.projects.namePlaceholder")}
-              className="h-9"
             />
             <select value={orgId} onChange={(event) => setOrgId(event.target.value)} className={SELECT}>
               <option value="">{t("settings.projects.noOrg")}</option>
