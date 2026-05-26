@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, CheckCircle2, Clock, ExternalLink, FileCode, MoreVertical, XCircle } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type RefObject } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 
 import {
   DropdownMenu,
@@ -92,10 +93,12 @@ export function PrList({
   cards,
   onSelect,
   onOpenUrl,
+  scrollParentRef,
 }: {
   cards: PrCardType[];
   onSelect?: (card: PrCardType) => void;
   onOpenUrl?: (url: string) => void;
+  scrollParentRef?: RefObject<HTMLElement | null>;
 }) {
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState<Set<PrColumnId>>(new Set());
@@ -115,36 +118,69 @@ export function PrList({
       return next;
     });
 
+  type FlatItem =
+    | { kind: "header"; col: PrColumnId; count: number }
+    | { kind: "row"; card: PrCardType; col: PrColumnId };
+
+  const flatItems = useMemo(() => {
+    const out: FlatItem[] = [];
+    PR_COLUMN_ORDER.forEach((col) => {
+      const rows = grouped[col];
+      if (rows.length === 0) return;
+      out.push({ kind: "header", col, count: rows.length });
+      if (!collapsed.has(col)) rows.forEach((card) => out.push({ kind: "row", card, col }));
+    });
+    return out;
+  }, [grouped, collapsed]);
+
+  const virtualizer = useVirtualizer({
+    count: flatItems.length,
+    getScrollElement: () => scrollParentRef?.current ?? null,
+    estimateSize: (index) => (flatItems[index].kind === "header" ? 34 : 36),
+    overscan: 12,
+  });
+
   if (cards.length === 0) {
     return <EmptyState title={t("prs.table.empty")} />;
   }
 
   return (
-    <div className="flex flex-col">
-      {PR_COLUMN_ORDER.map((col) => {
-        const rows = grouped[col];
-        if (rows.length === 0) return null;
-        const isCollapsed = collapsed.has(col);
+    <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+      {virtualizer.getVirtualItems().map((virtualItem) => {
+        const item = flatItems[virtualItem.index];
         return (
-          <section key={col}>
-            <button onClick={() => toggleGroup(col)} className="sticky top-0 z-10 flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left">
-              <PrStatusIcon column={col} />
-              <span className={cn("text-[13px] font-semibold capitalize text-zinc-700 dark:text-zinc-200")}>
-                {t(PR_COLUMN_LABEL_KEY[col]).toLowerCase()}
-              </span>
-              <span className="text-[12px] font-medium text-zinc-500">{rows.length}</span>
-              {isCollapsed ? (
-                <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-              ) : (
-                <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-              )}
-            </button>
-
-            {!isCollapsed &&
-              rows.map((card) => (
-                <PrRow key={card.id} card={card} onSelect={onSelect} onOpenUrl={onOpenUrl} />
-              ))}
-          </section>
+          <div
+            key={virtualItem.key}
+            data-index={virtualItem.index}
+            ref={virtualizer.measureElement}
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "100%",
+              transform: `translateY(${virtualItem.start}px)`,
+            }}
+          >
+            {item.kind === "header" ? (
+              <button
+                onClick={() => toggleGroup(item.col)}
+                className="flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
+              >
+                <PrStatusIcon column={item.col} />
+                <span className={cn("text-[13px] font-semibold capitalize text-zinc-700 dark:text-zinc-200")}>
+                  {t(PR_COLUMN_LABEL_KEY[item.col]).toLowerCase()}
+                </span>
+                <span className="text-[12px] font-medium text-zinc-500">{item.count}</span>
+                {collapsed.has(item.col) ? (
+                  <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+                ) : (
+                  <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+                )}
+              </button>
+            ) : (
+              <PrRow card={item.card} onSelect={onSelect} onOpenUrl={onOpenUrl} />
+            )}
+          </div>
         );
       })}
     </div>
