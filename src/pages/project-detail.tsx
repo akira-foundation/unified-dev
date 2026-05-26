@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, X, FolderGit2, ArrowLeft } from "lucide-react";
+import { Plus, X, FolderGit2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useI18n } from "@/i18n/i18n";
@@ -8,7 +8,6 @@ import { useNavigationStore } from "@/stores/navigation-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageLayout } from "@/components/layout/page-layout";
-import { PageHeader, PageHeaderTitle } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   projectService,
@@ -35,7 +34,6 @@ export function ProjectDetailPage() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const activeProjectId = useNavigationStore((s) => s.activeProjectId);
-  const goBack = useNavigationStore((s) => s.goBack);
   const [repoName, setRepoName] = useState("");
 
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectService.list() });
@@ -101,15 +99,6 @@ export function ProjectDetailPage() {
 
   return (
     <PageLayout className="!p-0 !space-y-0 h-[calc(100vh-4rem)] overflow-hidden">
-      <PageHeader className="mx-auto w-full max-w-3xl">
-        <div className="flex items-center gap-2">
-          <button onClick={goBack} className="text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200">
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <PageHeaderTitle>{project.name}</PageHeaderTitle>
-        </div>
-      </PageHeader>
-
       <div className="flex h-full min-h-0">
         <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
           <div className="mx-auto flex max-w-3xl flex-col gap-2">
