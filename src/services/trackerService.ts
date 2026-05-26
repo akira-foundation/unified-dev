@@ -127,8 +127,8 @@ export function trackerIssueToDto(
 ): IssueDto {
   const column = categoryToColumn(issue.category);
   const number = issue.identifier ? parseInt(issue.identifier.replace(/\D/g, ""), 10) || 0 : 0;
-  const labels = issue.labelNames?.length ? issue.labelNames : issue.labels;
-  const assignee = issue.assigneeName ?? issue.assignee;
+  const labels = issue.labelNames ?? [];
+  const assignee = issue.assigneeName ?? undefined;
   const project =
     (issue.project && projectMap?.get(sourceKey(provider, "project", issue.project))) ||
     (issue.team && projectMap?.get(sourceKey(provider, "team", issue.team))) ||
@@ -138,7 +138,7 @@ export function trackerIssueToDto(
     externalId: issue.id,
     provider,
     orgId: provider,
-    repoName: issue.teamName ?? issue.team ?? "Linear",
+    repoName: project?.name ?? issue.teamName ?? "Linear",
     number,
     title: issue.title,
     body: issue.description ?? null,
@@ -147,7 +147,7 @@ export function trackerIssueToDto(
     labels,
     labelColors: [],
     assignees: assignee ? [assignee] : [],
-    author: issue.authorName ?? issue.author ?? null,
+    author: issue.authorName ?? null,
     url: issue.url ?? "",
     linkedPrNumbers: [],
     createdAt: issue.createdAt ?? issue.updatedAt,
