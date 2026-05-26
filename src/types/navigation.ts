@@ -17,6 +17,7 @@ export type AppPage =
   | "pr-detail"
   | "issues"
   | "issue-detail"
+  | "projects"
   | "open-source"
   | "notifications";
 

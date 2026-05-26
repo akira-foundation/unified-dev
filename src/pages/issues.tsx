@@ -25,6 +25,8 @@ import { useIssueViewStore } from "@/stores/issue-view-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useIssueMutations } from "@/hooks/useIssueMutations";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
+import { trackerService, trackerIssueToDto } from "@/services/trackerService";
+import { projectService, buildProjectSourceMap, sourceKey } from "@/services/projectService";
 import { queryKeys } from "@/lib/query-keys";
 import { issueScopeLabelKey, resolveCurrentLogin } from "@/lib/work-visibility";
 import { cache } from "@/config/cache";
@@ -75,8 +77,36 @@ export function IssuesPage() {
     })),
   });
 
+  const trackerIssuesQuery = useQuery({
+    queryKey: ["tracker-issues", "linear"],
+    queryFn: () => trackerService.listIssues("linear"),
+    staleTime: cache.staleTime.short,
+  });
+
+  const { data: projectList = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectService.list(),
+    staleTime: cache.staleTime.short,
+  });
+  const { data: projectSources = [] } = useQuery({
+    queryKey: ["project-sources"],
+    queryFn: () => projectService.listSources(),
+    staleTime: cache.staleTime.short,
+  });
+  const projectMap = useMemo(
+    () => buildProjectSourceMap(projectList, projectSources),
+    [projectList, projectSources],
+  );
+
   const isLoading = reposLoading || issueQueries.some((q) => q.isLoading);
-  const allIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []);
+  const githubIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []).map((issue) => {
+    const project = projectMap.get(sourceKey("github", "repo", `${issue.orgId}/${issue.repoName}`));
+    return project ? { ...issue, projectId: project.id, projectName: project.name } : issue;
+  });
+  const trackerIssues: IssueDto[] = (trackerIssuesQuery.data ?? []).map((issue) =>
+    trackerIssueToDto(issue, "linear", projectMap),
+  );
+  const allIssues: IssueDto[] = [...githubIssues, ...trackerIssues];
   const filteredIssues = useFilteredIssues(allIssues, "issues");
 
   const registerSearch = useSearchStore((s) => s.registerProvider);

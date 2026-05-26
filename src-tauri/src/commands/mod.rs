@@ -9,6 +9,7 @@ pub mod notification;
 pub mod open_source;
 pub mod organization;
 pub mod profile;
+pub mod projects;
 pub mod prompt;
 pub mod provider;
 pub mod repository;

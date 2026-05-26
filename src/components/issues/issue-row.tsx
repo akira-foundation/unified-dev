@@ -53,10 +53,17 @@ export function IssueRow({
       className="group flex h-9 cursor-pointer items-center gap-2.5 rounded-md pl-3 pr-2 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]"
     >
       <StatusIcon column={column} />
-      <span className="w-12 shrink-0 text-[12px] tabular-nums text-zinc-500">#{issue.number}</span>
+      <span className="w-16 shrink-0 truncate text-[12px] tabular-nums text-zinc-500">
+        {issue.identifier ?? `#${issue.number}`}
+      </span>
       <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-800 dark:text-zinc-100">{issue.title}</span>
 
       <div className="flex shrink-0 items-center gap-2">
+        {issue.provider !== "github" && (
+          <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium capitalize text-purple-500">
+            {issue.provider}
+          </span>
+        )}
         {issue.labels[0] && <LabelBadge name={issue.labels[0]} />}
         {prNumber !== undefined && (
           <button

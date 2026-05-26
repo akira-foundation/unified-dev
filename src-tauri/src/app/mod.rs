@@ -11,6 +11,7 @@ pub mod mcp;
 pub mod notifications;
 pub mod open_source;
 pub mod orgs;
+pub mod projects;
 pub mod prompts;
 pub mod providers;
 pub mod remote;

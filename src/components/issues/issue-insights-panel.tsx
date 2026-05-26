@@ -13,13 +13,14 @@ interface IssueInsightsPanelProps {
   className?: string;
 }
 
-type TabId = "status" | "assignees" | "labels" | "projects" | "source";
+type TabId = "status" | "assignees" | "labels" | "projects" | "provider" | "source";
 
 const TABS: Array<{ id: TabId; labelKey: string; filterKey: string }> = [
   { id: "status", labelKey: "issues.detail.labelStatus", filterKey: "statuses" },
   { id: "assignees", labelKey: "issues.detail.labelAssignees", filterKey: "assignees" },
   { id: "labels", labelKey: "issues.detail.labelLabels", filterKey: "labels" },
-  { id: "projects", labelKey: "issues.filter.projects", filterKey: "repos" },
+  { id: "projects", labelKey: "issues.filter.projects", filterKey: "projects" },
+  { id: "provider", labelKey: "issues.filter.provider", filterKey: "providers" },
   { id: "source", labelKey: "issues.detail.source", filterKey: "sources" },
 ];
 
@@ -30,6 +31,7 @@ function tally(map: Map<string, number>, key: string) {
 function valueLabel(t: (key: string) => string, tab: TabId, value: string): string {
   if (tab === "status") return value === "open" ? t("issues.table.filter.open") : t("issues.table.filter.closed");
   if (tab === "source") return value === "synced" ? t("issues.detail.synced") : t("issues.detail.local");
+  if (tab === "provider") return value.charAt(0).toUpperCase() + value.slice(1);
   return value;
 }
 
@@ -50,17 +52,19 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
     const assignees = new Map<string, number>();
     const labels = new Map<string, number>();
     const projects = new Map<string, number>();
+    const provider = new Map<string, number>();
     const source = new Map<string, number>();
     let noAssignee = 0;
     issues.forEach((issue) => {
       tally(status, issue.status);
       tally(source, issue.syncWithProvider ? "synced" : "local");
-      tally(projects, issue.repoName);
+      tally(projects, issue.projectName ?? "No project");
+      tally(provider, issue.provider);
       if (issue.assignees.length === 0) noAssignee += 1;
       else issue.assignees.forEach((a) => tally(assignees, a));
       issue.labels.forEach((l) => tally(labels, l));
     });
-    return { status, assignees, labels, projects, source, noAssignee };
+    return { status, assignees, labels, projects, provider, source, noAssignee };
   }, [issues]);
 
   const current = TABS.find((tabItem) => tabItem.id === tab)!;
@@ -104,7 +108,7 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
         ))}
       </div>
 
-      <div className="flex flex-col overflow-y-auto custom-scrollbar px-2 pb-3">
+      <div className="flex flex-col gap-0.5 overflow-y-auto custom-scrollbar px-2 pb-3">
         {tab === "assignees" && counts.noAssignee > 0 && (
           <div className="flex items-center gap-2.5 rounded-md px-2.5 py-2">
             <UserCircle2 className="h-4 w-4 shrink-0 text-zinc-500" />
@@ -138,7 +142,13 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
                         {value.slice(0, 2).toUpperCase()}
                       </span>
                     ) : (
-                      <span className={cn("h-2 w-2 shrink-0 rounded-sm", dotColor(tab, value))} />
+                      <span
+                        className={cn(
+                          "h-2 w-2 shrink-0 rounded-sm transition-all",
+                          dotColor(tab, value),
+                          isActive && "ring-2 ring-zinc-400/50 dark:ring-zinc-500/50",
+                        )}
+                      />
                     )}
                     <span
                       className={cn(

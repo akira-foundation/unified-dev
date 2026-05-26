@@ -30,6 +30,12 @@ pub fn map_issue(issue: &Issue) -> TrackerIssue {
         priority: issue.priority(),
         created_at: issue.created_at().map(str::to_string),
         updated_at: issue.updated_at().to_string(),
+        project_name: None,
+        milestone_name: None,
+        team_name: None,
+        assignee_name: None,
+        author_name: None,
+        label_names: Vec::new(),
     }
 }
 

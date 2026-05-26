@@ -1,9 +1,15 @@
-import { Blocks, Link2, RefreshCw, Loader2 } from "lucide-react";
+import { Blocks, Link2, RefreshCw, Loader2, MoreHorizontal, Unlink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -73,6 +79,21 @@ function LinearRow() {
     }
   }
 
+  async function disconnect() {
+    setBusy(true);
+    try {
+      await trackerService.disconnect(LINEAR);
+      setConnected(false);
+      setAccount(null);
+      setCount(null);
+      toast.success("Linear disconnected");
+    } catch (err) {
+      toast.error(cleanError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const description = connected
     ? account
       ? `Connected as ${account}${count !== null ? ` · ${count} synced` : ""}`
@@ -86,14 +107,29 @@ function LinearRow() {
         description={description}
         action={
           connected ? (
-            <Button variant="outline" disabled={busy} onClick={sync} className={OUTLINE_BUTTON}>
-              {busy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              {busy ? "Syncing…" : "Sync"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" disabled={busy} onClick={sync} className={OUTLINE_BUTTON}>
+                {busy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {busy ? "Syncing…" : "Sync"}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" disabled={busy} className={OUTLINE_BUTTON}>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={disconnect} className="text-destructive focus:text-destructive">
+                    <Unlink className="h-4 w-4" />
+                    Disconnect
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ) : (
             <Button
               variant="outline"

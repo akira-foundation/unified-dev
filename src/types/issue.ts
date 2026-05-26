@@ -19,6 +19,13 @@ export interface IssueDto {
   updatedAt: string;
   syncedAt: string;
   syncWithProvider: boolean;
+  /** Optional explicit column (used by tracker providers like Linear). */
+  column?: IssueColumnId;
+  /** Optional human identifier (e.g. Linear ENG-123). */
+  identifier?: string;
+  /** App-level project container resolved from the issue source. */
+  projectId?: string;
+  projectName?: string;
 }
 
 /** Kanban column IDs for the issue board */
@@ -43,6 +50,7 @@ export const ISSUE_COLUMNS: IssueColumn[] = [
  * - closed (any reason)    → done
  */
 export function issueToColumn(issue: IssueDto): IssueColumnId {
+  if (issue.column) return issue.column;
   if (issue.status === "open") {
     return issue.assignees.length > 0 ? "in_progress" : "backlog";
   }

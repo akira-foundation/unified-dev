@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::future::Future;
 use std::sync::Arc;
 
 use crate::app::support::error::{AppError, AppResult};
@@ -47,6 +49,12 @@ struct ExternalIssueRow {
     priority: Option<i64>,
     created_at: Option<String>,
     updated_at: String,
+    project_name: Option<String>,
+    milestone_name: Option<String>,
+    team_name: Option<String>,
+    assignee_name: Option<String>,
+    author_name: Option<String>,
+    label_names: String,
 }
 
 impl From<ExternalIssueRow> for TrackerIssue {
@@ -68,11 +76,17 @@ impl From<ExternalIssueRow> for TrackerIssue {
             priority: row.priority.map(|value| value as u8),
             created_at: row.created_at,
             updated_at: row.updated_at,
+            project_name: row.project_name,
+            milestone_name: row.milestone_name,
+            team_name: row.team_name,
+            assignee_name: row.assignee_name,
+            author_name: row.author_name,
+            label_names: serde_json::from_str(&row.label_names).unwrap_or_default(),
         }
     }
 }
 
-const ISSUE_COLUMNS: &str = "id, identifier, title, description, url, status, category, project_id, milestone_id, team_id, assignee_id, author_id, labels, priority, created_at, updated_at";
+const ISSUE_COLUMNS: &str = "id, identifier, title, description, url, status, category, project_id, milestone_id, team_id, assignee_id, author_id, labels, priority, created_at, updated_at, project_name, milestone_name, team_name, assignee_name, author_name, label_names";
 
 async fn resolve_tracker(state: &AppState, provider: &str) -> AppResult<Arc<dyn Tracker>> {
     let encrypted: Option<String> =
@@ -115,6 +129,26 @@ pub async fn connect(state: &AppState, provider: String, token: String) -> AppRe
     Ok(user)
 }
 
+pub fn providers(state: &AppState) -> Vec<String> {
+    state.tracker_registry.providers()
+}
+
+pub async fn disconnect(state: &AppState, provider: &str) -> AppResult<()> {
+    sqlx::query("DELETE FROM tracker_credentials WHERE provider = ?")
+        .bind(provider)
+        .execute(&state.db_pool)
+        .await?;
+    sqlx::query("DELETE FROM external_issues WHERE provider = ?")
+        .bind(provider)
+        .execute(&state.db_pool)
+        .await?;
+    sqlx::query("DELETE FROM tracker_sync_state WHERE provider = ?")
+        .bind(provider)
+        .execute(&state.db_pool)
+        .await?;
+    Ok(())
+}
+
 pub async fn status(state: &AppState, provider: &str) -> AppResult<bool> {
     let found: Option<String> =
         sqlx::query_scalar("SELECT provider FROM tracker_credentials WHERE provider = ?")
@@ -124,6 +158,111 @@ pub async fn status(state: &AppState, provider: &str) -> AppResult<bool> {
     Ok(found.is_some())
 }
 
+#[derive(Default)]
+struct NameMaps {
+    projects: HashMap<String, String>,
+    milestones: HashMap<String, String>,
+    teams: HashMap<String, String>,
+    users: HashMap<String, String>,
+    labels: HashMap<String, String>,
+}
+
+async fn collect_named<F, Fut>(mut fetch: F) -> AppResult<HashMap<String, String>>
+where
+    F: FnMut(TrackerPageRequest) -> Fut,
+    Fut: Future<Output = AppResult<crate::tracker::dto::TrackerPage<TrackerNamed>>>,
+{
+    let mut map = HashMap::new();
+    let mut after: Option<String> = None;
+    loop {
+        let page = fetch(TrackerPageRequest {
+            after: after.clone(),
+            limit: Some(100),
+        })
+        .await?;
+        for named in page.items {
+            map.insert(named.id, named.name);
+        }
+        match page.next {
+            Some(cursor) => after = Some(cursor),
+            None => break,
+        }
+    }
+    Ok(map)
+}
+
+async fn fetch_name_maps(tracker: &Arc<dyn Tracker>) -> AppResult<NameMaps> {
+    Ok(NameMaps {
+        projects: collect_named(|page| tracker.list_projects(page)).await?,
+        milestones: collect_named(|page| tracker.list_milestones(page)).await?,
+        teams: collect_named(|page| tracker.list_teams(page)).await?,
+        users: collect_named(|page| tracker.list_users(page)).await?,
+        labels: collect_named(|page| tracker.list_labels(page)).await?,
+    })
+}
+
+async fn collect_all<F, Fut>(mut fetch: F) -> AppResult<Vec<TrackerNamed>>
+where
+    F: FnMut(TrackerPageRequest) -> Fut,
+    Fut: Future<Output = AppResult<crate::tracker::dto::TrackerPage<TrackerNamed>>>,
+{
+    let mut items = Vec::new();
+    let mut after: Option<String> = None;
+    loop {
+        let page = fetch(TrackerPageRequest {
+            after: after.clone(),
+            limit: Some(100),
+        })
+        .await?;
+        items.extend(page.items);
+        match page.next {
+            Some(cursor) => after = Some(cursor),
+            None => break,
+        }
+    }
+    Ok(items)
+}
+
+pub async fn list_projects_named(state: &AppState, provider: &str) -> AppResult<Vec<TrackerNamed>> {
+    let tracker = resolve_tracker(state, provider).await?;
+    collect_all(|page| tracker.list_projects(page)).await
+}
+
+pub async fn list_teams_named(state: &AppState, provider: &str) -> AppResult<Vec<TrackerNamed>> {
+    let tracker = resolve_tracker(state, provider).await?;
+    collect_all(|page| tracker.list_teams(page)).await
+}
+
+fn resolve_names(issue: &TrackerIssue, maps: &NameMaps) -> TrackerIssue {
+    let mut out = issue.clone();
+    out.project_name = issue
+        .project
+        .as_ref()
+        .and_then(|id| maps.projects.get(id).cloned());
+    out.milestone_name = issue
+        .milestone
+        .as_ref()
+        .and_then(|id| maps.milestones.get(id).cloned());
+    out.team_name = issue
+        .team
+        .as_ref()
+        .and_then(|id| maps.teams.get(id).cloned());
+    out.assignee_name = issue
+        .assignee
+        .as_ref()
+        .and_then(|id| maps.users.get(id).cloned());
+    out.author_name = issue
+        .author
+        .as_ref()
+        .and_then(|id| maps.users.get(id).cloned());
+    out.label_names = issue
+        .labels
+        .iter()
+        .map(|id| maps.labels.get(id).cloned().unwrap_or_else(|| id.clone()))
+        .collect();
+    out
+}
+
 pub async fn sync(
     state: &AppState,
     provider: String,
@@ -131,6 +270,7 @@ pub async fn sync(
 ) -> AppResult<usize> {
     let tracker = resolve_tracker(state, &provider).await?;
     let synced_at = chrono::Utc::now().to_rfc3339();
+    let maps = fetch_name_maps(&tracker).await?;
 
     let mut after: Option<String> = None;
     let mut count = 0usize;
@@ -147,7 +287,8 @@ pub async fn sync(
             .await?;
 
         for issue in &page.items {
-            upsert_issue(state, &provider, issue, &synced_at).await?;
+            let resolved = resolve_names(issue, &maps);
+            upsert_issue(state, &provider, &resolved, &synced_at).await?;
             count += 1;
         }
 
@@ -176,12 +317,19 @@ async fn upsert_issue(
     synced_at: &str,
 ) -> AppResult<()> {
     let labels = serde_json::to_string(&issue.labels)?;
+    let label_names = serde_json::to_string(&issue.label_names)?;
     let category = issue.category.map(category_to_str);
 
     sqlx::query(
-        "INSERT INTO external_issues (id, provider, identifier, title, description, url, status, category, project_id, milestone_id, team_id, assignee_id, author_id, labels, priority, created_at, updated_at, synced_at) \
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
-         ON CONFLICT(id) DO UPDATE SET provider = excluded.provider, identifier = excluded.identifier, title = excluded.title, description = excluded.description, url = excluded.url, status = excluded.status, category = excluded.category, project_id = excluded.project_id, milestone_id = excluded.milestone_id, team_id = excluded.team_id, assignee_id = excluded.assignee_id, author_id = excluded.author_id, labels = excluded.labels, priority = excluded.priority, created_at = excluded.created_at, updated_at = excluded.updated_at, synced_at = excluded.synced_at",
+        "INSERT INTO external_issues (id, provider, identifier, title, description, url, status, category, project_id, milestone_id, team_id, assignee_id, author_id, labels, priority, created_at, updated_at, synced_at, project_name, milestone_name, team_name, assignee_name, author_name, label_names) \
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+         ON CONFLICT(id) DO UPDATE SET provider = excluded.provider, identifier = excluded.identifier, title = excluded.title, description = excluded.description, url = excluded.url, status = excluded.status, category = excluded.category, project_id = excluded.project_id, milestone_id = excluded.milestone_id, team_id = excluded.team_id, assignee_id = excluded.assignee_id, author_id = excluded.author_id, labels = excluded.labels, priority = excluded.priority, created_at = excluded.created_at, updated_at = excluded.updated_at, synced_at = excluded.synced_at, \
+         project_name = COALESCE(excluded.project_name, external_issues.project_name), \
+         milestone_name = COALESCE(excluded.milestone_name, external_issues.milestone_name), \
+         team_name = COALESCE(excluded.team_name, external_issues.team_name), \
+         assignee_name = COALESCE(excluded.assignee_name, external_issues.assignee_name), \
+         author_name = COALESCE(excluded.author_name, external_issues.author_name), \
+         label_names = COALESCE(NULLIF(excluded.label_names, '[]'), external_issues.label_names)",
     )
     .bind(&issue.id)
     .bind(provider)
@@ -201,6 +349,12 @@ async fn upsert_issue(
     .bind(&issue.created_at)
     .bind(&issue.updated_at)
     .bind(synced_at)
+    .bind(&issue.project_name)
+    .bind(&issue.milestone_name)
+    .bind(&issue.team_name)
+    .bind(&issue.assignee_name)
+    .bind(&issue.author_name)
+    .bind(&label_names)
     .execute(&state.db_pool)
     .await?;
 
@@ -308,6 +462,12 @@ mod tests {
             priority: Some(2),
             created_at: None,
             updated_at: "t1".into(),
+            project_name: Some("Mobile".into()),
+            milestone_name: None,
+            team_name: Some("Engineering".into()),
+            assignee_name: None,
+            author_name: None,
+            label_names: "[\"Bug\",\"P1\"]".into(),
         };
 
         let dto = TrackerIssue::from(row);
@@ -318,5 +478,8 @@ mod tests {
         assert_eq!(dto.team.as_deref(), Some("TEAM-1"));
         assert_eq!(dto.labels, vec!["L-1", "L-2"]);
         assert_eq!(dto.priority, Some(2));
+        assert_eq!(dto.project_name.as_deref(), Some("Mobile"));
+        assert_eq!(dto.team_name.as_deref(), Some("Engineering"));
+        assert_eq!(dto.label_names, vec!["Bug", "P1"]);
     }
 }

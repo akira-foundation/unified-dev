@@ -21,6 +21,18 @@ pub struct TrackerIssue {
     pub priority: Option<u8>,
     pub created_at: Option<String>,
     pub updated_at: String,
+    #[serde(default)]
+    pub project_name: Option<String>,
+    #[serde(default)]
+    pub milestone_name: Option<String>,
+    #[serde(default)]
+    pub team_name: Option<String>,
+    #[serde(default)]
+    pub assignee_name: Option<String>,
+    #[serde(default)]
+    pub author_name: Option<String>,
+    #[serde(default)]
+    pub label_names: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

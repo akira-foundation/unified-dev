@@ -64,7 +64,12 @@ use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp
 use commands::system::check_dependencies;
 use commands::tracker::{
     tracker_close_issue, tracker_connect, tracker_create_issue, tracker_delete_issue,
-    tracker_get_issue, tracker_list_issues, tracker_status, tracker_sync, tracker_update_issue,
+    tracker_disconnect, tracker_get_issue, tracker_list_issues, tracker_list_projects,
+    tracker_list_teams, tracker_providers, tracker_status, tracker_sync, tracker_update_issue,
+};
+use commands::projects::{
+    project_add_source, project_create, project_delete, project_import, project_list,
+    project_list_sources, project_remove_source, project_update,
 };
 use commands::updater::{check_for_updates, install_update};
 use commands::usage::{get_feature_usage, get_usage};
@@ -177,6 +182,8 @@ pub fn run() {
             delegate_issue_to_agent,
             tracker_connect,
             tracker_status,
+            tracker_disconnect,
+            tracker_providers,
             tracker_sync,
             tracker_list_issues,
             tracker_get_issue,
@@ -184,6 +191,16 @@ pub fn run() {
             tracker_update_issue,
             tracker_close_issue,
             tracker_delete_issue,
+            tracker_list_projects,
+            tracker_list_teams,
+            project_list,
+            project_list_sources,
+            project_create,
+            project_update,
+            project_delete,
+            project_add_source,
+            project_remove_source,
+            project_import,
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,

@@ -31,6 +31,8 @@ export const enPart3: Record<string, string> = {
   "onboarding.license.skip_note": "Skipping blocks license activation until you set a profile email in Settings.",
   "settings.tabs.sync": "Sync",
   "settings.sync.title": "Auto Sync",
+  "settings.sync.master.label": "Enable auto sync",
+  "settings.sync.master.description": "Master switch for all background sync. Turn off to sync manually only.",
   "settings.sync.description": "Configure when and how data is synced with providers",
   "settings.sync.issues.label": "Issues",
   "settings.sync.issues.description": "Sync issues from all selected repositories",
