@@ -67,6 +67,7 @@ export const enPart2: Record<string, string> = {
   "settings.projects.addProvider": "Add issues provider",
   "settings.projects.addProviderDescription": "Pull issues from a tracker into this repository.",
   "settings.projects.selectProvider": "Select a provider",
+  "settings.projects.viewIssues": "View issues",
   "settings.projects.sourceLabel": "Source",
   "settings.projects.sourceCount": "sources",
   "settings.projects.sourceCountSingular": "source",

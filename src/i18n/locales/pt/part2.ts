@@ -67,6 +67,7 @@ export const ptPart2: Record<string, string> = {
   "settings.projects.addProvider": "Adicionar provedor de issues",
   "settings.projects.addProviderDescription": "Puxa issues de um tracker para este repositório.",
   "settings.projects.selectProvider": "Selecionar provedor",
+  "settings.projects.viewIssues": "Ver issues",
   "settings.projects.sourceLabel": "Fonte",
   "settings.projects.sourceCount": "fontes",
   "settings.projects.sourceCountSingular": "fonte",

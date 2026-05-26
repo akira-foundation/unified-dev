@@ -86,7 +86,8 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
       );
     },
     enabled: allRepos.length > 0,
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
+    gcTime: cache.gcTime.long,
   });
 
   const totalOpenPrs = allRepos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);

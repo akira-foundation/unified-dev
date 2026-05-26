@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, MoreVertical, Link2, Check, Folder, FolderGit2 } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Link2, Check, Folder, FolderGit2, CircleDot } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
 import { useI18n } from "@/i18n/i18n";
 import { useNavigationStore } from "@/stores/navigation-store";
+import { useFiltersStore } from "@/stores/filters-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +57,8 @@ export function ProjectDetailPage() {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const activeProjectId = useNavigationStore((s) => s.activeProjectId);
+  const navigateTo = useNavigationStore((s) => s.navigateTo);
+  const setFilter = useFiltersStore((s) => s.setFilter);
   const [addRepoOpen, setAddRepoOpen] = useState(false);
   const [sourceRepo, setSourceRepo] = useState<ProjectRepo | null>(null);
 
@@ -109,6 +112,11 @@ export function ProjectDetailPage() {
     }
   }
 
+  function viewIssues() {
+    if (project) setFilter("issues", "projects", [project.name]);
+    navigateTo("issues");
+  }
+
   if (!project) {
     return (
       <PageLayout scroll>
@@ -138,6 +146,7 @@ export function ProjectDetailPage() {
                   repo={repo}
                   sources={sources.filter((source) => source.projectRepoId === repo.id)}
                   named={named}
+                  onViewIssues={viewIssues}
                   onAddSource={() => setSourceRepo(repo)}
                   onRemove={() => removeRepo(repo.id)}
                   onChange={refresh}
@@ -178,12 +187,13 @@ interface RepoRowProps {
   repo: ProjectRepo;
   sources: RepoSource[];
   named: Record<string, ProviderNamed>;
+  onViewIssues: () => void;
   onAddSource: () => void;
   onRemove: () => void;
   onChange: () => void;
 }
 
-function RepoRow({ repo, sources, named, onAddSource, onRemove }: RepoRowProps) {
+function RepoRow({ repo, sources, named, onViewIssues, onAddSource, onRemove }: RepoRowProps) {
   const { t } = useI18n();
 
   return (
@@ -210,6 +220,10 @@ function RepoRow({ repo, sources, named, onAddSource, onRemove }: RepoRowProps) 
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onViewIssues}>
+              <CircleDot className="mr-2 h-4 w-4" />
+              {t("settings.projects.viewIssues")}
+            </DropdownMenuItem>
             <DropdownMenuItem onSelect={onAddSource}>
               <Link2 className="mr-2 h-4 w-4" />
               {t("settings.projects.addProvider")}
