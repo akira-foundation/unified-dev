@@ -84,8 +84,10 @@ export function ImportProjectsDialog({ open, onOpenChange, provider, projects }:
         if (!scope) continue;
         const repo = await projectService.createRepo(projectId, scope.name);
         await projectService.addSource(repo.id, provider, "project", scope.id, true, false);
-        await trackerService.sync(provider, { project: scope.id });
       }
+      // Full sync so every selected project's issues land regardless of the
+      // original sync scope (e.g. assignee-only), then map via the new bindings.
+      await trackerService.sync(provider);
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["project-repos"] });
       queryClient.invalidateQueries({ queryKey: ["repo-sources"] });
