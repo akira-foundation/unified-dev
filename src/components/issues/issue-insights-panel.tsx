@@ -61,7 +61,7 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
       tally(status, issue.status);
       tally(source, issue.syncWithProvider ? "synced" : "local");
       tally(projects, issue.projectName ?? "No project");
-      tally(repos, issue.repoName);
+      tally(repos, issue.containerName ?? issue.repoName);
       tally(provider, issue.provider);
       if (issue.assignees.length === 0) noAssignee += 1;
       else issue.assignees.forEach((a) => tally(assignees, a));

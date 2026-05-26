@@ -89,18 +89,23 @@ export function sourceKey(provider: string, refType: string, ref: string): strin
   return `${provider}:${refType}:${ref}`;
 }
 
+export interface SourceTarget {
+  project: Project;
+  repo: ProjectRepo;
+}
+
 export function buildProjectSourceMap(
   projects: Project[],
   repos: ProjectRepo[],
   sources: RepoSource[],
-): Map<string, Project> {
+): Map<string, SourceTarget> {
   const projectById = new Map(projects.map((project) => [project.id, project]));
   const repoById = new Map(repos.map((repo) => [repo.id, repo]));
-  const map = new Map<string, Project>();
+  const map = new Map<string, SourceTarget>();
   for (const source of sources) {
     const repo = repoById.get(source.projectRepoId);
     const project = repo ? projectById.get(repo.projectId) : undefined;
-    if (project) map.set(sourceKey(source.provider, source.refType, source.ref), project);
+    if (repo && project) map.set(sourceKey(source.provider, source.refType, source.ref), { project, repo });
   }
   return map;
 }

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { IssueColumnId, IssueDto } from "@/types/issue";
-import { sourceKey, type Project } from "@/services/projectService";
+import { sourceKey, type SourceTarget } from "@/services/projectService";
 
 export interface TrackerNamed {
   id: string;
@@ -123,16 +123,17 @@ function categoryToColumn(category?: string | null): IssueColumnId {
 export function trackerIssueToDto(
   issue: TrackerIssue,
   provider = "linear",
-  projectMap?: Map<string, Project>,
+  projectMap?: Map<string, SourceTarget>,
 ): IssueDto {
   const column = categoryToColumn(issue.category);
   const number = issue.identifier ? parseInt(issue.identifier.replace(/\D/g, ""), 10) || 0 : 0;
   const labels = issue.labelNames ?? [];
   const assignee = issue.assigneeName ?? undefined;
-  const project =
+  const target =
     (issue.project && projectMap?.get(sourceKey(provider, "project", issue.project))) ||
     (issue.team && projectMap?.get(sourceKey(provider, "team", issue.team))) ||
     undefined;
+  const project = target?.project;
   return {
     id: issue.id,
     externalId: issue.id,
@@ -158,5 +159,7 @@ export function trackerIssueToDto(
     identifier: issue.identifier ?? undefined,
     projectId: project?.id,
     projectName: project?.name ?? issue.projectName ?? undefined,
+    repoId: target?.repo.id,
+    containerName: target?.repo.name,
   };
 }

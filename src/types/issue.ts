@@ -26,6 +26,9 @@ export interface IssueDto {
   /** App-level project container resolved from the issue source. */
   projectId?: string;
   projectName?: string;
+  /** Repo container (project_repo) resolved from the issue source. */
+  repoId?: string;
+  containerName?: string;
 }
 
 /** Kanban column IDs for the issue board */

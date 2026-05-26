@@ -105,8 +105,16 @@ export function IssuesPage() {
 
   const isLoading = reposLoading || (issueQueries.length > 0 && issueQueries.every((q) => q.isLoading));
   const githubIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []).map((issue) => {
-    const project = projectMap.get(sourceKey("github", "repo", `${issue.orgId}/${issue.repoName}`));
-    return project ? { ...issue, projectId: project.id, projectName: project.name } : issue;
+    const target = projectMap.get(sourceKey("github", "repo", `${issue.orgId}/${issue.repoName}`));
+    return target
+      ? {
+          ...issue,
+          projectId: target.project.id,
+          projectName: target.project.name,
+          repoId: target.repo.id,
+          containerName: target.repo.name,
+        }
+      : issue;
   });
   const trackerIssues: IssueDto[] = (trackerIssuesQuery.data ?? []).map((issue) =>
     trackerIssueToDto(issue, "linear", projectMap),
