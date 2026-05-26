@@ -11,6 +11,7 @@ interface IssueInsightsPanelProps {
   issues: IssueDto[];
   filterNamespace?: string;
   className?: string;
+  projectNames?: string[];
 }
 
 type TabId = "status" | "assignees" | "labels" | "projects" | "repos" | "provider" | "source";
@@ -41,7 +42,7 @@ function dotColor(tab: TabId, value: string): string {
   return positive ? "bg-emerald-500" : "bg-zinc-400 dark:bg-zinc-600";
 }
 
-export function IssueInsightsPanel({ issues, filterNamespace = "issues", className }: IssueInsightsPanelProps) {
+export function IssueInsightsPanel({ issues, filterNamespace = "issues", className, projectNames = [] }: IssueInsightsPanelProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState<TabId>("status");
   const setFilter = useFiltersStore((s) => s.setFilter);
@@ -67,8 +68,11 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
       else issue.assignees.forEach((a) => tally(assignees, a));
       issue.labels.forEach((l) => tally(labels, l));
     });
+    projectNames.forEach((name) => {
+      if (!projects.has(name)) projects.set(name, 0);
+    });
     return { status, assignees, labels, projects, repos, provider, source, noAssignee };
-  }, [issues]);
+  }, [issues, projectNames]);
 
   const current = TABS.find((tabItem) => tabItem.id === tab)!;
   const selected = active?.[current.filterKey] ?? [];

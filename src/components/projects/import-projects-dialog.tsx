@@ -84,10 +84,12 @@ export function ImportProjectsDialog({ open, onOpenChange, provider, projects }:
         if (!scope) continue;
         const repo = await projectService.createRepo(projectId, scope.name);
         await projectService.addSource(repo.id, provider, "project", scope.id, true, false);
+        await trackerService.sync(provider, { project: scope.id });
       }
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["project-repos"] });
       queryClient.invalidateQueries({ queryKey: ["repo-sources"] });
+      queryClient.invalidateQueries({ queryKey: ["tracker-issues"] });
       toast.success(t("settings.projects.imported", { count: String(selected.size) }));
       onOpenChange(false);
     } catch (error) {

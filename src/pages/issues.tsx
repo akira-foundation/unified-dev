@@ -266,7 +266,11 @@ export function IssuesPage() {
         </div>
 
         {insightsOpen && (
-          <IssueInsightsPanel issues={allIssues} className="w-72 shrink-0" />
+          <IssueInsightsPanel
+            issues={allIssues}
+            projectNames={projectList.map((p) => p.name)}
+            className="w-72 shrink-0"
+          />
         )}
       </div>
 
