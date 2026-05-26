@@ -9,6 +9,14 @@ import { useOrganizations } from "@/hooks/useOrganizations";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -26,9 +34,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { AppbarActions } from "@/components/layout/appbar-actions";
 import { PageLayout } from "@/components/layout/page-layout";
 import { projectService, type Project } from "@/services/projectService";
-
-const SELECT =
-  "h-8 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 text-[13px] text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
 
 export function ProjectsPage() {
   const { t } = useI18n();
@@ -118,37 +123,53 @@ export function ProjectsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle>{t("settings.projects.create")}</DialogTitle>
+        <DialogContent className="max-w-[420px] gap-0 overflow-hidden p-0">
+          <DialogHeader className="border-b border-border px-5 pt-5 pb-4">
+            <DialogTitle className="text-base">{t("settings.projects.create")}</DialogTitle>
+            <p className="mt-1.5 text-sm text-muted-foreground">{t("settings.projects.createDescription")}</p>
           </DialogHeader>
-          <div className="flex flex-col gap-2">
-            <Input
-              autoFocus
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") createProject();
-              }}
-              placeholder={t("settings.projects.namePlaceholder")}
-            />
-            <select value={orgId} onChange={(event) => setOrgId(event.target.value)} className={SELECT}>
-              <option value="">{t("settings.projects.noOrg")}</option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
+          <div className="flex flex-col gap-4 px-5 py-4">
+            <div className="flex flex-col gap-2">
+              <Label>{t("settings.projects.nameLabel")}</Label>
+              <Input
+                autoFocus
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") createProject();
+                }}
+                placeholder={t("settings.projects.namePlaceholder")}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>{t("settings.projects.orgLabel")}</Label>
+              <Select value={orgId} onValueChange={setOrgId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("settings.projects.noOrg")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <DialogFooter className="flex gap-2 px-0 pb-0 pt-0">
+              <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={createProject}
+                disabled={!name.trim()}
+                className="flex-1 bg-purple-600 text-white hover:bg-purple-700"
+              >
+                {t("settings.projects.create")}
+              </Button>
+            </DialogFooter>
           </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button size="sm" onClick={createProject} disabled={!name.trim()}>
-              {t("settings.projects.create")}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </PageLayout>
