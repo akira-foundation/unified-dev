@@ -84,7 +84,13 @@ export function KanbanCard({ card, onSelect }: { card: IssueCardType; onSelect?:
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0 : 1,
+        contentVisibility: "auto",
+        containIntrinsicSize: "auto 80px",
+      }}
       {...attributes}
       {...listeners}
     >
