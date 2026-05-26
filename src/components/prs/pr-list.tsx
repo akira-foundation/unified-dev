@@ -127,17 +127,17 @@ export function PrList({
         const isCollapsed = collapsed.has(col);
         return (
           <section key={col}>
-            <button onClick={() => toggleGroup(col)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left">
-              {isCollapsed ? (
-                <ChevronRight className="h-3.5 w-3.5 text-zinc-500" />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
-              )}
+            <button onClick={() => toggleGroup(col)} className="sticky top-0 z-10 flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left">
               <PrStatusIcon column={col} />
-              <span className={cn("text-[13px] font-semibold text-zinc-700 dark:text-zinc-200")}>
-                {t(PR_COLUMN_LABEL_KEY[col])}
+              <span className={cn("text-[13px] font-semibold capitalize text-zinc-700 dark:text-zinc-200")}>
+                {t(PR_COLUMN_LABEL_KEY[col]).toLowerCase()}
               </span>
               <span className="text-[12px] font-medium text-zinc-500">{rows.length}</span>
+              {isCollapsed ? (
+                <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+              ) : (
+                <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+              )}
             </button>
 
             {!isCollapsed &&

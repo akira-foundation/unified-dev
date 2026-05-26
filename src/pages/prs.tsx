@@ -83,7 +83,7 @@ export function PrsPage() {
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
-        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
           {isLoading ? (
             <div className="space-y-3">
               <Skeleton className="h-24 w-full" />
