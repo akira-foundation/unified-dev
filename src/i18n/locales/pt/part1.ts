@@ -169,6 +169,7 @@ export const ptPart1: Record<string, string> = {
   "common.adding": "A adicionar...",
   "common.browse": "Procurar",
   "common.open": "Abrir",
+  "common.delete": "Eliminar",
   "common.signOut": "Terminar sessão",
   "common.upgrade": "Upgrade",
   "common.dangerZone": "Zona de Perigo",

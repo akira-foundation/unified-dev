@@ -169,6 +169,7 @@ export const enPart1: Record<string, string> = {
   "common.adding": "Adding...",
   "common.browse": "Browse",
   "common.open": "Open",
+  "common.delete": "Delete",
   "common.signOut": "Sign out",
   "common.upgrade": "Upgrade",
   "common.dangerZone": "Danger Zone",

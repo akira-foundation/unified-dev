@@ -38,6 +38,7 @@ import { useAutopilotStore } from "./stores/useAutopilotStore";
 import { IssuesPage } from "./pages/issues";
 import { IssueDetailPage } from "./pages/issue-detail";
 import { ProjectsPage } from "./pages/projects";
+import { ProjectDetailPage } from "./pages/project-detail";
 import { PrsPage } from "./pages/prs";
 import { OpenSourcePage } from "./pages/open-source";
 import type { NavItem } from "./types/navigation";
@@ -157,6 +158,7 @@ export default function App() {
             {!isAgentMode && currentPage === "dashboard" && <DashboardPage />}
             {!isAgentMode && currentPage === "issues" && <IssuesPage />}
             {!isAgentMode && currentPage === "projects" && <ProjectsPage />}
+            {!isAgentMode && currentPage === "project-detail" && <ProjectDetailPage />}
             {!isAgentMode && currentPage === "issue-detail" && <IssueDetailPage />}
             {!isAgentMode && currentPage === "prs" && <PrsPage />}
             {!isAgentMode && currentPage === "open-source" && <OpenSourcePage />}
