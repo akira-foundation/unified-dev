@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, X, MoreVertical, Link2, Check, Folder, FolderGit2 } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Link2, Check, Folder, FolderGit2 } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
@@ -158,7 +158,6 @@ export function ProjectDetailPage() {
       <AddSourceDialog
         repo={sourceRepo}
         onOpenChange={(open) => !open && setSourceRepo(null)}
-        githubRepos={githubRepos}
         connected={connected}
         onAdded={refresh}
       />
@@ -184,63 +183,44 @@ interface RepoRowProps {
   onChange: () => void;
 }
 
-function RepoRow({ repo, sources, named, onAddSource, onRemove, onChange }: RepoRowProps) {
+function RepoRow({ repo, sources, named, onAddSource, onRemove }: RepoRowProps) {
   const { t } = useI18n();
 
-  async function removeSource(id: string) {
-    try {
-      await projectService.removeSource(id);
-      onChange();
-    } catch (error) {
-      toast.error(String(error));
-    }
-  }
-
   return (
-    <div className="flex flex-col gap-1.5 rounded-md px-3 py-2 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
-      <div className="flex h-7 items-center gap-2.5">
-        <FolderGit2 className="h-4 w-4 shrink-0 text-zinc-400" />
-        <span className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{repo.name}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            {sources.length} {sources.length === 1 ? t("settings.projects.sourceCountSingular") : t("settings.projects.sourceCount")}
-          </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex h-6 w-6 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200">
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={onAddSource}>
-                <Link2 className="mr-2 h-4 w-4" />
-                {t("settings.projects.addSource")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={onRemove} className="text-red-500">
-                <Trash2 className="mr-2 h-4 w-4" />
-                {t("common.delete")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+    <div className="group flex h-10 items-center gap-2.5 rounded-md px-3 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
+      <FolderGit2 className="h-4 w-4 shrink-0 text-zinc-400" />
+      <span className="shrink-0 truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{repo.name}</span>
 
-      {sources.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pl-[26px]">
+      <div className="ml-auto flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           {sources.map((source) => (
             <span
               key={source.id}
-              className="flex items-center gap-1 rounded-full border border-zinc-200 px-2 py-0.5 text-[11px] capitalize text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
+              className="flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 px-2 py-0.5 text-[11px] capitalize text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
             >
               {source.isVcsTarget && <span className="text-emerald-500">●</span>}
               {sourceLabel(source, named)}
-              <button onClick={() => removeSource(source.id)} className="text-zinc-400 hover:text-destructive">
-                <X className="h-3 w-3" />
-              </button>
             </span>
           ))}
         </div>
-      )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200">
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={onAddSource}>
+              <Link2 className="mr-2 h-4 w-4" />
+              {t("settings.projects.addProvider")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={onRemove} className="text-red-500">
+              <Trash2 className="mr-2 h-4 w-4" />
+              {t("common.delete")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
@@ -452,14 +432,13 @@ function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }
 interface AddSourceDialogProps {
   repo: ProjectRepo | null;
   onOpenChange: (open: boolean) => void;
-  githubRepos: { organization_id: string; repo_name: string }[];
   connected: string[];
   onAdded: () => void;
 }
 
-function AddSourceDialog({ repo, onOpenChange, githubRepos, connected, onAdded }: AddSourceDialogProps) {
+function AddSourceDialog({ repo, onOpenChange, connected, onAdded }: AddSourceDialogProps) {
   const { t } = useI18n();
-  const [kind, setKind] = useState("github:repo");
+  const [kind, setKind] = useState("");
   const [ref, setRef] = useState("");
 
   const namedQueries = useQueries({
@@ -476,22 +455,14 @@ function AddSourceDialog({ repo, onOpenChange, githubRepos, connected, onAdded }
     };
   });
 
-  const kindOptions = [
-    { value: "github:repo", label: t("settings.projects.kind.repo") },
-    ...connected.flatMap((provider) => [
-      { value: `${provider}:project`, label: `${provider} · ${t("settings.projects.kind.project")}` },
-      { value: `${provider}:team`, label: `${provider} · ${t("settings.projects.kind.team")}` },
-    ]),
-  ];
+  const kindOptions = connected.flatMap((provider) => [
+    { value: `${provider}:project`, label: `${provider} · ${t("settings.projects.kind.project")}` },
+    { value: `${provider}:team`, label: `${provider} · ${t("settings.projects.kind.team")}` },
+  ]);
 
   function refOptions(): { value: string; label: string }[] {
+    if (!kind) return [];
     const [provider, refType] = kind.split(":");
-    if (provider === "github") {
-      return githubRepos.map((entry) => ({
-        value: `${entry.organization_id}/${entry.repo_name}`,
-        label: entry.repo_name,
-      }));
-    }
     const list = refType === "team" ? named[provider]?.teams : named[provider]?.projects;
     return (list ?? []).map((entry) => ({ value: entry.id, label: entry.name }));
   }
@@ -516,15 +487,15 @@ function AddSourceDialog({ repo, onOpenChange, githubRepos, connected, onAdded }
       onOpenChange={(value) => {
         onOpenChange(value);
         if (!value) {
-          setKind("github:repo");
+          setKind("");
           setRef("");
         }
       }}
     >
       <DialogContent className="max-w-[420px] gap-0 overflow-hidden p-0">
         <DialogHeader className="border-b border-border px-5 pt-5 pb-4">
-          <DialogTitle className="text-base">{t("settings.projects.addSource")}</DialogTitle>
-          <p className="mt-1.5 text-sm text-muted-foreground">{t("settings.projects.addSourceDescription")}</p>
+          <DialogTitle className="text-base">{t("settings.projects.addProvider")}</DialogTitle>
+          <p className="mt-1.5 text-sm text-muted-foreground">{t("settings.projects.addProviderDescription")}</p>
         </DialogHeader>
         <div className="flex flex-col gap-4 px-5 py-4">
           <div className="flex flex-col gap-2">
@@ -537,7 +508,7 @@ function AddSourceDialog({ repo, onOpenChange, githubRepos, connected, onAdded }
               }}
             >
               <SelectTrigger className="capitalize">
-                <SelectValue />
+                <SelectValue placeholder={t("settings.projects.selectProvider")} />
               </SelectTrigger>
               <SelectContent>
                 {kindOptions.map((option) => (

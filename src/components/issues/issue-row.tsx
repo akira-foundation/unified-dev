@@ -76,15 +76,17 @@ export function IssueRow({
             <GitPullRequest className="h-3 w-3" />#{prNumber}
           </button>
         )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNavigateToRepo?.(issue.repoName, issue.orgId);
-          }}
-          className="hidden max-w-[140px] truncate rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 md:inline-block"
-        >
-          {issue.repoName}
-        </button>
+        {issue.repoName.toLowerCase() !== issue.provider.toLowerCase() && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateToRepo?.(issue.repoName, issue.orgId);
+            }}
+            className="hidden max-w-[140px] truncate rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 md:inline-block"
+          >
+            {issue.repoName}
+          </button>
+        )}
         <Assignees names={issue.assignees} />
         <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-zinc-500">
           {formatRelativeDate(issue.updatedAt)}
