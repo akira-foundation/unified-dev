@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, X, MoreVertical, Link2 } from "lucide-react";
+import { Plus, Trash2, X, MoreVertical, Link2, Check, Folder } from "lucide-react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
 import { useI18n } from "@/i18n/i18n";
@@ -277,16 +278,34 @@ function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }
   const { t } = useI18n();
   const [tab, setTab] = useState("existing");
   const [query, setQuery] = useState("");
-  const [existing, setExisting] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [url, setUrl] = useState("");
   const [localPath, setLocalPath] = useState("");
 
   function reset() {
     setQuery("");
-    setExisting("");
+    setSelected(new Set());
     setUrl("");
     setLocalPath("");
     setTab("existing");
+  }
+
+  function toggle(ref: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(ref)) next.delete(ref);
+      else next.add(ref);
+      return next;
+    });
+  }
+
+  async function handleBrowse() {
+    try {
+      const picked = await openDialog({ directory: true, multiple: false });
+      if (picked && typeof picked === "string") setLocalPath(picked);
+    } catch (error) {
+      console.error("Failed to select directory:", error);
+    }
   }
 
   const filteredRepos = githubRepos.filter((entry) =>
@@ -301,10 +320,11 @@ function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }
   async function submit() {
     try {
       if (tab === "existing") {
-        if (!existing) return;
-        const repo = githubRepos.find((entry) => `${entry.organization_id}/${entry.repo_name}` === existing);
-        if (!repo) return;
-        await addRepoWithSource("github", existing, repo.repo_name);
+        if (selected.size === 0) return;
+        for (const ref of selected) {
+          const repo = githubRepos.find((entry) => `${entry.organization_id}/${entry.repo_name}` === ref);
+          if (repo) await addRepoWithSource("github", ref, repo.repo_name);
+        }
       } else if (tab === "url") {
         const parsed = parseGitUrl(url);
         if (!parsed) {
@@ -326,7 +346,7 @@ function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }
     }
   }
 
-  const canSubmit = tab === "existing" ? !!existing : tab === "url" ? !!url.trim() : !!localPath.trim();
+  const canSubmit = tab === "existing" ? selected.size > 0 : tab === "url" ? !!url.trim() : !!localPath.trim();
 
   return (
     <Dialog
@@ -364,13 +384,15 @@ function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }
                   <div className="p-1">
                     {filteredRepos.map((entry) => {
                       const ref = `${entry.organization_id}/${entry.repo_name}`;
+                      const isOn = selected.has(ref);
                       return (
                         <button
                           key={ref}
                           type="button"
-                          onClick={() => setExisting(ref)}
-                          className={`flex w-full items-center rounded-md px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-accent ${existing === ref ? "bg-accent font-medium" : "text-zinc-700 dark:text-zinc-300"}`}
+                          onClick={() => toggle(ref)}
+                          className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-accent ${isOn ? "bg-accent font-medium" : "text-zinc-700 dark:text-zinc-300"}`}
                         >
+                          <Check className={`h-3.5 w-3.5 shrink-0 ${isOn ? "text-purple-500" : "text-transparent"}`} />
                           {entry.repo_name}
                         </button>
                       );
@@ -390,12 +412,17 @@ function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }
             </TabsContent>
 
             <TabsContent value="local" className="mt-0">
-              <Input
-                autoFocus
-                value={localPath}
-                onChange={(event) => setLocalPath(event.target.value)}
-                placeholder="/path/to/repo"
-              />
+              <div className="flex gap-2">
+                <Input
+                  value={localPath}
+                  onChange={(event) => setLocalPath(event.target.value)}
+                  placeholder="/path/to/repo"
+                />
+                <Button variant="outline" size="sm" onClick={handleBrowse} className="gap-1.5">
+                  <Folder className="h-4 w-4" />
+                  {t("dialogs.addRepository.browse")}
+                </Button>
+              </div>
             </TabsContent>
           </Tabs>
 
