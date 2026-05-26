@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Eye, FolderKanban, MoreVertical } from "lucide-react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, Eye, FolderKanban, MoreVertical, Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { useI18n } from "@/i18n/i18n";
@@ -34,6 +34,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { AppbarActions } from "@/components/layout/appbar-actions";
 import { PageLayout } from "@/components/layout/page-layout";
 import { projectService, type Project } from "@/services/projectService";
+import { trackerService } from "@/services/trackerService";
+import { ImportProjectsDialog } from "@/components/projects/import-projects-dialog";
 
 export function ProjectsPage() {
   const { t } = useI18n();
@@ -44,11 +46,24 @@ export function ProjectsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
   const [orgId, setOrgId] = useState("");
+  const [importProvider, setImportProvider] = useState<string | null>(null);
 
   useHotkey("n", () => setCreateOpen(true));
 
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectService.list() });
   const { data: repos = [] } = useQuery({ queryKey: ["project-repos"], queryFn: () => projectService.listRepos() });
+
+  const { data: trackerProviders = [] } = useQuery({
+    queryKey: ["tracker-providers"],
+    queryFn: () => trackerService.providers(),
+  });
+  const statusQueries = useQueries({
+    queries: trackerProviders.map((provider) => ({
+      queryKey: ["tracker-status", provider],
+      queryFn: () => trackerService.status(provider),
+    })),
+  });
+  const connected = trackerProviders.filter((_, index) => statusQueries[index]?.data);
 
   const repoCount = (projectId: string) => repos.filter((repo) => repo.projectId === projectId).length;
 
@@ -88,6 +103,23 @@ export function ProjectsPage() {
           <Plus size={18} />
           <span className="hidden xl:inline">{t("settings.projects.create")}</span>
         </Button>
+        {connected.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden xl:inline">{t("settings.projects.import")}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {connected.map((provider) => (
+                <DropdownMenuItem key={provider} onClick={() => setImportProvider(provider)} className="capitalize">
+                  {provider}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
@@ -172,6 +204,13 @@ export function ProjectsPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ImportProjectsDialog
+        open={importProvider !== null}
+        provider={importProvider ?? ""}
+        projects={projects}
+        onOpenChange={(value) => !value && setImportProvider(null)}
+      />
     </PageLayout>
   );
 }
