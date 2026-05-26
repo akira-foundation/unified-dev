@@ -85,7 +85,6 @@ export function ThreadSourcePickerDialog({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t(searchKey)}
-            className="h-10 border-zinc-200 bg-zinc-100 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
           />
 
           <div className="max-h-[420px] overflow-y-auto rounded-md border border-zinc-200 bg-background/60 dark:border-zinc-800">
