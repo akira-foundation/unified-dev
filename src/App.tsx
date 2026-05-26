@@ -44,14 +44,14 @@ import { OpenSourcePage } from "./pages/open-source";
 import type { NavItem } from "./types/navigation";
 
 const navigationItems: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, section: "workspace" },
-  { id: "agents", label: "Agents", icon: <Bot className="h-4 w-4" />, section: "workspace" },
-  { id: "issues", label: "Issues", icon: <CircleDot className="h-4 w-4" />, section: "workspace" },
-  { id: "projects", label: "Projects", icon: <FolderKanban className="h-4 w-4" />, section: "workspace" },
-  { id: "prs", label: "Pull Requests", icon: <GitPullRequest className="h-4 w-4" />, section: "workspace" },
-  { id: "open-source", label: "Open Source", icon: <GitFork className="h-4 w-4" />, section: "workspace" },
-  { id: "repository", label: "Repositories", icon: <FolderGit2 className="h-4 w-4" />, section: "browse" },
-  { id: "organizations", label: "Organizations", icon: <Building2 className="h-4 w-4" />, section: "browse" },
+  { id: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="h-4 w-4" />, section: "work" },
+  { id: "issues", label: "Issues", icon: <CircleDot className="h-4 w-4" />, section: "work" },
+  { id: "prs", label: "Pull Requests", icon: <GitPullRequest className="h-4 w-4" />, section: "work" },
+  { id: "agents", label: "Agents", icon: <Bot className="h-4 w-4" />, section: "work" },
+  { id: "organizations", label: "Organizations", icon: <Building2 className="h-4 w-4" />, section: "structure" },
+  { id: "projects", label: "Projects", icon: <FolderKanban className="h-4 w-4" />, section: "structure" },
+  { id: "repository", label: "Repositories", icon: <FolderGit2 className="h-4 w-4" />, section: "structure" },
+  { id: "open-source", label: "Open Source", icon: <GitFork className="h-4 w-4" />, section: "explore" },
   { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
 ];
 

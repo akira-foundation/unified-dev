@@ -93,10 +93,10 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
   const totalOpenPrs = allRepos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
 
   const itemsBySection = useMemo(() => {
-    const groups: Record<string, NavItem[]> = { workspace: [], browse: [] };
+    const groups: Record<string, NavItem[]> = { work: [], structure: [], explore: [] };
     for (const item of items) {
       if (item.id === "settings") continue;
-      const key = item.section ?? "workspace";
+      const key = item.section ?? "work";
       groups[key]?.push(item);
     }
     return groups;
@@ -177,31 +177,20 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
   return (
     <BaseSidebar>
-          {itemsBySection.workspace.length > 0 ? (
-            <SidebarGroup>
-              <SidebarGroupLabel className="px-4 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-data-[collapsible=icon]:hidden">
-                {t("nav.section.workspace")}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
-                  {itemsBySection.workspace.map(renderItem)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ) : null}
-
-          {itemsBySection.browse.length > 0 ? (
-            <SidebarGroup>
-              <SidebarGroupLabel className="px-4 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-data-[collapsible=icon]:hidden">
-                {t("nav.section.browse")}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
-                  {itemsBySection.browse.map(renderItem)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ) : null}
+          {(["work", "structure", "explore"] as const).map((section) =>
+            itemsBySection[section].length > 0 ? (
+              <SidebarGroup key={section}>
+                <SidebarGroupLabel className="px-4 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-data-[collapsible=icon]:hidden">
+                  {t(`nav.section.${section}`)}
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
+                    {itemsBySection[section].map(renderItem)}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ) : null,
+          )}
 
           {recentRepos.length > 0 ? (
             <SidebarGroup className="group-data-[collapsible=icon]:hidden">

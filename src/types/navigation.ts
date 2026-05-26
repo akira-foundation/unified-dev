@@ -29,7 +29,7 @@ export interface NavBadge {
   tone?: NavBadgeTone;
 }
 
-export type NavSection = "workspace" | "browse";
+export type NavSection = "work" | "structure" | "explore";
 
 export interface NavItem {
   id: AppPage;
