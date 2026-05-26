@@ -73,7 +73,12 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
   const current = TABS.find((tabItem) => tabItem.id === tab)!;
   const selected = active?.[current.filterKey] ?? [];
   const activeCount = active ? Object.values(active).reduce((sum, v) => sum + v.length, 0) : 0;
-  const rows = Array.from(counts[tab].entries()).sort((a, b) => b[1] - a[1]);
+  const rows = Array.from(counts[tab].entries()).sort((a, b) => {
+    const aSel = selected.includes(a[0]) ? 1 : 0;
+    const bSel = selected.includes(b[0]) ? 1 : 0;
+    if (aSel !== bSel) return bSel - aSel;
+    return b[1] - a[1];
+  });
 
   const toggleValue = (value: string) => {
     const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value];
@@ -95,20 +100,28 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
       </div>
 
       <div className="flex flex-wrap gap-1.5 p-3">
-        {TABS.map((tabItem) => (
-          <button
-            key={tabItem.id}
-            onClick={() => setTab(tabItem.id)}
-            className={cn(
-              "rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
-              tab === tabItem.id
-                ? "border-zinc-300 bg-zinc-100 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-                : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300",
-            )}
-          >
-            {t(tabItem.labelKey)}
-          </button>
-        ))}
+        {TABS.map((tabItem) => {
+          const activeFilters = active?.[tabItem.filterKey]?.length ?? 0;
+          return (
+            <button
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium transition-colors",
+                tab === tabItem.id
+                  ? "border-zinc-300 bg-zinc-100 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+                  : "border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300",
+              )}
+            >
+              {t(tabItem.labelKey)}
+              {activeFilters > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-purple-500 px-1 text-[9px] font-semibold text-white">
+                  {activeFilters}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="flex flex-col gap-0.5 overflow-y-auto custom-scrollbar px-2 pb-3">

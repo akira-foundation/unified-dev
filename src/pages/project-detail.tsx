@@ -481,6 +481,7 @@ function AddSourceDialog({ repo, onOpenChange, connected, onAdded }: AddSourceDi
   const { t } = useI18n();
   const [kind, setKind] = useState("");
   const [ref, setRef] = useState("");
+  const [query, setQuery] = useState("");
 
   const namedQueries = useQueries({
     queries: connected.flatMap((provider) => [
@@ -530,6 +531,7 @@ function AddSourceDialog({ repo, onOpenChange, connected, onAdded }: AddSourceDi
         if (!value) {
           setKind("");
           setRef("");
+          setQuery("");
         }
       }}
     >
@@ -562,18 +564,35 @@ function AddSourceDialog({ repo, onOpenChange, connected, onAdded }: AddSourceDi
           </div>
           <div className="flex flex-col gap-2">
             <Label>{t("settings.projects.sourceLabel")}</Label>
-            <Select value={ref} onValueChange={setRef}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("settings.projects.selectSource")} />
-              </SelectTrigger>
-              <SelectContent>
-                {refOptions().map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t("settings.projects.selectSource")}
+              disabled={!kind}
+            />
+            <div className="max-h-[220px] overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+              {refOptions().filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase())).length === 0 ? (
+                <div className="px-3 py-6 text-center text-[13px] text-muted-foreground">
+                  {t("settings.projects.noReposMatch")}
+                </div>
+              ) : (
+                <div className="p-1">
+                  {refOptions()
+                    .filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()))
+                    .map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setRef(option.value)}
+                        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-accent ${ref === option.value ? "bg-accent font-medium" : "text-zinc-700 dark:text-zinc-300"}`}
+                      >
+                        <Check className={`h-3.5 w-3.5 shrink-0 ${ref === option.value ? "text-purple-500" : "text-transparent"}`} />
+                        {option.label}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter className="flex gap-2 px-0 pb-0 pt-0">
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
