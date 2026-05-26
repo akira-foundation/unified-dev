@@ -51,7 +51,7 @@ export function IssuesPage() {
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
 
   const currentUserLoginByOrg = useMemo(
@@ -73,30 +73,30 @@ export function IssuesPage() {
           scope: resolveIssueScope(repo.organization_id, repo.repo_name),
           currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
         }),
-      staleTime: cache.staleTime.short,
+      staleTime: cache.staleTime.long,
     })),
   });
 
   const trackerIssuesQuery = useQuery({
     queryKey: ["tracker-issues", "linear"],
     queryFn: () => trackerService.listIssues("linear"),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
 
   const { data: projectList = [] } = useQuery({
     queryKey: ["projects"],
     queryFn: () => projectService.list(),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
   const { data: projectRepos = [] } = useQuery({
     queryKey: ["project-repos"],
     queryFn: () => projectService.listRepos(),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
   const { data: repoSources = [] } = useQuery({
     queryKey: ["repo-sources"],
     queryFn: () => projectService.listSources(),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
   const projectMap = useMemo(
     () => buildProjectSourceMap(projectList, projectRepos, repoSources),

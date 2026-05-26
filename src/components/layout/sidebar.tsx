@@ -97,7 +97,7 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     queryKey: ["projects"],
     queryFn: () => projectService.list(),
     select: (projects) => projects.length,
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
 
   const itemsBySection = useMemo(() => {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -56,6 +57,7 @@ const navigationItems: NavItem[] = [
 ];
 
 export default function App() {
+  const queryClient = useQueryClient();
   const { currentPage, navigateTo } = useNavigation("dashboard");
   const isAgentMode = useNavigationStore((state) => state.isAgentMode);
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
@@ -74,6 +76,25 @@ export default function App() {
     lastVerifyRef.current = now;
     void verifyLicense();
   }, [verifyLicense]);
+
+  useEffect(() => {
+    const unlisten = listen<{ kind: string; orgId: string }>("sync:completed", ({ payload }) => {
+      if (payload.kind === "issues") {
+        queryClient.invalidateQueries({ queryKey: ["issues"] });
+        queryClient.invalidateQueries({ queryKey: ["tracker-issues"] });
+        queryClient.invalidateQueries({ queryKey: ["sidebar-open-issues"] });
+      } else if (payload.kind === "prs") {
+        queryClient.invalidateQueries({ queryKey: ["pull-requests"] });
+        queryClient.invalidateQueries({ queryKey: ["all-repositories"] });
+      } else if (payload.kind === "repos") {
+        queryClient.invalidateQueries({ queryKey: ["all-repositories"] });
+        queryClient.invalidateQueries({ queryKey: ["selected-repos"] });
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [queryClient]);
 
   useEffect(() => {
     loadRepositories();
