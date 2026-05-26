@@ -101,11 +101,10 @@ export function AddRepositoryDialog({
                 placeholder={t("dialogs.addRepository.pathPlaceholder")}
                 value={localPath}
                 onChange={(e) => setLocalPath(e.target.value)}
-                className="h-10 border-zinc-200 bg-zinc-100 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
               />
               <Button
                 variant="outline"
-                className="h-10 gap-2 border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                className="h-8 gap-2 border-zinc-200 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
                 onClick={handleBrowse}
               >
                 <Folder className="h-4 w-4" />
@@ -120,7 +119,7 @@ export function AddRepositoryDialog({
                 placeholder="https://github.com/owner/repo.git"
                 value={cloneUrl}
                 onChange={(e) => setCloneUrl(e.target.value)}
-                className="h-10 border-zinc-200 bg-zinc-100 pr-16 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
+                className="pr-16"
               />
               {protocol && (
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400">

@@ -5,6 +5,8 @@ use crate::app::support::error::{AppError, AppResult};
 use super::drivers::linear::LinearTracker;
 use super::tracker::Tracker;
 
+const PROVIDERS: &[&str] = &["linear"];
+
 pub struct TrackerRegistry;
 
 impl TrackerRegistry {
@@ -20,7 +22,11 @@ impl TrackerRegistry {
     }
 
     pub fn supports(&self, kind: &str) -> bool {
-        matches!(kind, "linear")
+        PROVIDERS.contains(&kind)
+    }
+
+    pub fn providers(&self) -> Vec<String> {
+        PROVIDERS.iter().map(|kind| kind.to_string()).collect()
     }
 }
 

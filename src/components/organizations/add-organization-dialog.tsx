@@ -69,11 +69,7 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
                 <FormItem>
                   <FormLabel>{t("dialogs.addOrg.nameLabel")}</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder={t("dialogs.addOrg.namePlaceholder")}
-                      className="h-10 border-zinc-200 bg-zinc-100 text-sm text-zinc-700 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:placeholder:text-zinc-500"
-                      {...field}
-                    />
+                    <Input placeholder={t("dialogs.addOrg.namePlaceholder")} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -87,7 +83,7 @@ export function AddOrganizationDialog({ open, onOpenChange, providers, onSubmit 
                   <FormLabel>{t("dialogs.addOrg.providerLabel")}</FormLabel>
                   <FormControl>
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="h-10 border-zinc-200 bg-zinc-100 px-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                      <SelectTrigger>
                         <SelectValue placeholder={t("dialogs.addOrg.providerPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>

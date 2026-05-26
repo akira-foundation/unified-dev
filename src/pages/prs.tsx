@@ -83,9 +83,9 @@ export function PrsPage() {
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
-        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
+        <div className="min-w-0 flex-1 min-h-0">
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-4 md:p-6">
               <Skeleton className="h-24 w-full" />
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
@@ -94,7 +94,9 @@ export function PrsPage() {
           ) : viewMode === "list" ? (
             <PrList cards={cards} onSelect={handleSelect} onOpenUrl={handleOpenUrl} />
           ) : (
-            <PrKanban cards={cards} onSelect={handleSelect} />
+            <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
+              <PrKanban cards={cards} onSelect={handleSelect} />
+            </div>
           )}
         </div>
 

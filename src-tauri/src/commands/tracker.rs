@@ -28,6 +28,21 @@ pub async fn tracker_status(
 }
 
 #[tauri::command]
+pub async fn tracker_disconnect(
+    state: State<'_, AppState>,
+    provider: String,
+) -> Result<(), String> {
+    tracker::disconnect(&state, &provider)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tracker_providers(state: State<'_, AppState>) -> Result<Vec<String>, String> {
+    Ok(tracker::providers(&state))
+}
+
+#[tauri::command]
 pub async fn tracker_sync(
     state: State<'_, AppState>,
     provider: String,
@@ -97,6 +112,26 @@ pub async fn tracker_delete_issue(
     id: String,
 ) -> Result<(), String> {
     tracker::delete(&state, provider, id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tracker_list_projects(
+    state: State<'_, AppState>,
+    provider: String,
+) -> Result<Vec<TrackerNamed>, String> {
+    tracker::list_projects_named(&state, &provider)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn tracker_list_teams(
+    state: State<'_, AppState>,
+    provider: String,
+) -> Result<Vec<TrackerNamed>, String> {
+    tracker::list_teams_named(&state, &provider)
         .await
         .map_err(|e| e.to_string())
 }

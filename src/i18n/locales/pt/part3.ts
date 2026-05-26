@@ -27,6 +27,8 @@ export const ptPart3: Record<string, string> = {
   "onboarding.license.skip_note": "Saltar bloqueia a ativação de licença até configurares o email de perfil nas Definições.",
   "settings.tabs.sync": "Sincronização",
   "settings.sync.title": "Sincronização automática",
+  "settings.sync.master.label": "Ativar sync automático",
+  "settings.sync.master.description": "Interruptor geral de todo o sync em background. Desliga para sincronizar só manualmente.",
   "settings.sync.description": "Configurar quando e como os dados são sincronizados com os providers",
   "settings.sync.issues.label": "Issues",
   "settings.sync.issues.description": "Sincronizar issues de todos os repositórios selecionados",

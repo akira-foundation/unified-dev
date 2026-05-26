@@ -12,9 +12,14 @@ fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&app_dir)?;
     let filename = if cfg!(debug_assertions) {
-        "unified-dev-local.sqlite"
+        let tag = std::env::var("UNIFIED_DEV_DB_TAG").unwrap_or_default();
+        if tag.is_empty() {
+            "unified-dev-local.sqlite".to_string()
+        } else {
+            format!("unified-dev-local-{tag}.sqlite")
+        }
     } else {
-        "unified-dev.sqlite"
+        "unified-dev.sqlite".to_string()
     };
     Ok(app_dir.join(filename))
 }

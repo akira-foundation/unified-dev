@@ -14,6 +14,7 @@ import { useI18n } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
+import { projectService } from "@/services/projectService";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -86,16 +87,24 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
       );
     },
     enabled: allRepos.length > 0,
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
+    gcTime: cache.gcTime.long,
   });
 
   const totalOpenPrs = allRepos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
 
+  const { data: projectCount = 0 } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectService.list(),
+    select: (projects) => projects.length,
+    staleTime: cache.staleTime.long,
+  });
+
   const itemsBySection = useMemo(() => {
-    const groups: Record<string, NavItem[]> = { workspace: [], browse: [] };
+    const groups: Record<string, NavItem[]> = { work: [], structure: [], explore: [] };
     for (const item of items) {
       if (item.id === "settings") continue;
-      const key = item.section ?? "workspace";
+      const key = item.section ?? "work";
       groups[key]?.push(item);
     }
     return groups;
@@ -123,6 +132,9 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     }
     if (item.id === "prs" && totalOpenPrs > 0) {
       return { text: totalOpenPrs, tone: "blue" };
+    }
+    if (item.id === "projects" && projectCount > 0) {
+      return { text: projectCount, tone: "muted" };
     }
     if (item.id === "repository" && allRepos.length > 0) {
       return { text: allRepos.length, tone: "muted" };
@@ -176,31 +188,20 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
   return (
     <BaseSidebar>
-          {itemsBySection.workspace.length > 0 ? (
-            <SidebarGroup>
-              <SidebarGroupLabel className="px-4 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-data-[collapsible=icon]:hidden">
-                {t("nav.section.workspace")}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
-                  {itemsBySection.workspace.map(renderItem)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ) : null}
-
-          {itemsBySection.browse.length > 0 ? (
-            <SidebarGroup>
-              <SidebarGroupLabel className="px-4 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-data-[collapsible=icon]:hidden">
-                {t("nav.section.browse")}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
-                  {itemsBySection.browse.map(renderItem)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          ) : null}
+          {(["work", "structure", "explore"] as const).map((section) =>
+            itemsBySection[section].length > 0 ? (
+              <SidebarGroup key={section}>
+                <SidebarGroupLabel className="px-4 pt-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500 group-data-[collapsible=icon]:hidden">
+                  {t(`nav.section.${section}`)}
+                </SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu className="gap-1 px-2 group-data-[collapsible=icon]:px-0">
+                    {itemsBySection[section].map(renderItem)}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ) : null,
+          )}
 
           {recentRepos.length > 0 ? (
             <SidebarGroup className="group-data-[collapsible=icon]:hidden">

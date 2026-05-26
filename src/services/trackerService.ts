@@ -1,5 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import type { IssueColumnId, IssueDto } from "@/types/issue";
+import { sourceKey, type SourceTarget } from "@/services/projectService";
+
 export interface TrackerNamed {
   id: string;
   name: string;
@@ -22,6 +25,12 @@ export interface TrackerIssue {
   priority?: number | null;
   createdAt?: string | null;
   updatedAt: string;
+  projectName?: string | null;
+  milestoneName?: string | null;
+  teamName?: string | null;
+  assigneeName?: string | null;
+  authorName?: string | null;
+  labelNames?: string[];
 }
 
 export interface TrackerIssueFilter {
@@ -58,6 +67,12 @@ export const trackerService = {
   async status(provider: string): Promise<boolean> {
     return invoke<boolean>("tracker_status", { provider });
   },
+  async disconnect(provider: string): Promise<void> {
+    await invoke<void>("tracker_disconnect", { provider });
+  },
+  async providers(): Promise<string[]> {
+    return invoke<string[]>("tracker_providers");
+  },
   async sync(provider: string, filter?: TrackerIssueFilter): Promise<number> {
     return invoke<number>("tracker_sync", { provider, filter: filter ?? null });
   },
@@ -83,4 +98,68 @@ export const trackerService = {
   async deleteIssue(provider: string, id: string): Promise<void> {
     await invoke<void>("tracker_delete_issue", { provider, id });
   },
+  async listProjects(provider: string): Promise<TrackerNamed[]> {
+    return invoke<TrackerNamed[]>("tracker_list_projects", { provider });
+  },
+  async listTeams(provider: string): Promise<TrackerNamed[]> {
+    return invoke<TrackerNamed[]>("tracker_list_teams", { provider });
+  },
 };
+
+function categoryToColumn(category?: string | null): IssueColumnId {
+  switch (category) {
+    case "Started":
+      return "in_progress";
+    case "Unstarted":
+      return "todo";
+    case "Completed":
+    case "Canceled":
+      return "done";
+    default:
+      return "backlog";
+  }
+}
+
+export function trackerIssueToDto(
+  issue: TrackerIssue,
+  provider = "linear",
+  projectMap?: Map<string, SourceTarget>,
+): IssueDto {
+  const column = categoryToColumn(issue.category);
+  const number = issue.identifier ? parseInt(issue.identifier.replace(/\D/g, ""), 10) || 0 : 0;
+  const labels = issue.labelNames ?? [];
+  const assignee = issue.assigneeName ?? undefined;
+  const target =
+    (issue.project && projectMap?.get(sourceKey(provider, "project", issue.project))) ||
+    (issue.team && projectMap?.get(sourceKey(provider, "team", issue.team))) ||
+    undefined;
+  const project = target?.project;
+  return {
+    id: issue.id,
+    externalId: issue.id,
+    provider,
+    orgId: provider,
+    repoName: project?.name ?? issue.teamName ?? "Linear",
+    number,
+    title: issue.title,
+    body: issue.description ?? null,
+    status: column === "done" ? "closed" : "open",
+    stateReason: null,
+    labels,
+    labelColors: [],
+    assignees: assignee ? [assignee] : [],
+    author: issue.authorName ?? null,
+    url: issue.url ?? "",
+    linkedPrNumbers: [],
+    createdAt: issue.createdAt ?? issue.updatedAt,
+    updatedAt: issue.updatedAt,
+    syncedAt: issue.updatedAt,
+    syncWithProvider: false,
+    column,
+    identifier: issue.identifier ?? undefined,
+    projectId: project?.id,
+    projectName: project?.name ?? issue.projectName ?? undefined,
+    repoId: target?.repo.id,
+    containerName: target?.repo.name,
+  };
+}

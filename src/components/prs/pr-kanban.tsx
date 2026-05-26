@@ -11,8 +11,9 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { createPortal } from "react-dom";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { EyeOff, MoreHorizontal } from "lucide-react";
 
 import {
@@ -45,6 +46,17 @@ function PrColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const { t } = useI18n();
+  const parentRef = useRef<HTMLDivElement | null>(null);
+  const setRefs = (el: HTMLDivElement | null) => {
+    setNodeRef(el);
+    parentRef.current = el;
+  };
+  const virtualizer = useVirtualizer({
+    count: cards.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 96,
+    overscan: 6,
+  });
 
   return (
     <div className="flex h-full w-[300px] shrink-0 flex-col">
@@ -69,16 +81,35 @@ function PrColumn({
         </div>
       </div>
       <div
-        ref={setNodeRef}
+        ref={setRefs}
         className={cn(
-          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-lg bg-zinc-100/50 p-2 transition-colors custom-scrollbar dark:bg-white/[0.02]",
+          "min-h-0 flex-1 overflow-y-auto rounded-lg bg-zinc-100/50 p-2 transition-colors custom-scrollbar dark:bg-white/[0.02]",
           isOver && "bg-zinc-200/60 dark:bg-white/[0.05]",
         )}
       >
         <SortableContext items={cards.map((c) => c.id)}>
-          {cards.map((card) => (
-            <PrCard key={card.id} card={card} onSelect={onSelect} />
-          ))}
+          <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const card = cards[virtualItem.index];
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualItem.start}px)`,
+                    paddingBottom: 8,
+                  }}
+                >
+                  <PrCard card={card} onSelect={onSelect} />
+                </div>
+              );
+            })}
+          </div>
         </SortableContext>
       </div>
     </div>
@@ -116,7 +147,7 @@ export function PrKanban({ cards, onSelect }: { cards: PrCardType[]; onSelect?: 
       : resolved.find((c) => c.id === overId)?.columnId;
 
   const columnCards = useMemo(() => {
-    const map: Record<PrColumnId, PrCardType[]> = { todo: [], inprogress: [], review: [], done: [] };
+    const map: Record<PrColumnId, PrCardType[]> = { todo: [], failed: [], inprogress: [], review: [], done: [] };
     for (const card of resolved) {
       (map[card.columnId] ?? map.todo).push(card);
     }
@@ -171,6 +202,7 @@ export function PrKanban({ cards, onSelect }: { cards: PrCardType[]; onSelect?: 
           ids={PR_COLUMN_ORDER.filter((id) => hiddenColumns.includes(id))}
           counts={{
             todo: columnCards.todo.length,
+            failed: columnCards.failed.length,
             inprogress: columnCards.inprogress.length,
             review: columnCards.review.length,
             done: columnCards.done.length,

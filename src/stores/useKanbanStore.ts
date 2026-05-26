@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-type ColumnId = "todo" | "inprogress" | "review" | "done";
+type ColumnId = "todo" | "failed" | "inprogress" | "review" | "done";
 
 interface KanbanState {
   // cardId → overridden column

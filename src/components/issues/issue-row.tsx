@@ -53,10 +53,17 @@ export function IssueRow({
       className="group flex h-9 cursor-pointer items-center gap-2.5 rounded-md pl-3 pr-2 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]"
     >
       <StatusIcon column={column} />
-      <span className="w-12 shrink-0 text-[12px] tabular-nums text-zinc-500">#{issue.number}</span>
+      <span className="w-16 shrink-0 truncate text-[12px] tabular-nums text-zinc-500">
+        {issue.identifier ?? `#${issue.number}`}
+      </span>
       <span className="min-w-0 flex-1 truncate text-[13px] text-zinc-800 dark:text-zinc-100">{issue.title}</span>
 
       <div className="flex shrink-0 items-center gap-2">
+        {issue.provider !== "github" && (
+          <span className="rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium capitalize text-purple-500">
+            {issue.provider}
+          </span>
+        )}
         {issue.labels[0] && <LabelBadge name={issue.labels[0]} />}
         {prNumber !== undefined && (
           <button
@@ -69,15 +76,17 @@ export function IssueRow({
             <GitPullRequest className="h-3 w-3" />#{prNumber}
           </button>
         )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNavigateToRepo?.(issue.repoName, issue.orgId);
-          }}
-          className="hidden max-w-[140px] truncate rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 md:inline-block"
-        >
-          {issue.repoName}
-        </button>
+        {issue.repoName.toLowerCase() !== issue.provider.toLowerCase() && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigateToRepo?.(issue.repoName, issue.orgId);
+            }}
+            className="hidden max-w-[140px] truncate rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-500 hover:text-zinc-700 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 md:inline-block"
+          >
+            {issue.repoName}
+          </button>
+        )}
         <Assignees names={issue.assignees} />
         <span className="w-12 shrink-0 text-right text-[11px] tabular-nums text-zinc-500">
           {formatRelativeDate(issue.updatedAt)}

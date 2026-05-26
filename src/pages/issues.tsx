@@ -25,6 +25,8 @@ import { useIssueViewStore } from "@/stores/issue-view-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useIssueMutations } from "@/hooks/useIssueMutations";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
+import { trackerService, trackerIssueToDto } from "@/services/trackerService";
+import { projectService, buildProjectSourceMap, sourceKey } from "@/services/projectService";
 import { queryKeys } from "@/lib/query-keys";
 import { issueScopeLabelKey, resolveCurrentLogin } from "@/lib/work-visibility";
 import { cache } from "@/config/cache";
@@ -49,7 +51,7 @@ export function IssuesPage() {
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
 
   const currentUserLoginByOrg = useMemo(
@@ -71,12 +73,53 @@ export function IssuesPage() {
           scope: resolveIssueScope(repo.organization_id, repo.repo_name),
           currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
         }),
-      staleTime: cache.staleTime.short,
+      staleTime: cache.staleTime.long,
     })),
   });
 
-  const isLoading = reposLoading || issueQueries.some((q) => q.isLoading);
-  const allIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []);
+  const trackerIssuesQuery = useQuery({
+    queryKey: ["tracker-issues", "linear"],
+    queryFn: () => trackerService.listIssues("linear"),
+    staleTime: cache.staleTime.long,
+  });
+
+  const { data: projectList = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectService.list(),
+    staleTime: cache.staleTime.long,
+  });
+  const { data: projectRepos = [] } = useQuery({
+    queryKey: ["project-repos"],
+    queryFn: () => projectService.listRepos(),
+    staleTime: cache.staleTime.long,
+  });
+  const { data: repoSources = [] } = useQuery({
+    queryKey: ["repo-sources"],
+    queryFn: () => projectService.listSources(),
+    staleTime: cache.staleTime.long,
+  });
+  const projectMap = useMemo(
+    () => buildProjectSourceMap(projectList, projectRepos, repoSources),
+    [projectList, projectRepos, repoSources],
+  );
+
+  const isLoading = reposLoading || (issueQueries.length > 0 && issueQueries.every((q) => q.isLoading));
+  const githubIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []).map((issue) => {
+    const target = projectMap.get(sourceKey("github", "repo", `${issue.orgId}/${issue.repoName}`));
+    return target
+      ? {
+          ...issue,
+          projectId: target.project.id,
+          projectName: target.project.name,
+          repoId: target.repo.id,
+          containerName: target.repo.name,
+        }
+      : issue;
+  });
+  const trackerIssues: IssueDto[] = (trackerIssuesQuery.data ?? []).map((issue) =>
+    trackerIssueToDto(issue, "linear", projectMap),
+  );
+  const allIssues: IssueDto[] = [...githubIssues, ...trackerIssues];
   const filteredIssues = useFilteredIssues(allIssues, "issues");
 
   const registerSearch = useSearchStore((s) => s.registerProvider);
@@ -184,9 +227,9 @@ export function IssuesPage() {
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
-        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
+        <div className="min-w-0 flex-1 min-h-0">
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-4 md:p-6">
               <Skeleton className="h-24 w-full" />
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
@@ -207,7 +250,9 @@ export function IssuesPage() {
               onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
             />
           ) : (
-            <IssueKanban issues={filteredIssues} onSelect={handleSelectIssue} onNewIssue={handleCreateClick} />
+            <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
+              <IssueKanban issues={filteredIssues} onSelect={handleSelectIssue} onNewIssue={handleCreateClick} />
+            </div>
           )}
         </div>
 

@@ -20,10 +20,6 @@ pub async fn list(
     .await
     .map_err(|e| e.to_string())?;
 
-    if records.is_empty() {
-        return super::sync::sync(state, organization_id, repo_name, None, scope, current_login).await;
-    }
-
     let scope = scope.unwrap_or_else(|| "mine_or_review_requested".to_string());
     let login = current_login.map(|v| v.to_lowercase());
 
