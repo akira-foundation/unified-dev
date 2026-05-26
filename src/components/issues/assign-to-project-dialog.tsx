@@ -1,17 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Check } from "lucide-react";
 import { toast } from "sonner";
 
 import { useI18n } from "@/i18n/i18n";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -35,12 +30,22 @@ export function AssignToProjectDialog({ issue, projects, repos, onClose }: Assig
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const [repoId, setRepoId] = useState("");
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
-    if (issue) setRepoId("");
+    if (issue) {
+      setRepoId("");
+      setQuery("");
+    }
   }, [issue]);
 
   const projectName = (id: string) => projects.find((p) => p.id === id)?.name ?? "";
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return repos.filter((repo) => `${projectName(repo.projectId)} / ${repo.name}`.toLowerCase().includes(q));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [repos, projects, query]);
 
   async function assign() {
     if (!issue || !repoId || !issue.sourceProvider || !issue.sourceRefType || !issue.sourceRef) return;
@@ -74,18 +79,31 @@ export function AssignToProjectDialog({ issue, projects, repos, onClose }: Assig
         <div className="flex flex-col gap-4 px-5 py-4">
           <div className="flex flex-col gap-2">
             <Label>{t("issues.assign.repoLabel")}</Label>
-            <Select value={repoId} onValueChange={setRepoId}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("issues.assign.selectRepo")} />
-              </SelectTrigger>
-              <SelectContent>
-                {repos.map((repo) => (
-                  <SelectItem key={repo.id} value={repo.id}>
-                    {projectName(repo.projectId)} / {repo.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("issues.assign.selectRepo")} />
+            <div className="max-h-[220px] overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-6 text-center text-[13px] text-muted-foreground">
+                  {t("settings.projects.noReposMatch")}
+                </div>
+              ) : (
+                <div className="p-1">
+                  {filtered.map((repo) => {
+                    const on = repoId === repo.id;
+                    return (
+                      <button
+                        key={repo.id}
+                        type="button"
+                        onClick={() => setRepoId(repo.id)}
+                        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-accent ${on ? "bg-accent font-medium" : "text-zinc-700 dark:text-zinc-300"}`}
+                      >
+                        <Check className={`h-3.5 w-3.5 shrink-0 ${on ? "text-purple-500" : "text-transparent"}`} />
+                        {projectName(repo.projectId)} / {repo.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter className="flex gap-2 px-0 pb-0 pt-0">
             <Button variant="outline" size="sm" onClick={onClose}>
