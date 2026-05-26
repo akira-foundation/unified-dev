@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, MoreVertical, Link2, Check, Folder, FolderGit2, CircleDot, ExternalLink } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Link2, Unlink, Check, Folder, FolderGit2, CircleDot, ExternalLink } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
@@ -28,6 +28,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -211,8 +215,18 @@ interface RepoRowProps {
   onChange: () => void;
 }
 
-function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, onRemove }: RepoRowProps) {
+function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, onRemove, onChange }: RepoRowProps) {
   const { t } = useI18n();
+  const providerSources = sources.filter((source) => !VCS_KINDS.includes(source.provider));
+
+  async function removeSource(id: string) {
+    try {
+      await projectService.removeSource(id);
+      onChange();
+    } catch (error) {
+      toast.error(String(error));
+    }
+  }
 
   return (
     <div className="group flex h-10 items-center gap-2.5 rounded-md px-3 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
@@ -255,6 +269,26 @@ function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, 
               <Link2 className="mr-2 h-4 w-4" />
               {t("settings.projects.addProvider")}
             </DropdownMenuItem>
+            {providerSources.length > 0 && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <Unlink className="mr-2 h-4 w-4" />
+                  {t("settings.projects.removeProvider")}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {providerSources.map((source) => (
+                    <DropdownMenuItem
+                      key={source.id}
+                      onSelect={() => removeSource(source.id)}
+                      className="capitalize"
+                    >
+                      {sourceLabel(source, named)}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
+            <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onRemove} className="text-red-500">
               <Trash2 className="mr-2 h-4 w-4" />
               {t("common.delete")}

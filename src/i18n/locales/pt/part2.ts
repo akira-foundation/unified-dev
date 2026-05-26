@@ -65,6 +65,7 @@ export const ptPart2: Record<string, string> = {
   "settings.projects.addSourceDescription": "Liga um repo GitHub ou um scope de tracker a este repositório.",
   "settings.projects.sourceTypeLabel": "Tipo",
   "settings.projects.addProvider": "Adicionar provedor de issues",
+  "settings.projects.removeProvider": "Remover provedor de issues",
   "settings.projects.addProviderDescription": "Puxa issues de um tracker para este repositório.",
   "settings.projects.selectProvider": "Selecionar provedor",
   "settings.projects.viewIssues": "Ver issues",

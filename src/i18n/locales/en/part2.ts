@@ -65,6 +65,7 @@ export const enPart2: Record<string, string> = {
   "settings.projects.addSourceDescription": "Link a GitHub repo or a tracker scope to this repository.",
   "settings.projects.sourceTypeLabel": "Type",
   "settings.projects.addProvider": "Add issues provider",
+  "settings.projects.removeProvider": "Remove issues provider",
   "settings.projects.addProviderDescription": "Pull issues from a tracker into this repository.",
   "settings.projects.selectProvider": "Select a provider",
   "settings.projects.viewIssues": "View issues",
