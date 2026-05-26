@@ -14,6 +14,7 @@ import { useI18n } from "@/i18n/i18n";
 import { cn } from "@/lib/utils";
 import { queryKeys } from "@/lib/query-keys";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
+import { projectService } from "@/services/projectService";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useOrganizations } from "@/hooks/useOrganizations";
@@ -92,6 +93,13 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
 
   const totalOpenPrs = allRepos.reduce((sum, r) => sum + (r.open_prs_count ?? 0), 0);
 
+  const { data: projectCount = 0 } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectService.list(),
+    select: (projects) => projects.length,
+    staleTime: cache.staleTime.short,
+  });
+
   const itemsBySection = useMemo(() => {
     const groups: Record<string, NavItem[]> = { work: [], structure: [], explore: [] };
     for (const item of items) {
@@ -124,6 +132,9 @@ export function AppSidebar({ items, activeId, onSelect }: AppSidebarProps) {
     }
     if (item.id === "prs" && totalOpenPrs > 0) {
       return { text: totalOpenPrs, tone: "blue" };
+    }
+    if (item.id === "projects" && projectCount > 0) {
+      return { text: projectCount, tone: "muted" };
     }
     if (item.id === "repository" && allRepos.length > 0) {
       return { text: allRepos.length, tone: "muted" };
