@@ -276,16 +276,22 @@ function parseGitUrl(input: string): { provider: string; owner: string; name: st
 function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }: AddRepoDialogProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState("existing");
+  const [query, setQuery] = useState("");
   const [existing, setExisting] = useState("");
   const [url, setUrl] = useState("");
   const [localPath, setLocalPath] = useState("");
 
   function reset() {
+    setQuery("");
     setExisting("");
     setUrl("");
     setLocalPath("");
     setTab("existing");
   }
+
+  const filteredRepos = githubRepos.filter((entry) =>
+    entry.repo_name.toLowerCase().includes(query.trim().toLowerCase()),
+  );
 
   async function addRepoWithSource(provider: string, ref: string, name: string) {
     const repo = await projectService.createRepo(projectId, name);
@@ -343,19 +349,35 @@ function AddRepoDialog({ open, onOpenChange, projectId, githubRepos, onCreated }
               <TabsTrigger value="local">{t("settings.projects.addRepo.local")}</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="existing" className="mt-0">
-              <Select value={existing} onValueChange={setExisting}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t("settings.projects.selectRepo")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {githubRepos.map((entry) => (
-                    <SelectItem key={`${entry.organization_id}/${entry.repo_name}`} value={`${entry.organization_id}/${entry.repo_name}`}>
-                      {entry.repo_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <TabsContent value="existing" className="mt-0 space-y-2">
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={t("settings.projects.selectRepo")}
+              />
+              <div className="max-h-[260px] overflow-y-auto rounded-md border border-zinc-200 dark:border-zinc-800">
+                {filteredRepos.length === 0 ? (
+                  <div className="px-3 py-8 text-center text-[13px] text-muted-foreground">
+                    {t("settings.projects.noReposMatch")}
+                  </div>
+                ) : (
+                  <div className="p-1">
+                    {filteredRepos.map((entry) => {
+                      const ref = `${entry.organization_id}/${entry.repo_name}`;
+                      return (
+                        <button
+                          key={ref}
+                          type="button"
+                          onClick={() => setExisting(ref)}
+                          className={`flex w-full items-center rounded-md px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-accent ${existing === ref ? "bg-accent font-medium" : "text-zinc-700 dark:text-zinc-300"}`}
+                        >
+                          {entry.repo_name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="url" className="mt-0">
