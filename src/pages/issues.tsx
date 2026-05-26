@@ -16,6 +16,7 @@ import { useFilteredIssues } from "@/hooks/useFilteredIssues";
 import { useHotkey } from "@/hooks/useHotkey";
 import { StatusIcon } from "@/components/issues/issue-status";
 import { CreateIssueDialog } from "@/components/issues/create-issue-dialog";
+import { AssignToProjectDialog } from "@/components/issues/assign-to-project-dialog";
 import { useI18n } from "@/i18n/i18n";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useProviders } from "@/hooks/useProviders";
@@ -43,6 +44,7 @@ export function IssuesPage() {
   const { resolveIssueScope, assignIssuesToSelfByDefault } = useSettingsStore();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [assignIssue, setAssignIssue] = useState<IssueDto | null>(null);
   const viewMode = useIssueViewStore((s) => s.viewMode);
   const setViewMode = useIssueViewStore((s) => s.setViewMode);
   const insightsOpen = useIssueViewStore((s) => s.insightsOpen);
@@ -105,16 +107,22 @@ export function IssuesPage() {
 
   const isLoading = reposLoading || (issueQueries.length > 0 && issueQueries.every((q) => q.isLoading));
   const githubIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []).map((issue) => {
-    const target = projectMap.get(sourceKey("github", "repo", `${issue.orgId}/${issue.repoName}`));
-    return target
-      ? {
-          ...issue,
-          projectId: target.project.id,
-          projectName: target.project.name,
-          repoId: target.repo.id,
-          containerName: target.repo.name,
-        }
-      : issue;
+    const ref = `${issue.orgId}/${issue.repoName}`;
+    const target = projectMap.get(sourceKey("github", "repo", ref));
+    return {
+      ...issue,
+      sourceProvider: "github",
+      sourceRefType: "repo",
+      sourceRef: ref,
+      ...(target
+        ? {
+            projectId: target.project.id,
+            projectName: target.project.name,
+            repoId: target.repo.id,
+            containerName: target.repo.name,
+          }
+        : {}),
+    };
   });
   const trackerIssues: IssueDto[] = (trackerIssuesQuery.data ?? []).map((issue) =>
     trackerIssueToDto(issue, "linear", projectMap),
@@ -248,6 +256,7 @@ export function IssuesPage() {
                 await deleteIssueMutation.mutateAsync(issue);
               }}
               onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
+              onAssignSource={setAssignIssue}
             />
           ) : (
             <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
@@ -260,6 +269,13 @@ export function IssuesPage() {
           <IssueInsightsPanel issues={allIssues} className="w-72 shrink-0" />
         )}
       </div>
+
+      <AssignToProjectDialog
+        issue={assignIssue}
+        projects={projectList}
+        repos={projectRepos}
+        onClose={() => setAssignIssue(null)}
+      />
 
       <CreateIssueDialog
         open={createOpen}

@@ -15,6 +15,7 @@ interface IssueRowProps {
   onOpenUrl?: (url: string) => void;
   onDelete?: (issue: IssueDto) => Promise<void>;
   onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
+  onAssignSource?: (issue: IssueDto) => void;
   delegateIssue: (issue: IssueDto) => Promise<void>;
   t: (key: string) => string;
   setIssueToDelete: (issue: IssueDto | null) => void;
@@ -41,6 +42,7 @@ export function IssueRow({
   onOpenUrl,
   onDelete,
   onAssignToMe,
+  onAssignSource,
   delegateIssue,
   t,
   setIssueToDelete,
@@ -96,6 +98,7 @@ export function IssueRow({
           onSelect={onSelect}
           onOpenUrl={onOpenUrl}
           onAssignToMe={onAssignToMe}
+          onAssignSource={onAssignSource}
           onDelete={onDelete}
           delegateIssue={delegateIssue}
           t={t}

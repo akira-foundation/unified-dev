@@ -29,6 +29,10 @@ export interface IssueDto {
   /** Repo container (project_repo) resolved from the issue source. */
   repoId?: string;
   containerName?: string;
+  /** Source binding key parts, used to attach an unmapped issue to a repo. */
+  sourceProvider?: string;
+  sourceRefType?: string;
+  sourceRef?: string;
 }
 
 /** Kanban column IDs for the issue board */

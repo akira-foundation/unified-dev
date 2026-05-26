@@ -161,5 +161,8 @@ export function trackerIssueToDto(
     projectName: project?.name ?? issue.projectName ?? undefined,
     repoId: target?.repo.id,
     containerName: target?.repo.name,
+    sourceProvider: provider,
+    sourceRefType: issue.project ? "project" : issue.team ? "team" : undefined,
+    sourceRef: issue.project ?? issue.team ?? undefined,
   };
 }
