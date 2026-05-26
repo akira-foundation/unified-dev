@@ -66,6 +66,7 @@ export const enPart2: Record<string, string> = {
   "settings.projects.sourceTypeLabel": "Type",
   "settings.projects.sourceLabel": "Source",
   "settings.projects.sourceCount": "sources",
+  "settings.projects.sourceCountSingular": "source",
   "settings.projects.notFound": "Project not found",
   "settings.projects.notFoundDesc": "It may have been deleted.",
   "settings.projects.kind.repo": "GitHub repo",

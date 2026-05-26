@@ -169,11 +169,10 @@ export function ProjectDetailPage() {
 const VCS_KINDS = ["github", "gitlab", "bitbucket", "local"];
 
 function sourceLabel(source: RepoSource, named: Record<string, ProviderNamed>): string {
-  if (VCS_KINDS.includes(source.provider)) {
-    return source.ref.split("/").filter(Boolean).pop() ?? source.ref;
-  }
+  if (VCS_KINDS.includes(source.provider)) return source.provider;
   const list = source.refType === "team" ? named[source.provider]?.teams : named[source.provider]?.projects;
-  return (list ?? []).find((entry) => entry.id === source.ref)?.name ?? source.ref;
+  const name = (list ?? []).find((entry) => entry.id === source.ref)?.name ?? source.ref;
+  return `${source.provider}: ${name}`;
 }
 
 interface RepoRowProps {
@@ -204,7 +203,7 @@ function RepoRow({ repo, sources, named, onAddSource, onRemove, onChange }: Repo
         <span className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-100">{repo.name}</span>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-            {sources.length} {t("settings.projects.sourceCount")}
+            {sources.length} {sources.length === 1 ? t("settings.projects.sourceCountSingular") : t("settings.projects.sourceCount")}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -231,7 +230,7 @@ function RepoRow({ repo, sources, named, onAddSource, onRemove, onChange }: Repo
           {sources.map((source) => (
             <span
               key={source.id}
-              className="flex items-center gap-1 rounded-full border border-zinc-200 px-2 py-0.5 text-[11px] text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
+              className="flex items-center gap-1 rounded-full border border-zinc-200 px-2 py-0.5 text-[11px] capitalize text-zinc-600 dark:border-zinc-700 dark:text-zinc-300"
             >
               {source.isVcsTarget && <span className="text-emerald-500">●</span>}
               {sourceLabel(source, named)}

@@ -66,6 +66,7 @@ export const ptPart2: Record<string, string> = {
   "settings.projects.sourceTypeLabel": "Tipo",
   "settings.projects.sourceLabel": "Fonte",
   "settings.projects.sourceCount": "fontes",
+  "settings.projects.sourceCountSingular": "fonte",
   "settings.projects.notFound": "Projeto não encontrado",
   "settings.projects.notFoundDesc": "Pode ter sido eliminado.",
   "settings.projects.kind.repo": "Repo GitHub",
