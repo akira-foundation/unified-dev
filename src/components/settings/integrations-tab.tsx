@@ -1,16 +1,12 @@
-import { Blocks, Link2, RefreshCw, KeyRound } from "lucide-react";
+import { Blocks, Link2, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/i18n";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -92,49 +88,42 @@ function LinearRow() {
         }
       />
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog
+        open={open}
+        onOpenChange={(value) => {
+          if (!value) setOpen(false);
+        }}
+      >
+        <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-500">
-                <KeyRound className="h-4 w-4" />
-              </div>
-              <div>
-                <DialogTitle>Connect Linear</DialogTitle>
-                <DialogDescription>
-                  Paste a Linear personal API key to sync your workspace.
-                </DialogDescription>
-              </div>
-            </div>
+            <DialogTitle>Connect Linear</DialogTitle>
+            <DialogDescription>
+              Paste a Linear personal API key to sync your workspace. The key is encrypted and
+              stored only on this device.
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 py-2">
-            <Label htmlFor="linear-token">API key</Label>
-            <Input
-              id="linear-token"
+          <div className="space-y-4 pt-2">
+            <input
               type="password"
               autoFocus
-              placeholder="lin_api_..."
               value={token}
               onChange={(event) => setToken(event.target.value)}
-              onKeyDown={(event) => event.key === "Enter" && connect()}
+              placeholder="lin_api_..."
+              className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-transparent px-3 py-2 text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-1 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") connect();
+              }}
             />
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Create one in Linear → Settings → Security &amp; access → Personal API keys. The key
-              is encrypted and stored only on this device.
-            </p>
-          </div>
-
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="outline" className={OUTLINE_BUTTON}>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
                 Cancel
               </Button>
-            </DialogClose>
-            <Button disabled={busy || !token.trim()} onClick={connect} className="h-8 gap-2">
-              <Link2 className="h-4 w-4" /> Connect
-            </Button>
-          </DialogFooter>
+              <Button onClick={connect} disabled={busy || !token.trim()}>
+                {busy ? "Connecting…" : "Connect"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
