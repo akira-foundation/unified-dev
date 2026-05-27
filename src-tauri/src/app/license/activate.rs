@@ -5,7 +5,6 @@ use crate::app::billing::PRODUCT_SLUG;
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 
-use super::machine_id;
 use super::persist;
 use super::signed_license::refresh_public_keys;
 use super::types::{ActivateLicenseRequest, LicenseDto};
@@ -13,9 +12,8 @@ use super::types::{ActivateLicenseRequest, LicenseDto};
 pub async fn activate(
     input: ActivateLicenseRequest,
     state: State<'_, AppState>,
-    app: &tauri::AppHandle,
 ) -> AppResult<LicenseDto> {
-    let identity = machine_id::get_or_create(app)?;
+    let fingerprint = super::device_fingerprint();
 
     let verified = {
         let billing = state.billing.read().await;
@@ -24,7 +22,7 @@ pub async fn activate(
             billing.inner(),
             &ActivateOrRefreshOptions {
                 product: PRODUCT_SLUG,
-                fingerprint: &identity.id,
+                fingerprint: &fingerprint,
                 device_type: "desktop",
                 platform: Some(std::env::consts::OS),
                 device_name: input.device_name.as_deref(),
