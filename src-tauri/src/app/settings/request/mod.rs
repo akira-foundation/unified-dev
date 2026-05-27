@@ -25,16 +25,17 @@ pub struct SyncSettingsDto {
 impl SyncSettingsDto {
     pub fn defaults_for(id: &str) -> Self {
         let scope = scope_for_id(id);
+        let enabled = !cfg!(debug_assertions);
         Self {
             id: id.to_string(),
             scope: scope.to_string(),
-            sync_issues_enabled: true,
+            sync_issues_enabled: enabled,
             sync_issues_interval_secs: DEFAULT_ISSUES_INTERVAL_SECS,
-            sync_prs_enabled: true,
+            sync_prs_enabled: enabled,
             sync_prs_interval_secs: DEFAULT_PRS_INTERVAL_SECS,
-            sync_repos_enabled: true,
+            sync_repos_enabled: enabled,
             sync_repos_interval_secs: DEFAULT_REPOS_INTERVAL_SECS,
-            sync_orgs_enabled: true,
+            sync_orgs_enabled: enabled,
             sync_orgs_interval_secs: DEFAULT_ORGS_INTERVAL_SECS,
         }
     }
@@ -62,4 +63,19 @@ pub struct UpsertSyncSettingsRequest {
     pub sync_repos_interval_secs: i64,
     pub sync_orgs_enabled: bool,
     pub sync_orgs_interval_secs: i64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_mirror_debug_flag() {
+        let d = SyncSettingsDto::defaults_for(GLOBAL_ID);
+        let expected = !cfg!(debug_assertions);
+        assert_eq!(d.sync_issues_enabled, expected);
+        assert_eq!(d.sync_prs_enabled, expected);
+        assert_eq!(d.sync_repos_enabled, expected);
+        assert_eq!(d.sync_orgs_enabled, expected);
+    }
 }
