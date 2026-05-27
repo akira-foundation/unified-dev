@@ -100,6 +100,7 @@ export function PrList({
   const { t } = useI18n();
   const parentRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState<Set<PrColumnId>>(new Set());
+  const [scrollTop, setScrollTop] = useState(0);
 
   const grouped = useMemo(() => {
     const map: Record<PrColumnId, PrCardType[]> = { todo: [], failed: [], inprogress: [], review: [], done: [] };
@@ -138,12 +139,50 @@ export function PrList({
     overscan: 12,
   });
 
+  const virtualItems = virtualizer.getVirtualItems();
+
+  const activeCol = useMemo<PrColumnId | null>(() => {
+    let col: PrColumnId | null = flatItems[0]?.col ?? null;
+    for (const vi of virtualItems) {
+      if (vi.start <= scrollTop + 1) col = flatItems[vi.index].col;
+      else break;
+    }
+    return col;
+  }, [virtualItems, flatItems, scrollTop]);
+
+  const renderGroupHeader = (col: PrColumnId, count: number) => (
+    <button
+      onClick={() => toggleGroup(col)}
+      className="flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
+    >
+      <PrStatusIcon column={col} />
+      <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">
+        {t(PR_COLUMN_LABEL_KEY[col])}
+      </span>
+      <span className="text-[12px] font-medium text-zinc-500">{count}</span>
+      {collapsed.has(col) ? (
+        <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+      ) : (
+        <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+      )}
+    </button>
+  );
+
   if (cards.length === 0) {
     return <EmptyState title={t("prs.table.empty")} />;
   }
 
   return (
-    <div ref={parentRef} className="h-full overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
+    <div
+      ref={parentRef}
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      className="h-full overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6"
+    >
+      {activeCol && (
+        <div className="sticky top-0 z-20 -mb-[34px]">
+          {renderGroupHeader(activeCol, grouped[activeCol].length)}
+        </div>
+      )}
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
       {virtualizer.getVirtualItems().map((virtualItem) => {
         const item = flatItems[virtualItem.index];
@@ -161,21 +200,7 @@ export function PrList({
             }}
           >
             {item.kind === "header" ? (
-              <button
-                onClick={() => toggleGroup(item.col)}
-                className="flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
-              >
-                <PrStatusIcon column={item.col} />
-                <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">
-                  {t(PR_COLUMN_LABEL_KEY[item.col])}
-                </span>
-                <span className="text-[12px] font-medium text-zinc-500">{item.count}</span>
-                {collapsed.has(item.col) ? (
-                  <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-                ) : (
-                  <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-                )}
-              </button>
+              renderGroupHeader(item.col, item.count)
             ) : (
               <PrRow card={item.card} onSelect={onSelect} onOpenUrl={onOpenUrl} />
             )}

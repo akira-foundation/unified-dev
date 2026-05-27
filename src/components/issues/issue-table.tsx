@@ -67,6 +67,7 @@ export function IssueTable({
   const [issueToDelete, setIssueToDelete] = useState<IssueDto | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<IssueColumnId>>(new Set());
+  const [scrollTop, setScrollTop] = useState(0);
   const { delegateIssue } = useDelegateIssue();
 
   const filteredIssues = useFilteredIssues(issues, filterNamespace);
@@ -108,6 +109,33 @@ export function IssueTable({
     overscan: 12,
   });
 
+  const virtualItems = virtualizer.getVirtualItems();
+
+  const activeCol = useMemo<IssueColumnId | null>(() => {
+    let col: IssueColumnId | null = flatItems[0]?.col ?? null;
+    for (const vi of virtualItems) {
+      if (vi.start <= scrollTop + 1) col = flatItems[vi.index].col;
+      else break;
+    }
+    return col;
+  }, [virtualItems, flatItems, scrollTop]);
+
+  const renderGroupHeader = (col: IssueColumnId, count: number) => (
+    <button
+      onClick={() => toggleGroup(col)}
+      className="flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
+    >
+      <StatusIcon column={col} />
+      <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{COLUMN_LABEL[col]}</span>
+      <span className="text-[12px] font-medium text-zinc-500">{count}</span>
+      {collapsed.has(col) ? (
+        <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+      ) : (
+        <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
+      )}
+    </button>
+  );
+
   const handleConfirmDelete = async () => {
     if (!issueToDelete || !onDelete) return;
     const issue = issueToDelete;
@@ -138,10 +166,20 @@ export function IssueTable({
         </ToolbarActions>
       )}
 
-      <div ref={parentRef} className="h-full overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6">
+      <div
+        ref={parentRef}
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+        className="h-full overflow-y-auto custom-scrollbar px-4 pb-4 md:px-6 md:pb-6"
+      >
       {filteredIssues.length === 0 ? (
         <EmptyState title={t("issues.table.empty")} />
       ) : (
+        <>
+        {activeCol && (
+          <div className="sticky top-0 z-20 -mb-[34px]">
+            {renderGroupHeader(activeCol, grouped[activeCol].length)}
+          </div>
+        )}
         <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
           {virtualizer.getVirtualItems().map((virtualItem) => {
             const item = flatItems[virtualItem.index];
@@ -159,19 +197,7 @@ export function IssueTable({
                 }}
               >
                 {item.kind === "header" ? (
-                  <button
-                    onClick={() => toggleGroup(item.col)}
-                    className="flex w-full items-center gap-2 bg-background px-3 py-1.5 text-left"
-                  >
-                    <StatusIcon column={item.col} />
-                    <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200">{COLUMN_LABEL[item.col]}</span>
-                    <span className="text-[12px] font-medium text-zinc-500">{item.count}</span>
-                    {collapsed.has(item.col) ? (
-                      <ChevronRight className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-                    ) : (
-                      <ChevronDown className="ml-auto h-3.5 w-3.5 text-zinc-500" />
-                    )}
-                  </button>
+                  renderGroupHeader(item.col, item.count)
                 ) : (
                   <IssueRow
                     issue={item.issue}
@@ -192,6 +218,7 @@ export function IssueTable({
             );
           })}
         </div>
+        </>
       )}
       </div>
 
