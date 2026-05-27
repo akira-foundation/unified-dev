@@ -96,6 +96,7 @@ export const ptPart5: Record<string, string> = {
   "nav.issues": "Issues",
   "nav.projects": "Projetos",
   "nav.issue-detail": "Issue",
+  "nav.provider-detail": "Provider",
   "nav.open-source": "Open Source",
   "openSource.title": "Open Source",
   "openSource.subtitle": "Contribuições do GitHub no ecossistema open source",

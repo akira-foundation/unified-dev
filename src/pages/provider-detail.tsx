@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { ArrowLeft, Github, Blocks, AlertTriangle, ExternalLink, KeyRound, GitlabIcon } from "lucide-react";
+import { Github, Blocks, AlertTriangle, ExternalLink, KeyRound, GitlabIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -169,13 +169,6 @@ export function ProviderDetailPage() {
     <PageLayout scroll>
       <PageHeader className="mx-auto w-full max-w-3xl px-6">
         <div className="flex flex-col gap-4">
-          <button
-            onClick={goBack}
-            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors w-fit group"
-          >
-            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            <span className="text-sm font-medium">{t("pages.providerDetail.back")}</span>
-          </button>
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
               <KindIcon size={24} strokeWidth={2} />

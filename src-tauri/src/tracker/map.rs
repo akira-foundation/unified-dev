@@ -74,6 +74,7 @@ pub fn map_label(entity: &Label) -> TrackerNamed {
     }
 }
 
+#[allow(dead_code)]
 pub fn map_cycle(entity: &Cycle) -> TrackerNamed {
     TrackerNamed {
         id: entity.id().as_str().to_string(),
@@ -81,6 +82,7 @@ pub fn map_cycle(entity: &Cycle) -> TrackerNamed {
     }
 }
 
+#[allow(dead_code)]
 pub fn map_comment(c: &Comment) -> TrackerComment {
     TrackerComment {
         id: c.id().as_str().to_string(),
