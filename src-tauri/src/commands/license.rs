@@ -1,4 +1,4 @@
-use tauri::{AppHandle, State};
+use tauri::State;
 
 use crate::app::license;
 use crate::app::license::plans::ProductPlansDto;
@@ -18,18 +18,18 @@ pub async fn get_product_plans(state: State<'_, AppState>) -> AppResult<ProductP
 }
 
 #[tauri::command]
-pub async fn activate_license(input: ActivateLicenseRequest, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
-    license::activate(input, state, &app).await
+pub async fn activate_license(input: ActivateLicenseRequest, state: State<'_, AppState>) -> AppResult<LicenseDto> {
+    license::activate(input, state).await
 }
 
 #[tauri::command]
-pub async fn claim_license_request(email: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<()> {
-    license::request_otp(email, state, &app).await
+pub async fn claim_license_request(email: String, state: State<'_, AppState>) -> AppResult<()> {
+    license::request_otp(email, state).await
 }
 
 #[tauri::command]
-pub async fn claim_license_verify(email: String, otp: String, state: State<'_, AppState>, app: AppHandle) -> AppResult<LicenseDto> {
-    license::verify_otp(email, otp, state, &app).await
+pub async fn claim_license_verify(email: String, otp: String, state: State<'_, AppState>) -> AppResult<LicenseDto> {
+    license::verify_otp(email, otp, state).await
 }
 
 #[tauri::command]
@@ -38,8 +38,8 @@ pub async fn get_license(state: State<'_, AppState>) -> AppResult<Option<License
 }
 
 #[tauri::command]
-pub async fn verify_license(state: State<'_, AppState>, app: AppHandle) -> AppResult<Option<LicenseDto>> {
-    let fingerprint = license::machine_id::get_or_create(&app)?.id;
+pub async fn verify_license(state: State<'_, AppState>) -> AppResult<Option<LicenseDto>> {
+    let fingerprint = license::device_fingerprint();
     let billing = state.billing.read().await.clone();
     license::verify(&state.db_pool, &billing, &fingerprint).await
 }

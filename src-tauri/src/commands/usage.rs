@@ -1,6 +1,6 @@
 use akira_billing::types::UsagePayload;
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::State;
 
 use crate::app::billing::PRODUCT_SLUG;
 use crate::app::license;
@@ -19,24 +19,16 @@ pub struct UsageDto {
 }
 
 #[tauri::command]
-pub async fn get_usage(state: State<'_, AppState>, app: AppHandle) -> AppResult<UsageDto> {
-    check_feature(&state, &app, DEFAULT_FEATURE).await
+pub async fn get_usage(state: State<'_, AppState>) -> AppResult<UsageDto> {
+    check_feature(&state, DEFAULT_FEATURE).await
 }
 
 #[tauri::command]
-pub async fn get_feature_usage(
-    feature: String,
-    state: State<'_, AppState>,
-    app: AppHandle,
-) -> AppResult<UsageDto> {
-    check_feature(&state, &app, &feature).await
+pub async fn get_feature_usage(feature: String, state: State<'_, AppState>) -> AppResult<UsageDto> {
+    check_feature(&state, &feature).await
 }
 
-async fn check_feature(
-    state: &State<'_, AppState>,
-    app: &AppHandle,
-    feature: &str,
-) -> AppResult<UsageDto> {
+async fn check_feature(state: &State<'_, AppState>, feature: &str) -> AppResult<UsageDto> {
     let plan = license::get_plan(&state.db_pool).await?;
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
 
@@ -49,7 +41,7 @@ async fn check_feature(
         });
     }
 
-    let identity = license::machine_id::get_or_create(app)?;
+    let fingerprint = license::device_fingerprint();
     let has_token = license::load_customer_token(&state.db_pool, &state.token_cipher)
         .await?
         .is_some();
@@ -59,7 +51,7 @@ async fn check_feature(
         product: PRODUCT_SLUG,
         feature,
         date: &date,
-        device_fp: &identity.id,
+        device_fp: &fingerprint,
         action: "check",
         count: None,
         platform: Some(platform),

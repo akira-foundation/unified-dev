@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use akira_billing::desktop::PublicKeyStore;
 use akira_billing::license::{decode_license, verify_license};
 use akira_billing::types::{LicensePublicKey, LicenseSnapshotPayload, SignedLicense};
 use akira_billing::Client;
@@ -9,19 +10,7 @@ use crate::app::support::error::{AppError, AppResult};
 const AKIRA_LICENSE_PUBKEY: &str = env!("AKIRA_LICENSE_PUBKEY");
 
 fn baked_public_keys() -> HashMap<String, String> {
-    let mut keys = HashMap::new();
-    for entry in AKIRA_LICENSE_PUBKEY.split(',') {
-        let entry = entry.trim();
-        if entry.is_empty() {
-            continue;
-        }
-        let (key_id, pk_b64) = match entry.split_once(':') {
-            Some((id, pk)) => (id.trim().to_string(), pk.trim().to_string()),
-            None => ("default".to_string(), entry.to_string()),
-        };
-        keys.insert(key_id, pk_b64);
-    }
-    keys
+    PublicKeyStore::parse(AKIRA_LICENSE_PUBKEY).snapshot()
 }
 
 pub async fn store_public_keys(pool: &sqlx::SqlitePool, keys: &[LicensePublicKey]) -> AppResult<()> {
