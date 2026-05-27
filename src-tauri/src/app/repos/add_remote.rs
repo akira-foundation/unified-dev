@@ -52,14 +52,11 @@ pub async fn add_remote(
         )));
     }
 
-    let plan = crate::app::license::get_plan(pool).await?;
-    if plan == "free" {
-        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM local_repositories")
-            .fetch_one(pool)
-            .await?;
-        if count >= 3 {
-            return Err(AppError::FreeTierLimit("repo_limit_reached".to_string()));
-        }
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM local_repositories")
+        .fetch_one(pool)
+        .await?;
+    if !crate::app::license::can_add(pool, "repos", count).await? {
+        return Err(AppError::FreeTierLimit("repo_limit_reached".to_string()));
     }
 
     let repo_id = Uuid::new_v4().to_string().to_uppercase();
