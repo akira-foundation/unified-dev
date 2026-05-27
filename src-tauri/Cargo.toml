@@ -52,7 +52,7 @@ akira-billing = { version = "0.5.0", features = ["desktop"] }
 lazy_static = "1.4"
 issue-provider-core = "0.2.0"
 issue-provider-linear = "0.2.0"
-issue-provider-jira = "0.1.0"
+issue-provider-jira = "0.3.0"
 
 
 [dev-dependencies]

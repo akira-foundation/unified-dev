@@ -64,6 +64,9 @@ export const trackerService = {
   async connect(provider: string, token: string): Promise<TrackerNamed> {
     return invoke<TrackerNamed>("tracker_connect", { provider, token });
   },
+  async connectJiraOauth(): Promise<TrackerNamed> {
+    return invoke<TrackerNamed>("tracker_connect_jira_oauth");
+  },
   async status(provider: string): Promise<boolean> {
     return invoke<boolean>("tracker_status", { provider });
   },

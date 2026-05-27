@@ -3,6 +3,7 @@ use issue_provider_core::{
     CommentId, Comments, ErrorKind, IssueError, IssueId, Issues, Labels, Projects, Users, Viewer,
 };
 use issue_provider_jira::{jira, JiraClient};
+use serde::{Deserialize, Serialize};
 
 use crate::app::support::error::{AppError, AppResult};
 
@@ -13,30 +14,27 @@ use super::super::dto::{
 use super::super::map;
 use super::super::tracker::Tracker;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JiraOauthBundle {
+    pub cloud_id: String,
+    pub access_token: String,
+    #[serde(default)]
+    pub refresh_token: Option<String>,
+    #[serde(default)]
+    pub expires_at: Option<String>,
+}
+
 pub struct JiraTracker {
     client: JiraClient,
 }
 
 impl JiraTracker {
     pub fn new(credentials: impl Into<String>) -> AppResult<Self> {
-        let (base_url, email, token) = parse_credentials(&credentials.into())?;
+        let bundle: JiraOauthBundle = serde_json::from_str(&credentials.into())
+            .map_err(|_| AppError::Provider("invalid jira oauth credentials".to_string()))?;
         Ok(Self {
-            client: jira().auth(base_url, email, token).build(),
+            client: jira().bearer(bundle.cloud_id, bundle.access_token).build(),
         })
-    }
-}
-
-fn parse_credentials(raw: &str) -> AppResult<(String, String, String)> {
-    let mut parts = raw.splitn(3, '|');
-    match (parts.next(), parts.next(), parts.next()) {
-        (Some(base_url), Some(email), Some(token))
-            if !base_url.is_empty() && !email.is_empty() && !token.is_empty() =>
-        {
-            Ok((base_url.to_string(), email.to_string(), token.to_string()))
-        }
-        _ => Err(AppError::Provider(
-            "Jira credentials must be in 'baseUrl|email|apiToken' form.".to_string(),
-        )),
     }
 }
 

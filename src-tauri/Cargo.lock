@@ -2397,9 +2397,9 @@ dependencies = [
 
 [[package]]
 name = "issue-provider-jira"
-version = "0.1.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "930c388b0169ee1a8d2e7f72082f51c41172e4f14865e586d517eb2bea5bd3bf"
+checksum = "fdc027e54ba95a6fa5e40897223e227a032fa0271c2c028bea550593e50cbd4b"
 dependencies = [
  "issue-provider-core",
  "reqwest 0.12.28",

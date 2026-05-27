@@ -18,6 +18,16 @@ pub async fn tracker_connect(
 }
 
 #[tauri::command]
+pub async fn tracker_connect_jira_oauth(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<TrackerNamed, String> {
+    tracker::jira_oauth::connect(&state, &app)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn tracker_status(
     state: State<'_, AppState>,
     provider: String,

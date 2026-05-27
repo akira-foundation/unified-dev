@@ -55,8 +55,8 @@ mod tests {
         let registry = TrackerRegistry::new();
         assert!(registry.supports("jira"));
         assert!(registry
-            .build("jira", "https://site.atlassian.net|me@example.com|token")
+            .build("jira", r#"{"cloud_id":"cid","access_token":"tok"}"#)
             .is_ok());
-        assert!(registry.build("jira", "missing-parts").is_err());
+        assert!(registry.build("jira", "not-json").is_err());
     }
 }

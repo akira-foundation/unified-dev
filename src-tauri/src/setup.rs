@@ -66,6 +66,16 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                             let _ = app_handle.emit("license://activate", session_id);
                         }
                     }
+
+                    if parsed.scheme() == "akira" && parsed.host_str() == Some("oauth") && parsed.path() == "/jira" {
+                        let code = parsed.query_pairs().find(|(k, _)| k == "code").map(|(_, v): (_, std::borrow::Cow<str>)| v.into_owned());
+                        let oauth_state = parsed.query_pairs().find(|(k, _)| k == "state").map(|(_, v): (_, std::borrow::Cow<str>)| v.into_owned());
+                        if let (Some(code), Some(oauth_state)) = (code, oauth_state) {
+                            tauri::async_runtime::spawn(async move {
+                                app::tracker::jira_oauth::deliver(code, oauth_state).await;
+                            });
+                        }
+                    }
                 }
             }
         }
