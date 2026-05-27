@@ -1,31 +1,25 @@
-use std::sync::OnceLock;
 use std::time::Duration;
 
 use tauri::AppHandle;
 use tauri_plugin_opener::OpenerExt;
-use tokio::sync::{oneshot, Mutex};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
 
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use crate::tracker::dto::TrackerNamed;
 use crate::tracker::drivers::jira::JiraOauthBundle;
 
-const REDIRECT_URI: &str = "akira://oauth/jira";
-
-type Pending = Mutex<Option<oneshot::Sender<(String, String)>>>;
-
-fn pending() -> &'static Pending {
-    static PENDING: OnceLock<Pending> = OnceLock::new();
-    PENDING.get_or_init(|| Mutex::new(None))
-}
-
-pub async fn deliver(code: String, state: String) {
-    if let Some(sender) = pending().lock().await.take() {
-        let _ = sender.send((code, state));
-    }
-}
-
 pub async fn connect(state: &AppState, app: &AppHandle) -> AppResult<TrackerNamed> {
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .await
+        .map_err(|err| AppError::Provider(format!("could not bind callback listener: {err}")))?;
+    let port = listener
+        .local_addr()
+        .map_err(|err| AppError::Provider(format!("could not read callback port: {err}")))?
+        .port();
+    let redirect_uri = format!("http://127.0.0.1:{port}/callback");
+
     let pkce = akira_billing::oauth::generate_pkce_challenge();
     let oauth_state = akira_billing::oauth::generate_oauth_state();
 
@@ -33,19 +27,15 @@ pub async fn connect(state: &AppState, app: &AppHandle) -> AppResult<TrackerName
         .billing
         .read()
         .await
-        .jira_connect_url(REDIRECT_URI, &pkce.challenge, &oauth_state);
-
-    let (sender, receiver) = oneshot::channel();
-    *pending().lock().await = Some(sender);
+        .jira_connect_url(&redirect_uri, &pkce.challenge, &oauth_state);
 
     app.opener()
         .open_url(&url, None::<&str>)
         .map_err(|err| AppError::Provider(format!("could not open browser: {err}")))?;
 
-    let (code, returned_state) = tokio::time::timeout(Duration::from_secs(300), receiver)
+    let (code, returned_state) = tokio::time::timeout(Duration::from_secs(300), accept_callback(listener))
         .await
-        .map_err(|_| AppError::Provider("Jira authorization timed out.".to_string()))?
-        .map_err(|_| AppError::Provider("Jira authorization cancelled.".to_string()))?;
+        .map_err(|_| AppError::Provider("Jira authorization timed out.".to_string()))??;
 
     if returned_state != oauth_state {
         return Err(AppError::Provider("Jira authorization state mismatch.".to_string()));
@@ -71,6 +61,51 @@ pub async fn connect(state: &AppState, app: &AppHandle) -> AppResult<TrackerName
         .map_err(|err| AppError::Provider(format!("could not serialize credentials: {err}")))?;
 
     super::connect(state, "jira".to_string(), json).await
+}
+
+async fn accept_callback(listener: TcpListener) -> AppResult<(String, String)> {
+    let (mut stream, _) = listener
+        .accept()
+        .await
+        .map_err(|err| AppError::Provider(format!("callback accept failed: {err}")))?;
+
+    let mut buf = vec![0u8; 4096];
+    let read = stream
+        .read(&mut buf)
+        .await
+        .map_err(|err| AppError::Provider(format!("callback read failed: {err}")))?;
+
+    let request = String::from_utf8_lossy(&buf[..read]);
+    let path = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .ok_or_else(|| AppError::Provider("callback missing request path".to_string()))?;
+
+    let url = reqwest::Url::parse(&format!("http://127.0.0.1{path}"))
+        .map_err(|err| AppError::Provider(format!("callback url invalid: {err}")))?;
+
+    let code = url
+        .query_pairs()
+        .find(|(key, _)| key == "code")
+        .map(|(_, value)| value.into_owned())
+        .ok_or_else(|| AppError::Provider("callback missing code".to_string()))?;
+    let state = url
+        .query_pairs()
+        .find(|(key, _)| key == "state")
+        .map(|(_, value)| value.into_owned())
+        .ok_or_else(|| AppError::Provider("callback missing state".to_string()))?;
+
+    let html = "<!doctype html><meta charset=utf-8><title>Jira connected</title><body style=\"font-family:system-ui;background:#08080b;color:#e6e6ec;display:grid;place-items:center;height:100vh;margin:0\"><h2>Jira connected. You can close this tab.</h2></body>";
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{}",
+        html.len(),
+        html
+    );
+    let _ = stream.write_all(response.as_bytes()).await;
+    let _ = stream.flush().await;
+
+    Ok((code, state))
 }
 
 pub async fn ensure_fresh(state: &AppState, token: String) -> AppResult<String> {
