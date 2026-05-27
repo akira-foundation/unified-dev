@@ -5,15 +5,10 @@ use crate::app::profile;
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 
-use super::machine_id;
 use super::types::LicenseDto;
 
-pub async fn request_otp(
-    email: String,
-    state: State<'_, AppState>,
-    app: &tauri::AppHandle,
-) -> AppResult<()> {
-    let identity = machine_id::get_or_create(app)?;
+pub async fn request_otp(email: String, state: State<'_, AppState>) -> AppResult<()> {
+    let fingerprint = super::device_fingerprint();
     let platform = onyx::osinfo::Platform::current().as_str();
     let app_version = env!("CARGO_PKG_VERSION");
 
@@ -22,7 +17,7 @@ pub async fn request_otp(
         .inner()
         .request_otp(OtpRequestPayload {
             email: &email,
-            device_fp: Some(&identity.id),
+            device_fp: Some(&fingerprint),
             platform: Some(platform),
             app_version: Some(app_version),
             product_key: Some("maintainer"),
@@ -37,9 +32,8 @@ pub async fn verify_otp(
     email: String,
     otp: String,
     state: State<'_, AppState>,
-    app: &tauri::AppHandle,
 ) -> AppResult<LicenseDto> {
-    let identity = machine_id::get_or_create(app)?;
+    let fingerprint = super::device_fingerprint();
 
     let response = {
         let mut billing = state.billing.write().await;
@@ -48,7 +42,7 @@ pub async fn verify_otp(
             .verify_otp(OtpVerifyPayload {
                 email: &email,
                 code: &otp,
-                device_fp: Some(&identity.id),
+                device_fp: Some(&fingerprint),
             })
             .await
             .map_err(|e| translate_billing_error(e, "otp_verify"))?
@@ -109,7 +103,7 @@ pub async fn verify_otp(
 fn translate_billing_error(err: akira_billing::Error, context: &str) -> AppError {
     use akira_billing::Error as BErr;
     match err {
-        BErr::Api { status, code } => {
+        BErr::Api { status, code, .. } => {
             if !code.is_empty() {
                 AppError::Internal(code)
             } else {

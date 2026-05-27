@@ -4,6 +4,8 @@ import { useSearchStore } from "@/stores/search-store";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useImportViewStore } from "@/stores/import-view-store";
 import { useOrganizations } from "@/hooks/useOrganizations";
+import { useQuery } from "@tanstack/react-query";
+import { projectService } from "@/services/projectService";
 import { useNavigation } from "@/hooks/useNavigation";
 import { useI18n } from "@/i18n/i18n";
 import { useUpdater } from "@/hooks/useUpdater";
@@ -29,10 +31,13 @@ export function AppHeader() {
     const activeIssue = useNavigationStore((s) => s.activeIssue);
     const activeRepo = useNavigationStore((s) => s.activeRepo);
     const activeOrganizationId = useNavigationStore((s) => s.activeOrganizationId);
+    const activeProjectId = useNavigationStore((s) => s.activeProjectId);
     const importSelectedOrg = useImportViewStore((s) => s.selectedOrg);
     const setImportSelectedOrg = useImportViewStore((s) => s.setSelectedOrg);
     const { organizations } = useOrganizations();
     const activeOrgName = organizations.find((o) => o.id === activeOrganizationId)?.name;
+    const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectService.list() });
+    const activeProjectName = projects.find((p) => p.id === activeProjectId)?.name;
     const isAgentMode = useNavigationStore((s) => s.isAgentMode);
     const selectedIssueId = useAgentsStore((s) => s.selectedIssueId);
     const selectedSkill = useAgentsStore((s) => s.selectedSkill);
@@ -124,6 +129,8 @@ export function AppHeader() {
                                         ? { labelKey: "nav.issues", page: "issues" as const, title: activeIssue?.title }
                                         : currentPage === "repository-detail"
                                             ? { labelKey: "nav.repositories", page: "repository" as const, title: activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : undefined }
+                                            : currentPage === "project-detail"
+                                                ? { labelKey: "nav.projects", page: "projects" as const, title: activeProjectName }
                                             : currentPage === "organization"
                                                 ? { labelKey: "nav.organizations", page: "organizations" as const, title: activeOrgName }
                                                 : currentPage === "import-repositories"
@@ -135,19 +142,19 @@ export function AppHeader() {
                                     {detail ? (
                                         <button
                                             onClick={() => navigateTo(detail.page)}
-                                            className="hidden shrink-0 text-[12px] font-medium leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline lg:inline"
+                                            className="hidden shrink-0 text-[12px] font-medium lowercase leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline lg:inline"
                                         >
                                             {t(detail.labelKey)}
                                         </button>
                                     ) : (
-                                        <span className="shrink-0 text-[12px] font-medium leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
+                                        <span className="shrink-0 text-[12px] font-medium lowercase leading-none text-foreground/70">{t(`nav.${currentPage}`)}</span>
                                     )}
                                     {detail?.title && (
                                         <>
                                             <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
                                             <span
                                                 title={detail.title}
-                                                className="max-w-[140px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
+                                                className="max-w-[140px] truncate text-[12px] font-medium lowercase leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
                                             >
                                                 {detail.title}
                                             </span>
@@ -158,7 +165,7 @@ export function AppHeader() {
                                             <span className="text-[12px] leading-none text-muted-foreground/40">/</span>
                                             <span
                                                 title={activeThread.title}
-                                                className="max-w-[140px] truncate text-[12px] font-medium leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
+                                                className="max-w-[140px] truncate text-[12px] font-medium lowercase leading-none text-foreground/70 sm:max-w-[200px] md:max-w-[280px]"
                                             >
                                                 {activeThread.title}
                                             </span>

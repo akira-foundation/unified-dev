@@ -66,6 +66,7 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                             let _ = app_handle.emit("license://activate", session_id);
                         }
                     }
+
                 }
             }
         }

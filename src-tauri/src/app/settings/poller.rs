@@ -52,7 +52,8 @@ pub fn start(app_handle: AppHandle) {
                     let repo_id = format!("{org_id}:{repo}");
                     let repo_settings = load_settings(&state, &repo_id).await;
 
-                    if repo_settings.sync_repos_enabled
+                    if global.sync_repos_enabled
+                        && repo_settings.sync_repos_enabled
                         && due(&last_synced, "repos", &repo_id, repo_settings.sync_repos_interval_secs, now)
                     {
                         let _ = crate::app::orgs::repos::sync_single_stats::sync_single_stats(
@@ -67,7 +68,8 @@ pub fn start(app_handle: AppHandle) {
                         org_touched = true;
                     }
 
-                    if repo_settings.sync_prs_enabled
+                    if global.sync_prs_enabled
+                        && repo_settings.sync_prs_enabled
                         && due(&last_synced, "prs", &repo_id, repo_settings.sync_prs_interval_secs, now)
                     {
                         let pr_scope = resolve_pr_scope(&state, org_id, repo).await;
@@ -90,7 +92,8 @@ pub fn start(app_handle: AppHandle) {
                         org_touched = true;
                     }
 
-                    if repo_settings.sync_issues_enabled
+                    if global.sync_issues_enabled
+                        && repo_settings.sync_issues_enabled
                         && due(&last_synced, "issues", &repo_id, repo_settings.sync_issues_interval_secs, now)
                     {
                         let issue_scope = resolve_issue_scope(&state, org_id, repo).await;

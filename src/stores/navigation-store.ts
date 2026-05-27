@@ -16,6 +16,7 @@ interface NavigationState {
   currentPage: AppPage;
   activeProviderId: string | null;
   activeOrganizationId: string | null;
+  activeProjectId: string | null;
   activeRepo: ActiveRepo | null;
   recentRepos: ActiveRepo[];
   activePr: PullRequestDto | null;
@@ -35,6 +36,7 @@ interface NavigationState {
   goBack: () => void;
   setActiveProviderId: (providerId: string | null) => void;
   setActiveOrganizationId: (organizationId: string | null) => void;
+  setActiveProjectId: (projectId: string | null) => void;
   setActiveRepo: (repo: ActiveRepo | null) => void;
   setActivePr: (pr: PullRequestDto | null) => void;
   setActiveIssue: (issue: IssueDto | null) => void;
@@ -54,6 +56,7 @@ export const useNavigationStore = create<NavigationState>()(
       currentPage: "dashboard",
       activeProviderId: null,
       activeOrganizationId: null,
+      activeProjectId: null,
       activeRepo: null,
       recentRepos: [],
       activePr: null,
@@ -110,6 +113,7 @@ export const useNavigationStore = create<NavigationState>()(
       },
       setActiveProviderId: (providerId) => set({ activeProviderId: providerId }),
       setActiveOrganizationId: (organizationId) => set({ activeOrganizationId: organizationId }),
+      setActiveProjectId: (projectId) => set({ activeProjectId: projectId }),
       setActiveRepo: (repo) => {
         if (!repo) {
           set({ activeRepo: null });
@@ -142,6 +146,7 @@ export const useNavigationStore = create<NavigationState>()(
         currentPage: state.currentPage,
         activeProviderId: state.activeProviderId,
         activeOrganizationId: state.activeOrganizationId,
+        activeProjectId: state.activeProjectId,
         activeRepo: state.activeRepo,
         recentRepos: state.recentRepos,
         history: state.history,

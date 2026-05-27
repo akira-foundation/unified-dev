@@ -54,9 +54,9 @@ dependencies = [
 
 [[package]]
 name = "akira-billing"
-version = "0.4.0"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4fbfaa8c6ae99e35d8acfa964805e5c4abb0b05c3060be36ea7cf0ac272f0b5"
+checksum = "c97bb5b30ba5dea40aff9e829f13707a3c4ceb65df48682f2e345a9ef3799e87"
 dependencies = [
  "aes-gcm",
  "async-trait",
@@ -2384,6 +2384,39 @@ checksum = "173609498df190136aa7dea1a91db051746d339e18476eed5ca40521f02d7aa5"
 dependencies = [
  "is-docker",
  "once_cell",
+]
+
+[[package]]
+name = "issue-provider-core"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "feb2eb1bbe04748948436560948cede35ef6e6021c8745655654e4a66ddbb644"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "issue-provider-jira"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12d30ed7422e496f76278c7fb58f7329500da5b529cfe274bb61c64fa012a45d"
+dependencies = [
+ "issue-provider-core",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "issue-provider-linear"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37f7c94b8296499dd668905159d3b6cd63687041b32200becf29c259624cca9e"
+dependencies = [
+ "issue-provider-core",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -6033,6 +6066,9 @@ dependencies = [
  "futures-util",
  "hex",
  "hmac",
+ "issue-provider-core",
+ "issue-provider-jira",
+ "issue-provider-linear",
  "lazy_static",
  "onyx-rs",
  "portable-pty",

@@ -64,7 +64,7 @@ pub async fn send_message(
     let plan = crate::app::license::get_plan(&state.db_pool).await?;
     if plan == "free" {
         let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-        let identity = crate::app::license::machine_id::get_or_create(&app)?;
+        let fingerprint = crate::app::license::device_fingerprint();
         let has_token = crate::app::license::load_customer_token(&state.db_pool, &state.token_cipher)
             .await?
             .is_some();
@@ -74,7 +74,7 @@ pub async fn send_message(
             product: PRODUCT_SLUG,
             feature: USAGE_FEATURE,
             date: &date,
-            device_fp: &identity.id,
+            device_fp: &fingerprint,
             action: "increment",
             count: None,
             platform: Some(platform),
@@ -150,7 +150,7 @@ pub async fn send_message(
 fn translate_billing_error(err: akira_billing::Error, context: &str) -> AppError {
     use akira_billing::Error as BErr;
     match err {
-        BErr::Api { status, code } => {
+        BErr::Api { status, code, .. } => {
             if !code.is_empty() {
                 AppError::Internal(code)
             } else {

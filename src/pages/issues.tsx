@@ -16,6 +16,7 @@ import { useFilteredIssues } from "@/hooks/useFilteredIssues";
 import { useHotkey } from "@/hooks/useHotkey";
 import { StatusIcon } from "@/components/issues/issue-status";
 import { CreateIssueDialog } from "@/components/issues/create-issue-dialog";
+import { AssignToProjectDialog } from "@/components/issues/assign-to-project-dialog";
 import { useI18n } from "@/i18n/i18n";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useProviders } from "@/hooks/useProviders";
@@ -25,6 +26,8 @@ import { useIssueViewStore } from "@/stores/issue-view-store";
 import { useSettingsStore } from "@/stores/settings-store";
 import { useIssueMutations } from "@/hooks/useIssueMutations";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
+import { trackerService, trackerIssueToDto } from "@/services/trackerService";
+import { projectService, buildProjectSourceMap, sourceKey } from "@/services/projectService";
 import { queryKeys } from "@/lib/query-keys";
 import { issueScopeLabelKey, resolveCurrentLogin } from "@/lib/work-visibility";
 import { cache } from "@/config/cache";
@@ -41,6 +44,7 @@ export function IssuesPage() {
   const { resolveIssueScope, assignIssuesToSelfByDefault } = useSettingsStore();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [assignIssue, setAssignIssue] = useState<IssueDto | null>(null);
   const viewMode = useIssueViewStore((s) => s.viewMode);
   const setViewMode = useIssueViewStore((s) => s.setViewMode);
   const insightsOpen = useIssueViewStore((s) => s.insightsOpen);
@@ -49,7 +53,7 @@ export function IssuesPage() {
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
 
   const currentUserLoginByOrg = useMemo(
@@ -71,19 +75,75 @@ export function IssuesPage() {
           scope: resolveIssueScope(repo.organization_id, repo.repo_name),
           currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
         }),
-      staleTime: cache.staleTime.short,
+      staleTime: cache.staleTime.long,
     })),
   });
 
-  const isLoading = reposLoading || issueQueries.some((q) => q.isLoading);
-  const allIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []);
+  const { data: trackerProviders = [] } = useQuery({
+    queryKey: ["tracker-providers"],
+    queryFn: () => trackerService.providers(),
+    staleTime: cache.staleTime.long,
+  });
+  const trackerIssueQueries = useQueries({
+    queries: trackerProviders.map((provider) => ({
+      queryKey: ["tracker-issues", provider],
+      queryFn: () => trackerService.listIssues(provider),
+      staleTime: cache.staleTime.long,
+    })),
+  });
+
+  const { data: projectList = [] } = useQuery({
+    queryKey: ["projects"],
+    queryFn: () => projectService.list(),
+    staleTime: cache.staleTime.long,
+  });
+  const { data: projectRepos = [] } = useQuery({
+    queryKey: ["project-repos"],
+    queryFn: () => projectService.listRepos(),
+    staleTime: cache.staleTime.long,
+  });
+  const { data: repoSources = [] } = useQuery({
+    queryKey: ["repo-sources"],
+    queryFn: () => projectService.listSources(),
+    staleTime: cache.staleTime.long,
+  });
+  const projectMap = useMemo(
+    () => buildProjectSourceMap(projectList, projectRepos, repoSources),
+    [projectList, projectRepos, repoSources],
+  );
+
+  const isLoading = reposLoading || (issueQueries.length > 0 && issueQueries.every((q) => q.isLoading));
+  const githubIssues: IssueDto[] = issueQueries.flatMap((q) => q.data ?? []).map((issue) => {
+    const ref = `${issue.orgId}/${issue.repoName}`;
+    const target = projectMap.get(sourceKey("github", "repo", ref));
+    return {
+      ...issue,
+      sourceProvider: "github",
+      sourceRefType: "repo",
+      sourceRef: ref,
+      ...(target
+        ? {
+            projectId: target.project.id,
+            projectName: target.project.name,
+            repoId: target.repo.id,
+            containerName: target.repo.name,
+          }
+        : {}),
+    };
+  });
+  const trackerIssues: IssueDto[] = trackerProviders.flatMap((provider, index) =>
+    (trackerIssueQueries[index]?.data ?? []).map((issue) =>
+      trackerIssueToDto(issue, provider, projectMap),
+    ),
+  );
+  const allIssues: IssueDto[] = [...githubIssues, ...trackerIssues];
   const filteredIssues = useFilteredIssues(allIssues, "issues");
 
   const registerSearch = useSearchStore((s) => s.registerProvider);
   useEffect(() => {
     registerSearch({
       placeholder: t("issues.table.search"),
-      items: allIssues.map((i) => ({
+      items: filteredIssues.map((i) => ({
         id: i.id,
         title: i.title,
         subtitle: `#${i.number}`,
@@ -93,7 +153,7 @@ export function IssuesPage() {
     });
     return () => registerSearch(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allIssues]);
+  }, [filteredIssues]);
 
   useHotkey("f", toggleInsights);
   useHotkey("n", () => setCreateOpen(true));
@@ -184,9 +244,9 @@ export function IssuesPage() {
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
-        <div className="min-w-0 flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+        <div className="min-w-0 flex-1 min-h-0">
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="space-y-3 p-4 md:p-6">
               <Skeleton className="h-24 w-full" />
               <Skeleton className="h-16 w-full" />
               <Skeleton className="h-16 w-full" />
@@ -205,16 +265,30 @@ export function IssuesPage() {
                 await deleteIssueMutation.mutateAsync(issue);
               }}
               onAssignToMe={(issue) => assignToMeMutation.mutateAsync(issue).then(() => undefined)}
+              onAssignSource={setAssignIssue}
             />
           ) : (
-            <IssueKanban issues={filteredIssues} onSelect={handleSelectIssue} onNewIssue={handleCreateClick} />
+            <div className="h-full overflow-y-auto custom-scrollbar p-4 md:p-6">
+              <IssueKanban issues={filteredIssues} onSelect={handleSelectIssue} onNewIssue={handleCreateClick} />
+            </div>
           )}
         </div>
 
         {insightsOpen && (
-          <IssueInsightsPanel issues={allIssues} className="w-72 shrink-0" />
+          <IssueInsightsPanel
+            issues={allIssues}
+            projectNames={projectList.map((p) => p.name)}
+            className="w-72 shrink-0"
+          />
         )}
       </div>
+
+      <AssignToProjectDialog
+        issue={assignIssue}
+        projects={projectList}
+        repos={projectRepos}
+        onClose={() => setAssignIssue(null)}
+      />
 
       <CreateIssueDialog
         open={createOpen}

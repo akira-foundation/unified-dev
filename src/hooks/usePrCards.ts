@@ -38,7 +38,7 @@ export function usePrCards(): UsePrCardsResult {
   const { data: allRepos = [], isLoading: reposLoading } = useQuery({
     queryKey: queryKeys.allRepositories(),
     queryFn: () => repositorySelectionService.listAllSelectedRepositories(),
-    staleTime: cache.staleTime.short,
+    staleTime: cache.staleTime.long,
   });
 
   const prQueries = useQueries({
@@ -51,11 +51,11 @@ export function usePrCards(): UsePrCardsResult {
           scope: resolvePrScope(repo.organization_id, repo.repo_name),
           currentLogin: resolveCurrentLogin(repo.organization_id, organizations, providers),
         }),
-      staleTime: cache.staleTime.realtime,
+      staleTime: cache.staleTime.long,
     })),
   });
 
-  const isLoading = reposLoading || prQueries.some((q) => q.isLoading);
+  const isLoading = reposLoading || (prQueries.length > 0 && prQueries.every((q) => q.isLoading));
 
   const allCards = useMemo<PrCardType[]>(() => {
     return allRepos.flatMap((repo: OrganizationRepoWithOrg, idx: number) => {

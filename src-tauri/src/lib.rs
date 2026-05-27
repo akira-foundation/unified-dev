@@ -5,6 +5,7 @@ mod database;
 mod providers;
 mod setup;
 mod state;
+mod tracker;
 
 #[cfg(test)]
 mod test_utils;
@@ -61,6 +62,17 @@ use commands::license::{activate_license, checkout_url, claim_license_request, c
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills, fetch_skills_from_repo};
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
+use commands::tracker::{
+    tracker_close_issue, tracker_connect, tracker_connect_jira_oauth, tracker_create_issue,
+    tracker_delete_issue, tracker_disconnect, tracker_get_issue, tracker_list_issues,
+    tracker_list_projects, tracker_list_teams, tracker_providers, tracker_status, tracker_sync,
+    tracker_update_issue,
+};
+use commands::projects::{
+    project_create, project_delete, project_list, project_repo_create, project_repo_delete,
+    project_repo_list, project_repo_update, project_update, repo_source_add, repo_source_list,
+    repo_source_remove,
+};
 use commands::updater::{check_for_updates, install_update};
 use commands::usage::{get_feature_usage, get_usage};
 use commands::profile::{get_user_profile, set_user_profile};
@@ -170,6 +182,31 @@ pub fn run() {
             close_issue,
             delete_issue,
             delegate_issue_to_agent,
+            tracker_connect,
+            tracker_connect_jira_oauth,
+            tracker_status,
+            tracker_disconnect,
+            tracker_providers,
+            tracker_sync,
+            tracker_list_issues,
+            tracker_get_issue,
+            tracker_create_issue,
+            tracker_update_issue,
+            tracker_close_issue,
+            tracker_delete_issue,
+            tracker_list_projects,
+            tracker_list_teams,
+            project_list,
+            project_create,
+            project_update,
+            project_delete,
+            project_repo_list,
+            project_repo_create,
+            project_repo_update,
+            project_repo_delete,
+            repo_source_list,
+            repo_source_add,
+            repo_source_remove,
             get_sync_settings,
             upsert_sync_settings,
             reset_sync_settings,

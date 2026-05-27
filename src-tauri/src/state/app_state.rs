@@ -7,6 +7,7 @@ use tokio::task::JoinHandle;
 use crate::app::billing::BillingClient;
 use crate::app::support::security::TokenCipher;
 use crate::providers::registry::ProviderFactory;
+use crate::tracker::TrackerRegistry;
 
 pub struct AppState {
     pub provider_factory: Arc<ProviderFactory>,
@@ -14,6 +15,7 @@ pub struct AppState {
     pub db_pool: sqlx::SqlitePool,
     pub abort_handles: Arc<Mutex<HashMap<String, JoinHandle<()>>>>,
     pub billing: Arc<RwLock<BillingClient>>,
+    pub tracker_registry: Arc<TrackerRegistry>,
 }
 
 impl AppState {
@@ -28,6 +30,7 @@ impl AppState {
             db_pool,
             abort_handles: Arc::new(Mutex::new(HashMap::new())),
             billing: Arc::new(RwLock::new(BillingClient::from_build_env())),
+            tracker_registry: Arc::new(TrackerRegistry::new()),
         }
     }
 }

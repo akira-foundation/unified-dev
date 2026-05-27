@@ -9,6 +9,8 @@ use super::graphql::{YearOverviewData, YEAR_OVERVIEW_QUERY};
 use super::models::{ActivityBreakdownDto, OssOrgSummaryDto};
 use super::provider::find_github_driver;
 
+type OrgAggregate = (Option<String>, String, i64);
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct YearOverviewDto {
@@ -96,7 +98,7 @@ pub async fn fetch_year_overview(
     let repos_total = repos_sorted.len() as i64;
     let repos_preview = repos_sorted.iter().take(3).map(|r| r.name_with_owner.clone()).collect();
 
-    let mut orgs_sorted: Vec<(String, (Option<String>, String, i64))> = org_map.into_iter().collect();
+    let mut orgs_sorted: Vec<(String, OrgAggregate)> = org_map.into_iter().collect();
     orgs_sorted.sort_by(|a, b| b.1.2.cmp(&a.1.2).then(a.0.cmp(&b.0)));
     let organizations = orgs_sorted
         .into_iter()

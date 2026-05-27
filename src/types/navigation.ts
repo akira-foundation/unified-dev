@@ -17,6 +17,8 @@ export type AppPage =
   | "pr-detail"
   | "issues"
   | "issue-detail"
+  | "projects"
+  | "project-detail"
   | "open-source"
   | "notifications";
 
@@ -27,7 +29,7 @@ export interface NavBadge {
   tone?: NavBadgeTone;
 }
 
-export type NavSection = "workspace" | "browse";
+export type NavSection = "work" | "structure" | "explore";
 
 export interface NavItem {
   id: AppPage;

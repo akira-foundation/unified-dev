@@ -10,14 +10,16 @@ import { useSyncSettingsStore, GLOBAL_SYNC_ID, INTERVAL_OPTIONS } from "@/stores
 import type { SyncSettingsDto, UpsertSyncSettingsInput } from "@/stores/sync-settings-store";
 import type { IssueScope, PullRequestScope } from "@/types/work-visibility";
 
+const AUTO_SYNC_DEFAULT = !import.meta.env.DEV;
+
 const DEFAULT_SETTINGS: Omit<SyncSettingsDto, "id" | "scope"> = {
-  syncIssuesEnabled: true,
+  syncIssuesEnabled: AUTO_SYNC_DEFAULT,
   syncIssuesIntervalSecs: 900,
-  syncPrsEnabled: true,
+  syncPrsEnabled: AUTO_SYNC_DEFAULT,
   syncPrsIntervalSecs: 300,
-  syncReposEnabled: true,
+  syncReposEnabled: AUTO_SYNC_DEFAULT,
   syncReposIntervalSecs: 1800,
-  syncOrgsEnabled: true,
+  syncOrgsEnabled: AUTO_SYNC_DEFAULT,
   syncOrgsIntervalSecs: 7200,
 };
 
@@ -97,6 +99,11 @@ export function SyncSettingsTab() {
   } = useSettingsStore();
 
   const global = effective(globalSettings);
+  const masterEnabled =
+    global.syncIssuesEnabled ||
+    global.syncPrsEnabled ||
+    global.syncReposEnabled ||
+    global.syncOrgsEnabled;
 
   const handleSave = async (patch: Partial<SyncSettingsDto>) => {
     const input: UpsertSyncSettingsInput = {
@@ -188,6 +195,23 @@ export function SyncSettingsTab() {
         description={t("settings.sync.description")}
         icon={RefreshCw}
       >
+        <SettingsItem
+          label={t("settings.sync.master.label")}
+          description={t("settings.sync.master.description")}
+          action={
+            <Switch
+              checked={masterEnabled}
+              onCheckedChange={(v) =>
+                handleSave({
+                  syncIssuesEnabled: v,
+                  syncPrsEnabled: v,
+                  syncReposEnabled: v,
+                  syncOrgsEnabled: v,
+                })
+              }
+            />
+          }
+        />
         <SyncRow
           label={t("settings.sync.issues.label")}
           description={t("settings.sync.issues.description")}
