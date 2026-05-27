@@ -8,6 +8,7 @@ use super::dto::{
 };
 
 #[async_trait]
+#[allow(dead_code)]
 pub trait Tracker: Send + Sync {
     fn kind(&self) -> &'static str;
 

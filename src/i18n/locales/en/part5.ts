@@ -109,6 +109,7 @@ export const enPart5: Record<string, string> = {
   "nav.issues": "Issues",
   "nav.projects": "Projects",
   "nav.issue-detail": "Issue",
+  "nav.provider-detail": "Provider",
   "nav.open-source": "Open Source",
   "openSource.title": "Open Source",
   "openSource.subtitle": "GitHub contributions across the open source ecosystem",
