@@ -63,9 +63,10 @@ use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
 use commands::tracker::{
-    tracker_close_issue, tracker_connect, tracker_create_issue, tracker_delete_issue,
-    tracker_disconnect, tracker_get_issue, tracker_list_issues, tracker_list_projects,
-    tracker_list_teams, tracker_providers, tracker_status, tracker_sync, tracker_update_issue,
+    tracker_close_issue, tracker_connect, tracker_connect_jira_oauth, tracker_create_issue,
+    tracker_delete_issue, tracker_disconnect, tracker_get_issue, tracker_list_issues,
+    tracker_list_projects, tracker_list_teams, tracker_providers, tracker_status, tracker_sync,
+    tracker_update_issue,
 };
 use commands::projects::{
     project_create, project_delete, project_list, project_repo_create, project_repo_delete,
@@ -182,6 +183,7 @@ pub fn run() {
             delete_issue,
             delegate_issue_to_agent,
             tracker_connect,
+            tracker_connect_jira_oauth,
             tracker_status,
             tracker_disconnect,
             tracker_providers,

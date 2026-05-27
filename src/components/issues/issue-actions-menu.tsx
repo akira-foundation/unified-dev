@@ -1,4 +1,4 @@
-import { Bot, CircleDot, ExternalLink, MoreVertical, Trash2 } from "lucide-react";
+import { Bot, CircleDot, ExternalLink, FolderKanban, MoreVertical, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -18,6 +18,7 @@ interface IssueActionsMenuProps {
   onSelect?: (issue: IssueDto) => void;
   onOpenUrl?: (url: string) => void;
   onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
+  onAssignSource?: (issue: IssueDto) => void;
   onDelete?: (issue: IssueDto) => Promise<void>;
   delegateIssue: (issue: IssueDto) => Promise<void>;
   t: (key: string) => string;
@@ -29,6 +30,7 @@ export function IssueActionsMenu({
   onSelect,
   onOpenUrl,
   onAssignToMe,
+  onAssignSource,
   onDelete,
   delegateIssue,
   t,
@@ -83,6 +85,12 @@ export function IssueActionsMenu({
             <DropdownMenuItem onSelect={() => void onAssignToMe(issue)}>
               <CircleDot className="mr-2 h-4 w-4" />
               {t("issues.table.assignToMe")}
+            </DropdownMenuItem>
+          )}
+          {onAssignSource && issue.sourceRef && !issue.projectId && (
+            <DropdownMenuItem onSelect={() => onAssignSource(issue)}>
+              <FolderKanban className="mr-2 h-4 w-4" />
+              {t("issues.table.assignToProject")}
             </DropdownMenuItem>
           )}
           {onDelete && issue.status === "open" && (

@@ -38,6 +38,7 @@ interface IssueTableProps {
   onOpenUrl?: (url: string) => void;
   onDelete?: (issue: IssueDto) => Promise<void>;
   onAssignToMe?: (issue: IssueDto) => Promise<void> | void;
+  onAssignSource?: (issue: IssueDto) => void;
 }
 
 function ToolbarActions({ inAppbar, children }: { inAppbar: boolean; children: ReactNode }) {
@@ -59,6 +60,7 @@ export function IssueTable({
   onOpenUrl,
   onDelete,
   onAssignToMe,
+  onAssignSource,
 }: IssueTableProps) {
   const { t } = useI18n();
   const parentRef = useRef<HTMLDivElement>(null);
@@ -180,6 +182,7 @@ export function IssueTable({
                     onOpenUrl={onOpenUrl}
                     onDelete={onDelete}
                     onAssignToMe={onAssignToMe}
+                    onAssignSource={onAssignSource}
                     delegateIssue={delegateIssue}
                     t={t}
                     setIssueToDelete={setIssueToDelete}

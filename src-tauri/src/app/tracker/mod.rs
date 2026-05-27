@@ -10,6 +10,8 @@ use crate::tracker::dto::{
     TrackerNamed, TrackerPageRequest,
 };
 
+pub mod jira_oauth;
+
 fn category_to_str(category: StatusCategory) -> &'static str {
     match category {
         StatusCategory::Backlog => "backlog",
@@ -97,6 +99,11 @@ async fn resolve_tracker(state: &AppState, provider: &str) -> AppResult<Arc<dyn 
     let encrypted =
         encrypted.ok_or_else(|| AppError::Provider(format!("tracker not connected: {provider}")))?;
     let token = state.token_cipher.decrypt(&encrypted)?;
+    let token = if provider == "jira" {
+        jira_oauth::ensure_fresh(state, token).await?
+    } else {
+        token
+    };
     state.tracker_registry.build(provider, token)
 }
 

@@ -2,10 +2,11 @@ use std::sync::Arc;
 
 use crate::app::support::error::{AppError, AppResult};
 
+use super::drivers::jira::JiraTracker;
 use super::drivers::linear::LinearTracker;
 use super::tracker::Tracker;
 
-const PROVIDERS: &[&str] = &["linear"];
+const PROVIDERS: &[&str] = &["linear", "jira"];
 
 pub struct TrackerRegistry;
 
@@ -17,6 +18,7 @@ impl TrackerRegistry {
     pub fn build(&self, kind: &str, token: impl Into<String>) -> AppResult<Arc<dyn Tracker>> {
         match kind {
             "linear" => Ok(Arc::new(LinearTracker::new(token))),
+            "jira" => Ok(Arc::new(JiraTracker::new(token)?)),
             other => Err(AppError::Provider(format!("unknown tracker kind: {other}"))),
         }
     }
@@ -45,6 +47,16 @@ mod tests {
         let registry = TrackerRegistry::new();
         assert!(registry.supports("linear"));
         assert!(registry.build("linear", "tok").is_ok());
-        assert!(registry.build("jira", "tok").is_err());
+        assert!(registry.build("mystery", "tok").is_err());
+    }
+
+    #[test]
+    fn builds_jira_with_credentials() {
+        let registry = TrackerRegistry::new();
+        assert!(registry.supports("jira"));
+        assert!(registry
+            .build("jira", r#"{"cloud_id":"cid","access_token":"tok"}"#)
+            .is_ok());
+        assert!(registry.build("jira", "not-json").is_err());
     }
 }

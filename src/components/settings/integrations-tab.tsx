@@ -19,17 +19,11 @@ import {
 } from "@/components/ui/dialog";
 import { SettingsSection } from "./settings-section";
 import { SettingsItem } from "./settings-item";
+import { JiraRow } from "./jira-integration-row";
+import { FIELD_INPUT, OUTLINE_BUTTON, cleanError } from "./integration-utils";
 import { trackerService } from "@/services/trackerService";
 
 const LINEAR = "linear";
-const OUTLINE_BUTTON =
-  "h-8 gap-2 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 border-zinc-200 dark:border-white/10 dark:text-zinc-300";
-const FIELD_INPUT =
-  "h-8 rounded-md border-zinc-200 bg-zinc-100 px-3 text-xs text-zinc-600 placeholder:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:placeholder:text-zinc-500";
-
-function cleanError(error: unknown): string {
-  return String(error).replace(/^provider error:\s*/i, "");
-}
 
 function LinearRow() {
   const [connected, setConnected] = useState(false);
@@ -214,6 +208,7 @@ export function IntegrationsTab() {
     <div className="animate-in fade-in duration-300">
       <SettingsSection title={t("settings.integrations.title")} description={t("settings.integrations.description")} icon={Blocks}>
         <LinearRow />
+        <JiraRow />
       </SettingsSection>
     </div>
   );

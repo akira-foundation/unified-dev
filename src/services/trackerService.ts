@@ -64,6 +64,9 @@ export const trackerService = {
   async connect(provider: string, token: string): Promise<TrackerNamed> {
     return invoke<TrackerNamed>("tracker_connect", { provider, token });
   },
+  async connectJiraOauth(): Promise<TrackerNamed> {
+    return invoke<TrackerNamed>("tracker_connect_jira_oauth");
+  },
   async status(provider: string): Promise<boolean> {
     return invoke<boolean>("tracker_status", { provider });
   },
@@ -134,12 +137,13 @@ export function trackerIssueToDto(
     (issue.team && projectMap?.get(sourceKey(provider, "team", issue.team))) ||
     undefined;
   const project = target?.project;
+  const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
   return {
     id: issue.id,
     externalId: issue.id,
     provider,
     orgId: provider,
-    repoName: project?.name ?? issue.teamName ?? "Linear",
+    repoName: project?.name ?? issue.teamName ?? providerLabel,
     number,
     title: issue.title,
     body: issue.description ?? null,
@@ -161,5 +165,8 @@ export function trackerIssueToDto(
     projectName: project?.name ?? issue.projectName ?? undefined,
     repoId: target?.repo.id,
     containerName: target?.repo.name,
+    sourceProvider: provider,
+    sourceRefType: issue.project ? "project" : issue.team ? "team" : undefined,
+    sourceRef: issue.project ?? issue.team ?? undefined,
   };
 }

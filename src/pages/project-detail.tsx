@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, MoreVertical, Link2, Unlink, Check, Folder, FolderGit2, CircleDot, ExternalLink } from "lucide-react";
+import { Plus, Trash2, MoreVertical, Link2, Unlink, Check, Folder, FolderGit2, CircleDot, ExternalLink, Download, RefreshCw } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 
@@ -44,6 +44,9 @@ import {
   type RepoSource,
 } from "@/services/projectService";
 import { trackerService, type TrackerNamed } from "@/services/trackerService";
+import { ImportProjectsDialog } from "@/components/projects/import-projects-dialog";
+import { LinkRepoDialog } from "@/components/projects/link-repo-dialog";
+import { ProviderIcon } from "@/components/projects/provider-icon";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
 
 const VCS_PROVIDERS = ["github", "gitlab", "bitbucket"];
@@ -65,6 +68,8 @@ export function ProjectDetailPage() {
   const setActiveRepo = useNavigationStore((s) => s.setActiveRepo);
   const setFilter = useFiltersStore((s) => s.setFilter);
   const [addRepoOpen, setAddRepoOpen] = useState(false);
+  const [importProvider, setImportProvider] = useState<string | null>(null);
+  const [linkRepo, setLinkRepo] = useState<ProjectRepo | null>(null);
   const [sourceRepo, setSourceRepo] = useState<ProjectRepo | null>(null);
 
   const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectService.list() });
@@ -152,6 +157,24 @@ export function ProjectDetailPage() {
           <Plus size={18} />
           <span className="hidden xl:inline">{t("settings.projects.addRepo")}</span>
         </Button>
+        {connected.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
+                <span className="hidden xl:inline">{t("settings.projects.import")}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {connected.map((provider) => (
+                <DropdownMenuItem key={provider} onClick={() => setImportProvider(provider)} className="capitalize">
+                  <ProviderIcon provider={provider} className="mr-2 h-4 w-4" />
+                  {provider}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </AppbarActions>
 
       <div className="flex h-full min-h-0">
@@ -169,6 +192,7 @@ export function ProjectDetailPage() {
                   onViewRepo={() => viewRepo(repo)}
                   onViewIssues={viewIssues}
                   onAddSource={() => setSourceRepo(repo)}
+                  onLinkRepo={() => setLinkRepo(repo)}
                   onRemove={() => removeRepo(repo.id)}
                   onChange={refresh}
                 />
@@ -184,6 +208,18 @@ export function ProjectDetailPage() {
         projectId={project.id}
         githubRepos={githubRepos}
         onCreated={refresh}
+      />
+      <ImportProjectsDialog
+        open={importProvider !== null}
+        provider={importProvider ?? ""}
+        projects={projects}
+        onOpenChange={(value) => !value && setImportProvider(null)}
+      />
+      <LinkRepoDialog
+        repo={linkRepo}
+        githubRepos={githubRepos}
+        onOpenChange={(open) => !open && setLinkRepo(null)}
+        onLinked={refresh}
       />
       <AddSourceDialog
         repo={sourceRepo}
@@ -211,13 +247,16 @@ interface RepoRowProps {
   onViewRepo: () => void;
   onViewIssues: () => void;
   onAddSource: () => void;
+  onLinkRepo: () => void;
   onRemove: () => void;
   onChange: () => void;
 }
 
-function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, onRemove, onChange }: RepoRowProps) {
+function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, onLinkRepo, onRemove, onChange }: RepoRowProps) {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
   const providerSources = sources.filter((source) => !VCS_KINDS.includes(source.provider));
+  const hasVcs = sources.some((source) => source.isVcsTarget);
 
   async function removeSource(id: string) {
     try {
@@ -228,11 +267,37 @@ function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, 
     }
   }
 
+  async function removeAllSources() {
+    try {
+      for (const source of providerSources) {
+        await projectService.removeSource(source.id);
+      }
+      onChange();
+    } catch (error) {
+      toast.error(String(error));
+    }
+  }
+
+  const syncProviders = [...new Set(providerSources.map((source) => source.provider))];
+
+  async function syncIssues(providers: string[]) {
+    try {
+      let total = 0;
+      for (const provider of providers) {
+        total += await trackerService.sync(provider);
+      }
+      queryClient.invalidateQueries({ queryKey: ["tracker-issues"] });
+      toast.success(t("settings.projects.syncedIssues", { count: String(total) }));
+    } catch (error) {
+      toast.error(String(error));
+    }
+  }
+
   return (
     <div className="group flex h-10 items-center gap-2.5 rounded-md px-3 transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
       <FolderGit2 className="h-4 w-4 shrink-0 text-zinc-400" />
       <button
-        onClick={onViewRepo}
+        onClick={hasVcs ? onViewRepo : onLinkRepo}
         className="shrink-0 cursor-pointer truncate text-[13px] font-medium text-zinc-800 hover:underline dark:text-zinc-100"
       >
         {repo.name}
@@ -257,9 +322,9 @@ function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, 
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onViewRepo}>
+            <DropdownMenuItem onSelect={hasVcs ? onViewRepo : onLinkRepo}>
               <ExternalLink className="mr-2 h-4 w-4" />
-              {t("settings.projects.viewRepo")}
+              {hasVcs ? t("settings.projects.viewRepo") : t("settings.projects.linkRepo")}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onViewIssues}>
               <CircleDot className="mr-2 h-4 w-4" />
@@ -269,6 +334,30 @@ function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, 
               <Link2 className="mr-2 h-4 w-4" />
               {t("settings.projects.addProvider")}
             </DropdownMenuItem>
+            {syncProviders.length > 0 && (
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  {t("settings.projects.syncIssues")}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {syncProviders.length > 1 && (
+                    <>
+                      <DropdownMenuItem onSelect={() => syncIssues(syncProviders)}>
+                        {t("settings.projects.syncAll")}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {syncProviders.map((provider) => (
+                    <DropdownMenuItem key={provider} onSelect={() => syncIssues([provider])} className="capitalize">
+                      <ProviderIcon provider={provider} className="mr-2 h-4 w-4" />
+                      {provider}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            )}
             {providerSources.length > 0 && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
@@ -276,6 +365,14 @@ function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, 
                   {t("settings.projects.removeProvider")}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
+                  {providerSources.length > 1 && (
+                    <>
+                      <DropdownMenuItem onSelect={removeAllSources} className="text-red-500">
+                        {t("settings.projects.removeAll")}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   {providerSources.map((source) => (
                     <DropdownMenuItem
                       key={source.id}
