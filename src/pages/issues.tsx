@@ -143,7 +143,7 @@ export function IssuesPage() {
   useEffect(() => {
     registerSearch({
       placeholder: t("issues.table.search"),
-      items: allIssues.map((i) => ({
+      items: filteredIssues.map((i) => ({
         id: i.id,
         title: i.title,
         subtitle: `#${i.number}`,
@@ -153,7 +153,7 @@ export function IssuesPage() {
     });
     return () => registerSearch(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allIssues]);
+  }, [filteredIssues]);
 
   useHotkey("f", toggleInsights);
   useHotkey("n", () => setCreateOpen(true));

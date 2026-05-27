@@ -24,6 +24,8 @@ import {
 import { projectService, type Project } from "@/services/projectService";
 import { trackerService } from "@/services/trackerService";
 
+type ConflictStrategy = "merge" | "replace" | "keep";
+
 const NEW_PROJECT = "__new__";
 
 interface ImportProjectsDialogProps {
@@ -41,10 +43,17 @@ export function ImportProjectsDialog({ open, onOpenChange, provider, projects }:
   const [dest, setDest] = useState(NEW_PROJECT);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [conflicts, setConflicts] = useState<string[]>([]);
 
   const { data: scopes = [], isLoading } = useQuery({
     queryKey: ["tracker-list-projects", provider],
     queryFn: () => trackerService.listProjects(provider),
+    enabled: open,
+  });
+
+  const { data: allRepos = [] } = useQuery({
+    queryKey: ["project-repos"],
+    queryFn: () => projectService.listRepos(),
     enabled: open,
   });
 
@@ -54,8 +63,17 @@ export function ImportProjectsDialog({ open, onOpenChange, provider, projects }:
       setSelected(new Set());
       setDest(NEW_PROJECT);
       setNewName("");
+      setConflicts([]);
     }
   }, [open]);
+
+  const selectedNames = useMemo(
+    () =>
+      [...selected]
+        .map((id) => scopes.find((s) => s.id === id)?.name)
+        .filter((name): name is string => !!name),
+    [selected, scopes],
+  );
 
   const filtered = useMemo(
     () => scopes.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase())),
@@ -73,18 +91,47 @@ export function ImportProjectsDialog({ open, onOpenChange, provider, projects }:
 
   const canApply = selected.size > 0 && (dest !== NEW_PROJECT || !!newName.trim());
 
-  async function apply() {
+  function apply() {
     if (!canApply) return;
+    if (dest !== NEW_PROJECT) {
+      const existing = new Set(
+        allRepos.filter((repo) => repo.projectId === dest).map((repo) => repo.name),
+      );
+      const clash = selectedNames.filter((name) => existing.has(name));
+      if (clash.length > 0) {
+        setConflicts([...new Set(clash)]);
+        return;
+      }
+    }
+    void doImport("keep");
+  }
+
+  async function doImport(strategy: ConflictStrategy) {
     setBusy(true);
     try {
       const projectId =
         dest === NEW_PROJECT ? (await projectService.create(newName.trim(), null)).id : dest;
+      const projectRepos = allRepos.filter((repo) => repo.projectId === projectId);
+
       for (const scopeId of selected) {
         const scope = scopes.find((s) => s.id === scopeId);
         if (!scope) continue;
-        const repo = await projectService.createRepo(projectId, scope.name);
-        await projectService.addSource(repo.id, provider, "project", scope.id, true, false);
+
+        const existing = projectRepos.filter((repo) => repo.name === scope.name);
+        let repoId: string;
+        if (existing.length > 0 && strategy === "merge") {
+          repoId = existing[0].id;
+        } else {
+          if (existing.length > 0 && strategy === "replace") {
+            for (const repo of existing) {
+              await projectService.removeRepo(repo.id);
+            }
+          }
+          repoId = (await projectService.createRepo(projectId, scope.name)).id;
+        }
+        await projectService.addSource(repoId, provider, "project", scope.id, true, false);
       }
+
       // Full sync so every selected project's issues land regardless of the
       // original sync scope (e.g. assignee-only), then map via the new bindings.
       await trackerService.sync(provider);
@@ -98,6 +145,7 @@ export function ImportProjectsDialog({ open, onOpenChange, provider, projects }:
       toast.error(String(error));
     } finally {
       setBusy(false);
+      setConflicts([]);
     }
   }
 
@@ -164,20 +212,42 @@ export function ImportProjectsDialog({ open, onOpenChange, provider, projects }:
             )}
           </div>
 
-          <DialogFooter className="flex gap-2 px-0 pb-0 pt-0">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              size="sm"
-              onClick={apply}
-              disabled={!canApply || busy}
-              className="flex-1 gap-1.5 bg-purple-600 text-white hover:bg-purple-700"
-            >
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {t("import.apply")}
-            </Button>
-          </DialogFooter>
+          {conflicts.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-[13px] text-muted-foreground">
+                {t("import.conflict.message", { names: conflicts.join(", ") })}
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => doImport("merge")} disabled={busy} className="flex-1">
+                  {t("import.conflict.merge")}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => doImport("replace")} disabled={busy} className="flex-1">
+                  {t("import.conflict.replace")}
+                </Button>
+                <Button size="sm" onClick={() => doImport("keep")} disabled={busy} className="flex-1 bg-purple-600 text-white hover:bg-purple-700">
+                  {t("import.conflict.keep")}
+                </Button>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setConflicts([])} disabled={busy}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          ) : (
+            <DialogFooter className="flex gap-2 px-0 pb-0 pt-0">
+              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                size="sm"
+                onClick={apply}
+                disabled={!canApply || busy}
+                className="flex-1 gap-1.5 bg-purple-600 text-white hover:bg-purple-700"
+              >
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+                {t("import.apply")}
+              </Button>
+            </DialogFooter>
+          )}
         </div>
       </DialogContent>
     </Dialog>

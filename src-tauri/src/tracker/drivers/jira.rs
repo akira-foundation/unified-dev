@@ -46,7 +46,12 @@ fn provider_err(error: IssueError) -> AppError {
         ErrorKind::RateLimited => "Jira rate limit reached. Try again in a moment.".to_string(),
         ErrorKind::NotFound => "Not found on Jira.".to_string(),
         ErrorKind::Transport | ErrorKind::TransportNotConfigured => {
-            "Could not reach Jira. Check your connection and site URL.".to_string()
+            let detail = error.message().trim();
+            if detail.is_empty() {
+                "Could not reach Jira. Check your connection and site URL.".to_string()
+            } else {
+                format!("Could not reach Jira: {detail}")
+            }
         }
         ErrorKind::Decode => "Unexpected response from Jira.".to_string(),
         ErrorKind::Provider => {

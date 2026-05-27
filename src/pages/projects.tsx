@@ -36,6 +36,7 @@ import { PageLayout } from "@/components/layout/page-layout";
 import { projectService, type Project } from "@/services/projectService";
 import { trackerService } from "@/services/trackerService";
 import { ImportProjectsDialog } from "@/components/projects/import-projects-dialog";
+import { ProviderIcon } from "@/components/projects/provider-icon";
 
 export function ProjectsPage() {
   const { t } = useI18n();
@@ -114,6 +115,7 @@ export function ProjectsPage() {
             <DropdownMenuContent align="end">
               {connected.map((provider) => (
                 <DropdownMenuItem key={provider} onClick={() => setImportProvider(provider)} className="capitalize">
+                  <ProviderIcon provider={provider} className="mr-2 h-4 w-4" />
                   {provider}
                 </DropdownMenuItem>
               ))}
