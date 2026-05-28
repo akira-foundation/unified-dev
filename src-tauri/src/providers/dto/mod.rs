@@ -6,6 +6,7 @@ pub mod pr_file;
 pub mod provider_org;
 pub mod provider_repo;
 pub mod pull_request;
+pub mod repo_label;
 
 pub use branch::{BranchDto, VcsBranch};
 pub use ci_check::{CiCheckDto, VcsCiCheck, VcsCiCheckStep};
@@ -15,3 +16,4 @@ pub use pr_file::{PrFileDto, VcsPrFile};
 pub use provider_org::ProviderOrg;
 pub use provider_repo::{CreatedRepo, ProviderRepo};
 pub use pull_request::{PullRequestDto, VcsPullRequest};
+pub use repo_label::VcsRepoLabel;

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::providers::dto::{CreatedRepo, ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsIssue, VcsPrComment, VcsPrFile, VcsPullRequest};
+use crate::providers::dto::{CreatedRepo, ProviderOrg, ProviderRepo, VcsBranch, VcsCiCheck, VcsIssue, VcsPrComment, VcsPrFile, VcsPullRequest, VcsRepoLabel};
 use crate::providers::enums::{PrMergeStrategy, PrReviewEvent, ProviderKind};
 use crate::app::support::error::AppResult;
 
@@ -31,6 +31,16 @@ pub trait VcsProvider: Send + Sync {
     async fn mark_pull_request_ready_for_review(&self, _owner: &str, _repository: &str, _pr_number: u64) -> AppResult<()> {
         Err(crate::app::support::error::AppError::Provider(
             "marking pull requests as ready for review is not supported by this provider".into(),
+        ))
+    }
+    async fn list_repository_labels(&self, _owner: &str, _repository: &str) -> AppResult<Vec<VcsRepoLabel>> {
+        Err(crate::app::support::error::AppError::Provider(
+            "listing repository labels is not supported by this provider".into(),
+        ))
+    }
+    async fn set_pull_request_labels(&self, _owner: &str, _repository: &str, _pr_number: u64, _labels: Vec<String>) -> AppResult<Vec<String>> {
+        Err(crate::app::support::error::AppError::Provider(
+            "editing pull request labels is not supported by this provider".into(),
         ))
     }
     async fn list_pull_request_files(&self, owner: &str, repository: &str, pr_number: u64) -> AppResult<Vec<VcsPrFile>>;
