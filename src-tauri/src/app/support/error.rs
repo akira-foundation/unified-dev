@@ -14,8 +14,6 @@ pub enum AppError {
     Crypto,
     #[error("cipher error: {0}")]
     Cipher(#[from] akira_billing::desktop::CipherError),
-    #[error("keyring error: {0}")]
-    Keyring(#[from] onyx::keyring::KeyringError),
     #[error("decode error: {0}")]
     Decode(#[from] base64::DecodeError),
     #[error("json error: {0}")]
