@@ -83,8 +83,8 @@ export function SubscriptionTab() {
     try {
       const url = await invoke<string>("manage_license");
       await openUrl(url);
-    } catch {
-      toast.error(t("settings.subscription.manage.error"));
+    } catch (error) {
+      toast.error(`${t("settings.subscription.manage.error")} (${String(error)})`);
     }
   };
 
