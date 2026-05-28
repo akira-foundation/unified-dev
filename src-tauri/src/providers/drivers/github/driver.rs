@@ -186,6 +186,15 @@ impl VcsProvider for GitHubDriver {
         self.merge_pull_request_impl(owner, repository, pr_number, strategy).await
     }
 
+    async fn mark_pull_request_ready_for_review(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+    ) -> AppResult<()> {
+        self.mark_pull_request_ready_for_review_impl(owner, repository, pr_number).await
+    }
+
     async fn update_pull_request_body(
         &self,
         owner: &str,
