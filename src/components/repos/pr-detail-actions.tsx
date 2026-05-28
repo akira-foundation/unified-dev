@@ -49,10 +49,12 @@ export function PrDetailActions({
 
   return (
     <AppbarActions>
-      <Button onClick={onFinishReview} title={t("components.prReview.finishButton")}>
-        <MessageSquare className="h-4 w-4 shrink-0" />
-        <span className="hidden xl:inline">{t("components.prReview.finishButton")}</span>
-      </Button>
+      {!pr.is_draft && (
+        <Button onClick={onFinishReview} title={t("components.prReview.finishButton")}>
+          <MessageSquare className="h-4 w-4 shrink-0" />
+          <span className="hidden xl:inline">{t("components.prReview.finishButton")}</span>
+        </Button>
+      )}
       {pr.url && (
         <Button variant="outline" onClick={() => void open(pr.url)} title={t("components.prReview.viewPrButton")}>
           <ExternalLink className="h-4 w-4 shrink-0" />

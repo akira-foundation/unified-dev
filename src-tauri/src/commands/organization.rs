@@ -101,6 +101,11 @@ pub async fn merge_pr(state: State<'_, AppState>, organization_id: String, repo_
 }
 
 #[tauri::command]
+pub async fn mark_pr_ready_for_review(state: State<'_, AppState>, organization_id: String, repo_name: String, pr_number: u64) -> Result<(), String> {
+    orgs::mark_pr_ready(state, organization_id, repo_name, pr_number).await
+}
+
+#[tauri::command]
 pub async fn get_pr_files(state: State<'_, AppState>, organization_id: String, repo_name: String, pr_number: u64) -> Result<Vec<PrFileDto>, String> {
     orgs::get_pr_files(state, organization_id, repo_name, pr_number).await
 }

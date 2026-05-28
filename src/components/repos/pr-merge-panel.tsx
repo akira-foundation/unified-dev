@@ -2,7 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ChevronDown, GitMerge, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, ChevronDown, CheckCircle2, GitMerge, Loader2, Sparkles } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n";
 import { useNavigationStore } from "@/stores/navigation-store";
@@ -33,6 +33,7 @@ export function PrMergePanel({ pr, organizationId, repoName, owner, onMerged }: 
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [isMerging, setIsMerging] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
+  const [isMarkingReady, setIsMarkingReady] = useState(false);
 
   const strategyLabels: Record<PrMergeStrategy, string> = {
     merge: t("components.prDetail.mergeCommit"),
@@ -59,6 +60,23 @@ export function PrMergePanel({ pr, organizationId, repoName, owner, onMerged }: 
       setMergeError(String(err));
     } finally {
       setIsMerging(false);
+    }
+  };
+
+  const handleMarkReady = async () => {
+    if (isMarkingReady) return;
+    setIsMarkingReady(true);
+    const toastId = toast.loading(t("components.prDetail.markingReady"));
+    try {
+      await invoke("mark_pr_ready_for_review", { organizationId, repoName, prNumber: pr.number });
+      toast.success(t("components.prDetail.markedReady"), { id: toastId });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(organizationId, repoName) });
+      onMerged();
+    } catch (err) {
+      toast.dismiss(toastId);
+      setMergeError(String(err));
+    } finally {
+      setIsMarkingReady(false);
     }
   };
 
@@ -144,26 +162,38 @@ export function PrMergePanel({ pr, organizationId, repoName, owner, onMerged }: 
           </Button>
         </div>
       )}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="w-full justify-center gap-2 border border-purple-500/20 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-300 dark:hover:bg-purple-500/20"
-            disabled={isMerging || pr.merged_at !== null}
-          >
-            {isMerging ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitMerge className="h-4 w-4" />}
-            {isMerging ? t("components.prDetail.merging") : t("components.prDetail.merge")}
-            <ChevronDown className="h-4 w-4 opacity-70" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-          {(["merge", "squash", "rebase"] as PrMergeStrategy[]).map((s) => (
-            <DropdownMenuItem key={s} onClick={() => void handleMerge(s)}>
-              {strategyLabels[s]}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {pr.is_draft ? (
+        <Button
+          variant="ghost"
+          className="w-full justify-center gap-2 border border-purple-500/20 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-300 dark:hover:bg-purple-500/20"
+          disabled={isMarkingReady || pr.merged_at !== null}
+          onClick={() => void handleMarkReady()}
+        >
+          {isMarkingReady ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          {isMarkingReady ? t("components.prDetail.markingReady") : t("components.prDetail.markReady")}
+        </Button>
+      ) : (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              className="w-full justify-center gap-2 border border-purple-500/20 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-300 dark:hover:bg-purple-500/20"
+              disabled={isMerging || pr.merged_at !== null}
+            >
+              {isMerging ? <Loader2 className="h-4 w-4 animate-spin" /> : <GitMerge className="h-4 w-4" />}
+              {isMerging ? t("components.prDetail.merging") : t("components.prDetail.merge")}
+              <ChevronDown className="h-4 w-4 opacity-70" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+            {(["merge", "squash", "rebase"] as PrMergeStrategy[]).map((s) => (
+              <DropdownMenuItem key={s} onClick={() => void handleMerge(s)}>
+                {strategyLabels[s]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 }

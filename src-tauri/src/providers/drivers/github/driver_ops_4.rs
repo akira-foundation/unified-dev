@@ -91,6 +91,65 @@ impl GitHubDriver {
         Ok(())
     }
 
+    pub(super) async fn mark_pull_request_ready_for_review_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+    ) -> AppResult<()> {
+        #[derive(Deserialize)]
+        struct PrNode {
+            id: String,
+        }
+        #[derive(Deserialize)]
+        struct PrRepo {
+            #[serde(rename = "pullRequest")]
+            pull_request: Option<PrNode>,
+        }
+        #[derive(Deserialize)]
+        struct LookupData {
+            repository: Option<PrRepo>,
+        }
+
+        let lookup = r#"
+            query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) { id }
+                }
+            }
+        "#;
+        let data: LookupData = self
+            .graphql(
+                lookup,
+                serde_json::json!({
+                    "owner": owner,
+                    "repo": repository,
+                    "number": pr_number as i64,
+                }),
+            )
+            .await?;
+
+        let node_id = data
+            .repository
+            .and_then(|r| r.pull_request)
+            .map(|p| p.id)
+            .ok_or_else(|| AppError::Provider("pull request node id not found".into()))?;
+
+        #[derive(Deserialize)]
+        struct MarkReadyData {
+            #[serde(rename = "markPullRequestReadyForReview")]
+            _mark: serde_json::Value,
+        }
+        let _: MarkReadyData = self
+            .graphql(
+                "mutation MarkReady($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { clientMutationId } }",
+                serde_json::json!({ "id": node_id }),
+            )
+            .await?;
+
+        Ok(())
+    }
+
     pub(super) async fn list_pull_request_files_impl(
         &self,
         owner: &str,

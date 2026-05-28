@@ -28,6 +28,11 @@ pub trait VcsProvider: Send + Sync {
         ))
     }
     async fn merge_pull_request(&self, owner: &str, repository: &str, pr_number: u64, strategy: PrMergeStrategy) -> AppResult<()>;
+    async fn mark_pull_request_ready_for_review(&self, _owner: &str, _repository: &str, _pr_number: u64) -> AppResult<()> {
+        Err(crate::app::support::error::AppError::Provider(
+            "marking pull requests as ready for review is not supported by this provider".into(),
+        ))
+    }
     async fn list_pull_request_files(&self, owner: &str, repository: &str, pr_number: u64) -> AppResult<Vec<VcsPrFile>>;
     async fn list_pr_checks(&self, owner: &str, repository: &str, sha: &str) -> AppResult<Vec<VcsCiCheck>>;
     async fn get_job_logs(&self, owner: &str, repository: &str, job_id: u64) -> AppResult<String>;
