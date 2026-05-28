@@ -21,7 +21,7 @@ pub use claim::{request_otp, verify_otp};
 pub use downgrade::{apply_downgrade, downgrade, resume, DowngradeDto};
 pub use invoices::list_invoices;
 pub use portal::portal;
-pub use verify::{clear, get_plan, get_with_lifecycle, load_customer_token, verify};
+pub use verify::{clear, clear_customer_token, get_plan, get_with_lifecycle, load_customer_token, verify};
 
 pub fn device_fingerprint() -> String {
     akira_billing::desktop::device_fingerprint(env!("CARGO_PKG_VERSION")).fingerprint
