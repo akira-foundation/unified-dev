@@ -94,7 +94,7 @@ export const ptPart5: Record<string, string> = {
   "pages.repositoryIssues.openCountPlural": "{count} issues abertos",
   "pages.repositoryIssues.newIssue": "Novo Issue",
   "nav.issues": "Issues",
-  "nav.projects": "Projetos",
+  "nav.projects": "Hubs",
   "nav.issue-detail": "Issue",
   "nav.provider-detail": "Provider",
   "nav.open-source": "Open Source",
