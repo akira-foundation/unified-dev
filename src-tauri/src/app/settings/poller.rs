@@ -162,6 +162,9 @@ fn due(
 }
 
 async fn notify_sync_error(app_handle: &AppHandle, kind: &str, repo_id: &str, error: &str) {
+    if error.contains("cipher error") || error.contains("decrypt failed") {
+        return;
+    }
     let summary = summarize_error(error);
     let _ = crate::app::notifications::notify(
         app_handle,
