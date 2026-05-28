@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1](https://github.com/akira-foundation/unified-dev/compare/v0.12.0...v0.12.1) (2026-05-28)
+
+### Bug Fixes
+
+- **panic:** Persist panic info to disk before aborting ([04ba4db](https://github.com/akira-foundation/unified-dev/commit/04ba4db932b62f80a7053a52f8922cb05a62fbef))
+- **license:** Tolerate cipher decrypt failure during setup ([fbcc80e](https://github.com/akira-foundation/unified-dev/commit/fbcc80e8e31e2991e8e18927d739c964305b299e))
+- **providers:** Drop duplicate Details card on provider detail page ([78b9a6c](https://github.com/akira-foundation/unified-dev/commit/78b9a6c8a25031b4517bc1e9d536d0e8262201fd))
+- **providers:** Strip the redundant icon + kind + connected row from the header ([ce376c1](https://github.com/akira-foundation/unified-dev/commit/ce376c1443001550d9f61b0715991da0886c1033))
+- **providers:** Restore Details card and surface provider name in the breadcrumb ([296ce62](https://github.com/akira-foundation/unified-dev/commit/296ce627291a40fcdd933c47f0f6b5b106c634c1))
+
+
+### Features
+
+- **updater:** Backup database before installing update ([f55e1b8](https://github.com/akira-foundation/unified-dev/commit/f55e1b80957c1bdc5c9e25e2ea588fef57eb5ecf))
+- **updater:** Restore database from a previous backup ([1d85d22](https://github.com/akira-foundation/unified-dev/commit/1d85d22d5df68f637219156cff6d63e16855a217))
+- **license:** Add payment status banner skeleton ([8d2882a](https://github.com/akira-foundation/unified-dev/commit/8d2882a9050da1d8e9af327303baf97fece16e7f))
+- **license:** Wire payment status banner to the live license payload ([a08bd6c](https://github.com/akira-foundation/unified-dev/commit/a08bd6c50b7521844f26fbb61ac6634b4247dbd5))
+
 ## [0.12.0](https://github.com/akira-foundation/unified-dev/compare/v0.11.5...v0.12.0) (2026-05-28)
 
 ### Bug Fixes
