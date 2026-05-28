@@ -1,7 +1,9 @@
 use akira_billing::desktop::VerifiedLicense;
+use chrono::Utc;
 
 use crate::app::support::error::{AppError, AppResult};
 
+use super::lifecycle;
 use super::signed_license::SignedLicenseEnvelope;
 use super::types::LicenseDto;
 
@@ -17,12 +19,14 @@ pub fn split_plan_key(plan_key: &str) -> (String, String) {
 
 pub async fn store_verified(pool: &sqlx::SqlitePool, verified: &VerifiedLicense) -> AppResult<LicenseDto> {
     let (plan, cycle) = split_plan_key(&verified.plan);
-    let now = chrono::Utc::now().to_rfc3339();
+    let now_dt = Utc::now();
+    let now = now_dt.to_rfc3339();
     let features_json = serde_json::to_string(&verified.features).unwrap_or_default();
+    let status = lifecycle::state_label(lifecycle::state_for(Some(&verified.payload), now_dt));
 
     sqlx::query(
         "UPDATE license SET
-            plan = ?, cycle = ?, status = 'active', valid_until = ?, activated_at = ?,
+            plan = ?, cycle = ?, status = ?, valid_until = ?, activated_at = ?,
             last_verified_at = ?, license_key_id = ?, license_algorithm = ?,
             license_payload = ?, license_signature = ?, features_json = ?,
             device_id = ?
@@ -30,6 +34,7 @@ pub async fn store_verified(pool: &sqlx::SqlitePool, verified: &VerifiedLicense)
     )
     .bind(&plan)
     .bind(&cycle)
+    .bind(status)
     .bind(&verified.payload.valid_until)
     .bind(&verified.payload.issued_at)
     .bind(&now)
@@ -144,5 +149,49 @@ mod tests {
         assert_eq!(dto.plan, "pro");
         assert_eq!(dto.cycle, "monthly");
         assert_eq!(dto.status, "active");
+    }
+
+    #[tokio::test]
+    async fn store_verified_marks_expired_when_payload_past_grace() {
+        use akira_billing::types::{LicenseSnapshotPayload, SignedLicense};
+        use std::collections::HashMap;
+
+        let pool = setup_test_db().await;
+        seed_license(&pool, "free", false).await;
+
+        let verified = VerifiedLicense {
+            signed: SignedLicense {
+                key_id: "k1".to_string(),
+                algorithm: "ed25519".to_string(),
+                payload: "cGF5".to_string(),
+                signature: "c2ln".to_string(),
+                valid_until: "2020-01-01T00:00:00+00:00".to_string(),
+            },
+            payload: LicenseSnapshotPayload {
+                v: None,
+                key_id: "k1".to_string(),
+                customer_id: "019e2e53-cde8-7218".to_string(),
+                product_key: "unified-dev".to_string(),
+                plan_key: "pro_monthly".to_string(),
+                licensing_mode: None,
+                features: HashMap::new(),
+                usage: HashMap::new(),
+                fingerprint_hash: "fp".to_string(),
+                serial: 0,
+                issued_at: "2020-01-01T00:00:00+00:00".to_string(),
+                valid_until: "2020-01-01T00:00:00+00:00".to_string(),
+                paid_up_until: None,
+                fallback_release_date: None,
+                updates_window_days: Some(0),
+                offline_grace_days: Some(1),
+                device_limit: None,
+            },
+            plan: "pro_monthly".to_string(),
+            features: HashMap::new(),
+            device_id: "dev1".to_string(),
+        };
+
+        let dto = store_verified(&pool, &verified).await.expect("store_verified");
+        assert_eq!(dto.status, "expired");
     }
 }

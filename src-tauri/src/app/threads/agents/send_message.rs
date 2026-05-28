@@ -61,8 +61,14 @@ pub async fn send_message(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> AppResult<()> {
+    let lifecycle_state = crate::app::license::lifecycle::current_state(&state.db_pool).await?;
     let plan = crate::app::license::get_plan(&state.db_pool).await?;
-    if plan == "free" {
+    let effective_free = !matches!(
+        lifecycle_state,
+        akira_billing::lifecycle::LicenseState::Active
+            | akira_billing::lifecycle::LicenseState::Trialing
+    ) || plan == "free";
+    if effective_free {
         let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let fingerprint = crate::app::license::device_fingerprint();
         let has_token = crate::app::license::load_customer_token(&state.db_pool, &state.token_cipher)
