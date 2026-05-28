@@ -8,7 +8,7 @@ use crate::app::support::error::AppResult;
 
 pub mod records;
 
-fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
+pub fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;
     std::fs::create_dir_all(&app_dir)?;
     let filename = if cfg!(debug_assertions) {

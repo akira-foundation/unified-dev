@@ -73,6 +73,7 @@ use commands::projects::{
     project_repo_list, project_repo_update, project_update, repo_source_add, repo_source_list,
     repo_source_remove,
 };
+use commands::update_settings::{backup_database_now, get_update_settings, restore_database, set_update_settings};
 use commands::updater::{check_for_updates, install_update};
 use commands::usage::{get_feature_usage, get_usage};
 use commands::profile::{get_user_profile, set_user_profile};
@@ -253,6 +254,10 @@ pub fn run() {
             cancel_mcp_connect,
             check_for_updates,
             install_update,
+            get_update_settings,
+            set_update_settings,
+            backup_database_now,
+            restore_database,
             check_dependencies,
             get_usage,
             get_feature_usage,

@@ -1,6 +1,10 @@
 use serde::Serialize;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_updater::UpdaterExt;
+
+use crate::app::settings::update as update_settings;
+use crate::database::database_path;
+use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +40,13 @@ pub async fn install_update(app: AppHandle) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     if let Some(update) = update {
+        if let Some(state) = app.try_state::<AppState>() {
+            let db_path = database_path(&app).map_err(|e| e.to_string())?;
+            let _ = update_settings::perform_backup(&state.db_pool, &db_path, &update.version)
+                .await
+                .map_err(|e| format!("backup failed: {e}"));
+        }
+
         update
             .download_and_install(|_, _| {}, || {})
             .await

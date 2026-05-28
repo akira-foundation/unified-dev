@@ -3,7 +3,9 @@ pub mod poller;
 pub mod request;
 pub mod reset;
 pub mod remote;
+pub mod restore;
 pub mod touch;
+pub mod update;
 pub mod upsert;
 pub mod visibility;
 

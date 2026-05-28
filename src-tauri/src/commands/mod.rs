@@ -18,6 +18,7 @@ pub mod skill;
 pub mod terminal;
 pub mod thread;
 pub mod tracker;
+pub mod update_settings;
 pub mod updater;
 pub mod usage;
 pub mod workspace;
