@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Github, AlertTriangle, ExternalLink, KeyRound } from "lucide-react";
+import { Github, Blocks, AlertTriangle, ExternalLink, KeyRound, GitlabIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { cn } from "@/lib/utils";
 import { PageLayout } from "@/components/layout/page-layout";
-import { PageHeader, PageHeaderTitle, PageHeaderMeta } from "@/components/layout/page-header";
+import { PageHeader, PageHeaderTitle } from "@/components/layout/page-header";
 import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +35,12 @@ import { useBrowserHandoffToast } from "@/hooks/use-browser-handoff-toast";
 const tokenSchema = z.object({
   token: z.string().trim().min(10),
 });
+
+const KIND_ICON = {
+  github: Github,
+  gitlab: GitlabIcon,
+  bitbucket: Blocks,
+} as const;
 
 const KIND_LABEL: Record<string, string> = {
   github: "GitHub",
@@ -127,6 +133,7 @@ export function ProviderDetailPage() {
   }
 
   const kindLabel = KIND_LABEL[provider.kind] ?? provider.kind;
+  const KindIcon = KIND_ICON[provider.kind as keyof typeof KIND_ICON] ?? Blocks;
   const meta = TOKEN_META[provider.kind] ?? TOKEN_META.github;
 
   const handleUpdateToken = form.handleSubmit(async (values) => {
@@ -160,19 +167,27 @@ export function ProviderDetailPage() {
   return (
     <PageLayout scroll>
       <PageHeader className="mx-auto w-full max-w-3xl px-6">
-        <div className="flex flex-col gap-1">
-          <PageHeaderTitle>{provider.name}</PageHeaderTitle>
-          <PageHeaderMeta>
-            <span>{kindLabel}</span>
-            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span className="text-emerald-500">{t("pages.providerDetail.connected")}</span>
-            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
-            <span>{t("pages.providerDetail.details.connectedSince")}: {new Date(provider.created_at).toLocaleDateString()}</span>
-          </PageHeaderMeta>
-        </div>
+        <PageHeaderTitle>{provider.name}</PageHeaderTitle>
       </PageHeader>
 
       <div className="mx-auto w-full max-w-3xl px-6 pb-24 flex flex-col">
+        <SettingsSection title={t("pages.providerDetail.details.title")} description={t("pages.providerDetail.details.description")} icon={KindIcon}>
+          <div className="grid grid-cols-3 px-0">
+            <div className="flex flex-col gap-1 px-6 py-5">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("pages.providerDetail.details.name")}</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">{provider.name}</p>
+            </div>
+            <div className="flex flex-col gap-1 px-6 py-5">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("pages.providerDetail.details.kind")}</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">{kindLabel}</p>
+            </div>
+            <div className="flex flex-col gap-1 px-6 py-5">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{t("pages.providerDetail.details.connectedSince")}</p>
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">{new Date(provider.created_at).toLocaleDateString()}</p>
+            </div>
+          </div>
+        </SettingsSection>
+
         <SettingsSection title={t("pages.providerDetail.auth.title")} description={t("pages.providerDetail.auth.description").replace("{label}", meta.label.toLowerCase()).replace("{kind}", kindLabel)} icon={KeyRound}>
           <div className="px-6 py-6">
             <Form {...form}>
