@@ -37,6 +37,7 @@ export interface LicenseDto {
   cancelAtPeriodEnd?: boolean;
   cancelAt?: string | null;
   targetPlan?: string | null;
+  paymentStatus?: string | null;
 }
 
 interface LicenseState {

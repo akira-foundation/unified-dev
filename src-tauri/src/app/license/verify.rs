@@ -71,6 +71,9 @@ pub async fn get_with_lifecycle(pool: &sqlx::SqlitePool) -> AppResult<Option<Lic
     let state = lifecycle::current_state(pool).await?;
     dto.status = lifecycle::state_label(state).to_string();
     dto.grace_period = matches!(state, LicenseState::Grace);
+    dto.payment_status = lifecycle::load_payload(pool)
+        .await?
+        .and_then(|p| p.payment_status);
     Ok(Some(dto))
 }
 

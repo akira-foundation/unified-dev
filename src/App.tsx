@@ -18,6 +18,7 @@ import { SearchOverlay } from "./components/layout/search-overlay";
 import { LicenseActivationDialog } from "./components/license-activation-dialog";
 import { LicenseExpiredScreen } from "./components/license/LicenseExpiredScreen";
 import { LicenseGraceBanner } from "./components/license/LicenseGraceBanner";
+import { LicensePaymentStatusBanner } from "./components/license/LicensePaymentStatusBanner";
 import { OnboardingOverlay } from "./components/onboarding-overlay";
 import { UpgradeModal } from "./components/upgrade-modal";
 import { useLicense } from "./hooks/useLicense";
@@ -174,6 +175,7 @@ export default function App() {
       )}
       <AppContent className="flex h-svh flex-col overflow-hidden">
         <AppHeader />
+        <LicensePaymentStatusBanner />
         <LicenseGraceBanner />
         <main className={cn(
           "flex-1 custom-scrollbar",

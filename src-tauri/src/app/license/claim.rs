@@ -97,6 +97,7 @@ pub async fn verify_otp(
         cancel_at_period_end: None,
         cancel_at: None,
         target_plan: None,
+        payment_status: None,
     })
 }
 

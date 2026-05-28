@@ -82,6 +82,7 @@ mod tests {
             updates_window_days: None,
             offline_grace_days: grace_days,
             device_limit: None,
+            payment_status: None,
         }
     }
 
