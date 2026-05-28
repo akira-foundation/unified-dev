@@ -2,6 +2,7 @@ pub mod activate;
 pub mod checkout;
 pub mod claim;
 pub mod downgrade;
+pub mod gate;
 pub mod gating;
 pub mod invoices;
 pub mod lifecycle;
