@@ -28,6 +28,12 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
+        {
+            let app_state = app.state::<AppState>();
+            let billing = app_state.billing.read().await;
+            let _ = app::license::bootstrap::ensure_free_envelope(&app_state.db_pool, &billing).await;
+        }
+
         let app_state = app.state::<AppState>();
         if let Ok(remote_settings) = app::settings::remote::get(app_state).await {
             if remote_settings.enabled {

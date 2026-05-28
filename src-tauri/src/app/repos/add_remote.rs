@@ -52,12 +52,7 @@ pub async fn add_remote(
         )));
     }
 
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM local_repositories")
-        .fetch_one(pool)
-        .await?;
-    if !crate::app::license::can_add(pool, "repos", count).await? {
-        return Err(AppError::FreeTierLimit("repo_limit_reached".to_string()));
-    }
+    crate::app::license::access::require_feature(&state, "repos").await?;
 
     let repo_id = Uuid::new_v4().to_string().to_uppercase();
     let repository = LocalRepository {

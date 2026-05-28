@@ -9,15 +9,9 @@ use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
 pub async fn create(state: State<'_, AppState>, input: CreateOrgRequest) -> Result<OrganizationSummary, String> {
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM organizations o JOIN providers p ON p.id = o.provider_id",
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
-    if !crate::app::license::can_add(&state.db_pool, "orgs", count).await.map_err(|e| e.to_string())? {
-        return Err(AppError::FreeTierLimit("org_limit_reached".to_string()).to_string());
-    }
+    crate::app::license::access::require_feature(&state, "orgs")
+        .await
+        .map_err(|e| e.to_string())?;
 
     let provider_exists = sqlx::query_scalar::<_, i64>(
         "SELECT COUNT(1) FROM providers WHERE id = ?",

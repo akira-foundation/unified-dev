@@ -1,4 +1,6 @@
+pub mod access;
 pub mod activate;
+pub mod bootstrap;
 pub mod checkout;
 pub mod claim;
 pub mod downgrade;
@@ -17,7 +19,6 @@ pub use activate::activate;
 pub use checkout::checkout_url;
 pub use claim::{request_otp, verify_otp};
 pub use downgrade::{apply_downgrade, downgrade, resume, DowngradeDto};
-pub use gating::can_add;
 pub use invoices::list_invoices;
 pub use portal::portal;
 pub use verify::{clear, get_plan, get_with_lifecycle, load_customer_token, verify};

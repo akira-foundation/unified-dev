@@ -50,15 +50,10 @@ pub async fn get_remote_settings(state: State<'_, AppState>) -> AppResult<Remote
 #[tauri::command]
 pub async fn set_remote_enabled(enabled: bool, state: State<'_, AppState>, app: AppHandle) -> AppResult<RemoteSettingsDto> {
     if enabled {
-        let lifecycle_state = crate::app::license::lifecycle::current_state(&state.db_pool).await?;
         let plan = crate::app::license::get_plan(&state.db_pool).await?;
-        let active = matches!(
-            lifecycle_state,
-            akira_billing::lifecycle::LicenseState::Active
-                | akira_billing::lifecycle::LicenseState::Trialing
-        );
-        if !active || plan != "ultimate" {
-            return Err(AppError::FreeTierLimit("remote_requires_ultimate".to_string()));
+        match crate::app::license::access::require_feature(&state, "remote_devices").await {
+            Ok(_) if plan == "ultimate" => {}
+            _ => return Err(AppError::FreeTierLimit("remote_requires_ultimate".to_string())),
         }
     }
     let settings = settings::remote::set_enabled(enabled, state, app).await?;
