@@ -1,3 +1,4 @@
+use akira_billing::lifecycle::LicenseState;
 use akira_billing::types::LicenseCheckPayload;
 use tauri::{AppHandle, State};
 
@@ -16,12 +17,19 @@ async fn require_feature(
     feature: &str,
     fallback_limit_code: &str,
 ) -> Result<(), String> {
+    let lifecycle_state = crate::app::license::lifecycle::current_state(&state.db_pool)
+        .await
+        .map_err(|e| e.to_string())?;
     let plan_local = crate::app::license::get_plan(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;
 
-    if plan_local == "pro" || plan_local == "ultimate" {
+    let active = matches!(lifecycle_state, LicenseState::Active | LicenseState::Trialing);
+    if active && (plan_local == "pro" || plan_local == "ultimate") {
         return Ok(());
+    }
+    if matches!(lifecycle_state, LicenseState::Expired | LicenseState::Invalid) {
+        return Err(AppError::FreeTierLimit(fallback_limit_code.to_string()).to_string());
     }
 
     let allowed = {

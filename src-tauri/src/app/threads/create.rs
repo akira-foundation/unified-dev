@@ -191,16 +191,16 @@ async fn create_with_options(
     source_commit: Option<String>,
     pool: &sqlx::SqlitePool,
 ) -> AppResult<ThreadConfig> {
-    let plan = crate::app::license::get_plan(pool).await?;
-    if plan == "free" {
-        let count: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM threads WHERE status != 'closed'",
-        )
-        .fetch_one(pool)
-        .await?;
-        if count >= 3 {
-            return Err(AppError::FreeTierLimit("thread_limit_reached".to_string()));
-        }
+    if !crate::app::license::gating::can_add(
+        pool,
+        "threads",
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM threads WHERE status != 'closed'")
+            .fetch_one(pool)
+            .await?,
+    )
+    .await?
+    {
+        return Err(AppError::FreeTierLimit("thread_limit_reached".to_string()));
     }
 
     let thread_uuid = Uuid::new_v4();
