@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2](https://github.com/akira-foundation/unified-dev/compare/v0.12.1...v0.12.2) (2026-05-28)
+
+### Bug Fixes
+
+- **ci:** Push landing changelog after committing ([0496883](https://github.com/akira-foundation/unified-dev/commit/04968830e659e5977053ba7644fc6db8a41262c7))
+- **macos:** Bundle entitlements so the keychain entry persists ([1f06972](https://github.com/akira-foundation/unified-dev/commit/1f069726734e8b5ab472572f28c61fcccd652b09))
+
 ## [0.12.1](https://github.com/akira-foundation/unified-dev/compare/v0.12.0...v0.12.1) (2026-05-28)
 
 ### Bug Fixes
