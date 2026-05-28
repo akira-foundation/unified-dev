@@ -4,7 +4,24 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type Plan = "free" | "pro" | "ultimate";
 export type BillingCycle = "monthly" | "yearly";
-export type LicenseStatus = "active" | "expired" | "invalid";
+export type LicenseStatus =
+  | "none"
+  | "invalid"
+  | "active"
+  | "trialing"
+  | "grace"
+  | "expired"
+  | "revoked";
+
+const ACTIVE_STATUSES: ReadonlyArray<LicenseStatus> = ["active", "trialing"];
+
+export function isActiveStatus(status: string): boolean {
+  return (ACTIVE_STATUSES as readonly string[]).includes(status);
+}
+
+export function isBlockingStatus(status: string): boolean {
+  return status === "expired" || status === "invalid" || status === "revoked";
+}
 
 export interface LicenseDto {
   token: string;
@@ -83,7 +100,7 @@ export const useLicenseStore = create<LicenseState>()(
 
   plan: (): Plan => {
     const { license } = get();
-    if (!license || license.status !== "active") return "free";
+    if (!license || !isActiveStatus(license.status)) return "free";
     const p = license.plan.toLowerCase();
     if (p === "ultimate") return "ultimate";
     if (p === "pro") return "pro";
