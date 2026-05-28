@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.3](https://github.com/akira-foundation/unified-dev/compare/v0.12.2...v0.12.3) (2026-05-28)
+
+### Bug Fixes
+
+- **poller:** Stop spamming sync failure notifications on cipher errors ([735072b](https://github.com/akira-foundation/unified-dev/commit/735072b6b844f28f648f18cdbf0e45fbcf74814d))
+
 ## [0.12.2](https://github.com/akira-foundation/unified-dev/compare/v0.12.1...v0.12.2) (2026-05-28)
 
 ### Bug Fixes
