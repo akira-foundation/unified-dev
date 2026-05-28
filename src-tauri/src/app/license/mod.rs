@@ -1,4 +1,5 @@
 pub mod activate;
+pub mod bootstrap;
 pub mod checkout;
 pub mod claim;
 pub mod downgrade;
