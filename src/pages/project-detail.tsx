@@ -43,7 +43,7 @@ import {
   type ProjectRepo,
   type RepoSource,
 } from "@/services/projectService";
-import { trackerService, type TrackerNamed } from "@/services/trackerService";
+import { trackerService, type TrackerIssueFilter, type TrackerNamed } from "@/services/trackerService";
 import { ImportProjectsDialog } from "@/components/projects/import-projects-dialog";
 import { LinkRepoDialog } from "@/components/projects/link-repo-dialog";
 import { ProviderIcon } from "@/components/projects/provider-icon";
@@ -280,11 +280,14 @@ function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, 
 
   const syncProviders = [...new Set(providerSources.map((source) => source.provider))];
 
-  async function syncIssues(providers: string[]) {
+  async function syncIssues(targets: RepoSource[]) {
     try {
       let total = 0;
-      for (const provider of providers) {
-        total += await trackerService.sync(provider);
+      for (const source of targets) {
+        const filter: TrackerIssueFilter = {};
+        if (source.refType === "project") filter.project = source.ref;
+        if (source.refType === "team") filter.team = source.ref;
+        total += await trackerService.sync(source.provider, filter);
       }
       queryClient.invalidateQueries({ queryKey: ["tracker-issues"] });
       toast.success(t("settings.projects.syncedIssues", { count: String(total) }));
@@ -343,14 +346,14 @@ function RepoRow({ repo, sources, named, onViewRepo, onViewIssues, onAddSource, 
                 <DropdownMenuSubContent>
                   {syncProviders.length > 1 && (
                     <>
-                      <DropdownMenuItem onSelect={() => syncIssues(syncProviders)}>
+                      <DropdownMenuItem onSelect={() => syncIssues(providerSources)}>
                         {t("settings.projects.syncAll")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
                   )}
                   {syncProviders.map((provider) => (
-                    <DropdownMenuItem key={provider} onSelect={() => syncIssues([provider])} className="capitalize">
+                    <DropdownMenuItem key={provider} onSelect={() => syncIssues(providerSources.filter((s) => s.provider === provider))} className="capitalize">
                       <ProviderIcon provider={provider} className="mr-2 h-4 w-4" />
                       {provider}
                     </DropdownMenuItem>
