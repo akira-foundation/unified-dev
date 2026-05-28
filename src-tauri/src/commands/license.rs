@@ -34,7 +34,7 @@ pub async fn claim_license_verify(email: String, otp: String, state: State<'_, A
 
 #[tauri::command]
 pub async fn get_license(state: State<'_, AppState>) -> AppResult<Option<LicenseDto>> {
-    license::get(&state.db_pool).await
+    license::verify::get_with_lifecycle(&state.db_pool).await
 }
 
 #[tauri::command]
