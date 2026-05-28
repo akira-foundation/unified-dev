@@ -11,7 +11,6 @@ import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderTitle } from "@/components/layout/page-header";
 import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -168,20 +167,7 @@ export function ProviderDetailPage() {
   return (
     <PageLayout scroll>
       <PageHeader className="mx-auto w-full max-w-3xl px-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
-              <KindIcon size={24} strokeWidth={2} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <PageHeaderTitle>{provider.name}</PageHeaderTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{kindLabel}</Badge>
-                <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">{t("pages.providerDetail.connected")}</Badge>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeaderTitle>{provider.name}</PageHeaderTitle>
       </PageHeader>
 
       <div className="mx-auto w-full max-w-3xl px-6 pb-24 flex flex-col">

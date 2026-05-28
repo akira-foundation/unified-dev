@@ -4,6 +4,7 @@ import { useSearchStore } from "@/stores/search-store";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useImportViewStore } from "@/stores/import-view-store";
 import { useOrganizations } from "@/hooks/useOrganizations";
+import { useProviders } from "@/hooks/useProviders";
 import { useQuery } from "@tanstack/react-query";
 import { projectService } from "@/services/projectService";
 import { useNavigation } from "@/hooks/useNavigation";
@@ -32,10 +33,13 @@ export function AppHeader() {
     const activeRepo = useNavigationStore((s) => s.activeRepo);
     const activeOrganizationId = useNavigationStore((s) => s.activeOrganizationId);
     const activeProjectId = useNavigationStore((s) => s.activeProjectId);
+    const activeProviderId = useNavigationStore((s) => s.activeProviderId);
     const importSelectedOrg = useImportViewStore((s) => s.selectedOrg);
     const setImportSelectedOrg = useImportViewStore((s) => s.setSelectedOrg);
     const { organizations } = useOrganizations();
     const activeOrgName = organizations.find((o) => o.id === activeOrganizationId)?.name;
+    const { providers } = useProviders();
+    const activeProviderName = providers.find((p) => p.id === activeProviderId)?.name;
     const { data: projects = [] } = useQuery({ queryKey: ["projects"], queryFn: () => projectService.list() });
     const activeProjectName = projects.find((p) => p.id === activeProjectId)?.name;
     const isAgentMode = useNavigationStore((s) => s.isAgentMode);
@@ -133,6 +137,8 @@ export function AppHeader() {
                                                 ? { labelKey: "nav.projects", page: "projects" as const, title: activeProjectName }
                                             : currentPage === "organization"
                                                 ? { labelKey: "nav.organizations", page: "organizations" as const, title: activeOrgName }
+                                            : currentPage === "provider-detail"
+                                                ? { labelKey: "settings.tabs.vcsProviders", page: "settings" as const, title: activeProviderName }
                                                 : currentPage === "import-repositories"
                                                     ? { labelKey: "nav.organizations", page: "organizations" as const, title: t("pages.importRepos.title") }
                                                     : null;
