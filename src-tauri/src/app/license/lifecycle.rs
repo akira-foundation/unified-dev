@@ -48,6 +48,17 @@ pub async fn trial_days_remaining(pool: &sqlx::SqlitePool) -> AppResult<i64> {
     Ok(trial_days_left(payload.as_ref(), Utc::now()))
 }
 
+pub fn state_label(state: LicenseState) -> &'static str {
+    match state {
+        LicenseState::None => "none",
+        LicenseState::Invalid => "invalid",
+        LicenseState::Active => "active",
+        LicenseState::Trialing => "trialing",
+        LicenseState::Grace => "grace",
+        LicenseState::Expired => "expired",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
