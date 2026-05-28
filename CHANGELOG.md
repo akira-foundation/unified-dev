@@ -5,6 +5,102 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0](https://github.com/akira-foundation/unified-dev/compare/v0.11.5...v0.12.0) (2026-05-28)
+
+### Bug Fixes
+
+- **ci:** Parse latest changelog block and attribute landing commit to author ([0908aac](https://github.com/akira-foundation/unified-dev/commit/0908aac3b0838361bd7f607ab9c4cc94cce4d50d))
+- **github:** Retry graphql on transient empty response ([9f00143](https://github.com/akira-foundation/unified-dev/commit/9f00143d45cf2ad1af1eadb9e488bd3132d30a80))
+- **tracker:** Linear as a row inside Integrations section ([ece0a3f](https://github.com/akira-foundation/unified-dev/commit/ece0a3f80922725ac7ef35f8617fc4a48f5179ec))
+- **tracker:** Integrations tab shows only Linear ([9ed43e1](https://github.com/akira-foundation/unified-dev/commit/9ed43e11054c35e3d58e60b319497f001035cdab))
+- **tracker:** Match existing modal pattern for Linear connect ([496a36d](https://github.com/akira-foundation/unified-dev/commit/496a36dddde03bad7900019d26ad8ba89d725d2d))
+- **ui:** Restore visible dialog border in dark mode ([b0e8f34](https://github.com/akira-foundation/unified-dev/commit/b0e8f340e1d9e20b190a2e6d688538142beb272a))
+- **tracker:** Polish Linear connect modal, errors, and sync feedback ([f0d2568](https://github.com/akira-foundation/unified-dev/commit/f0d25685d9b7611c216f3f062226b05cc8d6218f))
+- **ui:** Autopilot dialog uses modal backdrop for consistency ([86f70d0](https://github.com/akira-foundation/unified-dev/commit/86f70d08b295ec0382bce196ee6ff59d8197ad67))
+- **issues:** Sticky group headers and right-aligned chevron ([3485490](https://github.com/akira-foundation/unified-dev/commit/3485490169556d98dcdb235867ed23c6c4d9e4ce))
+- **prs:** Sticky headers, right chevron, non-uppercase labels, cache like issues ([c32690c](https://github.com/akira-foundation/unified-dev/commit/c32690c8322c3764d1c2e59b98cc95fc48f75188))
+- **projects:** Project-detail breadcrumb via global header ([f063ab9](https://github.com/akira-foundation/unified-dev/commit/f063ab9989434374b92df0a4e69ce143441301fc))
+- **projects:** Searchable scrollable repo picker in add-repo ([000cd2b](https://github.com/akira-foundation/unified-dev/commit/000cd2b9e0d2227f1c78a38c959504d60919a79d))
+- **projects:** Clean source labels and aligned repo rows ([cb22c17](https://github.com/akira-foundation/unified-dev/commit/cb22c17bd1f440a07e6d3a3e89b0545bb40cbe80))
+- **issues:** Never render raw tracker UUIDs ([9972e60](https://github.com/akira-foundation/unified-dev/commit/9972e607b2fed844a319738938fad9a7eb6f8509))
+- **projects:** Source chip shows provider/scope, not repo name ([6c7afde](https://github.com/akira-foundation/unified-dev/commit/6c7afde233fb92c93f4f87f2bda475c5f12b30e4))
+- **projects:** Single-line repo rows, issues-provider terminology, no duplicate provider badge ([3b54bc3](https://github.com/akira-foundation/unified-dev/commit/3b54bc3970f59a99bffe9d57b268abd88133efdb))
+- **sync:** Master switch gates all auto-sync ([39a257f](https://github.com/akira-foundation/unified-dev/commit/39a257fe0413b1f72127c866259116e0ed0f8b5c))
+- **issues:** Searchable repo picker in assign dialog ([fcdb59f](https://github.com/akira-foundation/unified-dev/commit/fcdb59f7b78b95d964a1770f7c0ee24238abb0d0))
+- **import:** Sync imported scopes and surface empty projects in filter ([dcca1be](https://github.com/akira-foundation/unified-dev/commit/dcca1be89a8cf8d240ae5f890a9c5aa5736daefe))
+- **import:** Full provider sync on import so all selected project issues land ([037bfb4](https://github.com/akira-foundation/unified-dev/commit/037bfb48937f40bb25ff7d04e978a2ca046ecc26))
+- **tracker:** Use loopback redirect for Jira OAuth, not a deep link ([0bff973](https://github.com/akira-foundation/unified-dev/commit/0bff973c0564fec5630b66c1570b9c59dd79a8c1))
+- **tracker:** Silence dead-code warnings and align provider-detail with app pattern ([ae8af09](https://github.com/akira-foundation/unified-dev/commit/ae8af099222e69e2b0429409b5abd943b7180f95))
+- **issues:** Restore sticky group headers in virtualized issue and PR lists ([c27c43f](https://github.com/akira-foundation/unified-dev/commit/c27c43f4e810f56cea06866117e3d8533c33c7a6))
+- **sync:** Default auto-sync off in debug builds to match the UI ([70567f2](https://github.com/akira-foundation/unified-dev/commit/70567f2d26ad7f205ccf7dd99c92939b279bf71c))
+- **license:** Derive status from payload in store_verified ([f42666c](https://github.com/akira-foundation/unified-dev/commit/f42666c36dbc30d8a78253ad95289a5e98dfacd9))
+- **license:** Delegate grace and expiry to lifecycle, keep envelope on revoke ([c0fd5d0](https://github.com/akira-foundation/unified-dev/commit/c0fd5d0ceaad0a2136dbff3141af1a2177d49d8f))
+- **commands:** Expose lifecycle-aware status to the frontend ([9207c79](https://github.com/akira-foundation/unified-dev/commit/9207c797e01c2e2a83707145a6b8606d23dea5a1))
+- **license:** Enforce free limits when envelope is absent or expired ([4c91df3](https://github.com/akira-foundation/unified-dev/commit/4c91df35d9ab1450f0a09879acefc8cf915ca5c8))
+- **license:** Gate paid features on lifecycle state, not stored plan ([f119336](https://github.com/akira-foundation/unified-dev/commit/f119336d1adab2dcd41256ca5f29c14674ed761b))
+- **projects:** Auto-sync tracker issues after add_source ([fb50d5b](https://github.com/akira-foundation/unified-dev/commit/fb50d5bf0e0e1e1bd783f7940eaa5c0b04557edd))
+- **projects:** Scope auto-sync to the chosen project or team ([5b45372](https://github.com/akira-foundation/unified-dev/commit/5b45372e56be7c83069735f93d5b46e2129134a8))
+- **projects:** Scope manual sync menu to each source, not the whole provider ([ce4908a](https://github.com/akira-foundation/unified-dev/commit/ce4908afbb3b303af1928f9d0eabd09e7589680b))
+- **issues:** Make filter selection visible ([4fbd8c8](https://github.com/akira-foundation/unified-dev/commit/4fbd8c8e356fadd04e8a7a405dd2822b9e2e2674))
+- **issues:** Stop reordering filter rows when selected ([3d4df77](https://github.com/akira-foundation/unified-dev/commit/3d4df772ca1b154520a4ba7f605f04e89b71a711))
+- **subscription:** Surface the real backend error when the portal call fails ([f78b873](https://github.com/akira-foundation/unified-dev/commit/f78b8733d0c14480100726999dec731ab3196ce8))
+
+
+### Code Refactoring
+
+- **nav:** Reorganize sidebar into Work / Structure / Explore ([9b7e601](https://github.com/akira-foundation/unified-dev/commit/9b7e601926a48c7ea7900e55c821c30b9ffd48ea))
+- **license:** Adopt billing-sdk v1.1.0 PublicKeyStore for baked keys ([66c6120](https://github.com/akira-foundation/unified-dev/commit/66c61202357d9e3d0366bb33a1797226a48e3892))
+- **license:** Use derived device fingerprint, drop random machine_id ([372f350](https://github.com/akira-foundation/unified-dev/commit/372f350b9d1f5a3a4d54521afc632598fc3b1cb2))
+- **security:** Drop hand-rolled TokenCipher for the SDK version ([8ce846a](https://github.com/akira-foundation/unified-dev/commit/8ce846a4160efafeb681f0747bd0287adf4e427f))
+- **security:** Use SDK keystore instead of manual onyx::keyring ([5297792](https://github.com/akira-foundation/unified-dev/commit/529779226bdf6b6b39dfeeea1c5bd351f8019cae))
+- **license:** Drop Keyring wrapper, call SDK verify_license directly ([5b3e362](https://github.com/akira-foundation/unified-dev/commit/5b3e362430c089ceba0d4936285b24cc100ee1b4))
+- **license:** Route feature gates through SDK Gate + DenyReason ([95a743b](https://github.com/akira-foundation/unified-dev/commit/95a743b49eeb64ec18dce3d96e76acccffa2d06c))
+- **tracker:** Consume omnitrack instead of issue-provider-* trio (#95) ([ac2df48](https://github.com/akira-foundation/unified-dev/commit/ac2df48834ec82a5acc1e738b336f93c4e253952))
+
+
+### Features
+
+- **tracker:** Provider-neutral issue-tracker seam (P1) ([5d01e10](https://github.com/akira-foundation/unified-dev/commit/5d01e10f32cd5df9b23f61122469da06b4b39264))
+- **tracker:** Persistence and Tauri commands (P2) ([8948b4f](https://github.com/akira-foundation/unified-dev/commit/8948b4f1ddfca77decb33ce61b2b614fbf074824))
+- **tracker:** Issue mutation commands (P3) ([a3ca36c](https://github.com/akira-foundation/unified-dev/commit/a3ca36ca72b3ff0698312597f83f0e0ca17d787d))
+- **tracker:** Integrations connect form + tracker service (P4) ([6157be9](https://github.com/akira-foundation/unified-dev/commit/6157be9202862ba7b313278edff8652533f1e6ab))
+- **tracker:** API key modal for Linear connect ([5d23b2f](https://github.com/akira-foundation/unified-dev/commit/5d23b2f1875b4af4130c734675283ec18a1734fb))
+- **tracker:** Provider-agnostic integration, name resolution, projects grouping v1 ([242bf3f](https://github.com/akira-foundation/unified-dev/commit/242bf3f12b635d9b98483cc8fd1bc3dcb37e8172))
+- **projects:** Org > project > repo > source model (phase 1) ([6d79e7c](https://github.com/akira-foundation/unified-dev/commit/6d79e7cf6da26cb7594d105c7aac3fdd049579f6))
+- **projects:** List/detail navigation matching app pattern ([e7cde47](https://github.com/akira-foundation/unified-dev/commit/e7cde474bcd0b083261aa037bf0fe3aab5917551))
+- **projects:** Add-repo modes + lowercase breadcrumb ([9aa78fa](https://github.com/akira-foundation/unified-dev/commit/9aa78fa1a318e23201ca1ddf08c3c2c4d858bf94))
+- **projects:** Multi-select existing repos + local folder browse ([1341f42](https://github.com/akira-foundation/unified-dev/commit/1341f42b6e7816d3e70c25433fca02f4f4428c75))
+- **projects:** View-issues action + cache sidebar counts longer ([f2713be](https://github.com/akira-foundation/unified-dev/commit/f2713be042651591ef703da18a7798488cc4344c))
+- **issues:** Add Repos filter facet ([d6b0e20](https://github.com/akira-foundation/unified-dev/commit/d6b0e2046f9309d09a834addf8d86e81fd76b730))
+- **projects:** Open repo page from project repo row ([dd45895](https://github.com/akira-foundation/unified-dev/commit/dd4589547439a6b1bebaf999dcd00a68632b779b))
+- **filters:** Active-filter badges, selected-first ordering, searchable source picker ([860e429](https://github.com/akira-foundation/unified-dev/commit/860e429520044d34d65beaeca8ddcdce5714092b))
+- **nav:** Show project count badge in sidebar ([cd08cea](https://github.com/akira-foundation/unified-dev/commit/cd08cea50b78d254a316353e67024422c1199f0a))
+- **projects:** Remove issues provider from repo kebab ([c384e73](https://github.com/akira-foundation/unified-dev/commit/c384e7373200303ad3b6943aff97ae9223ce168e))
+- **issues:** Resolve repo container for issues, group Repos facet by it ([f34d32b](https://github.com/akira-foundation/unified-dev/commit/f34d32b63e28d6847c53e7a37ad097ed5442e876))
+- **prs:** Add Failed column to PR kanban, de-uppercase state labels ([5a1cf8f](https://github.com/akira-foundation/unified-dev/commit/5a1cf8f26710437eda51b3e3b6659b60f7add42f))
+- **issues:** Assign unmapped issue to a project repo from the kebab ([b15eaf3](https://github.com/akira-foundation/unified-dev/commit/b15eaf31ed73b976f01ec4f4712c33d1fdb6abca))
+- **projects:** Batch import tracker projects as repos ([d4e69ae](https://github.com/akira-foundation/unified-dev/commit/d4e69ae6f0496b29c314e140e5ddd018361644be))
+- **tracker:** Add Jira provider driver and connect UI ([7c4b98d](https://github.com/akira-foundation/unified-dev/commit/7c4b98d1cb5cc2f84f7a42303ba9261c5d9810cb))
+- **tracker:** Connect Jira via OAuth instead of a manual token ([b60b8e5](https://github.com/akira-foundation/unified-dev/commit/b60b8e585a95b4bb11638f5c43e120dcf30dd976))
+- **projects:** Link repos, import dedup, per-provider sync, provider icons ([c7786c3](https://github.com/akira-foundation/unified-dev/commit/c7786c358cc39baf8534c826577089fd1e9f5161))
+- **gating:** Enforce free-plan repo and org limits from license snapshot ([0503082](https://github.com/akira-foundation/unified-dev/commit/05030821fcb357352d116279e3a827eaeeb79cfb))
+- **prs:** Inline-editable PR description with flat-row checks and diff UI ([2ece48f](https://github.com/akira-foundation/unified-dev/commit/2ece48f33073606ff0c612ff530a5f2818fabb4e))
+- **license:** Add lifecycle module wrapping SDK compute_state ([1da229b](https://github.com/akira-foundation/unified-dev/commit/1da229b89c1d5387b83c00faaf181462bccb3268))
+- **license:** Build SDK Gate and expose it on AppState ([ddb20ef](https://github.com/akira-foundation/unified-dev/commit/ddb20efea74c464e385a832350588176379e3bfb))
+- **license:** Teach the frontend the full lifecycle state set ([9e2c944](https://github.com/akira-foundation/unified-dev/commit/9e2c9446e27519b570a848c3119ffd79ba9234e3))
+- **license:** Grace banner and expired blocking screen ([67c5e10](https://github.com/akira-foundation/unified-dev/commit/67c5e109ef99109170089b0706c74fac02eaa9ad))
+- **license:** Bootstrap free envelope via SDK public_free_snapshot ([f075ecc](https://github.com/akira-foundation/unified-dev/commit/f075ecc0db586efe3b25d7e33a1c89ec39c5f3bc))
+
+
+### Performance Improvements
+
+- **cache:** Long-cache issue/PR lists, refresh on sync events ([0fd1be9](https://github.com/akira-foundation/unified-dev/commit/0fd1be9191e92faac1d817ef7ee040a00082841b))
+- **issues:** Virtualize issue list with @tanstack/react-virtual ([f1992f9](https://github.com/akira-foundation/unified-dev/commit/f1992f9c4e3d91560a2e84b905bbd9490bdf22b6))
+- **prs:** Virtualize PR list with @tanstack/react-virtual ([dc6d4c0](https://github.com/akira-foundation/unified-dev/commit/dc6d4c0a067d874210832b1706ec156f6c1f8b1c))
+- **lists:** Internal scroll virtualizer + progressive load ([ea2074e](https://github.com/akira-foundation/unified-dev/commit/ea2074e73a960dd7e4a3ccd294ede6829d7e67f0))
+- **prs:** Drop network sync from PR list read + content-visibility kanban cards ([6761a07](https://github.com/akira-foundation/unified-dev/commit/6761a070f4c68ac3b336f5c2b05baf29bd8e0c15))
+- **kanban:** Virtualize issue and PR kanban columns ([f4ae94e](https://github.com/akira-foundation/unified-dev/commit/f4ae94eeb7a6ff8e71b4b98fa79df852cd2ea07a))
+
 ## [0.11.5](https://github.com/akira-foundation/unified-dev/compare/v0.11.4...v0.11.5) (2026-05-24)
 
 ### Bug Fixes
