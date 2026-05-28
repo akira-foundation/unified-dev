@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use issue_provider_core::{
+use omnitrack::{
     CommentId, Comments, Cycles, ErrorKind, IssueError, IssueId, Issues, Labels, Milestones,
     Projects, Teams, Users, Viewer,
 };
-use issue_provider_linear::{linear, LinearClient};
+use omnitrack::linear::{linear, LinearClient};
 
 use crate::app::support::error::{AppError, AppResult};
 

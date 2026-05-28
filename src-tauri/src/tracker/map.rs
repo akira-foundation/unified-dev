@@ -1,4 +1,4 @@
-use issue_provider_core::{
+use omnitrack::{
     issue_draft, issue_filter, issue_patch, pagination, Comment, Cycle, Issue, IssueDraft,
     IssueFilter, IssuePatch, Label, Milestone, Page, PageCursor, PageRequest, Project, Team, User,
 };
@@ -178,7 +178,7 @@ pub fn to_patch(patch: TrackerIssuePatch) -> IssuePatch {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use issue_provider_core::{issue, StatusCategory};
+    use omnitrack::{issue, StatusCategory};
 
     #[test]
     fn maps_enriched_issue_to_dto() {

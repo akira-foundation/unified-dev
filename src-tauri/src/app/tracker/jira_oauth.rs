@@ -43,7 +43,7 @@ pub async fn connect(state: &AppState, app: &AppHandle) -> AppResult<TrackerName
 
     let tokens = state.billing.read().await.jira_exchange(&code, &pkce.verifier).await?;
 
-    let sites = issue_provider_jira::accessible_resources(&tokens.access_token)
+    let sites = omnitrack::jira::accessible_resources(&tokens.access_token)
         .await
         .map_err(|err| AppError::Provider(format!("could not list Jira sites: {err}")))?;
     let site = sites

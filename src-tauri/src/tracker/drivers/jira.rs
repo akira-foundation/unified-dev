@@ -1,8 +1,8 @@
 use async_trait::async_trait;
-use issue_provider_core::{
+use omnitrack::{
     CommentId, Comments, ErrorKind, IssueError, IssueId, Issues, Labels, Projects, Users, Viewer,
 };
-use issue_provider_jira::{jira, JiraClient};
+use omnitrack::jira::{jira, JiraClient};
 use serde::{Deserialize, Serialize};
 
 use crate::app::support::error::{AppError, AppResult};

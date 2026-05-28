@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub use issue_provider_core::StatusCategory;
+pub use omnitrack::StatusCategory;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

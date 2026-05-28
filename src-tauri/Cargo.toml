@@ -49,9 +49,7 @@ zip = "2"
 axum = "0.8.8"
 akira-billing = { version = "1.4.0", features = ["desktop"] }
 lazy_static = "1.4"
-issue-provider-core = "0.2.0"
-issue-provider-linear = "0.2.0"
-issue-provider-jira = "0.5.0"
+omnitrack = { version = "0.3.0", features = ["all"] }
 
 
 [dev-dependencies]
