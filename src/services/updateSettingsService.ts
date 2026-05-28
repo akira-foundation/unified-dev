@@ -16,3 +16,7 @@ export async function setUpdateSettings(settings: UpdateSettings): Promise<Updat
 export async function backupDatabaseNow(targetVersion?: string): Promise<string | null> {
   return invoke<string | null>("backup_database_now", { targetVersion: targetVersion ?? null });
 }
+
+export async function restoreDatabase(sourcePath: string): Promise<string> {
+  return invoke<string>("restore_database", { sourcePath });
+}

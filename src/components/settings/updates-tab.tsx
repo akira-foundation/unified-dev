@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, Folder } from "lucide-react";
+import { Download, Folder, Undo2 } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/i18n";
@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import {
   backupDatabaseNow,
   getUpdateSettings,
+  restoreDatabase,
   setUpdateSettings,
   type UpdateSettings,
 } from "@/services/updateSettingsService";
@@ -19,6 +20,7 @@ export function UpdatesTab() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -68,6 +70,30 @@ export function UpdatesTab() {
   const handleResetPath = () => {
     if (!settings) return;
     void persist({ ...settings, backupPath: null });
+  };
+
+  const handleRestore = async () => {
+    const confirmed = window.confirm(t("settings.updates.restore.confirm"));
+    if (!confirmed) return;
+
+    const selected = await openDialog({
+      directory: false,
+      multiple: false,
+      title: t("settings.updates.restore.pickFile"),
+      filters: [{ name: "SQLite", extensions: ["sqlite", "db"] }],
+    });
+    if (typeof selected !== "string" || !selected) return;
+
+    setRestoring(true);
+    try {
+      await restoreDatabase(selected);
+      toast.success(t("settings.updates.restore.staged"), {
+        description: t("settings.updates.restore.restarting"),
+      });
+    } catch (error) {
+      setRestoring(false);
+      toast.error(`${t("settings.updates.restore.error")} (${String(error)})`);
+    }
   };
 
   const handleBackupNow = async () => {
@@ -146,6 +172,22 @@ export function UpdatesTab() {
               className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md bg-purple-600 text-xs font-medium text-white hover:bg-purple-500 transition-colors disabled:opacity-50"
             >
               {backingUp ? t("settings.updates.backupNow.running") : t("settings.updates.backupNow.action")}
+            </button>
+          }
+        />
+
+        <SettingsItem
+          label={t("settings.updates.restore.label")}
+          description={t("settings.updates.restore.description")}
+          action={
+            <button
+              type="button"
+              onClick={() => void handleRestore()}
+              disabled={loading || restoring}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-red-500/40 text-xs font-medium text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+            >
+              <Undo2 className="h-3.5 w-3.5" />
+              {restoring ? t("settings.updates.restore.running") : t("settings.updates.restore.action")}
             </button>
           }
         />

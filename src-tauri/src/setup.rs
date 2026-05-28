@@ -10,6 +10,8 @@ use crate::state::AppState;
 use crate::{app, database};
 
 pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = app::settings::restore::apply_pending(app.handle());
+
     let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
         let pool = database::init_pool(app.handle()).await?;
         let key = KeyStore::load_or_create_key(app.handle())?;

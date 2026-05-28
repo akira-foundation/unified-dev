@@ -275,4 +275,13 @@ export const enPart3: Record<string, string> = {
   "settings.updates.backupError": "Backup failed",
   "settings.updates.loadError": "Could not load update settings.",
   "settings.updates.saveError": "Could not save update settings.",
+  "settings.updates.restore.label": "Restore from backup",
+  "settings.updates.restore.description": "Replace the current local database with a backup file. The app will restart. The current database is kept as a safety copy next to it.",
+  "settings.updates.restore.action": "Restore...",
+  "settings.updates.restore.running": "Restoring...",
+  "settings.updates.restore.pickFile": "Choose backup file (.sqlite)",
+  "settings.updates.restore.confirm": "Restoring will replace your current local database with the chosen backup and restart the app. Continue?",
+  "settings.updates.restore.staged": "Backup staged",
+  "settings.updates.restore.restarting": "Restarting the app to apply the restore...",
+  "settings.updates.restore.error": "Could not stage restore",
 };

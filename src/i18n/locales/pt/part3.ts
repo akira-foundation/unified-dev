@@ -275,4 +275,13 @@ export const ptPart3: Record<string, string> = {
   "settings.updates.backupError": "Falha no backup",
   "settings.updates.loadError": "Não foi possível carregar as definições de atualização.",
   "settings.updates.saveError": "Não foi possível guardar as definições de atualização.",
+  "settings.updates.restore.label": "Restaurar a partir de backup",
+  "settings.updates.restore.description": "Substitui a base de dados local pelo ficheiro de backup escolhido. A app reinicia. A base atual fica guardada como cópia de segurança ao lado.",
+  "settings.updates.restore.action": "Restaurar...",
+  "settings.updates.restore.running": "A restaurar...",
+  "settings.updates.restore.pickFile": "Escolher ficheiro de backup (.sqlite)",
+  "settings.updates.restore.confirm": "Restaurar vai substituir a base de dados local atual pelo backup escolhido e reiniciar a app. Continuar?",
+  "settings.updates.restore.staged": "Backup preparado",
+  "settings.updates.restore.restarting": "A reiniciar a app para aplicar o restauro...",
+  "settings.updates.restore.error": "Não foi possível preparar o restauro",
 };
