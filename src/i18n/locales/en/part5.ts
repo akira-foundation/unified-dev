@@ -107,7 +107,7 @@ export const enPart5: Record<string, string> = {
   "pages.repositoryIssues.openCountPlural": "{count} open issues",
   "pages.repositoryIssues.newIssue": "New Issue",
   "nav.issues": "Issues",
-  "nav.projects": "Projects",
+  "nav.projects": "Hubs",
   "nav.issue-detail": "Issue",
   "nav.provider-detail": "Provider",
   "nav.open-source": "Open Source",
