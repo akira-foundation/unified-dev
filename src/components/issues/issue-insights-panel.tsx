@@ -77,12 +77,7 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
   const current = TABS.find((tabItem) => tabItem.id === tab)!;
   const selected = active?.[current.filterKey] ?? [];
   const activeCount = active ? Object.values(active).reduce((sum, v) => sum + v.length, 0) : 0;
-  const rows = Array.from(counts[tab].entries()).sort((a, b) => {
-    const aSel = selected.includes(a[0]) ? 1 : 0;
-    const bSel = selected.includes(b[0]) ? 1 : 0;
-    if (aSel !== bSel) return bSel - aSel;
-    return b[1] - a[1];
-  });
+  const rows = Array.from(counts[tab].entries()).sort((a, b) => b[1] - a[1]);
 
   const toggleValue = (value: string) => {
     const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value];
@@ -147,8 +142,10 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
                 key={value}
                 onClick={() => toggleValue(value)}
                 className={cn(
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.04]",
-                  isActive && "bg-zinc-100 dark:bg-white/[0.06]",
+                  "flex items-center gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors",
+                  isActive
+                    ? "border-purple-500/40 bg-purple-50 dark:border-purple-400/40 dark:bg-purple-500/10"
+                    : "border-transparent hover:bg-zinc-100 dark:hover:bg-white/[0.04]",
                 )}
               >
                 {tab === "labels" ? (
@@ -165,22 +162,30 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
                       <span
                         className={cn(
                           "h-2 w-2 shrink-0 rounded-sm transition-all",
-                          dotColor(tab, value),
-                          isActive && "ring-2 ring-zinc-400/50 dark:ring-zinc-500/50",
+                          isActive ? "bg-purple-500 ring-2 ring-purple-500/30" : dotColor(tab, value),
                         )}
                       />
                     )}
                     <span
                       className={cn(
-                        "min-w-0 flex-1 truncate text-[13px] text-zinc-700 dark:text-zinc-300",
-                        isActive && "text-zinc-900 dark:text-zinc-100",
+                        "min-w-0 flex-1 truncate text-[13px]",
+                        isActive
+                          ? "font-medium text-purple-700 dark:text-purple-200"
+                          : "text-zinc-700 dark:text-zinc-300",
                       )}
                     >
                       {valueLabel(t, tab, value)}
                     </span>
                   </>
                 )}
-                <span className="text-[12px] tabular-nums text-zinc-500">{count}</span>
+                <span
+                  className={cn(
+                    "text-[12px] tabular-nums",
+                    isActive ? "text-purple-700 dark:text-purple-200" : "text-zinc-500",
+                  )}
+                >
+                  {count}
+                </span>
               </button>
             );
           })
