@@ -12,6 +12,8 @@ pub enum AppError {
     Path(#[from] tauri::Error),
     #[error("crypto error")]
     Crypto,
+    #[error("cipher error: {0}")]
+    Cipher(#[from] akira_billing::desktop::CipherError),
     #[error("keyring error: {0}")]
     Keyring(#[from] onyx::keyring::KeyringError),
     #[error("decode error: {0}")]
