@@ -22,6 +22,11 @@ pub trait VcsProvider: Send + Sync {
     async fn post_pull_request_comment(&self, owner: &str, repository: &str, pr_number: u64, body: &str) -> AppResult<VcsPrComment>;
     async fn delete_pull_request_comment(&self, owner: &str, repository: &str, comment_id: &str) -> AppResult<()>;
     async fn submit_pull_request_review(&self, owner: &str, repository: &str, pr_number: u64, event: PrReviewEvent, body: Option<&str>) -> AppResult<()>;
+    async fn update_pull_request_body(&self, _owner: &str, _repository: &str, _pr_number: u64, _body: &str) -> AppResult<()> {
+        Err(crate::app::support::error::AppError::Provider(
+            "updating pull request description is not supported by this provider".into(),
+        ))
+    }
     async fn merge_pull_request(&self, owner: &str, repository: &str, pr_number: u64, strategy: PrMergeStrategy) -> AppResult<()>;
     async fn list_pull_request_files(&self, owner: &str, repository: &str, pr_number: u64) -> AppResult<Vec<VcsPrFile>>;
     async fn list_pr_checks(&self, owner: &str, repository: &str, sha: &str) -> AppResult<Vec<VcsCiCheck>>;

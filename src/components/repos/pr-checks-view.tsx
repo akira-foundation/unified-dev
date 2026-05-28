@@ -194,7 +194,7 @@ function CheckItem({
     <Collapsible open={open} onOpenChange={setOpen} disabled={!hasSteps}>
       <CollapsibleTrigger className="w-full" asChild>
         <div
-          className={`flex items-center gap-2.5 px-3 py-2.5 select-none transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02] ${hasSteps ? "cursor-pointer" : ""}`}
+          className={`flex items-center gap-2.5 rounded-md px-3 py-2.5 select-none transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03] ${hasSteps ? "cursor-pointer" : ""}`}
         >
           {conclusionIcon(check.conclusion, check.status, "sm")}
           <span className="flex-1 min-w-0 truncate text-left text-[13px] font-medium text-zinc-800 dark:text-zinc-100">
@@ -264,16 +264,14 @@ export function PrChecksView({
   }
 
   return (
-    <div className="p-3">
-      <div className="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
-        {checks.map((check) => {
-          const matchTarget = targetCheckName != null && check.name === targetCheckName;
-          const open = matchTarget || (targetCheckName == null && checks.length === 1);
-          return (
-            <CheckItem key={check.id} check={check} orgId={orgId} repoName={repoName} defaultOpen={open} />
-          );
-        })}
-      </div>
+    <div className="flex flex-col gap-1">
+      {checks.map((check) => {
+        const matchTarget = targetCheckName != null && check.name === targetCheckName;
+        const open = matchTarget || (targetCheckName == null && checks.length === 1);
+        return (
+          <CheckItem key={check.id} check={check} orgId={orgId} repoName={repoName} defaultOpen={open} />
+        );
+      })}
     </div>
   );
 }

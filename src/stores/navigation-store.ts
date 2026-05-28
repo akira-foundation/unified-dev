@@ -48,6 +48,10 @@ interface NavigationState {
   setDashboardTab: (tab: string) => void;
   settingsTab: string;
   setSettingsTab: (tab: string) => void;
+  prDetailTab: string;
+  setPrDetailTab: (tab: string) => void;
+  repoDetailTab: "prs" | "issues" | "branches";
+  setRepoDetailTab: (tab: "prs" | "issues" | "branches") => void;
 }
 
 export const useNavigationStore = create<NavigationState>()(
@@ -71,6 +75,8 @@ export const useNavigationStore = create<NavigationState>()(
       isAgentMode: false,
       dashboardTab: "overview",
       settingsTab: "general",
+      prDetailTab: "overview",
+      repoDetailTab: "prs",
       setCurrentPage: (page) => set({ currentPage: page }),
       navigateTo: (page) => {
         const { currentPage, history } = get();
@@ -138,6 +144,8 @@ export const useNavigationStore = create<NavigationState>()(
       setTargetRepoTab: (tab) => set({ targetRepoTab: tab }),
       setDashboardTab: (tab) => set({ dashboardTab: tab }),
       setSettingsTab: (tab) => set({ settingsTab: tab }),
+      setPrDetailTab: (tab) => set({ prDetailTab: tab }),
+      setRepoDetailTab: (tab) => set({ repoDetailTab: tab }),
     }),
     {
       name: "unified_dev_navigation",
@@ -148,10 +156,16 @@ export const useNavigationStore = create<NavigationState>()(
         activeOrganizationId: state.activeOrganizationId,
         activeProjectId: state.activeProjectId,
         activeRepo: state.activeRepo,
+        activePr: state.activePr,
+        activeIssue: state.activeIssue,
+        targetRepoTab: state.targetRepoTab,
         recentRepos: state.recentRepos,
         history: state.history,
         isAgentMode: state.isAgentMode,
         dashboardTab: state.dashboardTab,
+        settingsTab: state.settingsTab,
+        prDetailTab: state.prDetailTab,
+        repoDetailTab: state.repoDetailTab,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {

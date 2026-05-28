@@ -40,9 +40,9 @@ function FileDiffBlock({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className={cn("overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800", viewed && "opacity-60")}>
+      <div className={cn(viewed && "opacity-60")}>
         <CollapsibleTrigger className="w-full cursor-pointer" asChild>
-          <div className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 select-none dark:bg-white/[0.02]">
+          <div className="flex items-center gap-2.5 rounded-md px-3 py-2.5 select-none transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
             <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform", open && "rotate-90")} />
             <FileCode className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
             <span className="min-w-0 flex-1 truncate text-left font-mono text-[12px] text-zinc-700 dark:text-zinc-200">
@@ -67,13 +67,13 @@ function FileDiffBlock({
           </div>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="border-t border-zinc-200 dark:border-zinc-800">
+          <div>
             <div ref={sentinelRef} />
             {intersected && (
               file.patch ? (
                 <PatchViewer patch={file.patch} splitView={splitView} filename={file.filename} />
               ) : (
-                <p className="px-3 py-2 text-[12px] text-zinc-400 dark:text-zinc-500 italic">{t("components.prDiff.binary")}</p>
+                <p className="px-3 pb-1.5 text-[12px] text-zinc-400 dark:text-zinc-500 italic">{t("components.prDiff.binary")}</p>
               )
             )}
           </div>
@@ -126,8 +126,8 @@ export function PrDiffView({
     );
 
   return (
-    <div className="flex flex-col gap-2 p-3">
-      <div className="flex items-center justify-between px-1">
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center justify-between px-3 py-2">
         <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest">
           <span className="text-zinc-400 dark:text-zinc-500">
             {t("components.prDiff.filesCount").replace("{count}", String(files.length))}

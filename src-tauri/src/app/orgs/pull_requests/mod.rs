@@ -10,6 +10,7 @@ pub mod merge;
 pub mod post_comment;
 pub mod submit_review;
 pub mod sync;
+pub mod update_body;
 
 pub use get_checks::get_checks;
 pub use get_comments::get_comments;
@@ -21,3 +22,4 @@ pub use merge::merge;
 pub use post_comment::post_comment;
 pub use submit_review::submit_review;
 pub use sync::sync;
+pub use update_body::update_body;

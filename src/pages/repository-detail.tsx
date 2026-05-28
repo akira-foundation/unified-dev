@@ -51,6 +51,8 @@ export function RepositoryDetailPage() {
     setTargetPrNumber,
     targetRepoTab,
     setTargetRepoTab,
+    repoDetailTab: tab,
+    setRepoDetailTab: setTab,
     navigateTo,
   } = useNavigationStore();
   const registerSearch = useSearchStore((s) => s.registerProvider);
@@ -81,7 +83,6 @@ export function RepositoryDetailPage() {
     [allRepos, activeRepo],
   );
 
-  const [tab, setTab] = useState<"prs" | "issues" | "branches">("prs");
   const [newTaskPr, setNewTaskPr] = useState<PullRequestDto | null>(null);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
 
