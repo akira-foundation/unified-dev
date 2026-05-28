@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Github, Blocks, AlertTriangle, ExternalLink, KeyRound, GitlabIcon } from "lucide-react";
+import { Github, AlertTriangle, ExternalLink, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -11,7 +11,6 @@ import { PageLayout } from "@/components/layout/page-layout";
 import { PageHeader, PageHeaderTitle, PageHeaderMeta } from "@/components/layout/page-header";
 import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,12 +35,6 @@ import { useBrowserHandoffToast } from "@/hooks/use-browser-handoff-toast";
 const tokenSchema = z.object({
   token: z.string().trim().min(10),
 });
-
-const KIND_ICON = {
-  github: Github,
-  gitlab: GitlabIcon,
-  bitbucket: Blocks,
-} as const;
 
 const KIND_LABEL: Record<string, string> = {
   github: "GitHub",
@@ -134,7 +127,6 @@ export function ProviderDetailPage() {
   }
 
   const kindLabel = KIND_LABEL[provider.kind] ?? provider.kind;
-  const KindIcon = KIND_ICON[provider.kind as keyof typeof KIND_ICON] ?? Blocks;
   const meta = TOKEN_META[provider.kind] ?? TOKEN_META.github;
 
   const handleUpdateToken = form.handleSubmit(async (values) => {
@@ -168,22 +160,15 @@ export function ProviderDetailPage() {
   return (
     <PageLayout scroll>
       <PageHeader className="mx-auto w-full max-w-3xl px-6">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-purple-500/10 text-purple-500 border border-purple-500/10 shrink-0">
-              <KindIcon size={24} strokeWidth={2} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <PageHeaderTitle>{provider.name}</PageHeaderTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary">{kindLabel}</Badge>
-                <Badge variant="secondary" className="text-emerald-500 border-emerald-500/20 bg-emerald-500/10">{t("pages.providerDetail.connected")}</Badge>
-              </div>
-              <PageHeaderMeta>
-                {t("pages.providerDetail.details.connectedSince")}: {new Date(provider.created_at).toLocaleDateString()}
-              </PageHeaderMeta>
-            </div>
-          </div>
+        <div className="flex flex-col gap-1">
+          <PageHeaderTitle>{provider.name}</PageHeaderTitle>
+          <PageHeaderMeta>
+            <span>{kindLabel}</span>
+            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+            <span className="text-emerald-500">{t("pages.providerDetail.connected")}</span>
+            <span className="mx-2 text-zinc-300 dark:text-zinc-700">•</span>
+            <span>{t("pages.providerDetail.details.connectedSince")}: {new Date(provider.created_at).toLocaleDateString()}</span>
+          </PageHeaderMeta>
         </div>
       </PageHeader>
 
