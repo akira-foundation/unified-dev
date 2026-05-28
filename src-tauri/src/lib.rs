@@ -79,6 +79,7 @@ use commands::profile::{get_user_profile, set_user_profile};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_panic_logger();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -276,4 +277,43 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn install_panic_logger() {
+    use std::io::Write;
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let now = chrono::Utc::now().to_rfc3339();
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "<unknown>".to_string());
+        let payload = info
+            .payload()
+            .downcast_ref::<&str>()
+            .map(|s| s.to_string())
+            .or_else(|| info.payload().downcast_ref::<String>().cloned())
+            .unwrap_or_else(|| "<non-string panic payload>".to_string());
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        let line = format!(
+            "[{now}] PANIC at {location}\nmessage: {payload}\nversion: {version}\nbacktrace:\n{backtrace}\n---\n",
+            version = env!("CARGO_PKG_VERSION"),
+        );
+
+        if let Ok(home) = std::env::var("HOME") {
+            let dir = std::path::PathBuf::from(home)
+                .join("Library/Application Support/com.kid.unified-dev");
+            let _ = std::fs::create_dir_all(&dir);
+            let path = dir.join("panic.log");
+            if let Ok(mut file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+            {
+                let _ = file.write_all(line.as_bytes());
+            }
+        }
+
+        default_hook(info);
+    }));
 }
