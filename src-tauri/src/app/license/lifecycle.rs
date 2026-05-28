@@ -34,11 +34,13 @@ pub fn state_for(payload: Option<&LicenseSnapshotPayload>, now: DateTime<Utc>) -
     compute_state(payload, grace, now)
 }
 
+#[allow(dead_code)]
 pub async fn grace_days_remaining(pool: &sqlx::SqlitePool) -> AppResult<i64> {
     let payload = load_payload(pool).await?;
     Ok(grace_days_left(payload.as_ref(), Utc::now()))
 }
 
+#[allow(dead_code)]
 pub async fn trial_days_remaining(pool: &sqlx::SqlitePool) -> AppResult<i64> {
     let payload = load_payload(pool).await?;
     Ok(trial_days_left(payload.as_ref(), Utc::now()))

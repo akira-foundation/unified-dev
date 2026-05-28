@@ -20,8 +20,7 @@ pub use downgrade::{apply_downgrade, downgrade, resume, DowngradeDto};
 pub use gating::can_add;
 pub use invoices::list_invoices;
 pub use portal::portal;
-pub use verify::{clear, get, get_plan, load_customer_token, verify};
-pub use verify::get_with_lifecycle;
+pub use verify::{clear, get_plan, get_with_lifecycle, load_customer_token, verify};
 
 pub fn device_fingerprint() -> String {
     akira_billing::desktop::device_fingerprint(env!("CARGO_PKG_VERSION")).fingerprint

@@ -18,6 +18,7 @@ pub struct AppState {
     pub abort_handles: Arc<Mutex<HashMap<String, JoinHandle<()>>>>,
     pub billing: Arc<RwLock<BillingClient>>,
     pub tracker_registry: Arc<TrackerRegistry>,
+    #[allow(dead_code)]
     pub license_gate: Arc<Gate>,
 }
 

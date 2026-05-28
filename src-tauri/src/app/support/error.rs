@@ -10,8 +10,6 @@ pub enum AppError {
     Io(#[from] std::io::Error),
     #[error("path error: {0}")]
     Path(#[from] tauri::Error),
-    #[error("crypto error")]
-    Crypto,
     #[error("cipher error: {0}")]
     Cipher(#[from] akira_billing::desktop::CipherError),
     #[error("decode error: {0}")]
