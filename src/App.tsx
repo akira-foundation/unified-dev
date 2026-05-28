@@ -16,8 +16,11 @@ import { Toaster } from "./components/ui/sonner";
 import { CommandPalette } from "./components/layout/command-palette";
 import { SearchOverlay } from "./components/layout/search-overlay";
 import { LicenseActivationDialog } from "./components/license-activation-dialog";
+import { LicenseExpiredScreen } from "./components/license/LicenseExpiredScreen";
+import { LicenseGraceBanner } from "./components/license/LicenseGraceBanner";
 import { OnboardingOverlay } from "./components/onboarding-overlay";
 import { UpgradeModal } from "./components/upgrade-modal";
+import { useLicense } from "./hooks/useLicense";
 import { useOnboardingStore } from "./stores/onboarding-store";
 import { useLicenseStore } from "./stores/license-store";
 import { DashboardPage } from "./pages/dashboard";
@@ -67,6 +70,7 @@ export default function App() {
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
   const loadAutopilotJobs = useAutopilotStore((state) => state.loadJobs);
   const verifyLicense = useLicenseStore((s) => s.verify);
+  const { isExpired } = useLicense();
   const lastVerifyRef = useRef(0);
   const [activationSessionId, setActivationSessionId] = useState<string | null>(null);
 
@@ -157,6 +161,10 @@ export default function App() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
+  if (onboardingCompleted && !onboardingAuthOnly && isExpired) {
+    return <LicenseExpiredScreen />;
+  }
+
   return (
     <AppShell variant="sidebar">
       {isAgentMode ? (
@@ -166,6 +174,7 @@ export default function App() {
       )}
       <AppContent className="flex h-svh flex-col overflow-hidden">
         <AppHeader />
+        <LicenseGraceBanner />
         <main className={cn(
           "flex-1 custom-scrollbar",
           isAgentMode ? "h-full overflow-hidden" : "overflow-y-auto"
