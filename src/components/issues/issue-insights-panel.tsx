@@ -77,12 +77,7 @@ export function IssueInsightsPanel({ issues, filterNamespace = "issues", classNa
   const current = TABS.find((tabItem) => tabItem.id === tab)!;
   const selected = active?.[current.filterKey] ?? [];
   const activeCount = active ? Object.values(active).reduce((sum, v) => sum + v.length, 0) : 0;
-  const rows = Array.from(counts[tab].entries()).sort((a, b) => {
-    const aSel = selected.includes(a[0]) ? 1 : 0;
-    const bSel = selected.includes(b[0]) ? 1 : 0;
-    if (aSel !== bSel) return bSel - aSel;
-    return b[1] - a[1];
-  });
+  const rows = Array.from(counts[tab].entries()).sort((a, b) => b[1] - a[1]);
 
   const toggleValue = (value: string) => {
     const next = selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value];
