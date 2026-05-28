@@ -74,43 +74,31 @@ pub async fn refresh_public_keys(
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Keyring {
-    keys: HashMap<String, String>,
-}
-
-impl Keyring {
-    pub async fn from_cache(pool: &sqlx::SqlitePool) -> AppResult<Self> {
-        Ok(Self {
-            keys: resolve_public_keys(pool).await?,
-        })
+pub async fn verify_envelope(
+    pool: &sqlx::SqlitePool,
+    envelope: &SignedLicenseEnvelope,
+) -> AppResult<LicenseSnapshotPayload> {
+    let keys = resolve_public_keys(pool).await?;
+    let signed = SignedLicense {
+        key_id: envelope.key_id.clone(),
+        algorithm: envelope.algorithm.clone(),
+        payload: envelope.payload.clone(),
+        signature: envelope.signature.clone(),
+        valid_until: String::new(),
+    };
+    let pk = keys.get(&envelope.key_id).ok_or_else(|| {
+        AppError::Internal(format!("unknown signing key_id: {}", envelope.key_id))
+    })?;
+    let valid = verify_license(&signed, pk)
+        .map_err(|e| AppError::Internal(format!("license verify failed: {e}")))?;
+    if !valid {
+        return Err(AppError::Internal(
+            "license signature verification failed".into(),
+        ));
     }
-
-    pub fn verify(&self, envelope: &SignedLicenseEnvelope) -> AppResult<LicenseSnapshotPayload> {
-        let signed = SignedLicense {
-            key_id: envelope.key_id.clone(),
-            algorithm: envelope.algorithm.clone(),
-            payload: envelope.payload.clone(),
-            signature: envelope.signature.clone(),
-            valid_until: String::new(),
-        };
-
-        let pk = self.keys.get(&envelope.key_id).ok_or_else(|| {
-            AppError::Internal(format!("unknown signing key_id: {}", envelope.key_id))
-        })?;
-
-        let valid = verify_license(&signed, pk)
-            .map_err(|e| AppError::Internal(format!("license verify failed: {e}")))?;
-        if !valid {
-            return Err(AppError::Internal(
-                "license signature verification failed".into(),
-            ));
-        }
-
-        let decoded = decode_license(&signed)
-            .map_err(|e| AppError::Internal(format!("license decode failed: {e}")))?;
-        Ok(decoded.payload)
-    }
+    let decoded = decode_license(&signed)
+        .map_err(|e| AppError::Internal(format!("license decode failed: {e}")))?;
+    Ok(decoded.payload)
 }
 
 #[derive(Debug, Clone)]

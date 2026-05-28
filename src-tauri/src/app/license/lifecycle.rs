@@ -5,7 +5,7 @@ use chrono::{DateTime, Duration, Utc};
 use crate::app::support::error::AppResult;
 
 use super::persist::load_envelope;
-use super::signed_license::Keyring;
+use super::signed_license::verify_envelope;
 
 const DEFAULT_OFFLINE_GRACE_DAYS: i64 = 7;
 
@@ -21,11 +21,7 @@ pub async fn load_payload(pool: &sqlx::SqlitePool) -> AppResult<Option<LicenseSn
     let Some(envelope) = load_envelope(pool).await? else {
         return Ok(None);
     };
-    let keyring = Keyring::from_cache(pool).await?;
-    match keyring.verify(&envelope) {
-        Ok(payload) => Ok(Some(payload)),
-        Err(_) => Ok(None),
-    }
+    Ok(verify_envelope(pool, &envelope).await.ok())
 }
 
 pub async fn current_state(pool: &sqlx::SqlitePool) -> AppResult<LicenseState> {

@@ -6,7 +6,7 @@ use crate::app::support::error::AppResult;
 
 use super::lifecycle;
 use super::persist;
-use super::signed_license::Keyring;
+use super::signed_license::verify_envelope;
 
 const FREE_REPOS_LIMIT: u64 = 3;
 const FREE_ORGS_LIMIT: u64 = 1;
@@ -39,8 +39,7 @@ pub async fn can_add(pool: &sqlx::SqlitePool, feature: &str, current_count: i64)
         return Ok(current < free_limit(feature));
     };
 
-    let keyring = Keyring::from_cache(pool).await?;
-    let payload = keyring.verify(&envelope)?;
+    let payload = verify_envelope(pool, &envelope).await?;
     Ok(decide(&payload, feature, current))
 }
 

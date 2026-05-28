@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use crate::app::support::error::{AppError, AppResult};
 
 use super::persist::load_envelope;
-use super::signed_license::Keyring;
+use super::signed_license::verify_envelope;
 
 const GATE_GRACE_WINDOW_DAYS: i64 = 365;
 
@@ -32,10 +32,7 @@ fn build_loader(pool: SqlitePool) -> LicenseLoader {
             let Some(envelope) = envelope else {
                 return Ok(None);
             };
-            let keyring = Keyring::from_cache(&pool)
-                .await
-                .map_err(license_loader_error)?;
-            let payload = match keyring.verify(&envelope) {
+            let payload = match verify_envelope(&pool, &envelope).await {
                 Ok(payload) => payload,
                 Err(_) => return Ok(None),
             };
