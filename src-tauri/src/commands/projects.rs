@@ -82,6 +82,7 @@ pub async fn repo_source_list(state: State<'_, AppState>) -> Result<Vec<RepoSour
 #[tauri::command]
 pub async fn repo_source_add(
     state: State<'_, AppState>,
+    app: tauri::AppHandle,
     project_repo_id: String,
     provider: String,
     ref_type: String,
@@ -89,17 +90,44 @@ pub async fn repo_source_add(
     is_issue_source: bool,
     is_vcs_target: bool,
 ) -> Result<RepoSource, String> {
-    projects::add_source(
+    let source = projects::add_source(
         &state,
         project_repo_id,
-        provider,
-        ref_type,
-        reference,
+        provider.clone(),
+        ref_type.clone(),
+        reference.clone(),
         is_issue_source,
         is_vcs_target,
     )
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+
+    if is_issue_source {
+        let handle = app.clone();
+        let provider = provider.clone();
+        let filter = filter_for_ref(&ref_type, &reference);
+        tauri::async_runtime::spawn(async move {
+            let state = tauri::Manager::state::<AppState>(&handle);
+            let _ = crate::app::tracker::sync(&state, provider, filter).await;
+            let _ = tauri::Emitter::emit(
+                &handle,
+                "sync:completed",
+                serde_json::json!({ "kind": "issues", "orgId": "" }),
+            );
+        });
+    }
+
+    Ok(source)
+}
+
+fn filter_for_ref(ref_type: &str, reference: &str) -> crate::tracker::dto::TrackerIssueFilter {
+    let mut filter = crate::tracker::dto::TrackerIssueFilter::default();
+    match ref_type {
+        "project" => filter.project = Some(reference.to_string()),
+        "team" => filter.team = Some(reference.to_string()),
+        _ => {}
+    }
+    filter
 }
 
 #[tauri::command]
