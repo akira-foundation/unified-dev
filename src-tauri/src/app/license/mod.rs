@@ -4,6 +4,7 @@ pub mod claim;
 pub mod downgrade;
 pub mod gating;
 pub mod invoices;
+pub mod lifecycle;
 pub mod persist;
 pub mod plans;
 pub mod portal;
@@ -20,8 +21,6 @@ pub use invoices::list_invoices;
 pub use portal::portal;
 pub use verify::{clear, get, get_plan, load_customer_token, verify};
 
-/// Stable per-machine device fingerprint, derived from hardware via the billing
-/// SDK. Replaces the previous random per-install identifier.
 pub fn device_fingerprint() -> String {
     akira_billing::desktop::device_fingerprint(env!("CARGO_PKG_VERSION")).fingerprint
 }
