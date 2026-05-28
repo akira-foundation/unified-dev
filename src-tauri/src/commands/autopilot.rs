@@ -1,5 +1,3 @@
-use akira_billing::lifecycle::LicenseState;
-use akira_billing::types::LicenseCheckPayload;
 use tauri::{AppHandle, State};
 
 use crate::app::autopilot;
@@ -7,7 +5,6 @@ use crate::app::autopilot::dto::{
     AutopilotJobDto, DeleteThreadRequest, SaveJobRequest, SaveThreadRequest, UpdateJobRequest, UpdateThreadRequest,
     WriteLogRequest,
 };
-use crate::app::billing::PRODUCT_SLUG;
 use crate::app::support::error::AppError;
 use crate::state::AppState;
 
@@ -17,38 +14,13 @@ async fn require_feature(
     feature: &str,
     fallback_limit_code: &str,
 ) -> Result<(), String> {
-    let lifecycle_state = crate::app::license::lifecycle::current_state(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?;
-    let plan_local = crate::app::license::get_plan(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let active = matches!(lifecycle_state, LicenseState::Active | LicenseState::Trialing);
-    if active && (plan_local == "pro" || plan_local == "ultimate") {
-        return Ok(());
+    match crate::app::license::access::require_feature(state, feature).await {
+        Ok(_) => Ok(()),
+        Err(AppError::FreeTierLimit(_)) => {
+            Err(AppError::FreeTierLimit(fallback_limit_code.to_string()).to_string())
+        }
+        Err(e) => Err(e.to_string()),
     }
-    if matches!(lifecycle_state, LicenseState::Expired | LicenseState::Invalid) {
-        return Err(AppError::FreeTierLimit(fallback_limit_code.to_string()).to_string());
-    }
-
-    let allowed = {
-        let billing = state.billing.read().await;
-        billing
-            .inner()
-            .license_check(LicenseCheckPayload {
-                product: PRODUCT_SLUG,
-                feature,
-            })
-            .await
-            .map(|res| res.allowed)
-            .unwrap_or(false)
-    };
-
-    if !allowed {
-        return Err(AppError::FreeTierLimit(fallback_limit_code.to_string()).to_string());
-    }
-    Ok(())
 }
 
 #[tauri::command]
