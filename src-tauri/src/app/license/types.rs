@@ -16,6 +16,8 @@ pub struct LicenseDto {
     pub cancel_at_period_end: Option<bool>,
     pub cancel_at: Option<String>,
     pub target_plan: Option<String>,
+    #[sqlx(default)]
+    pub payment_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

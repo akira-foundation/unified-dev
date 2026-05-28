@@ -70,6 +70,7 @@ mod tests {
             updates_window_days: None,
             offline_grace_days: None,
             device_limit: None,
+            payment_status: None,
         }
     }
 

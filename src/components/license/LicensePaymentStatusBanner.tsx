@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLicense } from "@/hooks/useLicense";
 
 type PaymentStatus = "past_due" | "unpaid" | "canceled" | "incomplete_expired" | "incomplete";
 
@@ -37,8 +38,10 @@ interface LicensePaymentStatusBannerProps {
   paymentStatus?: PaymentStatus | string | null;
 }
 
-export function LicensePaymentStatusBanner({ paymentStatus }: LicensePaymentStatusBannerProps) {
-  const key = paymentStatus as PaymentStatus | undefined;
+export function LicensePaymentStatusBanner({ paymentStatus }: LicensePaymentStatusBannerProps = {}) {
+  const { license } = useLicense();
+  const effective = paymentStatus ?? license?.paymentStatus ?? null;
+  const key = effective as PaymentStatus | undefined;
   if (!key || !(key in COPY)) return null;
 
   const copy = COPY[key];

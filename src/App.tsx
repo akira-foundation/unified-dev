@@ -175,7 +175,7 @@ export default function App() {
       )}
       <AppContent className="flex h-svh flex-col overflow-hidden">
         <AppHeader />
-        <LicensePaymentStatusBanner paymentStatus="past_due" />
+        <LicensePaymentStatusBanner />
         <LicenseGraceBanner />
         <main className={cn(
           "flex-1 custom-scrollbar",
