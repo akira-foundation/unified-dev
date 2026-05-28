@@ -47,7 +47,7 @@ tauri-plugin-autostart = "2"
 regex = "1"
 zip = "2"
 axum = "0.8.8"
-akira-billing = { version = "1.5.0", features = ["desktop"] }
+akira-billing = { version = "1.5.1", features = ["desktop"] }
 lazy_static = "1.4"
 omnitrack = { version = "0.3.0", features = ["all"] }
 
