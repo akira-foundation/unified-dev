@@ -21,6 +21,15 @@ pub async fn get_plan(pool: &sqlx::SqlitePool) -> AppResult<String> {
     Ok(plan)
 }
 
+pub async fn clear_customer_token(pool: &sqlx::SqlitePool) -> AppResult<()> {
+    sqlx::query(
+        "UPDATE license SET customer_token_cipher = NULL WHERE id = 'local'",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 pub async fn load_customer_token(
     pool: &sqlx::SqlitePool,
     cipher: &crate::app::support::security::TokenCipher,

@@ -23,10 +23,16 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
         {
             let app_state = app.state::<AppState>();
-            let loaded = app::license::load_customer_token(&app_state.db_pool, &app_state.token_cipher).await?;
-            if let Some(token) = loaded {
-                let mut billing = app_state.billing.write().await;
-                billing.set_customer_token(token);
+            match app::license::load_customer_token(&app_state.db_pool, &app_state.token_cipher).await {
+                Ok(Some(token)) => {
+                    let mut billing = app_state.billing.write().await;
+                    billing.set_customer_token(token);
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    eprintln!("customer token unavailable, continuing without it: {err}");
+                    let _ = app::license::clear_customer_token(&app_state.db_pool).await;
+                }
             }
         }
 
