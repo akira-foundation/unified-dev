@@ -72,8 +72,78 @@ pub async fn perform_backup(
     let filename = format!("unified-dev-pre-{target_version}-{stamp}.sqlite");
     let dest = base_dir.join(filename);
 
-    sqlx::query("VACUUM INTO ?").bind(dest.to_string_lossy().as_ref()).execute(pool).await?;
+    let escaped = dest.to_string_lossy().replace('\'', "''");
+    sqlx::query(&format!("VACUUM INTO '{escaped}'")).execute(pool).await?;
 
     let _ = db_path;
     Ok(Some(dest))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::setup_test_db;
+
+    #[tokio::test]
+    async fn perform_backup_returns_none_when_disabled() {
+        let pool = setup_test_db().await;
+        let disabled = UpdateSettings { backup_before_update: false, backup_path: None };
+        set(&pool, disabled).await.expect("disable backup");
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let result = perform_backup(&pool, tmp.path(), "1.2.3").await.expect("perform_backup");
+
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn perform_backup_writes_file_to_configured_path() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let source = tmp.path().join("source.sqlite");
+        let url = format!("sqlite://{}?mode=rwc", source.display());
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(&url)
+            .await
+            .expect("open source");
+        sqlx::migrate!("./src/database/migrations")
+            .run(&pool)
+            .await
+            .expect("migrate");
+
+        let dest_dir = tmp.path().join("backups");
+        let configured = UpdateSettings {
+            backup_before_update: true,
+            backup_path: Some(dest_dir.to_string_lossy().to_string()),
+        };
+        set(&pool, configured).await.expect("enable backup");
+
+        let dest = perform_backup(&pool, &source, "9.9.9")
+            .await
+            .expect("perform_backup")
+            .expect("dest path");
+
+        assert!(dest.exists(), "backup file must exist: {dest:?}");
+        let name = dest.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        assert!(name.starts_with("unified-dev-pre-9.9.9-"));
+        assert!(name.ends_with(".sqlite"));
+    }
+
+    #[tokio::test]
+    async fn set_persists_path_and_toggle() {
+        let pool = setup_test_db().await;
+        let settings = UpdateSettings {
+            backup_before_update: false,
+            backup_path: Some("/tmp/custom".to_string()),
+        };
+
+        let saved = set(&pool, settings).await.expect("set");
+
+        assert!(!saved.backup_before_update);
+        assert_eq!(saved.backup_path.as_deref(), Some("/tmp/custom"));
+
+        let reloaded = get(&pool).await.expect("get");
+        assert!(!reloaded.backup_before_update);
+        assert_eq!(reloaded.backup_path.as_deref(), Some("/tmp/custom"));
+    }
 }
