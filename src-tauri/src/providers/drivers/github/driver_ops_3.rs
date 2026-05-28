@@ -256,4 +256,17 @@ impl GitHubDriver {
         let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/comments/{comment_id}");
         self.delete(url).await
     }
+
+    pub(super) async fn update_pull_request_body_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        body: &str,
+    ) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/pulls/{pr_number}");
+        let payload = serde_json::json!({ "body": body });
+        let _: serde_json::Value = self.patch_json(url, &payload).await?;
+        Ok(())
+    }
 }

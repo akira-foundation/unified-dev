@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useI18n } from "@/i18n/i18n";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MarkdownBody } from "@/components/repos/markdown-body";
+import { IssueDescription } from "@/components/issues/issue-description";
+import { usePrBodyEditor } from "@/hooks/usePrBodyEditor";
 import { CommentThread } from "@/components/shared/comment-thread";
 import { PrProperties } from "@/components/repos/pr-properties";
 import { PrDetailActions } from "@/components/repos/pr-detail-actions";
@@ -29,12 +30,21 @@ export function PrDetailPage() {
   const targetCheckName = useNavigationStore((s) => s.targetCheckName);
   const navigateTo = useNavigationStore((s) => s.navigateTo);
   const goBack = useNavigationStore((s) => s.goBack);
+  const tab = useNavigationStore((s) => s.prDetailTab);
+  const setTab = useNavigationStore((s) => s.setPrDetailTab);
 
   const { files, filesLoading, checks, checksLoading } = usePrReviewData(repo, pr);
-  const [tab, setTab] = useState(
-    targetCheckName || pr?.ci_status === "failure" ? "checks" : "overview",
+  const prBody = usePrBodyEditor(
+    pr && repo
+      ? { organizationId: repo.organizationId, repoName: repo.name, prNumber: pr.number, body: pr.body }
+      : null,
   );
   const [reviewOpen, setReviewOpen] = useState(false);
+
+  useEffect(() => {
+    if (targetCheckName || pr?.ci_status === "failure") setTab("checks");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!pr || !repo) {
     navigateTo("prs");
@@ -79,11 +89,7 @@ export function PrDetailPage() {
 
           <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-6 py-4 md:px-8">
             <TabsContent value="overview">
-              {pr.body && pr.body.trim() !== "" ? (
-                <MarkdownBody content={pr.body} />
-              ) : (
-                <p className="text-sm italic text-zinc-400 dark:text-zinc-600">{t("components.prDetail.noDescription")}</p>
-              )}
+              <IssueDescription editor={prBody} />
               <CommentThread
                 organizationId={repo.organizationId}
                 repoName={repo.name}
