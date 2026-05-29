@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, Search, X } from "lucide-react";
@@ -41,21 +41,35 @@ function badgeStyles(color: string): React.CSSProperties {
   };
 }
 
+function sameSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const setA = new Set(a);
+  for (const item of b) if (!setA.has(item)) return false;
+  return true;
+}
+
 export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: PrLabelsEditorProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
   const activePr = useNavigationStore((s) => s.activePr);
   const setActivePr = useNavigationStore((s) => s.setActivePr);
+
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [draft, setDraft] = useState<string[]>(labels);
+  const draftAtOpenRef = useRef<string[]>(labels);
+
+  useEffect(() => {
+    if (!open) setDraft(labels);
+  }, [labels, open]);
 
   const labelsQuery = useQuery({
-    enabled: open,
     queryKey: ["pr-repo-labels", organizationId, repoName],
     queryFn: () => invoke<RepoLabel[]>("list_pr_repo_labels", { organizationId, repoName }),
+    staleTime: 60 * 1000,
   });
 
-  const applyOptimistic = (next: string[]) => {
+  const writeStore = (next: string[]) => {
     if (activePr && activePr.number === prNumber) {
       setActivePr({ ...activePr, labels: next });
     }
@@ -64,17 +78,14 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
   const setLabelsMutation = useMutation({
     mutationFn: (next: string[]) =>
       invoke<string[]>("set_pr_labels", { organizationId, repoName, prNumber, labels: next }),
-    onMutate: (next) => {
-      const previous = labels;
-      applyOptimistic(next);
-      return { previous };
-    },
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(organizationId, repoName) });
-      applyOptimistic(updated);
+      writeStore(updated);
+      setDraft(updated);
     },
-    onError: (err, _next, ctx) => {
-      if (ctx?.previous) applyOptimistic(ctx.previous);
+    onError: (err) => {
+      writeStore(draftAtOpenRef.current);
+      setDraft(draftAtOpenRef.current);
       toast.error(String(err));
     },
   });
@@ -88,31 +99,39 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
         color: null,
         description: null,
       }),
-    onMutate: (name) => {
-      const previous = labels;
-      applyOptimistic([...labels, name]);
-      setSearch("");
-      return { previous };
-    },
     onSuccess: (label) => {
       queryClient.invalidateQueries({ queryKey: ["pr-repo-labels", organizationId, repoName] });
-      setLabelsMutation.mutate([...labels, label.name]);
+      setSearch("");
+      setDraft((cur) => (cur.includes(label.name) ? cur : [...cur, label.name]));
     },
-    onError: (err, _name, ctx) => {
-      if (ctx?.previous) applyOptimistic(ctx.previous);
+    onError: (err) => {
       toast.error(String(err));
     },
   });
 
   const toggle = (name: string) => {
-    const next = labels.includes(name)
-      ? labels.filter((l) => l !== name)
-      : [...labels, name];
-    setLabelsMutation.mutate(next);
+    setDraft((cur) => (cur.includes(name) ? cur.filter((l) => l !== name) : [...cur, name]));
   };
 
   const remove = (name: string) => {
-    setLabelsMutation.mutate(labels.filter((l) => l !== name));
+    const next = draft.filter((l) => l !== name);
+    setDraft(next);
+    writeStore(next);
+    setLabelsMutation.mutate(next);
+  };
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      draftAtOpenRef.current = labels;
+      setDraft(labels);
+      setSearch("");
+      return;
+    }
+    if (!sameSet(draft, draftAtOpenRef.current)) {
+      writeStore(draft);
+      setLabelsMutation.mutate(draft);
+    }
   };
 
   const known = labelsQuery.data ?? [];
@@ -120,11 +139,12 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
     ? known.filter((l) => l.name.toLowerCase().includes(search.toLowerCase()))
     : known;
   const knownByName = new Map(known.map((l) => [l.name, l]));
+  const chipLabels = open ? draft : labels;
 
   return (
     <div className="flex flex-col gap-1.5 px-1 py-1">
       <div className="flex flex-wrap items-center gap-1.5">
-        {labels.map((name) => {
+        {chipLabels.map((name) => {
           const meta = knownByName.get(name);
           return (
             <span
@@ -138,14 +158,13 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
                 onClick={() => remove(name)}
                 className="rounded-full p-0.5 transition-colors hover:bg-black/20"
                 aria-label={t("components.prDetail.labels.remove")}
-                disabled={setLabelsMutation.isPending}
               >
                 <X className="h-2.5 w-2.5" />
               </button>
             </span>
           );
         })}
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={open} onOpenChange={handleOpenChange}>
           <PopoverTrigger asChild>
             <button
               type="button"
@@ -176,14 +195,13 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
                 <div className="px-3 py-2 text-[12px] text-zinc-500">{t("components.prDetail.labels.empty")}</div>
               )}
               {filtered.map((l) => {
-                const active = labels.includes(l.name);
+                const active = draft.includes(l.name);
                 return (
                   <button
                     key={l.name}
                     type="button"
                     onClick={() => toggle(l.name)}
                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-zinc-100 dark:hover:bg-white/5"
-                    disabled={setLabelsMutation.isPending}
                   >
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full"
@@ -199,7 +217,6 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
                   type="button"
                   onClick={() => createLabelMutation.mutate(search.trim())}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-purple-600 hover:bg-zinc-100 dark:text-purple-300 dark:hover:bg-white/5"
-                  disabled={createLabelMutation.isPending || setLabelsMutation.isPending}
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span className="flex-1 truncate">
