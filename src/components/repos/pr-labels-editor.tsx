@@ -55,16 +55,26 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
     queryFn: () => invoke<RepoLabel[]>("list_pr_repo_labels", { organizationId, repoName }),
   });
 
+  const applyOptimistic = (next: string[]) => {
+    if (activePr && activePr.number === prNumber) {
+      setActivePr({ ...activePr, labels: next });
+    }
+  };
+
   const setLabelsMutation = useMutation({
     mutationFn: (next: string[]) =>
       invoke<string[]>("set_pr_labels", { organizationId, repoName, prNumber, labels: next }),
+    onMutate: (next) => {
+      const previous = labels;
+      applyOptimistic(next);
+      return { previous };
+    },
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(organizationId, repoName) });
-      if (activePr && activePr.number === prNumber) {
-        setActivePr({ ...activePr, labels: updated });
-      }
+      applyOptimistic(updated);
     },
-    onError: (err) => {
+    onError: (err, _next, ctx) => {
+      if (ctx?.previous) applyOptimistic(ctx.previous);
       toast.error(String(err));
     },
   });
@@ -78,12 +88,18 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
         color: null,
         description: null,
       }),
+    onMutate: (name) => {
+      const previous = labels;
+      applyOptimistic([...labels, name]);
+      setSearch("");
+      return { previous };
+    },
     onSuccess: (label) => {
       queryClient.invalidateQueries({ queryKey: ["pr-repo-labels", organizationId, repoName] });
-      setSearch("");
       setLabelsMutation.mutate([...labels, label.name]);
     },
-    onError: (err) => {
+    onError: (err, _name, ctx) => {
+      if (ctx?.previous) applyOptimistic(ctx.previous);
       toast.error(String(err));
     },
   });
