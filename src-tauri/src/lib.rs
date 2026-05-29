@@ -31,7 +31,7 @@ use commands::organization::{
     create_organization, delete_organization, get_job_logs, get_pr_checks, get_pr_comments, get_pr_files,
     list_all_selected_repositories, list_organizations, list_organizations_by_provider,
     list_selected_repositories, list_repo_pull_requests, list_repo_branches, create_repo_branch,
-    delete_repo_branch, sync_pull_requests, mark_pr_ready_for_review, list_pr_repo_labels, set_pr_labels, merge_pr, post_pr_comment, delete_pr_comment, update_pr_body,
+    delete_repo_branch, sync_pull_requests, mark_pr_ready_for_review, list_pr_repo_labels, set_pr_labels, create_pr_repo_label, merge_pr, post_pr_comment, delete_pr_comment, update_pr_body,
     save_selected_repositories, submit_pr_review, sync_repository_stats, sync_single_repo_stats,
     update_organization,
 };
@@ -126,6 +126,7 @@ pub fn run() {
             mark_pr_ready_for_review,
             list_pr_repo_labels,
             set_pr_labels,
+            create_pr_repo_label,
             get_pr_files,
             get_pr_checks,
             get_job_logs,

@@ -116,6 +116,11 @@ pub async fn set_pr_labels(state: State<'_, AppState>, organization_id: String, 
 }
 
 #[tauri::command]
+pub async fn create_pr_repo_label(state: State<'_, AppState>, organization_id: String, repo_name: String, name: String, color: Option<String>, description: Option<String>) -> Result<orgs::RepoLabelDto, String> {
+    orgs::create_pr_repo_label(state, organization_id, repo_name, name, color, description).await
+}
+
+#[tauri::command]
 pub async fn get_pr_files(state: State<'_, AppState>, organization_id: String, repo_name: String, pr_number: u64) -> Result<Vec<PrFileDto>, String> {
     orgs::get_pr_files(state, organization_id, repo_name, pr_number).await
 }

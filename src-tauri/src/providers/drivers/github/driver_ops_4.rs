@@ -173,6 +173,34 @@ impl GitHubDriver {
             .collect())
     }
 
+    pub(super) async fn create_repository_label_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+        name: &str,
+        color: Option<&str>,
+        description: Option<&str>,
+    ) -> AppResult<crate::providers::dto::VcsRepoLabel> {
+        #[derive(Deserialize)]
+        struct GitHubLabel {
+            name: String,
+            color: String,
+            description: Option<String>,
+        }
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/labels");
+        let resolved_color = color.unwrap_or("ededed").trim_start_matches('#').to_string();
+        let mut payload = serde_json::json!({ "name": name, "color": resolved_color });
+        if let Some(d) = description {
+            payload["description"] = serde_json::Value::String(d.to_string());
+        }
+        let created: GitHubLabel = self.post_json(url, &payload).await?;
+        Ok(crate::providers::dto::VcsRepoLabel {
+            name: created.name,
+            color: created.color,
+            description: created.description,
+        })
+    }
+
     pub(super) async fn set_pull_request_labels_impl(
         &self,
         owner: &str,

@@ -173,6 +173,7 @@ export const ptPart4: Record<string, string> = {
   "components.prDetail.labels.search": "Procurar labels…",
   "components.prDetail.labels.loading": "A carregar labels…",
   "components.prDetail.labels.empty": "Sem labels neste repositório",
+  "components.prDetail.labels.create": "Criar \"{name}\"",
   "components.prDetail.openInBrowser": "Abrir no browser",
   "components.prDetail.review": "Rever",
   "components.prDetail.newTask": "Nova tarefa",

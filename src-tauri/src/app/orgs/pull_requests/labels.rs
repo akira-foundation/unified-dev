@@ -38,6 +38,31 @@ pub async fn list_labels(
     Ok(labels.into_iter().map(RepoLabelDto::from).collect())
 }
 
+pub async fn create_label(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+    name: String,
+    color: Option<String>,
+    description: Option<String>,
+) -> Result<RepoLabelDto, String> {
+    let (owner, effective_repo, provider, _) =
+        super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+
+    let created = provider
+        .create_repository_label(
+            &owner,
+            &effective_repo,
+            &name,
+            color.as_deref(),
+            description.as_deref(),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(RepoLabelDto::from(created))
+}
+
 pub async fn set_labels(
     state: State<'_, AppState>,
     organization_id: String,

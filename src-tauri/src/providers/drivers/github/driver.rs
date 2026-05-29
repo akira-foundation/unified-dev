@@ -213,6 +213,17 @@ impl VcsProvider for GitHubDriver {
         self.set_pull_request_labels_impl(owner, repository, pr_number, labels).await
     }
 
+    async fn create_repository_label(
+        &self,
+        owner: &str,
+        repository: &str,
+        name: &str,
+        color: Option<&str>,
+        description: Option<&str>,
+    ) -> AppResult<crate::providers::dto::VcsRepoLabel> {
+        self.create_repository_label_impl(owner, repository, name, color, description).await
+    }
+
     async fn update_pull_request_body(
         &self,
         owner: &str,

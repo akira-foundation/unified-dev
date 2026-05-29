@@ -63,6 +63,25 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
     },
   });
 
+  const createLabelMutation = useMutation({
+    mutationFn: (name: string) =>
+      invoke<RepoLabel>("create_pr_repo_label", {
+        organizationId,
+        repoName,
+        name,
+        color: null,
+        description: null,
+      }),
+    onSuccess: (label) => {
+      queryClient.invalidateQueries({ queryKey: ["pr-repo-labels", organizationId, repoName] });
+      setSearch("");
+      setLabelsMutation.mutate([...labels, label.name]);
+    },
+    onError: (err) => {
+      toast.error(String(err));
+    },
+  });
+
   const toggle = (name: string) => {
     const next = labels.includes(name)
       ? labels.filter((l) => l !== name)
@@ -153,6 +172,19 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
                   </button>
                 );
               })}
+              {search.trim() && !known.some((l) => l.name.toLowerCase() === search.trim().toLowerCase()) && (
+                <button
+                  type="button"
+                  onClick={() => createLabelMutation.mutate(search.trim())}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] text-purple-600 hover:bg-zinc-100 dark:text-purple-300 dark:hover:bg-white/5"
+                  disabled={createLabelMutation.isPending || setLabelsMutation.isPending}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="flex-1 truncate">
+                    {t("components.prDetail.labels.create", { name: search.trim() })}
+                  </span>
+                </button>
+              )}
             </div>
           </PopoverContent>
         </Popover>

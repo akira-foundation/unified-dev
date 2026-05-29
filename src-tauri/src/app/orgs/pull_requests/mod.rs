@@ -19,7 +19,7 @@ pub use get_comments::get_comments;
 pub use delete_comment::delete_comment;
 pub use get_files::get_files;
 pub use get_job_logs::get_job_logs;
-pub use labels::{list_labels as list_pr_repo_labels, set_labels as set_pr_labels, RepoLabelDto};
+pub use labels::{create_label as create_pr_repo_label, list_labels as list_pr_repo_labels, set_labels as set_pr_labels, RepoLabelDto};
 pub use list::list;
 pub use mark_ready::mark_ready as mark_pr_ready;
 pub use merge::merge;

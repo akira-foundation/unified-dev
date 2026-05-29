@@ -43,6 +43,11 @@ pub trait VcsProvider: Send + Sync {
             "editing pull request labels is not supported by this provider".into(),
         ))
     }
+    async fn create_repository_label(&self, _owner: &str, _repository: &str, _name: &str, _color: Option<&str>, _description: Option<&str>) -> AppResult<VcsRepoLabel> {
+        Err(crate::app::support::error::AppError::Provider(
+            "creating repository labels is not supported by this provider".into(),
+        ))
+    }
     async fn list_pull_request_files(&self, owner: &str, repository: &str, pr_number: u64) -> AppResult<Vec<VcsPrFile>>;
     async fn list_pr_checks(&self, owner: &str, repository: &str, sha: &str) -> AppResult<Vec<VcsCiCheck>>;
     async fn get_job_logs(&self, owner: &str, repository: &str, job_id: u64) -> AppResult<String>;

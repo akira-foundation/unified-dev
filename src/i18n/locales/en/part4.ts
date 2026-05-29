@@ -186,6 +186,7 @@ export const enPart4: Record<string, string> = {
   "components.prDetail.labels.search": "Search labels…",
   "components.prDetail.labels.loading": "Loading labels…",
   "components.prDetail.labels.empty": "No labels available in this repository",
+  "components.prDetail.labels.create": "Create \"{name}\"",
   "components.prDetail.openInBrowser": "Open in browser",
   "components.prDetail.review": "Review",
   "components.prDetail.newTask": "New task",
