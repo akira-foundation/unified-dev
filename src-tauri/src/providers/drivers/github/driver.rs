@@ -195,6 +195,35 @@ impl VcsProvider for GitHubDriver {
         self.mark_pull_request_ready_for_review_impl(owner, repository, pr_number).await
     }
 
+    async fn list_repository_labels(
+        &self,
+        owner: &str,
+        repository: &str,
+    ) -> AppResult<Vec<crate::providers::dto::VcsRepoLabel>> {
+        self.list_repository_labels_impl(owner, repository).await
+    }
+
+    async fn set_pull_request_labels(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        labels: Vec<String>,
+    ) -> AppResult<Vec<String>> {
+        self.set_pull_request_labels_impl(owner, repository, pr_number, labels).await
+    }
+
+    async fn create_repository_label(
+        &self,
+        owner: &str,
+        repository: &str,
+        name: &str,
+        color: Option<&str>,
+        description: Option<&str>,
+    ) -> AppResult<crate::providers::dto::VcsRepoLabel> {
+        self.create_repository_label_impl(owner, repository, name, color, description).await
+    }
+
     async fn update_pull_request_body(
         &self,
         owner: &str,

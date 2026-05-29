@@ -15,6 +15,6 @@ pub use create::create as create_organization;
 pub use delete::delete as delete_organization;
 pub use list::list as list_organizations;
 pub use list_by_provider::list_by_provider as list_organizations_by_provider;
-pub use pull_requests::{get_checks as get_pr_checks, get_comments as get_pr_comments, delete_comment as delete_pr_comment, get_files as get_pr_files, get_job_logs, list as list_repo_pull_requests, mark_pr_ready, merge as merge_pr, post_comment as post_pr_comment, submit_review as submit_pr_review, sync as sync_pull_requests, update_body as update_pr_body};
+pub use pull_requests::{create_pr_repo_label, get_checks as get_pr_checks, get_comments as get_pr_comments, delete_comment as delete_pr_comment, get_files as get_pr_files, get_job_logs, list as list_repo_pull_requests, list_pr_repo_labels, mark_pr_ready, merge as merge_pr, post_comment as post_pr_comment, set_pr_labels, submit_review as submit_pr_review, sync as sync_pull_requests, update_body as update_pr_body, RepoLabelDto};
 pub use repos::{list_all as list_all_selected_repositories, list_selected as list_selected_repositories, save_selected as save_selected_repositories, sync_single_stats as sync_single_repo_stats, sync_stats as sync_repository_stats};
 pub use update::update as update_organization;

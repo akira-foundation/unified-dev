@@ -110,7 +110,7 @@ export function PrDetailPage() {
       </div>
 
       <aside className="flex w-80 shrink-0 flex-col gap-3 overflow-y-auto border-l border-zinc-200 p-4 dark:border-zinc-800">
-        <PrProperties pr={pr} />
+        <PrProperties pr={pr} organizationId={repo.organizationId} repoName={repo.name} />
         <PrMergePanel
           pr={pr}
           organizationId={repo.organizationId}

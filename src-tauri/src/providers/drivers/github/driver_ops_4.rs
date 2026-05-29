@@ -150,6 +150,96 @@ impl GitHubDriver {
         Ok(())
     }
 
+    pub(super) async fn list_repository_labels_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+    ) -> AppResult<Vec<crate::providers::dto::VcsRepoLabel>> {
+        #[derive(Deserialize)]
+        struct GitHubLabel {
+            name: String,
+            color: String,
+            description: Option<String>,
+        }
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/labels");
+        let labels: Vec<GitHubLabel> = self.fetch_paginated(url).await?;
+        Ok(labels
+            .into_iter()
+            .map(|l| crate::providers::dto::VcsRepoLabel {
+                name: l.name,
+                color: l.color,
+                description: l.description,
+            })
+            .collect())
+    }
+
+    pub(super) async fn create_repository_label_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+        name: &str,
+        color: Option<&str>,
+        description: Option<&str>,
+    ) -> AppResult<crate::providers::dto::VcsRepoLabel> {
+        #[derive(Deserialize)]
+        struct GitHubLabel {
+            name: String,
+            color: String,
+            description: Option<String>,
+        }
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/labels");
+        let resolved_color = color.unwrap_or("ededed").trim_start_matches('#').to_string();
+        let mut payload = serde_json::json!({ "name": name, "color": resolved_color });
+        if let Some(d) = description {
+            payload["description"] = serde_json::Value::String(d.to_string());
+        }
+        let created: GitHubLabel = self.post_json(url, &payload).await?;
+        Ok(crate::providers::dto::VcsRepoLabel {
+            name: created.name,
+            color: created.color,
+            description: created.description,
+        })
+    }
+
+    pub(super) async fn set_pull_request_labels_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        labels: Vec<String>,
+    ) -> AppResult<Vec<String>> {
+        #[derive(Deserialize)]
+        struct GitHubLabelResponse {
+            name: String,
+        }
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/issues/{pr_number}/labels");
+        let payload = serde_json::json!({ "labels": labels });
+        let response = self
+            .client
+            .put(&url)
+            .bearer_auth(&self.token)
+            .header("Accept", "application/vnd.github+json")
+            .json(&payload)
+            .send()
+            .await?;
+
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+        if !status.is_success() {
+            let msg = serde_json::from_str::<serde_json::Value>(&body)
+                .ok()
+                .and_then(|v| v.get("message").and_then(|m| m.as_str()).map(|s| s.to_string()))
+                .unwrap_or_else(|| body.clone());
+            return Err(AppError::Provider(format!(
+                "GitHub set labels failed: {status} {msg}"
+            )));
+        }
+
+        let parsed: Vec<GitHubLabelResponse> = serde_json::from_str(&body)
+            .map_err(|e| AppError::Provider(format!("GitHub set labels decode failed: {e} — body: {body}")))?;
+        Ok(parsed.into_iter().map(|l| l.name).collect())
+    }
+
     pub(super) async fn list_pull_request_files_impl(
         &self,
         owner: &str,

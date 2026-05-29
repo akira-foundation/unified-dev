@@ -8,16 +8,15 @@ import {
   GitMerge,
   GitPullRequest,
   GitPullRequestDraft,
-  Tag,
   UserCircle2,
   Users,
   XCircle,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { LabelBadge } from "@/components/issues/label-badge";
 import { useI18n } from "@/i18n/i18n";
 import type { PullRequestDto } from "@/types/organization";
+import { PrLabelsEditor } from "./pr-labels-editor";
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const [open, setOpen] = useState(true);
@@ -60,7 +59,7 @@ function CiRow({ status }: { status: string }) {
   return <Row icon={meta.icon}>{status}</Row>;
 }
 
-export function PrProperties({ pr }: { pr: PullRequestDto }) {
+export function PrProperties({ pr, organizationId, repoName }: { pr: PullRequestDto; organizationId: string; repoName: string }) {
   const { t } = useI18n();
   const state = stateMeta(pr);
 
@@ -86,17 +85,12 @@ export function PrProperties({ pr }: { pr: PullRequestDto }) {
       )}
 
       <Section title={t("issues.detail.labelLabels")}>
-        {pr.labels.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 px-1 py-1">
-            {pr.labels.map((label) => (
-              <LabelBadge key={label} name={label} />
-            ))}
-          </div>
-        ) : (
-          <Row icon={<Tag className="h-3.5 w-3.5" />}>
-            <span className="text-zinc-500">{t("issues.detail.addLabel")}</span>
-          </Row>
-        )}
+        <PrLabelsEditor
+          organizationId={organizationId}
+          repoName={repoName}
+          prNumber={pr.number}
+          labels={pr.labels}
+        />
       </Section>
     </div>
   );
