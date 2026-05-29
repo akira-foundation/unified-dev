@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { useI18n } from "@/i18n/i18n";
 import { queryKeys } from "@/lib/query-keys";
+import { useNavigationStore } from "@/stores/navigation-store";
 import {
   Popover,
   PopoverContent,
@@ -43,6 +44,8 @@ function badgeStyles(color: string): React.CSSProperties {
 export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: PrLabelsEditorProps) {
   const { t } = useI18n();
   const queryClient = useQueryClient();
+  const activePr = useNavigationStore((s) => s.activePr);
+  const setActivePr = useNavigationStore((s) => s.setActivePr);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -55,8 +58,11 @@ export function PrLabelsEditor({ organizationId, repoName, prNumber, labels }: P
   const setLabelsMutation = useMutation({
     mutationFn: (next: string[]) =>
       invoke<string[]>("set_pr_labels", { organizationId, repoName, prNumber, labels: next }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(organizationId, repoName) });
+      if (activePr && activePr.number === prNumber) {
+        setActivePr({ ...activePr, labels: updated });
+      }
     },
     onError: (err) => {
       toast.error(String(err));
