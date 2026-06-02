@@ -34,6 +34,7 @@ struct UserInstallationsResponse {
 }
 
 struct CachedUserInstallations {
+    token: String,
     data: UserInstallationsResponse,
     cached_at: Instant,
 }
@@ -49,10 +50,11 @@ pub async fn list_organizations(state: State<'_, AppState>, app: AppHandle, prov
         .await
         .map_err(|error| error.to_string())?;
 
-    if credentials.kind == ProviderKind::GitHub
-        && matches!(credentials.auth, ProviderAuth::GitHubApp { .. }) {
-            return list_github_organizations(state, app).await;
+    if credentials.kind == ProviderKind::GitHub {
+        if let ProviderAuth::GitHubApp { oauth_access_token, .. } = &credentials.auth {
+            return list_github_organizations(state, app, oauth_access_token.clone()).await;
         }
+    }
 
     let provider = state
         .provider_factory
@@ -66,27 +68,10 @@ pub async fn list_organizations(state: State<'_, AppState>, app: AppHandle, prov
         .map_err(|error| error.to_string())
 }
 
-async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle) -> Result<Vec<ProviderOrg>, String> {
+async fn list_github_organizations(state: State<'_, AppState>, app: AppHandle, token: String) -> Result<Vec<ProviderOrg>, String> {
     crate::app::auth::ensure_authenticated(state.clone(), &app, "github")
         .await
         .map_err(|error| error.to_string())?;
-
-    let provider_id = sqlx::query_scalar::<_, String>(
-        "SELECT id FROM providers WHERE kind = 'github' LIMIT 1",
-    )
-    .fetch_optional(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?
-    .ok_or_else(|| "no github provider found".to_string())?;
-
-    let credentials = crate::app::providers::credentials::credentials(&state, &provider_id)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let token = match credentials.auth {
-        ProviderAuth::GitHubApp { oauth_access_token, .. } => oauth_access_token,
-        _ => return Err("not a github app provider".to_string()),
-    };
 
     let response = get_cached_or_fetch_user_installations(&token).await?;
     let user = fetch_github_user(&token).await?;
@@ -157,7 +142,7 @@ async fn fetch_github_user(token: &str) -> Result<GitHubUser, String> {
 async fn get_cached_or_fetch_user_installations(token: &str) -> Result<UserInstallationsResponse, String> {
     let cache = USER_INSTALLATIONS_CACHE.read().await;
     if let Some(cached) = cache.as_ref() {
-        if cached.cached_at.elapsed() < USER_CACHE_TTL {
+        if cached.token == token && cached.cached_at.elapsed() < USER_CACHE_TTL {
             return Ok(cached.data.clone());
         }
     }
@@ -172,6 +157,7 @@ async fn get_cached_or_fetch_user_installations(token: &str) -> Result<UserInsta
 
     let mut cache = USER_INSTALLATIONS_CACHE.write().await;
     *cache = Some(CachedUserInstallations {
+        token: token.to_string(),
         data: response.clone(),
         cached_at: Instant::now(),
     });

@@ -27,6 +27,7 @@ struct InstallationsResponse {
 }
 
 struct CachedInstallations {
+    token: String,
     installations: Vec<GitHubInstallation>,
     cached_at: Instant,
 }
@@ -262,7 +263,7 @@ mod tests;
 pub async fn get_cached_or_fetch_installations(token: &str) -> Result<Vec<GitHubInstallation>, String> {
     let cache = INSTALLATIONS_CACHE.read().await;
     if let Some(cached) = cache.as_ref() {
-        if cached.cached_at.elapsed() < CACHE_TTL {
+        if cached.token == token && cached.cached_at.elapsed() < CACHE_TTL {
             return Ok(cached.installations.clone());
         }
     }
@@ -277,6 +278,7 @@ pub async fn get_cached_or_fetch_installations(token: &str) -> Result<Vec<GitHub
 
     let mut cache = INSTALLATIONS_CACHE.write().await;
     *cache = Some(CachedInstallations {
+        token: token.to_string(),
         installations: response.installations.clone(),
         cached_at: Instant::now(),
     });
