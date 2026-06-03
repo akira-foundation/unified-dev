@@ -43,7 +43,7 @@ function FileDiffBlock({
       <div className={cn(viewed && "opacity-60")}>
         <CollapsibleTrigger className="w-full cursor-pointer" asChild>
           <div className={cn(
-            "flex items-center gap-2.5 px-3 py-2.5 select-none transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]",
+            "flex items-center gap-2.5 px-3 py-2.5 select-none transition-colors hover:rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800",
             open && "sticky top-0 z-10 bg-background",
           )}>
             <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform", open && "rotate-90")} />
