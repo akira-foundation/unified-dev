@@ -150,6 +150,32 @@ impl GitHubDriver {
         Ok(())
     }
 
+    pub(super) async fn set_pull_request_state_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        state: &str,
+    ) -> AppResult<()> {
+        let url = format!("{GITHUB_API}/repos/{owner}/{repository}/pulls/{pr_number}");
+        let payload = serde_json::json!({ "state": state });
+        let _: serde_json::Value = self.patch_json(url, &payload).await?;
+        Ok(())
+    }
+
+    pub(super) async fn close_pull_request_impl(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        comment: Option<&str>,
+    ) -> AppResult<()> {
+        if let Some(body) = comment.map(str::trim).filter(|b| !b.is_empty()) {
+            self.post_pull_request_comment_impl(owner, repository, pr_number, body).await?;
+        }
+        self.set_pull_request_state_impl(owner, repository, pr_number, "closed").await
+    }
+
     pub(super) async fn list_repository_labels_impl(
         &self,
         owner: &str,

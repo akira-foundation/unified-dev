@@ -106,6 +106,16 @@ pub async fn mark_pr_ready_for_review(state: State<'_, AppState>, organization_i
 }
 
 #[tauri::command]
+pub async fn close_pr(state: State<'_, AppState>, organization_id: String, repo_name: String, pr_number: u64, comment: Option<String>) -> Result<(), String> {
+    orgs::close_pr(state, organization_id, repo_name, pr_number, comment).await
+}
+
+#[tauri::command]
+pub async fn reopen_pr(state: State<'_, AppState>, organization_id: String, repo_name: String, pr_number: u64) -> Result<(), String> {
+    orgs::reopen_pr(state, organization_id, repo_name, pr_number).await
+}
+
+#[tauri::command]
 pub async fn list_pr_repo_labels(state: State<'_, AppState>, organization_id: String, repo_name: String) -> Result<Vec<orgs::RepoLabelDto>, String> {
     orgs::list_pr_repo_labels(state, organization_id, repo_name).await
 }

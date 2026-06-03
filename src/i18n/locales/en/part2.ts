@@ -22,6 +22,8 @@ export const enPart2: Record<string, string> = {
   "settings.appearance.themeLight": "Light",
   "settings.appearance.codeTheme": "Code Highlighter Theme",
   "settings.appearance.codeTheme.desc": "Choose a theme for the code editor.",
+  "settings.appearance.diffHighlight": "Diff syntax highlighting",
+  "settings.appearance.diffHighlight.desc": "Highlight code tokens in pull request diff views. Disable for plain monospace diffs.",
   "settings.appearance.preview.show": "Preview",
   "settings.appearance.preview.hide": "Hide Preview",
   "settings.groups.application": "Application",

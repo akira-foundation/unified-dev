@@ -2,7 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, ChevronDown, CheckCircle2, GitMerge, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, ChevronDown, CheckCircle2, GitMerge, Loader2, RotateCcw, Sparkles, XCircle } from "lucide-react";
 
 import { useI18n } from "@/i18n/i18n";
 import { useNavigationStore } from "@/stores/navigation-store";
@@ -14,6 +14,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { queryKeys } from "@/lib/query-keys";
 import type { PrMergeStrategy, PullRequestDto } from "@/types/organization";
 
@@ -34,6 +43,58 @@ export function PrMergePanel({ pr, organizationId, repoName, owner, onMerged }: 
   const [isMerging, setIsMerging] = useState(false);
   const [isResolving, setIsResolving] = useState(false);
   const [isMarkingReady, setIsMarkingReady] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [isReopening, setIsReopening] = useState(false);
+  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
+  const [closeComment, setCloseComment] = useState("");
+
+  const isMerged = pr.merged_at !== null;
+  const isClosed = pr.state === "closed" && !isMerged;
+
+  const invalidatePr = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.allRepositories() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.selectedRepositories(organizationId) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.pullRequests(organizationId, repoName) });
+  };
+
+  const handleClose = async () => {
+    if (isClosing) return;
+    setIsClosing(true);
+    const toastId = toast.loading(t("components.prDetail.close.closing"));
+    try {
+      await invoke("close_pr", {
+        organizationId,
+        repoName,
+        prNumber: pr.number,
+        comment: closeComment.trim() || null,
+      });
+      toast.success(t("components.prDetail.close.closed"), { id: toastId });
+      setCloseDialogOpen(false);
+      setCloseComment("");
+      invalidatePr();
+      onMerged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err), { id: toastId });
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
+  const handleReopen = async () => {
+    if (isReopening) return;
+    setIsReopening(true);
+    const toastId = toast.loading(t("components.prDetail.reopen.reopening"));
+    try {
+      await invoke("reopen_pr", { organizationId, repoName, prNumber: pr.number });
+      toast.success(t("components.prDetail.reopen.reopened"), { id: toastId });
+      invalidatePr();
+      onMerged();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err), { id: toastId });
+    } finally {
+      setIsReopening(false);
+    }
+  };
 
   const strategyLabels: Record<PrMergeStrategy, string> = {
     merge: t("components.prDetail.mergeCommit"),
@@ -162,7 +223,17 @@ export function PrMergePanel({ pr, organizationId, repoName, owner, onMerged }: 
           </Button>
         </div>
       )}
-      {pr.is_draft ? (
+      {isClosed ? (
+        <Button
+          variant="ghost"
+          className="w-full justify-center gap-2 border border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          disabled={isReopening}
+          onClick={() => void handleReopen()}
+        >
+          {isReopening ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+          {isReopening ? t("components.prDetail.reopen.reopening") : t("components.prDetail.reopen.action")}
+        </Button>
+      ) : pr.is_draft ? (
         <Button
           variant="ghost"
           className="w-full justify-center gap-2 border border-purple-500/20 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 dark:text-purple-300 dark:hover:bg-purple-500/20"
@@ -194,6 +265,47 @@ export function PrMergePanel({ pr, organizationId, repoName, owner, onMerged }: 
           </DropdownMenuContent>
         </DropdownMenu>
       )}
+
+      {!isMerged && !isClosed && (
+        <Button
+          variant="ghost"
+          className="w-full justify-center gap-2 border border-red-500/20 text-red-600 hover:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/10"
+          disabled={isClosing}
+          onClick={() => setCloseDialogOpen(true)}
+        >
+          {isClosing ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+          {t("components.prDetail.close.action")}
+        </Button>
+      )}
+
+      <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("components.prDetail.close.confirmTitle")}</DialogTitle>
+            <DialogDescription>{t("components.prDetail.close.confirmDescription")}</DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={closeComment}
+            onChange={(e) => setCloseComment(e.target.value)}
+            placeholder={t("components.prDetail.close.commentPlaceholder")}
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCloseDialogOpen(false)} disabled={isClosing}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              variant="ghost"
+              className="border border-red-500/20 text-red-600 hover:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/10"
+              onClick={() => void handleClose()}
+              disabled={isClosing}
+            >
+              {isClosing ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+              {t("components.prDetail.close.action")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

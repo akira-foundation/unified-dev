@@ -42,7 +42,10 @@ function FileDiffBlock({
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className={cn(viewed && "opacity-60")}>
         <CollapsibleTrigger className="w-full cursor-pointer" asChild>
-          <div className="flex items-center gap-2.5 rounded-md px-3 py-2.5 select-none transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]">
+          <div className={cn(
+            "flex items-center gap-2.5 rounded-md px-3 py-2.5 select-none transition-colors hover:bg-zinc-100 dark:hover:bg-white/[0.03]",
+            open && "sticky top-0 z-10 bg-background",
+          )}>
             <ChevronRight className={cn("h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform", open && "rotate-90")} />
             <FileCode className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
             <span className="min-w-0 flex-1 truncate text-left font-mono text-[12px] text-zinc-700 dark:text-zinc-200">
@@ -58,7 +61,7 @@ function FileDiffBlock({
               onClick={handleViewed}
               title={t("components.prDiff.viewedCount").replace("{viewed}", viewed ? "1" : "0").replace("{total}", "1")}
               className={cn(
-                "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors",
+                "flex h-3.5 w-3.5 shrink-0 cursor-pointer items-center justify-center rounded-sm border transition-colors",
                 viewed ? "border-emerald-500 bg-emerald-500 text-white" : "border-zinc-300 dark:border-zinc-600",
               )}
             >
