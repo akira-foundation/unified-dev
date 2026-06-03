@@ -121,6 +121,8 @@ jobs:
       - name: Generate release body for this tag
         if: startsWith(github.ref, 'refs/tags/')
         run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --latest --strip header --output release-body.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload DMG to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -265,6 +267,8 @@ jobs:
       - name: Generate release body for this tag
         if: startsWith(github.ref, 'refs/tags/')
         run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --latest --strip header --output release-body.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload DMG to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
