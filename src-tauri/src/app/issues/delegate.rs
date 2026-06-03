@@ -26,10 +26,12 @@ pub async fn delegate(
 
     let thread_title = build_thread_title(&issue_title, issue_identifier.as_deref(), &repo_name, pool).await?;
 
+    let customer_id = crate::app::auth::current_customer_id(pool).await;
     let existing: Option<(String, String, String)> = sqlx::query_as(
-        "SELECT id, name, workspace_root FROM local_repositories WHERE source_path = ? LIMIT 1",
+        "SELECT id, name, workspace_root FROM local_repositories WHERE source_path = ? AND customer_id = ? LIMIT 1",
     )
     .bind(&clone_url)
+    .bind(&customer_id)
     .fetch_optional(pool)
     .await?;
 
@@ -92,7 +94,7 @@ pub async fn delegate(
         };
 
         sqlx::query(
-            "INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&repository.id)
         .bind(&repository.name)
@@ -101,6 +103,7 @@ pub async fn delegate(
         .bind(&repository.remote_url)
         .bind(&repository.workspace_root)
         .bind(&repository.created_at)
+        .bind(&customer_id)
         .execute(pool)
         .await?;
 

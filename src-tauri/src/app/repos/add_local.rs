@@ -34,8 +34,10 @@ pub async fn add_local(
         git::clone_repository(source_path, &base_repo_path)?;
     }
 
-    let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM local_repositories WHERE source_path = ? LIMIT 1")
+    let customer_id = crate::app::auth::current_customer_id(pool).await;
+    let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM local_repositories WHERE source_path = ? AND customer_id = ? LIMIT 1")
         .bind(&local_path)
+        .bind(&customer_id)
         .fetch_optional(pool)
         .await?;
     if existing.is_some() {
@@ -56,7 +58,7 @@ pub async fn add_local(
         created_at: chrono::Utc::now().to_rfc3339(),
     };
 
-    sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(&repository.id)
         .bind(&repository.name)
         .bind(&repository.default_branch)
@@ -64,6 +66,7 @@ pub async fn add_local(
         .bind(&repository.remote_url)
         .bind(&repository.workspace_root)
         .bind(&repository.created_at)
+        .bind(&customer_id)
         .execute(pool)
         .await?;
 

@@ -10,8 +10,10 @@ pub async fn delete_local(
     state: tauri::State<'_, AppState>,
 ) -> AppResult<()> {
     let pool = &state.db_pool;
-    let repo_record = sqlx::query("SELECT workspace_root FROM local_repositories WHERE id = ?")
+    let customer_id = crate::app::auth::current_customer_id(pool).await;
+    let repo_record = sqlx::query("SELECT workspace_root FROM local_repositories WHERE id = ? AND customer_id IS ?")
         .bind(&repo_id)
+        .bind(&customer_id)
         .fetch_optional(pool)
         .await?;
 
@@ -24,6 +26,6 @@ pub async fn delete_local(
     }
 
     sqlx::query("DELETE FROM threads WHERE repo_id = ?").bind(&repo_id).execute(pool).await?;
-    sqlx::query("DELETE FROM local_repositories WHERE id = ?").bind(&repo_id).execute(pool).await?;
+    sqlx::query("DELETE FROM local_repositories WHERE id = ? AND customer_id IS ?").bind(&repo_id).bind(&customer_id).execute(pool).await?;
     Ok(())
 }

@@ -31,10 +31,12 @@ pub async fn connect_mcp_server(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> AppResult<()> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let server = sqlx::query_as::<_, McpServer>(
-        "SELECT id, name, url, access_token, token_type, enabled, created_at FROM mcp_servers WHERE id = ?",
+        "SELECT id, name, url, access_token, token_type, enabled, created_at FROM mcp_servers WHERE id = ? AND customer_id IS ?",
     )
     .bind(&id)
+    .bind(&customer_id)
     .fetch_optional(&state.db_pool)
     .await?
     .ok_or_else(|| crate::app::support::error::AppError::Internal(format!("MCP server '{id}' not found")))?;
@@ -46,8 +48,10 @@ pub async fn connect_mcp_server(
 
 #[tauri::command]
 pub async fn disconnect_mcp_server(id: String, state: State<'_, AppState>) -> AppResult<()> {
-    sqlx::query("UPDATE mcp_servers SET access_token = NULL WHERE id = ?")
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    sqlx::query("UPDATE mcp_servers SET access_token = NULL WHERE id = ? AND customer_id IS ?")
         .bind(&id)
+        .bind(&customer_id)
         .execute(&state.db_pool)
         .await?;
     Ok(())

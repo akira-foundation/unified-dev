@@ -100,9 +100,11 @@ pub fn title_case(s: &str) -> String {
 }
 
 pub async fn load_content(pool: &SqlitePool) -> Vec<(String, String)> {
+    let customer_id = crate::app::auth::current_customer_id(pool).await;
     let rows: Vec<(String, String, String)> = sqlx::query_as(
-        "SELECT id, name, source_path FROM skills WHERE enabled = 1 ORDER BY scope DESC, name COLLATE NOCASE",
+        "SELECT id, name, source_path FROM skills WHERE enabled = 1 AND customer_id = ? ORDER BY scope DESC, name COLLATE NOCASE",
     )
+    .bind(&customer_id)
     .fetch_all(pool)
     .await
     .unwrap_or_default();

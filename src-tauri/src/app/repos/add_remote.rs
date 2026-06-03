@@ -38,10 +38,12 @@ pub async fn add_remote(
 
     let default_branch = git::get_default_branch(&base_repo_path)?;
 
+    let customer_id = crate::app::auth::current_customer_id(pool).await;
     let existing: Option<(String,)> = sqlx::query_as(
-        "SELECT id FROM local_repositories WHERE source_path = ? LIMIT 1",
+        "SELECT id FROM local_repositories WHERE source_path = ? AND customer_id = ? LIMIT 1",
     )
     .bind(&url)
+    .bind(&customer_id)
     .fetch_optional(pool)
     .await?;
 
@@ -66,7 +68,7 @@ pub async fn add_remote(
     };
 
     sqlx::query(
-        "INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO local_repositories (id, name, default_branch, source_path, remote_url, workspace_root, created_at, customer_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&repository.id)
     .bind(&repository.name)
@@ -75,6 +77,7 @@ pub async fn add_remote(
     .bind(&repository.remote_url)
     .bind(&repository.workspace_root)
     .bind(&repository.created_at)
+    .bind(&customer_id)
     .execute(pool)
     .await?;
 
