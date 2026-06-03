@@ -87,8 +87,8 @@ export function PrDetailPage() {
             </TabsList>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-6 py-4 md:px-8">
-            <TabsContent value="overview">
+          <div className="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-6 pb-4 md:px-8">
+            <TabsContent value="overview" className="pt-4">
               <IssueDescription editor={prBody} />
               <CommentThread
                 organizationId={repo.organizationId}
@@ -102,7 +102,7 @@ export function PrDetailPage() {
               <PrDiffView files={files} loading={filesLoading} prNumber={pr.number} />
             </TabsContent>
 
-            <TabsContent value="checks">
+            <TabsContent value="checks" className="pt-4">
               <PrChecksView checks={checks} loading={checksLoading} orgId={repo.organizationId} repoName={repo.name} />
             </TabsContent>
           </div>
