@@ -40,15 +40,11 @@ impl AiRegistry {
         }
 
         if model.starts_with("claude-") {
-            if resolve_env_key("ANTHROPIC_API_KEY").is_some() {
-                return self.find("anthropic").unwrap().complete(request, app).await;
-            }
-            if find_claude_cli().is_some() {
-                return self.find("anthropic_cli").unwrap().complete(request, app).await;
-            }
-            return Err(AppError::Internal(
-                "No Anthropic provider available. Set ANTHROPIC_API_KEY in your shell config or install the Claude CLI.".to_string(),
-            ));
+            let id = select_anthropic_provider(
+                find_claude_cli().is_some(),
+                resolve_env_key("ANTHROPIC_API_KEY").is_some(),
+            )?;
+            return self.find(id).unwrap().complete(request, app).await;
         }
 
         if model.starts_with("gpt-5") || model.starts_with("codex-") {
@@ -77,5 +73,42 @@ impl AiRegistry {
         }
 
         Err(AppError::Internal(format!("[Model '{model}' is not yet supported]")))
+    }
+}
+
+fn select_anthropic_provider(has_claude_cli: bool, has_api_key: bool) -> AppResult<&'static str> {
+    if has_claude_cli {
+        return Ok("anthropic_cli");
+    }
+    if has_api_key {
+        return Ok("anthropic");
+    }
+    Err(AppError::Internal(
+        "No Anthropic provider available. Install Claude Code (the `claude` CLI) and sign in, or set ANTHROPIC_API_KEY in your shell config.".to_string(),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::select_anthropic_provider;
+
+    #[test]
+    fn prefers_claude_cli_over_api_key() {
+        assert_eq!(select_anthropic_provider(true, true).unwrap(), "anthropic_cli");
+    }
+
+    #[test]
+    fn uses_claude_cli_when_no_api_key() {
+        assert_eq!(select_anthropic_provider(true, false).unwrap(), "anthropic_cli");
+    }
+
+    #[test]
+    fn falls_back_to_api_key_without_cli() {
+        assert_eq!(select_anthropic_provider(false, true).unwrap(), "anthropic");
+    }
+
+    #[test]
+    fn errors_when_neither_available() {
+        assert!(select_anthropic_provider(false, false).is_err());
     }
 }
