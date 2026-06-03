@@ -18,10 +18,12 @@ pub fn start(app_handle: AppHandle) {
             let state = app_handle.state::<AppState>();
             let now = Instant::now();
             let global = load_settings(&state, GLOBAL_ID).await;
+            let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
 
             let orgs: Vec<(String,)> = match sqlx::query_as(
-                "SELECT o.id FROM organizations o JOIN providers p ON p.id = o.provider_id ORDER BY o.name",
+                "SELECT o.id FROM organizations o JOIN providers p ON p.id = o.provider_id WHERE p.customer_id = ? ORDER BY o.name",
             )
+            .bind(&customer_id)
             .fetch_all(&state.db_pool)
             .await
             {
@@ -30,8 +32,9 @@ pub fn start(app_handle: AppHandle) {
             };
 
             let repos: Vec<(String, String, String)> = match sqlx::query_as(
-                "SELECT r.organization_id, r.owner, r.repo_name FROM organization_repos r JOIN organizations o ON o.id = r.organization_id JOIN providers p ON p.id = o.provider_id WHERE r.is_selected = 1",
+                "SELECT r.organization_id, r.owner, r.repo_name FROM organization_repos r JOIN organizations o ON o.id = r.organization_id JOIN providers p ON p.id = o.provider_id WHERE r.is_selected = 1 AND p.customer_id = ?",
             )
+            .bind(&customer_id)
             .fetch_all(&state.db_pool)
             .await
             {
@@ -127,7 +130,8 @@ pub fn start(app_handle: AppHandle) {
                 && due(&last_synced, "orgs", GLOBAL_ID, global.sync_orgs_interval_secs, now)
             {
                 let provider_ids: Vec<String> =
-                    sqlx::query_scalar::<_, String>("SELECT id FROM providers")
+                    sqlx::query_scalar::<_, String>("SELECT id FROM providers WHERE customer_id = ?")
+                        .bind(&customer_id)
                         .fetch_all(&state.db_pool)
                         .await
                         .unwrap_or_default();

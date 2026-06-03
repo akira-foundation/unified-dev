@@ -57,7 +57,9 @@ async fn fetch_year_from_github(
         .await
         .map_err(|e| e.to_string())?;
 
-    let profile_row = sqlx::query("SELECT id FROM github_contribution_profiles ORDER BY created_at DESC LIMIT 1")
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let profile_row = sqlx::query("SELECT id FROM github_contribution_profiles WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1")
+        .bind(customer_id)
         .fetch_optional(&state.db_pool)
         .await
         .map_err(|e| e.to_string())?;

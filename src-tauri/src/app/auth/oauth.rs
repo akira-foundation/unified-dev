@@ -189,17 +189,6 @@ async fn persist_customer_session(
     state: &State<'_, AppState>,
     response: &akira_billing::types::OauthExchangeResponse,
 ) -> AppResult<()> {
-    let previous_customer_id = sqlx::query_scalar::<_, Option<String>>(
-        "SELECT customer_id FROM license WHERE id = 'local'",
-    )
-    .fetch_optional(&state.db_pool)
-    .await?
-    .flatten();
-
-    if previous_customer_id.as_deref() != Some(response.customer.id.as_str()) {
-        crate::app::auth::logout::clear_local_provider_data(&state.db_pool).await?;
-    }
-
     let encrypted_token = state.token_cipher.encrypt(&response.access_token)?;
     let now = chrono::Utc::now().to_rfc3339();
 

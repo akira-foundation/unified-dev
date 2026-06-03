@@ -7,13 +7,15 @@ use crate::state::AppState;
 use super::models::*;
 
 pub async fn fetch_summary(state: State<'_, AppState>) -> Result<ContributionSummaryDto, String> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let row = sqlx::query(
         "SELECT id, login, name, avatar_url, bio, followers, following,
                 total_contributions, current_streak, best_streak,
                 most_active_language, most_active_repo, last_synced_at, contribution_years,
                 total_commits_period, total_prs_period, total_issues_period, total_reviews_period
-         FROM github_contribution_profiles ORDER BY created_at DESC LIMIT 1",
+         FROM github_contribution_profiles WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1",
     )
+    .bind(customer_id)
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;

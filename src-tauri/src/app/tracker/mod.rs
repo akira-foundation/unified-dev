@@ -91,9 +91,11 @@ impl From<ExternalIssueRow> for TrackerIssue {
 const ISSUE_COLUMNS: &str = "id, identifier, title, description, url, status, category, project_id, milestone_id, team_id, assignee_id, author_id, labels, priority, created_at, updated_at, project_name, milestone_name, team_name, assignee_name, author_name, label_names";
 
 async fn resolve_tracker(state: &AppState, provider: &str) -> AppResult<Arc<dyn Tracker>> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let encrypted: Option<String> =
-        sqlx::query_scalar("SELECT token_cipher FROM tracker_credentials WHERE provider = ?")
+        sqlx::query_scalar("SELECT token_cipher FROM tracker_credentials WHERE provider = ? AND customer_id = ?")
             .bind(provider)
+            .bind(customer_id)
             .fetch_optional(&state.db_pool)
             .await?;
     let encrypted =
@@ -119,10 +121,11 @@ pub async fn connect(state: &AppState, provider: String, token: String) -> AppRe
 
     let encrypted = state.token_cipher.encrypt(&token)?;
     let now = chrono::Utc::now().to_rfc3339();
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     sqlx::query(
-        "INSERT INTO tracker_credentials (provider, token_cipher, account_id, account_name, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, ?, ?) \
-         ON CONFLICT(provider) DO UPDATE SET token_cipher = excluded.token_cipher, account_id = excluded.account_id, account_name = excluded.account_name, updated_at = excluded.updated_at",
+        "INSERT INTO tracker_credentials (provider, token_cipher, account_id, account_name, created_at, updated_at, customer_id) \
+         VALUES (?, ?, ?, ?, ?, ?, ?) \
+         ON CONFLICT(provider) DO UPDATE SET token_cipher = excluded.token_cipher, account_id = excluded.account_id, account_name = excluded.account_name, updated_at = excluded.updated_at, customer_id = excluded.customer_id",
     )
     .bind(&provider)
     .bind(&encrypted)
@@ -130,6 +133,7 @@ pub async fn connect(state: &AppState, provider: String, token: String) -> AppRe
     .bind(&user.name)
     .bind(&now)
     .bind(&now)
+    .bind(&customer_id)
     .execute(&state.db_pool)
     .await?;
 
@@ -157,9 +161,11 @@ pub async fn disconnect(state: &AppState, provider: &str) -> AppResult<()> {
 }
 
 pub async fn status(state: &AppState, provider: &str) -> AppResult<bool> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let found: Option<String> =
-        sqlx::query_scalar("SELECT provider FROM tracker_credentials WHERE provider = ?")
+        sqlx::query_scalar("SELECT provider FROM tracker_credentials WHERE provider = ? AND customer_id = ?")
             .bind(provider)
+            .bind(customer_id)
             .fetch_optional(&state.db_pool)
             .await?;
     Ok(found.is_some())

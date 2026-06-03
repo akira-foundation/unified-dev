@@ -9,12 +9,15 @@ pub async fn list_issues(
     state: State<'_, AppState>,
     filters: OssFiltersDto,
 ) -> Result<Vec<OssIssueDto>, String> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let rows = sqlx::query(
         "SELECT id, repo_id, name_with_owner, number, title, state, url,
                 comments_count, created_at, closed_at
          FROM github_issues_oss
+         WHERE profile_id IN (SELECT id FROM github_contribution_profiles WHERE customer_id = ?)
          ORDER BY created_at DESC",
     )
+    .bind(customer_id)
     .fetch_all(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;

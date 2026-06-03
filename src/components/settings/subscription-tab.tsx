@@ -88,13 +88,19 @@ export function SubscriptionTab() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await invoke("oauth_logout");
-      await load();
+  const handleLogout = () => {
+    toast.loading(t("settings.general.account.plan.signingOut"), { id: "logout" });
+    setTimeout(() => {
+      toast.dismiss("logout");
       useOnboardingStore.getState().requireAuth();
-    } catch {
-    }
+      void (async () => {
+        try {
+          await invoke("oauth_logout");
+          await load();
+        } catch {
+        }
+      })();
+    }, 500);
   };
 
   const handleDowngrade = async (target: "free" | "pro") => {

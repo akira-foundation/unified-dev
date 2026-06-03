@@ -150,6 +150,7 @@ export function OnboardingOverlay() {
       await useLicenseStore.getState().verify();
       if (authOnly) {
         clearRequireAuth();
+        window.location.reload();
         return;
       }
       next();
@@ -462,6 +463,16 @@ interface OauthProviderDto {
   scopes: string[];
 }
 
+let cachedOauthProviders: OauthProviderDto[] | null = null;
+
+export function prefetchOauthProviders() {
+  invoke<OauthProviderDto[]>("list_oauth_providers")
+    .then((list) => {
+      cachedOauthProviders = list;
+    })
+    .catch(() => {});
+}
+
 const PROVIDER_ICON: Record<string, ReactNode> = {
   github: (
     <svg className="h-5 w-5 text-foreground shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -512,8 +523,8 @@ function AuthStep({
   authResult: { customer_email: string; customer_name: string | null } | null;
   onOauth: (provider: string) => void;
 }) {
-  const [providers, setProviders] = useState<OauthProviderDto[]>([]);
-  const [loadingProviders, setLoadingProviders] = useState(true);
+  const [providers, setProviders] = useState<OauthProviderDto[]>(cachedOauthProviders ?? []);
+  const [loadingProviders, setLoadingProviders] = useState(cachedOauthProviders === null);
   const [activeProvider, setActiveProvider] = useState<string | null>(null);
 
   useEffect(() => {
@@ -522,8 +533,11 @@ function AuthStep({
 
   useEffect(() => {
     invoke<OauthProviderDto[]>("list_oauth_providers")
-      .then((list) => setProviders(list))
-      .catch(() => setProviders([{ provider: "github", label: "GitHub", scopes: [] }]))
+      .then((list) => {
+        cachedOauthProviders = list;
+        setProviders(list);
+      })
+      .catch(() => setProviders((prev) => (prev.length ? prev : [{ provider: "github", label: "GitHub", scopes: [] }])))
       .finally(() => setLoadingProviders(false));
   }, []);
   if (authResult) {

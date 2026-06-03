@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAvatar } from "@/hooks/useAvatar";
 import { useLicense } from "@/hooks/useLicense";
+import { toast } from "sonner";
 import { useI18n } from "@/i18n/i18n";
-import { useLicenseStore } from "@/stores/license-store";
 import { useNavigationStore } from "@/stores/navigation-store";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -28,7 +28,6 @@ export function UserMenu() {
   const { t } = useI18n();
   const { license, currentPlan } = useLicense();
   const avatarUrl = useAvatar(license?.email);
-  const { clear } = useLicenseStore();
   const navigateTo = useNavigationStore((s) => s.navigateTo);
   const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
   const { state } = useSidebar();
@@ -37,13 +36,14 @@ export function UserMenu() {
   const email = license?.email ?? "";
   const isCollapsed = state === "collapsed";
 
-  async function handleLogout() {
+  function handleLogout() {
     setOpen(false);
-    clear();
-    useOnboardingStore.getState().requireAuth();
-    try {
-      await invoke("oauth_logout");
-    } catch {}
+    toast.loading(t("settings.general.account.plan.signingOut"), { id: "logout" });
+    setTimeout(() => {
+      toast.dismiss("logout");
+      useOnboardingStore.getState().requireAuth();
+      void invoke("oauth_logout").catch(() => {});
+    }, 500);
   }
 
   function handleSettings() {

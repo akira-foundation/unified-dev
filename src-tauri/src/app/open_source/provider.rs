@@ -11,12 +11,14 @@ pub struct GitHubContext {
 }
 
 pub async fn find_github_driver(state: &AppState) -> Result<GitHubContext, String> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let row = sqlx::query(
-        "SELECT id FROM providers WHERE kind = 'github'
+        "SELECT id FROM providers WHERE kind = 'github' AND customer_id = ?
          ORDER BY CASE auth_type WHEN 'pat' THEN 0 WHEN 'github_oauth' THEN 1 ELSE 2 END,
                   created_at DESC
          LIMIT 1",
     )
+    .bind(customer_id)
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?

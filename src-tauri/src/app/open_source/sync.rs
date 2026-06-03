@@ -59,15 +59,17 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
     let profile_id = format!("github:{}", v.login);
 
     let years_json = serde_json::to_string(&years).unwrap_or_else(|_| "[]".to_string());
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     sqlx::query(
         "INSERT INTO github_contribution_profiles
          (id, provider_id, login, name, avatar_url, bio, followers, following,
           total_contributions, current_streak, best_streak,
           most_active_language, most_active_repo, last_synced_at, created_at, contribution_years,
-          total_commits_period, total_prs_period, total_issues_period, total_reviews_period)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)
+          total_commits_period, total_prs_period, total_issues_period, total_reviews_period, customer_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
             provider_id = excluded.provider_id,
+            customer_id = excluded.customer_id,
             name = excluded.name,
             avatar_url = excluded.avatar_url,
             bio = excluded.bio,
@@ -103,6 +105,7 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
     .bind(cc.total_pull_request_contributions)
     .bind(cc.total_issue_contributions)
     .bind(cc.total_pull_request_review_contributions)
+    .bind(&customer_id)
     .execute(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;
