@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **pr-detail:** Drop rounded corners on diff file header ([4fd1c87](https://github.com/akira-foundation/unified-dev/commit/4fd1c874be86184f3059375b2660d926d926b592))
 - **pr-detail:** Opaque diff header hover, rounded only on hover ([ca1e71c](https://github.com/akira-foundation/unified-dev/commit/ca1e71c7e440c9649440f34f1eb1734e54f78242))
 - **pr-detail:** Drop rounded on diff header hover ([da170c9](https://github.com/akira-foundation/unified-dev/commit/da170c9e8eefde037933e155c55c7937ed08da73))
+- **ci:** Pass GITHUB_TOKEN to git-cliff release-body step ([bb62d37](https://github.com/akira-foundation/unified-dev/commit/bb62d378411aef0d7dbdfd0f56b4ab0a95f41ce5))
 
 
 ### Code Refactoring
