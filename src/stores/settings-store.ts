@@ -82,6 +82,8 @@ interface SettingsState {
   setSidebarOpen: (open: boolean) => void;
   editorTheme: string;
   setEditorTheme: (theme: string) => void;
+  diffSyntaxHighlight: boolean;
+  setDiffSyntaxHighlight: (enabled: boolean) => void;
 
   // Prompt overrides — source of truth is SQLite; this is an in-memory cache
   promptOverrides: Record<string, string>;
@@ -118,6 +120,8 @@ export const useSettingsStore = create<SettingsState>()(
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       editorTheme: "oneDark",
       setEditorTheme: (theme) => set({ editorTheme: theme }),
+      diffSyntaxHighlight: true,
+      setDiffSyntaxHighlight: (enabled) => set({ diffSyntaxHighlight: enabled }),
       defaultIssueScope: DEFAULT_ISSUE_SCOPE,
       defaultPrScope: DEFAULT_PR_SCOPE,
       assignIssuesToSelfByDefault: true,
@@ -223,6 +227,7 @@ export const useSettingsStore = create<SettingsState>()(
         appearance: state.appearance,
         sidebarOpen: state.sidebarOpen,
         editorTheme: state.editorTheme,
+        diffSyntaxHighlight: state.diffSyntaxHighlight,
         defaultIssueScope: state.defaultIssueScope,
         defaultPrScope: state.defaultPrScope,
         assignIssuesToSelfByDefault: state.assignIssuesToSelfByDefault,

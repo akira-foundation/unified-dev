@@ -63,7 +63,7 @@ final readonly class CreateUserAction
 
 export function AppearanceTab() {
   const { t } = useI18n();
-  const { editorTheme, setEditorTheme } = useSettingsStore();
+  const { editorTheme, setEditorTheme, diffSyntaxHighlight, setDiffSyntaxHighlight } = useSettingsStore();
   const { appearance, updateAppearance } = useAppearance();
   const [showThemePreview, toggleShowThemePreview] = useToggle(false);
 
@@ -101,6 +101,16 @@ export function AppearanceTab() {
                 <SelectItem value="light">{t("settings.appearance.themeLight")}</SelectItem>
               </SelectContent>
             </Select>
+          }
+        />
+        <SettingsItem
+          label={t("settings.appearance.diffHighlight")}
+          description={t("settings.appearance.diffHighlight.desc")}
+          action={
+            <Switch
+              checked={diffSyntaxHighlight}
+              onCheckedChange={setDiffSyntaxHighlight}
+            />
           }
         />
         <SettingsItem

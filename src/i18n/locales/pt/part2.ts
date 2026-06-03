@@ -22,6 +22,8 @@ export const ptPart2: Record<string, string> = {
   "settings.appearance.themeLight": "Claro",
   "settings.appearance.codeTheme": "Tema do Realçador de Código",
   "settings.appearance.codeTheme.desc": "Escolhe um tema para o editor de código.",
+  "settings.appearance.diffHighlight": "Realce de sintaxe no diff",
+  "settings.appearance.diffHighlight.desc": "Realça os tokens de código nas vistas de diff dos pull requests. Desativa para diffs monospace simples.",
   "settings.appearance.preview.show": "Pré-visualizar",
   "settings.appearance.preview.hide": "Ocultar Pré-visualização",
   "settings.groups.application": "Aplicação",

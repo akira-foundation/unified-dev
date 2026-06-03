@@ -1,4 +1,5 @@
 pub mod resolve_provider;
+pub mod close;
 pub mod get_checks;
 pub mod get_comments;
 pub mod delete_comment;
@@ -14,6 +15,7 @@ pub mod submit_review;
 pub mod sync;
 pub mod update_body;
 
+pub use close::{close, reopen};
 pub use get_checks::get_checks;
 pub use get_comments::get_comments;
 pub use delete_comment::delete_comment;

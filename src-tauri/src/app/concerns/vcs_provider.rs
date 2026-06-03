@@ -33,6 +33,16 @@ pub trait VcsProvider: Send + Sync {
             "marking pull requests as ready for review is not supported by this provider".into(),
         ))
     }
+    async fn close_pull_request(&self, _owner: &str, _repository: &str, _pr_number: u64, _comment: Option<&str>) -> AppResult<()> {
+        Err(crate::app::support::error::AppError::Provider(
+            "closing pull requests is not supported by this provider".into(),
+        ))
+    }
+    async fn reopen_pull_request(&self, _owner: &str, _repository: &str, _pr_number: u64) -> AppResult<()> {
+        Err(crate::app::support::error::AppError::Provider(
+            "reopening pull requests is not supported by this provider".into(),
+        ))
+    }
     async fn list_repository_labels(&self, _owner: &str, _repository: &str) -> AppResult<Vec<VcsRepoLabel>> {
         Err(crate::app::support::error::AppError::Provider(
             "listing repository labels is not supported by this provider".into(),

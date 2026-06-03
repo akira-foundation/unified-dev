@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { cn } from "../../lib/utils";
 import { getLanguageFromFilename, highlightLine } from "../../lib/highlight";
 import { diffWords, type WordSeg } from "../../lib/word-diff";
+import { useSettingsStore } from "../../stores/settings-store";
 
 export interface PatchLine {
   type: "added" | "removed" | "context" | "hunk" | "meta";
@@ -88,14 +89,17 @@ export function PatchViewer({
   splitView?: boolean;
   filename?: string;
 }) {
+  const syntaxHighlight = useSettingsStore((s) => s.diffSyntaxHighlight);
   const lines = parsePatchLines(patch);
-  const language = filename ? getLanguageFromFilename(filename) : null;
+  const language = syntaxHighlight && filename ? getLanguageFromFilename(filename) : null;
   const wordDiffs = useMemo(() => computeWordDiffs(lines), [patch]);
 
   const highlighted = useMemo(() => {
     if (!language) return null;
     return lines.map((l) =>
-      l.type === "context" ? highlightLine(l.content, language) : null,
+      l.type === "context" || l.type === "added" || l.type === "removed"
+        ? highlightLine(l.content, language)
+        : null,
     );
   }, [patch, language]);
 

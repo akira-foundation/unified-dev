@@ -126,11 +126,14 @@ export function AppHeader() {
                             )}
                         </div>
                         {currentPage !== "dashboard" && (() => {
+                            const repoSegment = activeRepo
+                                ? { title: activeRepo.name, page: "repository-detail" as const }
+                                : undefined;
                             const detail =
                                 currentPage === "pr-review" || currentPage === "pr-detail"
-                                    ? { labelKey: "nav.prs", page: "prs" as const, title: activePr?.title }
+                                    ? { labelKey: "nav.prs", page: "prs" as const, title: activePr?.title, repo: repoSegment }
                                     : currentPage === "issue-detail"
-                                        ? { labelKey: "nav.issues", page: "issues" as const, title: activeIssue?.title }
+                                        ? { labelKey: "nav.issues", page: "issues" as const, title: activeIssue?.title, repo: repoSegment }
                                         : currentPage === "repository-detail"
                                             ? { labelKey: "nav.repositories", page: "repository" as const, title: activeRepo ? `${activeRepo.owner}/${activeRepo.name}` : undefined }
                                             : currentPage === "project-detail"
@@ -145,6 +148,18 @@ export function AppHeader() {
                             return (
                                 <>
                                     <span className={`text-[12px] leading-none text-muted-foreground/40 ${detail?.title ? "hidden lg:inline" : ""}`}>/</span>
+                                    {detail && "repo" in detail && detail.repo && (
+                                        <>
+                                            <button
+                                                onClick={() => navigateTo(detail.repo!.page)}
+                                                title={detail.repo.title}
+                                                className="hidden max-w-[160px] shrink-0 truncate text-[12px] font-medium leading-none text-foreground/70 transition-colors hover:text-foreground hover:underline lg:inline"
+                                            >
+                                                {detail.repo.title}
+                                            </button>
+                                            <span className="hidden text-[12px] leading-none text-muted-foreground/40 lg:inline">/</span>
+                                        </>
+                                    )}
                                     {detail ? (
                                         <button
                                             onClick={() => navigateTo(detail.page)}

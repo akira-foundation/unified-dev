@@ -195,6 +195,25 @@ impl VcsProvider for GitHubDriver {
         self.mark_pull_request_ready_for_review_impl(owner, repository, pr_number).await
     }
 
+    async fn close_pull_request(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+        comment: Option<&str>,
+    ) -> AppResult<()> {
+        self.close_pull_request_impl(owner, repository, pr_number, comment).await
+    }
+
+    async fn reopen_pull_request(
+        &self,
+        owner: &str,
+        repository: &str,
+        pr_number: u64,
+    ) -> AppResult<()> {
+        self.set_pull_request_state_impl(owner, repository, pr_number, "open").await
+    }
+
     async fn list_repository_labels(
         &self,
         owner: &str,
