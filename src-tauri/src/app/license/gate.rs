@@ -71,9 +71,12 @@ async fn count_for(pool: &SqlitePool, feature: &str) -> AppResult<u64> {
         .bind(&customer_id)
         .fetch_one(pool)
         .await?,
-        "threads" => sqlx::query_scalar("SELECT COUNT(*) FROM threads WHERE status != 'closed'")
-            .fetch_one(pool)
-            .await?,
+        "threads" => sqlx::query_scalar(
+            "SELECT COUNT(*) FROM threads t JOIN local_repositories r ON r.id = t.repo_id WHERE t.status != 'closed' AND r.customer_id = ?",
+        )
+        .bind(&customer_id)
+        .fetch_one(pool)
+        .await?,
         _ => 0,
     };
     Ok(count.max(0) as u64)
@@ -121,6 +124,33 @@ mod tests {
             .await
             .expect("repo");
         assert_eq!(count_for(&pool, "repos").await.expect("count"), 1);
+    }
+
+    #[tokio::test]
+    async fn count_for_threads_excludes_other_customers() {
+        let pool = setup_test_db().await;
+        seed_license(&pool, "free", false).await;
+        sqlx::query("UPDATE license SET customer_id = 'cust-1' WHERE id = 'local'")
+            .execute(&pool)
+            .await
+            .expect("license customer");
+        sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, workspace_root, created_at, customer_id) VALUES ('lr1', 'mine', 'main', '/mine', '/ws/mine', '2026-01-01', 'cust-1')")
+            .execute(&pool)
+            .await
+            .expect("repo mine");
+        sqlx::query("INSERT INTO local_repositories (id, name, default_branch, source_path, workspace_root, created_at, customer_id) VALUES ('lr2', 'theirs', 'main', '/theirs', '/ws/theirs', '2026-01-01', 'cust-2')")
+            .execute(&pool)
+            .await
+            .expect("repo theirs");
+        sqlx::query("INSERT INTO threads (id, repo_id, title, workspace_path, branch, status, created_at) VALUES ('t1', 'lr1', 'mine', '/ws/mine', 'b', 'open', '2026-01-01')")
+            .execute(&pool)
+            .await
+            .expect("thread mine");
+        sqlx::query("INSERT INTO threads (id, repo_id, title, workspace_path, branch, status, created_at) VALUES ('t2', 'lr2', 'theirs', '/ws/theirs', 'b', 'open', '2026-01-01')")
+            .execute(&pool)
+            .await
+            .expect("thread theirs");
+        assert_eq!(count_for(&pool, "threads").await.expect("count"), 1);
     }
 
     #[tokio::test]

@@ -23,9 +23,11 @@ pub async fn set_icon(
     std::fs::write(&dest, &data)?;
 
     let path_str = dest.to_string_lossy().to_string();
-    sqlx::query("UPDATE skills SET icon_path = ? WHERE id = ?")
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    sqlx::query("UPDATE skills SET icon_path = ? WHERE id = ? AND customer_id IS ?")
         .bind(&path_str)
         .bind(&id)
+        .bind(&customer_id)
         .execute(&state.db_pool)
         .await?;
 

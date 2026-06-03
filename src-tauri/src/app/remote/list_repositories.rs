@@ -13,9 +13,11 @@ pub async fn list_repositories(
 ) -> Result<Json<Vec<RepositoryRow>>, (StatusCode, String)> {
     authorize(&headers, &state.db_pool).await?;
 
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let repos = sqlx::query_as::<_, (String, String, String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>)>(
-        "SELECT id, name, default_branch, display_name, default_model_id, review_model_id, default_merge_action, remote_url FROM local_repositories ORDER BY created_at DESC",
+        "SELECT id, name, default_branch, display_name, default_model_id, review_model_id, default_merge_action, remote_url FROM local_repositories WHERE customer_id = ? ORDER BY created_at DESC",
     )
+    .bind(&customer_id)
     .fetch_all(&state.db_pool)
     .await
     .map_err(internal_error)?;

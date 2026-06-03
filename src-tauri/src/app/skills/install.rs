@@ -95,10 +95,11 @@ pub async fn install(
         name = title_case(&skill_id);
     }
 
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     sqlx::query(
-        "INSERT INTO skills (id, name, description, enabled, icon_path, installed_at, source_path, scope)
-         VALUES (?, ?, ?, 1, NULL, ?, ?, 'global')
-         ON CONFLICT(id) DO UPDATE SET
+        "INSERT INTO skills (id, name, description, enabled, icon_path, installed_at, source_path, scope, customer_id)
+         VALUES (?, ?, ?, 1, NULL, ?, ?, 'global', ?)
+         ON CONFLICT(id, customer_id) DO UPDATE SET
            name = excluded.name,
            description = excluded.description,
            source_path = excluded.source_path,
@@ -110,6 +111,7 @@ pub async fn install(
     .bind(&description)
     .bind(&now)
     .bind(&installed_source)
+    .bind(&customer_id)
     .execute(&state.db_pool)
     .await?;
 

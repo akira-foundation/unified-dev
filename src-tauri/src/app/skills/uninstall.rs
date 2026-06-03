@@ -19,8 +19,10 @@ pub async fn uninstall(id: String, app_handle: AppHandle, state: State<'_, AppSt
         }
     }
 
-    sqlx::query("DELETE FROM skills WHERE id = ?")
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    sqlx::query("DELETE FROM skills WHERE id = ? AND customer_id IS ?")
         .bind(&id)
+        .bind(&customer_id)
         .execute(&state.db_pool)
         .await?;
 

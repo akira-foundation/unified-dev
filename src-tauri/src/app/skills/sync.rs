@@ -13,6 +13,7 @@ pub async fn sync(
     workspace_path: Option<String>,
     state: State<'_, AppState>,
 ) -> AppResult<Vec<InstalledSkill>> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let dirs = super::skill_dirs(&app_handle, workspace_path.as_deref());
     let mut seen: HashSet<String> = HashSet::new();
     let mut scanned_scopes: HashSet<&'static str> = HashSet::new();
@@ -52,7 +53,7 @@ pub async fn sync(
             let now = Utc::now().to_rfc3339();
 
             sqlx::query(
-                "INSERT OR IGNORE INTO skills (id, name, description, enabled, icon_path, installed_at, source_path, scope) VALUES (?, ?, ?, 1, NULL, ?, ?, ?)",
+                "INSERT OR IGNORE INTO skills (id, name, description, enabled, icon_path, installed_at, source_path, scope, customer_id) VALUES (?, ?, ?, 1, NULL, ?, ?, ?, ?)",
             )
             .bind(&dir_name)
             .bind(&name)
@@ -60,17 +61,19 @@ pub async fn sync(
             .bind(&now)
             .bind(&source_path)
             .bind(scope)
+            .bind(&customer_id)
             .execute(&state.db_pool)
             .await?;
 
             sqlx::query(
-                "UPDATE skills SET name = ?, description = ?, source_path = ?, scope = ? WHERE id = ? AND scope != 'global'",
+                "UPDATE skills SET name = ?, description = ?, source_path = ?, scope = ? WHERE id = ? AND customer_id IS ? AND scope != 'global'",
             )
             .bind(&name)
             .bind(&description)
             .bind(&source_path)
             .bind(scope)
             .bind(&dir_name)
+            .bind(&customer_id)
             .execute(&state.db_pool)
             .await?;
 
@@ -78,7 +81,7 @@ pub async fn sync(
         }
     }
 
-    prune_missing(&state, &scanned_scopes, &seen).await?;
+    prune_missing(&state, &scanned_scopes, &seen, &customer_id).await?;
 
     super::get::get(state).await
 }
@@ -87,6 +90,7 @@ async fn prune_missing(
     state: &State<'_, AppState>,
     scanned_scopes: &HashSet<&'static str>,
     seen: &HashSet<String>,
+    customer_id: &Option<String>,
 ) -> AppResult<()> {
     if scanned_scopes.is_empty() {
         return Ok(());
@@ -95,7 +99,7 @@ async fn prune_missing(
     let scope_list: Vec<&&str> = scanned_scopes.iter().collect();
     let seen_list: Vec<&String> = seen.iter().collect();
 
-    let mut sql = String::from("DELETE FROM skills WHERE scope IN (");
+    let mut sql = String::from("DELETE FROM skills WHERE customer_id IS ? AND scope IN (");
     sql.push_str(&vec!["?"; scope_list.len()].join(","));
     sql.push(')');
     if !seen_list.is_empty() {
@@ -104,7 +108,7 @@ async fn prune_missing(
         sql.push(')');
     }
 
-    let mut query = sqlx::query(&sql);
+    let mut query = sqlx::query(&sql).bind(customer_id);
     for scope in &scope_list {
         query = query.bind(**scope);
     }
