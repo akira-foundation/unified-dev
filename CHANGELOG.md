@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.4](https://github.com/akira-foundation/unified-dev/compare/v0.12.3...v0.12.4) (2026-06-03)
+
+### Bug Fixes
+
+- **ci:** Populate the GitHub release body from git-cliff ([e809968](https://github.com/akira-foundation/unified-dev/commit/e80996837ad5b9d3ee31efe627f90e716ff0ee54))
+- **prs:** Swap Merge for Ready for review on draft PRs and hide Finish review ([516f264](https://github.com/akira-foundation/unified-dev/commit/516f264b84f14025a07f966edb65b2e832c1acfe))
+- **prs:** Also push label updates into the navigation store ([2700775](https://github.com/akira-foundation/unified-dev/commit/2700775ed72d511c01ffb7da95cbffda4a7307cf))
+- **prs:** Optimistic updates for label add/remove/create ([0f8c8dd](https://github.com/akira-foundation/unified-dev/commit/0f8c8dda6fa662c4f545775d14d55c2c332fa782))
+- **providers:** Scope GitHub provider data to the logged-in account ([204b4c3](https://github.com/akira-foundation/unified-dev/commit/204b4c3215ea631d5ed7cf02003a085f8e0df4b0))
+- **providers:** Scope all workspace data to the logged-in customer ([1b10b64](https://github.com/akira-foundation/unified-dev/commit/1b10b6434037e051cd3f6a824b44967315591629))
+- **agents:** Scope agent repos, threads, skills and MCP servers per customer ([e677f4a](https://github.com/akira-foundation/unified-dev/commit/e677f4ab71f755732266ee7f1adb9d43d8d43340))
+- **db:** Move agent composite-key rebuild to migration 0049 ([7524ea0](https://github.com/akira-foundation/unified-dev/commit/7524ea0b051d6052a1400317085527fb6c7091a6))
+- **pr-detail:** Remove diff gap between tabs and sticky file header ([ddf56eb](https://github.com/akira-foundation/unified-dev/commit/ddf56eb6e15decaecb0a3b87f06435c95d19d8ca))
+- **pr-detail:** Drop rounded corners on diff file header ([4fd1c87](https://github.com/akira-foundation/unified-dev/commit/4fd1c874be86184f3059375b2660d926d926b592))
+- **pr-detail:** Opaque diff header hover, rounded only on hover ([ca1e71c](https://github.com/akira-foundation/unified-dev/commit/ca1e71c7e440c9649440f34f1eb1734e54f78242))
+- **pr-detail:** Drop rounded on diff header hover ([da170c9](https://github.com/akira-foundation/unified-dev/commit/da170c9e8eefde037933e155c55c7937ed08da73))
+
+
+### Code Refactoring
+
+- **prs:** Batch label edits and decouple draft state from the prop ([cb75108](https://github.com/akira-foundation/unified-dev/commit/cb751087f18cdc1cf1a0309f01339ae1eb328fe3))
+
+
+### Features
+
+- **i18n:** Rename Projects to Hubs in user-facing labels ([8d02ac1](https://github.com/akira-foundation/unified-dev/commit/8d02ac17e875b9b73e07780db51e599a79711478))
+- **prs:** Edit labels from the PR detail sidebar ([2382404](https://github.com/akira-foundation/unified-dev/commit/2382404742c7f46615e162cf80303ecba96de4f3))
+- **prs:** Create new labels from the picker when the typed name does not exist ([879752a](https://github.com/akira-foundation/unified-dev/commit/879752a2b8d14b298d7134c3548506b5c32e46c1))
+- **pr-detail:** Close/reopen PR, diff highlight, sticky header, breadcrumb fixes ([6c3c15c](https://github.com/akira-foundation/unified-dev/commit/6c3c15c00911648856192cd1bd0ca6ee2697756c))
+
 ## [0.12.3](https://github.com/akira-foundation/unified-dev/compare/v0.12.2...v0.12.3) (2026-05-28)
 
 ### Bug Fixes
