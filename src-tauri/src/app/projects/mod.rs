@@ -49,8 +49,10 @@ const SOURCE_COLUMNS: &str =
     "id, project_repo_id, provider, ref_type, ref, is_issue_source, is_vcs_target, created_at";
 
 pub async fn list(state: &AppState) -> AppResult<Vec<Project>> {
-    let query = format!("SELECT {PROJECT_COLUMNS} FROM projects ORDER BY name COLLATE NOCASE ASC");
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let query = format!("SELECT {PROJECT_COLUMNS} FROM projects WHERE customer_id = ? ORDER BY name COLLATE NOCASE ASC");
     Ok(sqlx::query_as::<_, Project>(&query)
+        .bind(customer_id)
         .fetch_all(&state.db_pool)
         .await?)
 }
@@ -72,9 +74,10 @@ pub async fn create(
 ) -> AppResult<Project> {
     let id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     sqlx::query(
-        "INSERT INTO projects (id, name, provider, external_id, color, org_id, created_at, updated_at) \
-         VALUES (?, ?, 'local', NULL, ?, ?, ?, ?)",
+        "INSERT INTO projects (id, name, provider, external_id, color, org_id, created_at, updated_at, customer_id) \
+         VALUES (?, ?, 'local', NULL, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(&name)
@@ -82,6 +85,7 @@ pub async fn create(
     .bind(&org_id)
     .bind(&now)
     .bind(&now)
+    .bind(&customer_id)
     .execute(&state.db_pool)
     .await?;
     fetch_project(state, &id).await

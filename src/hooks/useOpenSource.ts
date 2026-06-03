@@ -146,11 +146,7 @@ export function useOssAutoSync(lastSyncedAt: string | null | undefined, connecte
       !lastSyncedAt || Date.now() - new Date(lastSyncedAt).getTime() > STALE_THRESHOLD_MS;
     if (stale && !sync.isPending) {
       triggered.current = true;
-      sync.mutate(undefined, {
-        onError: () => {
-          triggered.current = false;
-        },
-      });
+      sync.mutate();
     }
   }, [lastSyncedAt, connected, sync]);
 }

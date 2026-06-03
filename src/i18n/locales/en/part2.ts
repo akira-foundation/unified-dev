@@ -137,6 +137,7 @@ export const enPart2: Record<string, string> = {
   "settings.general.account.plan.manage": "Manage subscription",
   "settings.general.account.plan.activate": "Activate license",
   "settings.general.account.plan.logout": "Sign out",
+  "settings.general.account.plan.signingOut": "Signing out…",
   "settings.general.launchAtLogin.label": "Launch at login",
   "settings.general.launchAtLogin.description": "Automatically start the app when you log in. It will run in the menubar so the server is always available.",
   "settings.appearance.section.title": "Appearance",

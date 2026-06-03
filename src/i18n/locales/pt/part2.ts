@@ -133,6 +133,7 @@ export const ptPart2: Record<string, string> = {
   "settings.general.account.plan.manage": "Gerir subscrição",
   "settings.general.account.plan.activate": "Ativar licença",
   "settings.general.account.plan.logout": "Terminar sessão",
+  "settings.general.account.plan.signingOut": "A terminar sessão…",
   "settings.general.launchAtLogin.label": "Iniciar com o login",
   "settings.general.launchAtLogin.description": "Inicia automaticamente a app quando fazeres login. Ficará a correr na barra de menu.",
   "settings.appearance.section.title": "Aparência",

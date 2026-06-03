@@ -9,12 +9,15 @@ pub async fn list_repositories(
     state: State<'_, AppState>,
     filters: OssFiltersDto,
 ) -> Result<Vec<ContributedRepoDto>, String> {
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
     let rows = sqlx::query(
         "SELECT id, name_with_owner, owner_login, description, primary_language,
                 stars, forks, url, is_fork, is_archived, last_contribution_at
          FROM github_contributed_repositories
+         WHERE profile_id IN (SELECT id FROM github_contribution_profiles WHERE customer_id = ?)
          ORDER BY last_contribution_at IS NULL, last_contribution_at DESC",
     )
+    .bind(customer_id)
     .fetch_all(&state.db_pool)
     .await
     .map_err(|e| e.to_string())?;

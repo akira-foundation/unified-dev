@@ -19,7 +19,7 @@ import { LicenseActivationDialog } from "./components/license-activation-dialog"
 import { LicenseExpiredScreen } from "./components/license/LicenseExpiredScreen";
 import { LicenseGraceBanner } from "./components/license/LicenseGraceBanner";
 import { LicensePaymentStatusBanner } from "./components/license/LicensePaymentStatusBanner";
-import { OnboardingOverlay } from "./components/onboarding-overlay";
+import { OnboardingOverlay, prefetchOauthProviders } from "./components/onboarding-overlay";
 import { UpgradeModal } from "./components/upgrade-modal";
 import { useLicense } from "./hooks/useLicense";
 import { useOnboardingStore } from "./stores/onboarding-store";
@@ -105,6 +105,7 @@ export default function App() {
     loadRepositories();
     loadAiProviders();
     loadAutopilotJobs();
+    prefetchOauthProviders();
   }, []);
 
   useEffect(() => {
@@ -187,6 +188,7 @@ export default function App() {
             <div className={cn("h-full w-full", !isAgentMode && "hidden")}>
               <AgentWorkspaceLayout />
             </div>
+            {!onboardingAuthOnly && (<>
             {!isAgentMode && currentPage === "dashboard" && <DashboardPage />}
             {!isAgentMode && currentPage === "issues" && <IssuesPage />}
             {!isAgentMode && currentPage === "projects" && <ProjectsPage />}
@@ -204,6 +206,7 @@ export default function App() {
             {!isAgentMode && currentPage === "settings" && <SettingsPage />}
             {!isAgentMode && currentPage === "notifications" && <NotificationsPage />}
             {!isAgentMode && currentPage === "provider-detail" && <ProviderDetailPage />}
+            </>)}
           </div>
         </main>
         <Toaster richColors />

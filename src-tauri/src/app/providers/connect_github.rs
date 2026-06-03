@@ -67,23 +67,27 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
     let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
         .map_err(|error| AppError::Provider(error.to_string()))?;
 
+    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+
     let existing: Option<(String, String)> = sqlx::query_as(
-        "SELECT id, created_at FROM providers WHERE kind = 'github' AND account_login = ? LIMIT 1",
+        "SELECT id, created_at FROM providers WHERE kind = 'github' AND account_login = ? AND customer_id = ? LIMIT 1",
     )
     .bind(&response.account_login)
+    .bind(&customer_id)
     .fetch_optional(&state.db_pool)
     .await
     .map_err(|e| AppError::Provider(e.to_string()))?;
 
     let (id, created_at) = if let Some((existing_id, existing_created_at)) = existing {
         sqlx::query(
-            "UPDATE providers SET name = ?, auth_type = ?, auth_payload = ?, account_login = ?, account_type = ? WHERE id = ?",
+            "UPDATE providers SET name = ?, auth_type = ?, auth_payload = ?, account_login = ?, account_type = ?, customer_id = ? WHERE id = ?",
         )
         .bind(&response.account_login)
         .bind(&auth_type)
         .bind(&auth_payload)
         .bind(&response.account_login)
         .bind(&response.account_type)
+        .bind(&customer_id)
         .bind(&existing_id)
         .execute(&state.db_pool)
         .await
@@ -95,7 +99,7 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
             .format(&time::format_description::well_known::Rfc3339)
             .unwrap_or_default();
         sqlx::query(
-            "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type) VALUES (?, ?, 'github', ?, ?, ?, ?, ?)",
+            "INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, account_login, account_type, customer_id) VALUES (?, ?, 'github', ?, ?, ?, ?, ?, ?)",
         )
         .bind(&new_id)
         .bind(&response.account_login)
@@ -104,6 +108,7 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         .bind(&new_created_at)
         .bind(&response.account_login)
         .bind(&response.account_type)
+        .bind(&customer_id)
         .execute(&state.db_pool)
         .await
         .map_err(|error| AppError::Provider(format!("DB insert failed: {error}")))?;

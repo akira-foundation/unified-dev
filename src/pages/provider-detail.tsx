@@ -188,6 +188,7 @@ export function ProviderDetailPage() {
           </div>
         </SettingsSection>
 
+        {provider.kind !== "github" && (
         <SettingsSection title={t("pages.providerDetail.auth.title")} description={t("pages.providerDetail.auth.description").replace("{label}", meta.label.toLowerCase()).replace("{kind}", kindLabel)} icon={KeyRound}>
           <div className="px-6 py-6">
             <Form {...form}>
@@ -214,6 +215,7 @@ export function ProviderDetailPage() {
             </Form>
           </div>
         </SettingsSection>
+        )}
 
         {provider.kind === "github" && (
           <SettingsSection title="GitHub App" description="Install the GitHub App on more organizations to make their repositories available." icon={Github}>

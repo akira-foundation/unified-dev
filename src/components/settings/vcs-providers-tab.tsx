@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Github, GitlabIcon, Blocks, Link2, Plus, RefreshCw } from "lucide-react";
+import { Github, GitlabIcon, Blocks, Link2, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useI18n } from "@/i18n/i18n";
 import { useProviders } from "@/hooks/useProviders";
@@ -106,12 +106,6 @@ export function VcsProvidersTab() {
 
   return (
     <div className="animate-in fade-in duration-300">
-      <div className="flex justify-end mb-4">
-        <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus size={18} /> {t("settings.vcsProviders.addManual")}
-        </Button>
-      </div>
-
       {VCS_PROVIDERS.map(({ kind, title, descKey, icon }) => {
         const connectedProvider = providers.find((p) => p.kind === kind);
         const rateLimitData = rateLimits?.find((r) => r.provider_id === connectedProvider?.id);

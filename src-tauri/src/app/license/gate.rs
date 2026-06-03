@@ -57,9 +57,20 @@ fn build_local_consumption(pool: SqlitePool) -> LocalConsumption {
 }
 
 async fn count_for(pool: &SqlitePool, feature: &str) -> AppResult<u64> {
+    let customer_id = crate::app::auth::current_customer_id(pool).await;
     let count: i64 = match feature {
-        "repos" => sqlx::query_scalar("SELECT COUNT(*) FROM repos").fetch_one(pool).await?,
-        "orgs" => sqlx::query_scalar("SELECT COUNT(*) FROM organizations").fetch_one(pool).await?,
+        "repos" => sqlx::query_scalar(
+            "SELECT COUNT(*) FROM repos r JOIN organizations o ON o.id = r.organization_id JOIN providers p ON p.id = o.provider_id WHERE p.customer_id = ?",
+        )
+        .bind(&customer_id)
+        .fetch_one(pool)
+        .await?,
+        "orgs" => sqlx::query_scalar(
+            "SELECT COUNT(*) FROM organizations o JOIN providers p ON p.id = o.provider_id WHERE p.customer_id = ?",
+        )
+        .bind(&customer_id)
+        .fetch_one(pool)
+        .await?,
         "threads" => sqlx::query_scalar("SELECT COUNT(*) FROM threads WHERE status != 'closed'")
             .fetch_one(pool)
             .await?,
@@ -92,14 +103,23 @@ mod tests {
     #[tokio::test]
     async fn count_for_repos_includes_seeded_rows() {
         let pool = setup_test_db().await;
-        sqlx::query("INSERT INTO repos (id, owner, repo_name, created_at) VALUES (?, ?, ?, ?)")
-            .bind("r1")
-            .bind("o")
-            .bind("n")
-            .bind("2026-01-01T00:00:00+00:00")
+        seed_license(&pool, "free", false).await;
+        sqlx::query("UPDATE license SET customer_id = 'cust-1' WHERE id = 'local'")
             .execute(&pool)
             .await
-            .expect("insert");
+            .expect("license customer");
+        sqlx::query("INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at, customer_id) VALUES ('p1', 'gh', 'github', 'pat', '{}', '2026-01-01', 'cust-1')")
+            .execute(&pool)
+            .await
+            .expect("provider");
+        sqlx::query("INSERT INTO organizations (id, name, provider_id, created_at) VALUES ('o1', 'org', 'p1', '2026-01-01')")
+            .execute(&pool)
+            .await
+            .expect("org");
+        sqlx::query("INSERT INTO repos (id, owner, repo_name, organization_id, created_at) VALUES ('r1', 'o', 'n', 'o1', '2026-01-01')")
+            .execute(&pool)
+            .await
+            .expect("repo");
         assert_eq!(count_for(&pool, "repos").await.expect("count"), 1);
     }
 
