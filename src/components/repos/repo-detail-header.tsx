@@ -9,7 +9,6 @@ import { Card, CardContent } from "../ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 import { PageHeader, PageHeaderMeta, PageHeaderTitle } from "../layout/page-header";
 import { AppbarActions } from "../layout/appbar-actions";
-import { PrToolbar } from "../prs/pr-toolbar";
 import { IssueToolbar } from "../issues/issue-toolbar";
 import type { ActiveRepo } from "@/stores/navigation-store";
 import type { OrganizationRepoWithOrg } from "@/types/organization";
@@ -82,7 +81,6 @@ export function RepoDetailHeader({
           </TooltipTrigger>
           <TooltipContent>View on GitHub</TooltipContent>
         </Tooltip>
-        {tab === "prs" && <PrToolbar filterNamespace="repo-prs" />}
         {tab === "issues" && <IssueToolbar filterNamespace="repo-issues" />}
       </AppbarActions>
       <PageHeader>
