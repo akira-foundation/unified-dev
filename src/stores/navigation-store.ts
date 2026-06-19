@@ -39,6 +39,7 @@ interface NavigationState {
   setActiveProjectId: (projectId: string | null) => void;
   setActiveRepo: (repo: ActiveRepo | null) => void;
   setActivePr: (pr: PullRequestDto | null) => void;
+  markActivePrReady: () => void;
   setActiveIssue: (issue: IssueDto | null) => void;
   setIssueList: (list: IssueDto[]) => void;
   setTargetPrNumber: (n: number | null) => void;
@@ -136,6 +137,8 @@ export const useNavigationStore = create<NavigationState>()(
         set({ activeRepo: repo, recentRepos: next });
       },
       setActivePr: (pr) => set({ activePr: pr }),
+      markActivePrReady: () =>
+        set((state) => (state.activePr ? { activePr: { ...state.activePr, is_draft: false } } : {})),
       setActiveIssue: (issue) => set({ activeIssue: issue }),
       setIssueList: (list) => set({ issueList: list }),
       setTargetPrNumber: (n) => set({ targetPrNumber: n }),
