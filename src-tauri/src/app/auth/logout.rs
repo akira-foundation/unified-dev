@@ -1,23 +1,18 @@
 use tauri::State;
 
 use crate::app::support::error::AppResult;
+use crate::app::support::security::active_customer_clear;
 use crate::state::AppState;
 
 pub async fn logout(state: State<'_, AppState>) -> AppResult<()> {
-    let pool = state.pool().await?;
-    let billing = state.billing.clone();
+    {
+        let mut billing = state.billing.write().await;
+        billing.clear_customer_token();
+    }
 
-    tokio::spawn(async move {
-        {
-            let mut client = billing.write().await;
-            client.clear_customer_token();
-        }
-        let _ = sqlx::query(
-            "UPDATE license SET customer_id = NULL, customer_email = NULL, customer_token_cipher = NULL WHERE id = 'local'",
-        )
-        .execute(&pool)
-        .await;
-    });
+    let _ = crate::app::remote::stop().await;
+    state.clear_pool().await;
+    active_customer_clear()?;
 
     Ok(())
 }
