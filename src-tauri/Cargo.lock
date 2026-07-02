@@ -6054,6 +6054,7 @@ dependencies = [
  "dirs 5.0.1",
  "futures-util",
  "hex",
+ "hkdf",
  "hmac",
  "lazy_static",
  "libsqlite3-sys",
