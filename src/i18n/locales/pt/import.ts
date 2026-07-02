@@ -1,0 +1,15 @@
+export const ptImport: Record<string, string> = {
+  "import.title": "Importar de {provider}",
+  "import.description": "Traz projetos do tracker como repositórios dentro de um cluster.",
+  "import.scopesLabel": "Projetos a importar",
+  "import.search": "Procurar projetos…",
+  "import.loading": "A carregar…",
+  "import.empty": "Nada para importar",
+  "import.destLabel": "Cluster destino",
+  "import.newProject": "Novo cluster",
+  "import.apply": "Importar",
+  "import.conflict.message": "Já existe: {names}. O que queres fazer?",
+  "import.conflict.merge": "Mesclar",
+  "import.conflict.replace": "Substituir",
+  "import.conflict.keep": "Manter ambos",
+};

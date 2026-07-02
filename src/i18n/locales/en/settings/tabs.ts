@@ -1,0 +1,18 @@
+export const enSettingsTabs: Record<string, string> = {
+  "settings.tabs.general": "General",
+  "settings.tabs.appearance": "Appearance",
+  "settings.tabs.behaviour": "Behaviour",
+  "settings.tabs.notifications": "Notifications",
+  "settings.tabs.integrations": "Integrations",
+  "settings.tabs.projects": "Clusters",
+  "settings.tabs.agents": "Coding Agents",
+  "settings.tabs.remote": "Remote",
+  "settings.tabs.shortcuts": "Shortcuts",
+  "settings.tabs.dictation": "Dictation",
+  "settings.tabs.advanced": "Advanced",
+  "settings.tabs.vcsProviders": "VCS Providers",
+  "settings.tabs.workspaces": "Workspaces",
+  "settings.tabs.prompts": "Prompts",
+  "settings.tabs.sync": "Sync",
+  "settings.tabs.updates": "Updates",
+};

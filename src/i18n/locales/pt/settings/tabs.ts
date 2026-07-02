@@ -1,0 +1,18 @@
+export const ptSettingsTabs: Record<string, string> = {
+  "settings.tabs.general": "Geral",
+  "settings.tabs.appearance": "Aparência",
+  "settings.tabs.behaviour": "Comportamento",
+  "settings.tabs.notifications": "Notificações",
+  "settings.tabs.integrations": "Integrações",
+  "settings.tabs.projects": "Clusters",
+  "settings.tabs.agents": "Agentes de Código",
+  "settings.tabs.remote": "Remoto",
+  "settings.tabs.shortcuts": "Atalhos",
+  "settings.tabs.dictation": "Ditado",
+  "settings.tabs.advanced": "Avançado",
+  "settings.tabs.vcsProviders": "Providers VCS",
+  "settings.tabs.workspaces": "Workspaces",
+  "settings.tabs.prompts": "Prompts",
+  "settings.tabs.sync": "Sincronização",
+  "settings.tabs.updates": "Atualizações",
+};
