@@ -37,7 +37,7 @@ mod tests {
     #[tokio::test]
     async fn load_customer_token_returns_none_without_cipher() {
         let pool = setup_test_db().await;
-        seed_license(&pool, "free", false).await;
+        seed_license(&pool).await;
         let cipher = TokenCipher::new([0u8; 32]);
         assert!(load_customer_token(&pool, &cipher).await.unwrap().is_none());
     }
@@ -45,7 +45,7 @@ mod tests {
     #[tokio::test]
     async fn clear_customer_token_nulls_the_cipher_column() {
         let pool = setup_test_db().await;
-        seed_license(&pool, "free", false).await;
+        seed_license(&pool).await;
         sqlx::query("UPDATE license SET customer_token_cipher = 'blob' WHERE id = 'local'")
             .execute(&pool)
             .await

@@ -1,0 +1,20 @@
+ALTER TABLE license DROP COLUMN token;
+ALTER TABLE license DROP COLUMN plan;
+ALTER TABLE license DROP COLUMN cycle;
+ALTER TABLE license DROP COLUMN email;
+ALTER TABLE license DROP COLUMN status;
+ALTER TABLE license DROP COLUMN valid_until;
+ALTER TABLE license DROP COLUMN activated_at;
+ALTER TABLE license DROP COLUMN last_verified_at;
+ALTER TABLE license DROP COLUMN signature;
+ALTER TABLE license DROP COLUMN cancel_at_period_end;
+ALTER TABLE license DROP COLUMN cancel_at;
+ALTER TABLE license DROP COLUMN target_plan;
+ALTER TABLE license DROP COLUMN license_key_id;
+ALTER TABLE license DROP COLUMN license_algorithm;
+ALTER TABLE license DROP COLUMN license_payload;
+ALTER TABLE license DROP COLUMN license_signature;
+ALTER TABLE license DROP COLUMN features_json;
+ALTER TABLE license DROP COLUMN device_id;
+
+DROP TABLE IF EXISTS license_public_keys;

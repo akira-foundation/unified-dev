@@ -116,4 +116,75 @@ mod tests {
             assert_eq!(count, 1, "table {table} must exist after migrations");
         }
     }
+
+    #[tokio::test]
+    async fn license_table_only_tracks_session_identity_after_migrations() {
+        let pool = setup_test_db().await;
+        let columns: Vec<String> =
+            sqlx::query_scalar("SELECT name FROM pragma_table_info('license') ORDER BY name")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            columns,
+            vec!["customer_email", "customer_id", "customer_token_cipher", "id"]
+        );
+
+        let count: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='license_public_keys'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(count, 0, "license_public_keys must be dropped");
+    }
+
+    #[tokio::test]
+    async fn upgrade_preserves_customer_session_across_column_drop() {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        sqlx::query(
+            "CREATE TABLE license (
+                id TEXT NOT NULL DEFAULT 'local' PRIMARY KEY,
+                token TEXT NOT NULL,
+                plan TEXT NOT NULL,
+                customer_id TEXT,
+                customer_email TEXT,
+                customer_token_cipher TEXT
+            )",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO license (id, token, plan, customer_id, customer_email, customer_token_cipher)
+             VALUES ('local', '', 'pro', 'cust-1', 'a@b.c', 'encrypted-blob')",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let drop_columns_sql = std::fs::read_to_string(
+            "src/database/migrations/0051_drop_paywall_columns.sql",
+        )
+        .unwrap();
+        for statement in drop_columns_sql.split(';').map(str::trim).filter(|s| !s.is_empty()) {
+            if statement.contains("DROP COLUMN token") || statement.contains("DROP COLUMN plan") {
+                sqlx::query(statement).execute(&pool).await.unwrap();
+            }
+        }
+
+        let (customer_id, cipher): (Option<String>, Option<String>) = sqlx::query_as(
+            "SELECT customer_id, customer_token_cipher FROM license WHERE id = 'local'",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(customer_id.as_deref(), Some("cust-1"));
+        assert_eq!(cipher.as_deref(), Some("encrypted-blob"));
+    }
 }

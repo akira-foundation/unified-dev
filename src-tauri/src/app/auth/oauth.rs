@@ -209,25 +209,15 @@ async fn persist_customer_session(
     response: &akira_billing::types::OauthExchangeResponse,
 ) -> AppResult<()> {
     let encrypted_token = token_cipher.encrypt(&response.access_token)?;
-    let now = chrono::Utc::now().to_rfc3339();
 
     sqlx::query(
-        "INSERT INTO license (
-            id, token, plan, cycle, email, status, valid_until, activated_at,
-            last_verified_at, signature, customer_id, customer_email,
-            customer_token_cipher
-         )
-         VALUES ('local', '', '', '', ?, 'pending', '', ?, ?, '', ?, ?, ?)
+        "INSERT INTO license (id, customer_id, customer_email, customer_token_cipher)
+         VALUES ('local', ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
-            email = excluded.email,
             customer_id = excluded.customer_id,
             customer_email = excluded.customer_email,
-            customer_token_cipher = excluded.customer_token_cipher,
-            last_verified_at = excluded.last_verified_at",
+            customer_token_cipher = excluded.customer_token_cipher",
     )
-    .bind(&response.customer.email)
-    .bind(&now)
-    .bind(&now)
     .bind(&response.customer.id)
     .bind(&response.customer.email)
     .bind(&encrypted_token)
