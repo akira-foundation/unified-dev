@@ -18,10 +18,7 @@ pub struct UpdateInfo {
 pub async fn check_for_updates(app: AppHandle) -> Result<Option<UpdateInfo>, String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
 
-    let update = updater
-        .check()
-        .await
-        .map_err(|e| e.to_string())?;
+    let update = updater.check().await.map_err(|e| e.to_string())?;
 
     Ok(update.map(|u| UpdateInfo {
         version: u.version.clone(),
@@ -34,17 +31,18 @@ pub async fn check_for_updates(app: AppHandle) -> Result<Option<UpdateInfo>, Str
 pub async fn install_update(app: AppHandle) -> Result<(), String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
 
-    let update = updater
-        .check()
-        .await
-        .map_err(|e| e.to_string())?;
+    let update = updater.check().await.map_err(|e| e.to_string())?;
 
     if let Some(update) = update {
         if let Some(state) = app.try_state::<AppState>() {
             let db_path = database_path(&app).map_err(|e| e.to_string())?;
-            let _ = update_settings::perform_backup(&state.db_pool, &db_path, &update.version)
-                .await
-                .map_err(|e| format!("backup failed: {e}"));
+            let _ = update_settings::perform_backup(
+                &state.pool().await.map_err(|e| e.to_string())?,
+                &db_path,
+                &update.version,
+            )
+            .await
+            .map_err(|e| format!("backup failed: {e}"));
         }
 
         update

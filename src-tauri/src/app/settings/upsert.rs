@@ -4,7 +4,10 @@ use crate::app::settings::request::{scope_for_id, SyncSettingsDto, UpsertSyncSet
 use crate::app::support::error::AppResult;
 use crate::state::AppState;
 
-pub async fn upsert(input: UpsertSyncSettingsRequest, state: State<'_, AppState>) -> AppResult<SyncSettingsDto> {
+pub async fn upsert(
+    input: UpsertSyncSettingsRequest,
+    state: State<'_, AppState>,
+) -> AppResult<SyncSettingsDto> {
     let scope = scope_for_id(&input.id);
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -44,7 +47,7 @@ pub async fn upsert(input: UpsertSyncSettingsRequest, state: State<'_, AppState>
     .bind(input.sync_orgs_interval_secs)
     .bind(&now)
     .bind(&now)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(SyncSettingsDto {

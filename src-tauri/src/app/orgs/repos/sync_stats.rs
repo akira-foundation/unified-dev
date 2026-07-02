@@ -15,7 +15,7 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
         "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, is_fork, fork_owner, fork_repo, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
     )
     .bind(&organization_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -25,12 +25,23 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
 
     let unique_owners: Vec<String> = {
         let mut seen = std::collections::HashSet::new();
-        repos.iter().filter_map(|r| seen.insert(r.owner.clone()).then_some(r.owner.clone())).collect()
+        repos
+            .iter()
+            .filter_map(|r| seen.insert(r.owner.clone()).then_some(r.owner.clone()))
+            .collect()
     };
 
-    let mut repo_meta: std::collections::HashMap<String, RepoMeta> = std::collections::HashMap::new();
+    let mut repo_meta: std::collections::HashMap<String, RepoMeta> =
+        std::collections::HashMap::new();
     for owner in unique_owners {
-        let Ok((provider, is_personal_owner)) = crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(&state, &organization_id, &owner).await else {
+        let Ok((provider, is_personal_owner)) =
+            crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(
+                &state,
+                &organization_id,
+                &owner,
+            )
+            .await
+        else {
             continue;
         };
 
@@ -42,31 +53,44 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
 
         if let Ok(provider_repos) = provider_repos_result {
             for pr in provider_repos {
-                repo_meta.insert(pr.name.clone(), RepoMeta {
-                    default_branch: pr.default_branch,
-                    visibility: pr.visibility,
-                    is_fork: pr.is_fork,
-                    fork_owner: pr.fork_owner,
-                    fork_repo: pr.fork_repo,
-                });
+                repo_meta.insert(
+                    pr.name.clone(),
+                    RepoMeta {
+                        default_branch: pr.default_branch,
+                        visibility: pr.visibility,
+                        is_fork: pr.is_fork,
+                        fork_owner: pr.fork_owner,
+                        fork_repo: pr.fork_repo,
+                    },
+                );
             }
         }
     }
 
     for repo in &repos {
         let meta = repo_meta.get(&repo.repo_name);
-        let default_branch = meta.map(|m| m.default_branch.as_str()).unwrap_or(&repo.default_branch).to_string();
-        let visibility = meta.map(|m| m.visibility.as_str()).unwrap_or(&repo.visibility).to_string();
+        let default_branch = meta
+            .map(|m| m.default_branch.as_str())
+            .unwrap_or(&repo.default_branch)
+            .to_string();
+        let visibility = meta
+            .map(|m| m.visibility.as_str())
+            .unwrap_or(&repo.visibility)
+            .to_string();
         let is_fork = meta.map(|m| m.is_fork).unwrap_or(repo.is_fork);
-        let fork_owner = meta.and_then(|m| m.fork_owner.clone()).or_else(|| repo.fork_owner.clone());
-        let fork_repo = meta.and_then(|m| m.fork_repo.clone()).or_else(|| repo.fork_repo.clone());
+        let fork_owner = meta
+            .and_then(|m| m.fork_owner.clone())
+            .or_else(|| repo.fork_owner.clone());
+        let fork_repo = meta
+            .and_then(|m| m.fork_repo.clone())
+            .or_else(|| repo.fork_repo.clone());
 
         let open_prs_count: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
         )
         .bind(&organization_id)
         .bind(&repo.repo_name)
-        .fetch_one(&state.db_pool)
+        .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .unwrap_or(0);
 
@@ -81,7 +105,7 @@ pub async fn sync_stats(state: State<'_, AppState>, organization_id: String) -> 
         .bind(&fork_repo)
         .bind(&organization_id)
         .bind(&repo.repo_name)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await;
     }
 

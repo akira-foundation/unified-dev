@@ -30,7 +30,7 @@ pub async fn get_pr_review_context(
     thread_id: String,
     state: State<'_, AppState>,
 ) -> Result<PrReviewContext, String> {
-    let pool = &state.db_pool;
+    let pool = &state.pool().await.map_err(|e| e.to_string())?;
 
     let row: Option<(String, String, String)> = sqlx::query_as(
         "SELECT lr.name, lr.source_path, t.pr_url
@@ -110,12 +110,18 @@ mod tests {
 
     #[test]
     fn parses_owner_from_https_url() {
-        assert_eq!(parse_owner("https://github.com/acme/repo.git"), Some("acme".to_string()));
+        assert_eq!(
+            parse_owner("https://github.com/acme/repo.git"),
+            Some("acme".to_string())
+        );
     }
 
     #[test]
     fn parses_owner_ignoring_trailing_slash() {
-        assert_eq!(parse_owner("https://github.com/acme/repo/"), Some("acme".to_string()));
+        assert_eq!(
+            parse_owner("https://github.com/acme/repo/"),
+            Some("acme".to_string())
+        );
     }
 
     #[test]

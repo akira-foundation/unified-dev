@@ -7,10 +7,13 @@ use crate::state::AppState;
 
 #[tauri::command]
 pub async fn get_user_profile(state: State<'_, AppState>) -> AppResult<Option<UserProfileDto>> {
-    profile::get(&state.db_pool).await
+    profile::get(&state.pool().await?).await
 }
 
 #[tauri::command]
-pub async fn set_user_profile(email: String, state: State<'_, AppState>) -> AppResult<UserProfileDto> {
-    profile::set(&email, &state.db_pool).await
+pub async fn set_user_profile(
+    email: String,
+    state: State<'_, AppState>,
+) -> AppResult<UserProfileDto> {
+    profile::set(&email, &state.pool().await?).await
 }

@@ -116,7 +116,7 @@ pub async fn resolve_provider_for_repo_owner(
         "SELECT provider_id FROM organizations WHERE id = ?",
     )
     .bind(organization_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .ok()
     .flatten()
@@ -126,7 +126,7 @@ pub async fn resolve_provider_for_repo_owner(
         "SELECT account_login FROM providers WHERE id = ?",
     )
     .bind(&provider_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -178,7 +178,7 @@ pub async fn resolve_provider_for_org(
         "SELECT provider_id FROM organizations WHERE id = ?",
     )
     .bind(organization_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .ok()
     .flatten()
@@ -217,11 +217,12 @@ pub async fn fetch_and_persist_github_parent(
     owner: &str,
     repo_name: &str,
 ) -> Option<(String, String)> {
+    let pool = state.pool().await.ok()?;
     let provider_id = sqlx::query_scalar::<_, Option<String>>(
         "SELECT provider_id FROM organizations WHERE id = ?",
     )
     .bind(org_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     .ok()??;
 
@@ -251,7 +252,7 @@ pub async fn fetch_and_persist_github_parent(
     .bind(&fork_repo)
     .bind(org_id)
     .bind(repo_name)
-    .execute(&state.db_pool)
+    .execute(&pool)
     .await;
 
     Some((fork_owner, fork_repo))

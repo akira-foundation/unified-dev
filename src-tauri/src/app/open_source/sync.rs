@@ -28,7 +28,10 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
         .graphql(FIRST_CONTRIBUTION_YEAR_QUERY, json!({}))
         .await
         .map_err(|e| e.to_string())?;
-    let mut years = years_data.viewer.contributions_collection.contribution_years;
+    let mut years = years_data
+        .viewer
+        .contributions_collection
+        .contribution_years;
     years.sort_unstable_by(|a, b| b.cmp(a));
 
     let current_year = now.year();
@@ -59,7 +62,9 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
     let profile_id = format!("github:{}", v.login);
 
     let years_json = serde_json::to_string(&years).unwrap_or_else(|_| "[]".to_string());
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id =
+        crate::app::auth::current_customer_id(&state.pool().await.map_err(|e| e.to_string())?)
+            .await;
     sqlx::query(
         "INSERT INTO github_contribution_profiles
          (id, provider_id, login, name, avatar_url, bio, followers, following,
@@ -106,13 +111,13 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
     .bind(cc.total_issue_contributions)
     .bind(cc.total_pull_request_review_contributions)
     .bind(&customer_id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
     sqlx::query("DELETE FROM github_contribution_snapshots WHERE profile_id = ?")
         .bind(&profile_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -128,7 +133,7 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
         .bind(date)
         .bind(count)
         .bind(color)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
     }
@@ -138,7 +143,7 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
     )
     .bind(&profile_id)
     .bind(&v.login)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -152,7 +157,7 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
         "SELECT COALESCE(SUM(contributions_count), 0) FROM github_contribution_snapshots WHERE profile_id = ?",
     )
     .bind(&profile_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
     sqlx::query(
@@ -162,18 +167,20 @@ pub async fn sync_contributions(state: State<'_, AppState>) -> Result<OssSyncRes
     .bind(lifetime_best)
     .bind(lifetime_total)
     .bind(&profile_id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
     let language = most_active_language(&state, &profile_id).await?;
     if language.is_some() {
-        sqlx::query("UPDATE github_contribution_profiles SET most_active_language = ? WHERE id = ?")
-            .bind(&language)
-            .bind(&profile_id)
-            .execute(&state.db_pool)
-            .await
-            .map_err(|e| e.to_string())?;
+        sqlx::query(
+            "UPDATE github_contribution_profiles SET most_active_language = ? WHERE id = ?",
+        )
+        .bind(&language)
+        .bind(&profile_id)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
+        .await
+        .map_err(|e| e.to_string())?;
     }
 
     Ok(OssSyncResultDto {
@@ -245,7 +252,7 @@ async fn sync_repositories(
 
     sqlx::query("DELETE FROM github_contributed_repositories WHERE profile_id = ?")
         .bind(profile_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -271,7 +278,7 @@ async fn sync_repositories(
         .bind(&node.pushed_at)
         .bind(&node.owner.avatar_url)
         .bind(&node.owner.url)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
     }
@@ -322,7 +329,7 @@ async fn upsert_repo_from_simple(
     .bind(&repo.pushed_at)
     .bind(&repo.owner.avatar_url)
     .bind(&repo.owner.url)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
     Ok(())
@@ -351,7 +358,7 @@ async fn sync_pull_requests(
 
     sqlx::query("DELETE FROM github_pull_requests_oss WHERE profile_id = ?")
         .bind(profile_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -377,7 +384,7 @@ async fn sync_pull_requests(
         .bind(&node.created_at)
         .bind(&node.merged_at)
         .bind(&node.closed_at)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
     }
@@ -392,23 +399,19 @@ async fn sync_issues(
     viewer_login: &str,
 ) -> Result<i64, String> {
     let raw = driver
-        .graphql_paginated::<Option<IssueNode>, _, IssuesData>(
-            ISSUES_QUERY,
-            json!({}),
-            |data| {
-                let conn = data.viewer.issues;
-                let nodes = conn.nodes;
-                let has_next = conn.page_info.has_next_page;
-                (nodes, has_next, conn.page_info.end_cursor)
-            },
-        )
+        .graphql_paginated::<Option<IssueNode>, _, IssuesData>(ISSUES_QUERY, json!({}), |data| {
+            let conn = data.viewer.issues;
+            let nodes = conn.nodes;
+            let has_next = conn.page_info.has_next_page;
+            (nodes, has_next, conn.page_info.end_cursor)
+        })
         .await
         .map_err(|e| e.to_string())?;
     let nodes: Vec<IssueNode> = raw.into_iter().flatten().collect();
 
     sqlx::query("DELETE FROM github_issues_oss WHERE profile_id = ?")
         .bind(profile_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -431,7 +434,7 @@ async fn sync_issues(
         .bind(node.comments.total_count)
         .bind(&node.created_at)
         .bind(&node.closed_at)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
     }
@@ -454,12 +457,16 @@ async fn sync_reviews(
 
     sqlx::query("DELETE FROM github_reviews_oss WHERE profile_id = ?")
         .bind(profile_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
     let mut count = 0i64;
-    for by_repo in data.viewer.contributions_collection.pull_request_review_contributions_by_repository {
+    for by_repo in data
+        .viewer
+        .contributions_collection
+        .pull_request_review_contributions_by_repository
+    {
         upsert_repo_from_simple(state, profile_id, viewer_login, &by_repo.repository).await?;
         for n in by_repo.contributions.nodes {
             let r = n.pull_request_review;
@@ -481,7 +488,7 @@ async fn sync_reviews(
             .bind(&r.state)
             .bind(&r.url)
             .bind(r.submitted_at.unwrap_or_default())
-            .execute(&state.db_pool)
+            .execute(&state.pool().await.map_err(|e| e.to_string())?)
             .await
             .map_err(|e| e.to_string())?;
             count += 1;
@@ -508,7 +515,12 @@ async fn backfill_years(
             Ok(d) => d,
             Err(_) => continue,
         };
-        for week in calendar_data.viewer.contributions_collection.contribution_calendar.weeks {
+        for week in calendar_data
+            .viewer
+            .contributions_collection
+            .contribution_calendar
+            .weeks
+        {
             for day in week.contribution_days {
                 let _ = sqlx::query(
                     "INSERT INTO github_contribution_snapshots (profile_id, day, contributions_count, color)
@@ -521,7 +533,7 @@ async fn backfill_years(
                 .bind(&day.date)
                 .bind(day.contribution_count)
                 .bind(&day.color)
-                .execute(&state.db_pool)
+                .execute(&state.pool().await.map_err(|e| e.to_string())?)
                 .await;
             }
         }
@@ -580,7 +592,7 @@ async fn backfill_years(
                 .bind(&r.pushed_at)
                 .bind(&r.owner.avatar_url)
                 .bind(&r.owner.url)
-                .execute(&state.db_pool)
+                .execute(&state.pool().await.map_err(|e| e.to_string())?)
                 .await;
             }
         }
@@ -598,7 +610,7 @@ async fn compute_lifetime_streaks(
          ORDER BY day ASC",
     )
     .bind(profile_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -650,7 +662,7 @@ async fn most_active_language(
          LIMIT 1",
     )
     .bind(profile_id)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 

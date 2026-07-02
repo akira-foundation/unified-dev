@@ -28,6 +28,8 @@ pub enum AppError {
     GhNotInstalled,
     #[error("gh_not_authenticated")]
     GhNotAuthenticated,
+    #[error("unauthenticated")]
+    Unauthenticated,
 }
 
 pub type AppResult<T> = Result<T, AppError>;

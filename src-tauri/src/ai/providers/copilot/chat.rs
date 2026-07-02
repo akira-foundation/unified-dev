@@ -7,8 +7,10 @@ use crate::ai::credentials::{exchange_copilot_token, read_copilot_oauth_token};
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_openai_sse_with_tools;
 use crate::ai::tools::{execute_tool, tool_definitions_openai, tool_label};
+use crate::app::chat::message::{
+    content_has_image, parse_content_to_openai_api, parse_content_to_openai_api_text_only,
+};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
-use crate::app::chat::message::{parse_content_to_openai_api, parse_content_to_openai_api_text_only, content_has_image};
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
@@ -31,7 +33,8 @@ impl CopilotChatProvider {
 
         let mut messages: Vec<Value> =
             vec![json!({ "role": "system", "content": request.system_prompt })];
-        let history_window: Vec<_> = request.history
+        let history_window: Vec<_> = request
+            .history
             .iter()
             .filter(|m| m.role == "user" || m.role == "assistant")
             .collect();
@@ -47,7 +50,9 @@ impl CopilotChatProvider {
             }
             messages.push(json!({ "role": msg.role, "content": parse_content_to_openai_api_text_only(&msg.content) }));
         }
-        messages.push(json!({ "role": "user", "content": parse_content_to_openai_api(&request.content) }));
+        messages.push(
+            json!({ "role": "user", "content": parse_content_to_openai_api(&request.content) }),
+        );
 
         let mut full_text = String::new();
         let mut workspace_path = request.workspace_path.clone();
@@ -57,9 +62,9 @@ impl CopilotChatProvider {
 
             let reasoning_effort: Option<&str> = match request.thinking_budget.as_str() {
                 "x-high" | "high" => Some("high"),
-                "medium"          => Some("medium"),
-                "low"             => Some("low"),
-                _                 => None,
+                "medium" => Some("medium"),
+                "low" => Some("low"),
+                _ => None,
             };
 
             let is_reasoning_model = request.model.starts_with("o1")
@@ -96,7 +101,9 @@ impl CopilotChatProvider {
             if !response.status().is_success() {
                 let status = response.status();
                 let text = response.text().await.unwrap_or_default();
-                return Err(AppError::Internal(format!("Copilot API error {status}: {text}")));
+                return Err(AppError::Internal(format!(
+                    "Copilot API error {status}: {text}"
+                )));
             }
 
             let (text_in_turn, pending_calls) =
@@ -108,11 +115,16 @@ impl CopilotChatProvider {
                 break;
             }
 
-            let tool_calls_json: Vec<Value> = pending_calls.iter().map(|tc| json!({
-                "id": tc.id,
-                "type": "function",
-                "function": { "name": tc.name, "arguments": tc.arguments }
-            })).collect();
+            let tool_calls_json: Vec<Value> = pending_calls
+                .iter()
+                .map(|tc| {
+                    json!({
+                        "id": tc.id,
+                        "type": "function",
+                        "function": { "name": tc.name, "arguments": tc.arguments }
+                    })
+                })
+                .collect();
             let assistant_msg = if text_in_turn.is_empty() {
                 json!({
                     "role": "assistant",
@@ -128,28 +140,43 @@ impl CopilotChatProvider {
             messages.push(assistant_msg);
 
             for tc in &pending_calls {
-                let args: Value =
-                    serde_json::from_str(&tc.arguments).unwrap_or(Value::Object(Default::default()));
+                let args: Value = serde_json::from_str(&tc.arguments)
+                    .unwrap_or(Value::Object(Default::default()));
                 let label = tool_label(&tc.name, &args);
 
-                emit_tool_call(app, StreamToolCallPayload {
-                    thread_id: request.thread_id.clone(),
-                    label: label.clone(),
-                    status: "running".to_string(),
-                    output: None,
-                });
+                emit_tool_call(
+                    app,
+                    StreamToolCallPayload {
+                        thread_id: request.thread_id.clone(),
+                        label: label.clone(),
+                        status: "running".to_string(),
+                        output: None,
+                    },
+                );
 
-                let (result, new_path) = execute_tool(&tc.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers, &request.mcp_tools).await;
+                let (result, new_path) = execute_tool(
+                    &tc.name,
+                    &args,
+                    &workspace_path,
+                    &request.thread_id,
+                    &app.state::<AppState>().pool().await?,
+                    &request.mcp_servers,
+                    &request.mcp_tools,
+                )
+                .await;
                 if let Some(p) = new_path {
                     workspace_path = p;
                 }
 
-                emit_tool_call(app, StreamToolCallPayload {
-                    thread_id: request.thread_id.clone(),
-                    label,
-                    status: "done".to_string(),
-                    output: Some(result.clone()),
-                });
+                emit_tool_call(
+                    app,
+                    StreamToolCallPayload {
+                        thread_id: request.thread_id.clone(),
+                        label,
+                        status: "done".to_string(),
+                        output: Some(result.clone()),
+                    },
+                );
 
                 messages.push(json!({
                     "role": "tool",

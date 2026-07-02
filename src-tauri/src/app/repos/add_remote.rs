@@ -5,25 +5,33 @@ use uuid::Uuid;
 use crate::app::repos::git;
 use crate::app::repos::providers;
 use crate::app::repos::types::{AddLocalRepositoryResponse, LocalRepository};
+use crate::app::support::error::{AppError, AppResult};
 use crate::app::threads::create_with_paths;
 use crate::state::AppState;
-use crate::app::support::error::{AppError, AppResult};
 
 pub async fn add_remote(
     url: String,
     state: tauri::State<'_, AppState>,
 ) -> AppResult<AddLocalRepositoryResponse> {
-    let pool = &state.db_pool;
+    let pool = &state.pool().await?;
 
-    let (provider, nwo) = providers::detect(&url)
-        .ok_or_else(|| AppError::Internal("Unsupported repository URL. Only GitHub, GitLab, and Bitbucket URLs are supported.".to_string()))?;
+    let (provider, nwo) = providers::detect(&url).ok_or_else(|| {
+        AppError::Internal(
+            "Unsupported repository URL. Only GitHub, GitLab, and Bitbucket URLs are supported."
+                .to_string(),
+        )
+    })?;
 
-    let repo_name = git::repo_name_from_url(&url)
-        .ok_or_else(|| AppError::Internal("Could not parse repository name from URL.".to_string()))?;
+    let repo_name = git::repo_name_from_url(&url).ok_or_else(|| {
+        AppError::Internal("Could not parse repository name from URL.".to_string())
+    })?;
 
     let home_dir = dirs::home_dir()
         .ok_or_else(|| AppError::Internal("Could not find home directory".to_string()))?;
-    let workspace_root = home_dir.join(".unifieddev").join("workspaces").join(&repo_name);
+    let workspace_root = home_dir
+        .join(".unifieddev")
+        .join("workspaces")
+        .join(&repo_name);
     if !workspace_root.exists() {
         std::fs::create_dir_all(&workspace_root).map_err(AppError::Io)?;
     }

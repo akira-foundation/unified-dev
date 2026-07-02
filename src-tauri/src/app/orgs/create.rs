@@ -8,25 +8,29 @@ use crate::app::support::error::AppError;
 use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
-pub async fn create(state: State<'_, AppState>, input: CreateOrgRequest) -> Result<OrganizationSummary, String> {
+pub async fn create(
+    state: State<'_, AppState>,
+    input: CreateOrgRequest,
+) -> Result<OrganizationSummary, String> {
     crate::app::license::access::require_feature(&state, "orgs")
         .await
         .map_err(|e| e.to_string())?;
 
-    let provider_exists = sqlx::query_scalar::<_, i64>(
-        "SELECT COUNT(1) FROM providers WHERE id = ?",
-    )
-    .bind(&input.provider_id)
-    .fetch_one(&state.db_pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let provider_exists =
+        sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM providers WHERE id = ?")
+            .bind(&input.provider_id)
+            .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
+            .await
+            .map_err(|e| e.to_string())?;
 
     if provider_exists == 0 {
         return Err(AppError::Provider("provider not found".to_string()).to_string());
     }
 
     let id = Uuid::new_v4().to_string();
-    let created_at = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
+    let created_at = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_default();
 
     sqlx::query(
         "INSERT INTO organizations (id, name, provider_id, external_id, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -36,7 +40,7 @@ pub async fn create(state: State<'_, AppState>, input: CreateOrgRequest) -> Resu
     .bind(&input.provider_id)
     .bind(&input.external_id)
     .bind(&created_at)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 

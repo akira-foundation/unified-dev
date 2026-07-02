@@ -3,7 +3,10 @@ use tauri::State;
 use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
-pub async fn list_by_provider(state: State<'_, AppState>, provider_id: String) -> Result<Vec<OrganizationSummary>, String> {
+pub async fn list_by_provider(
+    state: State<'_, AppState>,
+    provider_id: String,
+) -> Result<Vec<OrganizationSummary>, String> {
     sqlx::query_as::<_, OrganizationSummary>(
         r#"
         SELECT
@@ -23,7 +26,7 @@ pub async fn list_by_provider(state: State<'_, AppState>, provider_id: String) -
         "#,
     )
     .bind(&provider_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())
 }

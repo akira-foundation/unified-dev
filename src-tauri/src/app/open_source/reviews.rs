@@ -9,7 +9,9 @@ pub async fn list_reviews(
     state: State<'_, AppState>,
     filters: OssFiltersDto,
 ) -> Result<Vec<OssReviewDto>, String> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id =
+        crate::app::auth::current_customer_id(&state.pool().await.map_err(|e| e.to_string())?)
+            .await;
     let rows = sqlx::query(
         "SELECT id, repo_id, name_with_owner, pr_number, pr_title, state, url, submitted_at
          FROM github_reviews_oss
@@ -17,7 +19,7 @@ pub async fn list_reviews(
          ORDER BY submitted_at DESC",
     )
     .bind(customer_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -38,7 +40,10 @@ pub async fn list_reviews(
     Ok(items
         .into_iter()
         .filter(|r| match &filters.repo {
-            Some(repo) if !repo.is_empty() => r.name_with_owner.to_lowercase().contains(&repo.to_lowercase()),
+            Some(repo) if !repo.is_empty() => r
+                .name_with_owner
+                .to_lowercase()
+                .contains(&repo.to_lowercase()),
             _ => true,
         })
         .filter(|r| match &filters.state {

@@ -17,14 +17,17 @@ pub fn start(app_handle: AppHandle) {
 
             let state = app_handle.state::<AppState>();
             let now = Instant::now();
+            let Ok(pool) = state.pool().await else {
+                continue;
+            };
             let global = load_settings(&state, GLOBAL_ID).await;
-            let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+            let customer_id = crate::app::auth::current_customer_id(&pool).await;
 
             let orgs: Vec<(String,)> = match sqlx::query_as(
                 "SELECT o.id FROM organizations o JOIN providers p ON p.id = o.provider_id WHERE p.customer_id = ? ORDER BY o.name",
             )
             .bind(&customer_id)
-            .fetch_all(&state.db_pool)
+            .fetch_all(&pool)
             .await
             {
                 Ok(rows) => rows,
@@ -35,7 +38,7 @@ pub fn start(app_handle: AppHandle) {
                 "SELECT r.organization_id, r.owner, r.repo_name FROM organization_repos r JOIN organizations o ON o.id = r.organization_id JOIN providers p ON p.id = o.provider_id WHERE r.is_selected = 1 AND p.customer_id = ?",
             )
             .bind(&customer_id)
-            .fetch_all(&state.db_pool)
+            .fetch_all(&pool)
             .await
             {
                 Ok(rows) => rows,
@@ -57,7 +60,13 @@ pub fn start(app_handle: AppHandle) {
 
                     if global.sync_repos_enabled
                         && repo_settings.sync_repos_enabled
-                        && due(&last_synced, "repos", &repo_id, repo_settings.sync_repos_interval_secs, now)
+                        && due(
+                            &last_synced,
+                            "repos",
+                            &repo_id,
+                            repo_settings.sync_repos_interval_secs,
+                            now,
+                        )
                     {
                         let _ = crate::app::orgs::repos::sync_single_stats::sync_single_stats(
                             app_handle.state::<AppState>(),
@@ -73,7 +82,13 @@ pub fn start(app_handle: AppHandle) {
 
                     if global.sync_prs_enabled
                         && repo_settings.sync_prs_enabled
-                        && due(&last_synced, "prs", &repo_id, repo_settings.sync_prs_interval_secs, now)
+                        && due(
+                            &last_synced,
+                            "prs",
+                            &repo_id,
+                            repo_settings.sync_prs_interval_secs,
+                            now,
+                        )
                     {
                         let pr_scope = resolve_pr_scope(&state, org_id, repo).await;
                         let current_login = resolve_current_login(&state, org_id).await;
@@ -97,7 +112,13 @@ pub fn start(app_handle: AppHandle) {
 
                     if global.sync_issues_enabled
                         && repo_settings.sync_issues_enabled
-                        && due(&last_synced, "issues", &repo_id, repo_settings.sync_issues_interval_secs, now)
+                        && due(
+                            &last_synced,
+                            "issues",
+                            &repo_id,
+                            repo_settings.sync_issues_interval_secs,
+                            now,
+                        )
                     {
                         let issue_scope = resolve_issue_scope(&state, org_id, repo).await;
                         let current_login = resolve_current_login(&state, org_id).await;
@@ -127,17 +148,26 @@ pub fn start(app_handle: AppHandle) {
             }
 
             if global.sync_orgs_enabled
-                && due(&last_synced, "orgs", GLOBAL_ID, global.sync_orgs_interval_secs, now)
+                && due(
+                    &last_synced,
+                    "orgs",
+                    GLOBAL_ID,
+                    global.sync_orgs_interval_secs,
+                    now,
+                )
             {
-                let provider_ids: Vec<String> =
-                    sqlx::query_scalar::<_, String>("SELECT id FROM providers WHERE customer_id = ?")
-                        .bind(&customer_id)
-                        .fetch_all(&state.db_pool)
-                        .await
-                        .unwrap_or_default();
+                let provider_ids: Vec<String> = sqlx::query_scalar::<_, String>(
+                    "SELECT id FROM providers WHERE customer_id = ?",
+                )
+                .bind(&customer_id)
+                .fetch_all(&pool)
+                .await
+                .unwrap_or_default();
 
                 for provider_id in provider_ids {
-                    if let Ok(synced_org_ids) = sync_orgs(app_handle.state::<AppState>(), &provider_id).await {
+                    if let Ok(synced_org_ids) =
+                        sync_orgs(app_handle.state::<AppState>(), &provider_id).await
+                    {
                         for org_id in &synced_org_ids {
                             let org_settings = load_settings(&state, org_id).await;
                             touch_synced_at(&state, org_id, &org_settings).await;
@@ -209,11 +239,14 @@ fn emit(app_handle: &AppHandle, kind: &str, org_id: &str) {
 }
 
 async fn load_settings(state: &AppState, id: &str) -> SyncSettingsDto {
+    let Ok(pool) = state.pool().await else {
+        return SyncSettingsDto::defaults_for(id);
+    };
     sqlx::query_as::<_, crate::database::records::SyncSettingsRecord>(
         "SELECT * FROM sync_settings WHERE id = ?",
     )
     .bind(id)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&pool)
     .await
     .ok()
     .flatten()
@@ -233,7 +266,14 @@ async fn load_settings(state: &AppState, id: &str) -> SyncSettingsDto {
 }
 
 async fn touch_synced_at(state: &AppState, id: &str, settings: &SyncSettingsDto) {
-    let scope = if id == GLOBAL_ID { "global" } else { "organization" };
+    let Ok(pool) = state.pool().await else {
+        return;
+    };
+    let scope = if id == GLOBAL_ID {
+        "global"
+    } else {
+        "organization"
+    };
     let now = chrono::Utc::now().to_rfc3339();
     let _ = sqlx::query(
         "INSERT INTO sync_settings (
@@ -259,11 +299,14 @@ async fn touch_synced_at(state: &AppState, id: &str, settings: &SyncSettingsDto)
     .bind(settings.sync_orgs_interval_secs)
     .bind(&now)
     .bind(&now)
-    .execute(&state.db_pool)
+    .execute(&pool)
     .await;
 }
 
-async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Result<Vec<String>, String> {
+async fn sync_orgs(
+    state: tauri::State<'_, AppState>,
+    provider_id: &str,
+) -> Result<Vec<String>, String> {
     let credentials = crate::app::providers::credentials::credentials(&state, provider_id)
         .await
         .map_err(|e| e.to_string())?;
@@ -293,7 +336,7 @@ async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Resu
         .bind(provider_id)
         .bind(&org.id)
         .bind(&now)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -302,7 +345,7 @@ async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Resu
         )
         .bind(provider_id)
         .bind(&org.id)
-        .fetch_one(&state.db_pool)
+        .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         {
             synced_org_ids.push(org_id);
@@ -313,24 +356,28 @@ async fn sync_orgs(state: tauri::State<'_, AppState>, provider_id: &str) -> Resu
 }
 
 async fn resolve_current_login(state: &AppState, org_id: &str) -> Option<String> {
+    let pool = state.pool().await.ok()?;
     sqlx::query_scalar::<_, Option<String>>(
         "SELECT p.account_login FROM organizations o LEFT JOIN providers p ON p.id = o.provider_id WHERE o.id = ? LIMIT 1",
     )
     .bind(org_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     .ok()
     .flatten()
 }
 
 async fn resolve_issue_scope(state: &AppState, org_id: &str, repo_name: &str) -> String {
+    let Ok(pool) = state.pool().await else {
+        return "my_queue".to_string();
+    };
     let repo_key = format!("{org_id}:{repo_name}");
 
     if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
         "SELECT issue_scope FROM visibility_preferences WHERE scope_type = 'repository' AND scope_id = ?",
     )
     .bind(&repo_key)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     {
         return scope;
@@ -340,7 +387,7 @@ async fn resolve_issue_scope(state: &AppState, org_id: &str, repo_name: &str) ->
         "SELECT issue_scope FROM visibility_preferences WHERE scope_type = 'organization' AND scope_id = ?",
     )
     .bind(org_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     {
         return scope;
@@ -349,7 +396,7 @@ async fn resolve_issue_scope(state: &AppState, org_id: &str, repo_name: &str) ->
     if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
         "SELECT issue_scope FROM visibility_preferences WHERE scope_type = 'global' AND scope_id = 'global'",
     )
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     {
         return scope;
@@ -359,13 +406,16 @@ async fn resolve_issue_scope(state: &AppState, org_id: &str, repo_name: &str) ->
 }
 
 async fn resolve_pr_scope(state: &AppState, org_id: &str, repo_name: &str) -> String {
+    let Ok(pool) = state.pool().await else {
+        return "mine_or_review_requested".to_string();
+    };
     let repo_key = format!("{org_id}:{repo_name}");
 
     if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
         "SELECT pr_scope FROM visibility_preferences WHERE scope_type = 'repository' AND scope_id = ?",
     )
     .bind(&repo_key)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     {
         return scope;
@@ -375,7 +425,7 @@ async fn resolve_pr_scope(state: &AppState, org_id: &str, repo_name: &str) -> St
         "SELECT pr_scope FROM visibility_preferences WHERE scope_type = 'organization' AND scope_id = ?",
     )
     .bind(org_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     {
         return scope;
@@ -384,7 +434,7 @@ async fn resolve_pr_scope(state: &AppState, org_id: &str, repo_name: &str) -> St
     if let Ok(Some(scope)) = sqlx::query_scalar::<_, Option<String>>(
         "SELECT pr_scope FROM visibility_preferences WHERE scope_type = 'global' AND scope_id = 'global'",
     )
-    .fetch_one(&state.db_pool)
+    .fetch_one(&pool)
     .await
     {
         return scope;

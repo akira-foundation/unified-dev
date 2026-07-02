@@ -49,12 +49,11 @@ fn random_code(prefix: &str, len: usize) -> String {
 }
 
 async fn ensure_settings_row(state: &AppState) -> AppResult<()> {
-    let existing = sqlx::query_scalar::<_, String>(
-        "SELECT id FROM remote_settings WHERE id = ? LIMIT 1",
-    )
-    .bind(REMOTE_SETTINGS_ID)
-    .fetch_optional(&state.db_pool)
-    .await?;
+    let existing =
+        sqlx::query_scalar::<_, String>("SELECT id FROM remote_settings WHERE id = ? LIMIT 1")
+            .bind(REMOTE_SETTINGS_ID)
+            .fetch_optional(&state.pool().await?)
+            .await?;
 
     if existing.is_some() {
         return Ok(());
@@ -73,7 +72,7 @@ async fn ensure_settings_row(state: &AppState) -> AppResult<()> {
     .bind(random_code("UNFD-", 4))
     .bind(expires)
     .bind(now)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(())
@@ -87,13 +86,13 @@ pub async fn get(state: State<'_, AppState>) -> AppResult<RemoteSettingsDto> {
             "SELECT enabled, host_name, host_fingerprint, bind_address, port, tailscale_required, pairing_code, pairing_code_expires_at FROM remote_settings WHERE id = ? LIMIT 1",
         )
         .bind(REMOTE_SETTINGS_ID)
-        .fetch_one(&state.db_pool)
+        .fetch_one(&state.pool().await?)
         .await?;
 
     let devices = sqlx::query_as::<_, (String, String, Option<String>, Option<String>)>(
         "SELECT id, name, last_seen_at, revoked_at FROM remote_devices ORDER BY created_at DESC",
     )
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await?)
     .await?
     .into_iter()
     .filter(|(_, _, _, revoked_at)| revoked_at.is_none())
@@ -126,14 +125,18 @@ pub async fn get(state: State<'_, AppState>) -> AppResult<RemoteSettingsDto> {
     })
 }
 
-pub async fn set_enabled(enabled: bool, state: State<'_, AppState>, app: AppHandle) -> AppResult<RemoteSettingsDto> {
+pub async fn set_enabled(
+    enabled: bool,
+    state: State<'_, AppState>,
+    app: AppHandle,
+) -> AppResult<RemoteSettingsDto> {
     ensure_settings_row(&state).await?;
 
     sqlx::query("UPDATE remote_settings SET enabled = ?, updated_at = ? WHERE id = ?")
         .bind(enabled as i64)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(REMOTE_SETTINGS_ID)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
 
     let settings = get(state.clone()).await?;
@@ -141,10 +144,11 @@ pub async fn set_enabled(enabled: bool, state: State<'_, AppState>, app: AppHand
     if enabled {
         crate::app::remote::start(
             &settings,
-            state.db_pool.clone(),
+            state.pool().await?,
             state.abort_handles.clone(),
             app,
-        ).await?;
+        )
+        .await?;
     } else {
         crate::app::remote::stop().await?;
     }
@@ -162,20 +166,23 @@ pub async fn regenerate_pairing_code(state: State<'_, AppState>) -> AppResult<Re
     .bind((chrono::Utc::now() + chrono::Duration::minutes(10)).to_rfc3339())
     .bind(chrono::Utc::now().to_rfc3339())
     .bind(REMOTE_SETTINGS_ID)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     get(state).await
 }
 
-pub async fn revoke_device(device_id: String, state: State<'_, AppState>) -> AppResult<RemoteSettingsDto> {
+pub async fn revoke_device(
+    device_id: String,
+    state: State<'_, AppState>,
+) -> AppResult<RemoteSettingsDto> {
     ensure_settings_row(&state).await?;
 
     sqlx::query("UPDATE remote_devices SET revoked_at = ?, last_seen_at = COALESCE(last_seen_at, ?) WHERE id = ?")
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(device_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
 
     get(state).await

@@ -16,7 +16,7 @@ pub async fn list(
     )
     .bind(&organization_id)
     .bind(&repo_name)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -25,13 +25,23 @@ pub async fn list(
 
     let dtos: Vec<PullRequestDto> = records.into_iter().map(record_to_dto).collect();
 
-    let filtered: Vec<PullRequestDto> = dtos.iter().filter(|pr| match scope.as_str() {
-        "all_open" => true,
-        _ => login.as_ref().map(|current| {
-            pr.author.as_ref().map(|a| a.to_lowercase() == *current).unwrap_or(false)
-                || pr.reviewers.iter().any(|r| r.to_lowercase() == *current)
-        }).unwrap_or(true),
-    }).cloned().collect();
+    let filtered: Vec<PullRequestDto> = dtos
+        .iter()
+        .filter(|pr| match scope.as_str() {
+            "all_open" => true,
+            _ => login
+                .as_ref()
+                .map(|current| {
+                    pr.author
+                        .as_ref()
+                        .map(|a| a.to_lowercase() == *current)
+                        .unwrap_or(false)
+                        || pr.reviewers.iter().any(|r| r.to_lowercase() == *current)
+                })
+                .unwrap_or(true),
+        })
+        .cloned()
+        .collect();
 
     if filtered.is_empty() && scope != "all_open" {
         return Ok(dtos);

@@ -4,7 +4,7 @@ use crate::app::support::error::AppResult;
 use crate::state::AppState;
 
 pub async fn logout(state: State<'_, AppState>) -> AppResult<()> {
-    let pool = state.db_pool.clone();
+    let pool = state.pool().await?;
     let billing = state.billing.clone();
 
     tokio::spawn(async move {
