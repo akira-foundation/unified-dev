@@ -3,75 +3,74 @@ use std::sync::Arc;
 use tauri::{Emitter, Listener, Manager};
 
 use crate::app::support::error::AppResult;
-use crate::app::support::security::{KeyStore, TokenCipher};
+use crate::app::support::security::{active_customer_get, KeyStore, TokenCipher};
 use crate::app::terminal::state::TerminalState;
 use crate::providers::default_registry;
 use crate::state::AppState;
 use crate::{app, database};
 
+pub async fn start_background_services(app: &tauri::AppHandle, pool: &sqlx::SqlitePool) {
+    let app_state = app.state::<AppState>();
+    if let Ok(remote_settings) = app::settings::remote::get(app_state).await {
+        if remote_settings.enabled {
+            let app_state = app.state::<AppState>();
+            let _ = app::remote::start(
+                &remote_settings,
+                pool.clone(),
+                app_state.abort_handles.clone(),
+                app.clone(),
+            )
+            .await;
+        }
+    }
+
+    app::settings::poller::start(app.clone());
+}
+
+async fn boot_logged_in(app: &tauri::AppHandle, customer_id: &str) -> AppResult<()> {
+    let pool = database::open_customer_pool(app, customer_id).await?;
+    let app_state = app.state::<AppState>();
+    app_state.set_pool(pool.clone()).await;
+
+    match app::license::load_customer_token(&pool, &app_state.token_cipher).await {
+        Ok(Some(token)) => {
+            let mut billing = app_state.billing.write().await;
+            billing.set_customer_token(token);
+        }
+        Ok(None) => {}
+        Err(err) => {
+            eprintln!("customer token unavailable, continuing without it: {err}");
+            let _ = app::license::clear_customer_token(&pool).await;
+        }
+    }
+
+    {
+        let billing = app_state.billing.read().await;
+        let _ = app::license::bootstrap::ensure_free_envelope(&pool, &billing).await;
+    }
+
+    start_background_services(app, &pool).await;
+    app::notifications::refresh_badge(app, &pool).await;
+
+    Ok(())
+}
+
 pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let _ = app::settings::restore::apply_pending(app.handle());
 
     let setup_result: AppResult<()> = tauri::async_runtime::block_on(async {
-        let pool = database::init_pool(app.handle()).await?;
         let key = KeyStore::load_or_create_key(app.handle())?;
         let cipher = Arc::new(TokenCipher::new(key));
-
         let provider_factory = Arc::new(default_registry()?);
 
-        app.manage(AppState::new(provider_factory, cipher, pool.clone()));
+        app.manage(AppState::new(provider_factory, cipher));
 
-        {
-            let app_state = app.state::<AppState>();
-            match app::license::load_customer_token(
-                &app_state.pool().await?,
-                &app_state.token_cipher,
-            )
-            .await
-            {
-                Ok(Some(token)) => {
-                    let mut billing = app_state.billing.write().await;
-                    billing.set_customer_token(token);
-                }
-                Ok(None) => {}
-                Err(err) => {
-                    eprintln!("customer token unavailable, continuing without it: {err}");
-                    let _ = app::license::clear_customer_token(&app_state.pool().await?).await;
-                }
-            }
-        }
-
-        {
-            let app_state = app.state::<AppState>();
-            let billing = app_state.billing.read().await;
-            let _ =
-                app::license::bootstrap::ensure_free_envelope(&app_state.pool().await?, &billing)
-                    .await;
-        }
-
-        let app_state = app.state::<AppState>();
-        if let Ok(remote_settings) = app::settings::remote::get(app_state).await {
-            if remote_settings.enabled {
-                let app_state = app.state::<AppState>();
-                let _ = app::remote::start(
-                    &remote_settings,
-                    app_state.pool().await?,
-                    app_state.abort_handles.clone(),
-                    app.handle().clone(),
-                )
-                .await;
-            }
+        if let Some(customer_id) = active_customer_get()? {
+            boot_logged_in(app.handle(), &customer_id).await?;
         }
 
         let terminal_manager = Arc::new(std::sync::Mutex::new(TerminalState::new()));
         app.manage(terminal_manager);
-
-        app::settings::poller::start(app.handle().clone());
-
-        {
-            let app_state = app.state::<AppState>();
-            app::notifications::refresh_badge(app.handle(), &app_state.pool().await?).await;
-        }
 
         Ok(())
     });
