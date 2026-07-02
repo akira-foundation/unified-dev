@@ -124,36 +124,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload DMG to GitHub Release
+      - name: Upload artifacts to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.meta.outputs.dmg_path }}
+          files: |
+            ${{ steps.meta.outputs.dmg_path }}
+            ${{ steps.meta.outputs.tar_path }}
+            ${{ steps.meta.outputs.tar_path }}.sig
           body_path: release-body.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts to Digital Ocean Spaces
-        shell: bash
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
-            VERSION=${GITHUB_SHA::7}
-          fi
-          for file in \
-            "${{ steps.meta.outputs.tar_path }}" \
-            "${{ steps.meta.outputs.tar_path }}.sig" \
-            "${{ steps.meta.outputs.dmg_path }}"; do
-            if [ -f "$file" ]; then
-              aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/$(basename "$file")" \
-                --endpoint-url https://nyc3.digitaloceanspaces.com \
-                --region us-east-1 \
-                --acl public-read
-            fi
-          done
 
   build-x86_64:
     name: Build (x86_64)
@@ -270,36 +251,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload DMG to GitHub Release
+      - name: Upload artifacts to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: ${{ steps.meta.outputs.dmg_path }}
+          files: |
+            ${{ steps.meta.outputs.dmg_path }}
+            ${{ steps.meta.outputs.tar_path }}
+            ${{ steps.meta.outputs.tar_path }}.sig
           body_path: release-body.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts to Digital Ocean Spaces
-        shell: bash
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
-        run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
-            VERSION=${GITHUB_SHA::7}
-          fi
-          for file in \
-            "${{ steps.meta.outputs.tar_path }}" \
-            "${{ steps.meta.outputs.tar_path }}.sig" \
-            "${{ steps.meta.outputs.dmg_path }}"; do
-            if [ -f "$file" ]; then
-              aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/$(basename "$file")" \
-                --endpoint-url https://nyc3.digitaloceanspaces.com \
-                --region us-east-1 \
-                --acl public-read
-            fi
-          done
 
   publish:
     name: Publish latest.json
@@ -307,17 +269,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Generate and upload latest.json
+      - name: Generate latest.json
         shell: bash
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           if [ -z "$VERSION" ] || [ "$VERSION" = "$GITHUB_REF" ]; then
             VERSION=${GITHUB_SHA::7}
           fi
-          RELEASE_URL="https://unified-dev.nyc3.cdn.digitaloceanspaces.com/releases/v${VERSION}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
 
           AARCH64_FILENAME="${{ needs.build-aarch64.outputs.filename }}"
           X86_FILENAME="${{ needs.build-x86_64.outputs.filename }}"
@@ -348,14 +307,12 @@ jobs:
           echo "Generated latest.json:"
           cat latest.json
 
-          aws s3 cp latest.json "s3://unified-dev/releases/latest.json" \
-            --endpoint-url https://nyc3.digitaloceanspaces.com \
-            --region us-east-1 \
-            --acl public-read \
-            --content-type application/json \
-            --cache-control "no-cache"
-
-          echo "latest.json uploaded"
+      - name: Upload latest.json to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   sync-main:
     name: Sync version and changelog to main
@@ -531,24 +488,6 @@ jobs:
   #   env:
   #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # - name: Upload Linux artifacts to Digital Ocean Spaces
-  #   if: runner.os == 'Linux'
-  #   shell: bash
-  #   env:
-  #     AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
-  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
-  #   run: |
-  #     VERSION=${GITHUB_REF#refs/tags/v}
-  #     for file in src-tauri/target/release/bundle/appimage/*.AppImage*; do
-  #       if [ -f "$file" ]; then
-  #         filename=$(basename "$file")
-  #         aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/${filename}" \
-  #           --endpoint-url https://nyc3.digitaloceanspaces.com \
-  #           --region us-east-1 \
-  #           --acl public-read
-  #         fi
-  #     done
-
   # - name: Upload Windows artifacts to GitHub Release
   #   if: runner.os == 'Windows'
   #   uses: softprops/action-gh-release@v1
@@ -558,21 +497,3 @@ jobs:
   #       src-tauri/target/release/bundle/nsis/*
   #   env:
   #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # - name: Upload Windows artifacts to Digital Ocean Spaces
-  #   if: runner.os == 'Windows'
-  #   shell: bash
-  #   env:
-  #     AWS_ACCESS_KEY_ID: ${{ secrets.DO_SPACES_KEY }}
-  #     AWS_SECRET_ACCESS_KEY: ${{ secrets.DO_SPACES_SECRET }}
-  #   run: |
-  #     VERSION=${GITHUB_REF#refs/tags/v}
-  #     for file in src-tauri/target/release/bundle/msi/*.msi src-tauri/target/release/bundle/nsis/*.exe; do
-  #       if [ -f "$file" ]; then
-  #         filename=$(basename "$file")
-  #         aws s3 cp "$file" "s3://unified-dev/releases/v${VERSION}/${filename}" \
-  #           --endpoint-url https://nyc3.digitaloceanspaces.com \
-  #           --region us-east-1 \
-  #           --acl public-read
-  #         fi
-  #     done
