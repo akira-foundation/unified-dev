@@ -45,11 +45,11 @@ export function StatCard({
             {loading ? (
               <Skeleton className="h-5 w-16" />
             ) : (
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-semibold tracking-tight leading-none text-zinc-900 dark:text-white truncate">
+              <div className="flex items-baseline gap-1.5 min-w-0">
+                <span className="shrink-0 text-xl font-semibold tracking-tight leading-none text-zinc-900 dark:text-white">
                   {value}
                 </span>
-                <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 truncate">
+                <span className="min-w-0 truncate text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
                   {sub}
                 </span>
               </div>
