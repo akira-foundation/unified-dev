@@ -15,6 +15,12 @@ const SLASH_COMMAND_MAP: Record<string, string> = {
   "/tree": "find . -not -path './.git/*' -not -path './node_modules/*' -not -path './target/*' -not -path './.next/*' -not -path './dist/*' -maxdepth 4",
 };
 
+function omitThread(record: Record<string, number>, threadId: string): Record<string, number> {
+  const next = { ...record };
+  delete next[threadId];
+  return next;
+}
+
 function makeMessage(threadId: string, role: ChatMessage["role"], content: MessageContent): ChatMessage {
   return {
     id: crypto.randomUUID(),
@@ -94,6 +100,7 @@ export const createSendMessageSlice: AgentsSliceCreator<SendMessageSlice> = (set
         streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
         abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
         streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
+        streamStartedAtByThread: { ...state.streamStartedAtByThread, [threadId]: Date.now() },
         streamingThreadId: threadId,
         toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
       }));
@@ -102,6 +109,7 @@ export const createSendMessageSlice: AgentsSliceCreator<SendMessageSlice> = (set
         streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
         abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
         streamingThreadIds: { ...state.streamingThreadIds, [threadId]: true },
+        streamStartedAtByThread: { ...state.streamStartedAtByThread, [threadId]: Date.now() },
         streamingThreadId: threadId,
         toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
       }));
@@ -197,6 +205,7 @@ export const createSendMessageSlice: AgentsSliceCreator<SendMessageSlice> = (set
         set((state) => ({
           abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
           streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+          streamStartedAtByThread: omitThread(state.streamStartedAtByThread, threadId),
           streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
           streamingThreadId: null,
           toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
@@ -233,6 +242,7 @@ export const createSendMessageSlice: AgentsSliceCreator<SendMessageSlice> = (set
         set((state) => ({
           abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: false },
           streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+          streamStartedAtByThread: omitThread(state.streamStartedAtByThread, threadId),
           streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
           streamingThreadId: null,
           toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
@@ -259,6 +269,7 @@ export const createSendMessageSlice: AgentsSliceCreator<SendMessageSlice> = (set
       flushTokenBuffer();
       set((state) => ({
         streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+        streamStartedAtByThread: omitThread(state.streamStartedAtByThread, threadId),
         streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
         streamingThreadId: null,
       }));

@@ -54,6 +54,7 @@ export const useAgentsStore = create<AgentsState>()(
       toolCallsByThread: {},
       abortRequestedByThread: {},
       streamingThreadIds: {},
+      streamStartedAtByThread: {},
       streamingThreadId: null,
       messageQueueByThread: {},
       setIsFilesAllExpanded: (expanded) => set({ isFilesAllExpanded: expanded }),
