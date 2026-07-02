@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/i18n";
 import { AgentHeader } from "./agent-header";
 import { AgentTimeline } from "./agent-timeline";
 import { PrMergedBanner } from "./pr-merged-banner";
+import { AgentPushPrButton } from "./agent-push-pr-button";
 import { AgentDiffIsland } from "./agent-diff-island";
 import { PrCiPanel } from "./pr-ci-panel";
 import { AgentChatInput } from "./agent-chat-input";
@@ -231,6 +232,13 @@ export function AgentWorkspaceLayout() {
             </div>
             <div className="shrink-0 pb-6 pt-2">
               <PrMergedBanner threadId={selectedIssue.id} threadTitle={selectedIssue.title} className="mb-3" />
+              <AgentPushPrButton
+                threadId={selectedIssue.id}
+                workspacePath={selectedIssue.workspacePath}
+                branchName={selectedIssue.branchName}
+                title={selectedIssue.title}
+                className="mb-3"
+              />
               <AgentChatInput />
             </div>
           </div>

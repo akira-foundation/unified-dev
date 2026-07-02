@@ -1,5 +1,6 @@
 pub mod add_local;
 pub mod add_remote;
+pub mod branch_ahead;
 pub mod changes;
 pub mod check_pr;
 pub mod check_pr_ci;
@@ -14,6 +15,7 @@ pub mod types;
 
 pub use add_local::add_local;
 pub use add_remote::add_remote;
+pub use branch_ahead::branch_ahead;
 pub use changes::changes;
 pub use check_pr::check_pr;
 pub use check_pr_ci::{check_pr_ci, PrCiStatus};
