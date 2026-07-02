@@ -1,6 +1,9 @@
+use std::time::Instant;
+
 use super::{
-    invalidate_installation_token, parse_expiry_unix, token_is_fresh, CachedToken,
-    INSTALLATION_TOKEN_CACHE, TOKEN_EXPIRY_BUFFER_SECS,
+    clear_installation_caches, invalidate_installation_token, parse_expiry_unix, token_is_fresh,
+    CachedInstallations, CachedToken, GitHubInstallation, Account,
+    INSTALLATIONS_CACHE, INSTALLATION_TOKEN_CACHE, TOKEN_EXPIRY_BUFFER_SECS,
 };
 
 #[test]
@@ -32,4 +35,26 @@ fn invalidate_installation_token_removes_entry() {
 
     invalidate_installation_token(id);
     assert!(!INSTALLATION_TOKEN_CACHE.read().unwrap().contains_key(&id));
+}
+
+#[tokio::test]
+async fn clear_installation_caches_wipes_both_caches() {
+    let id = 111_222;
+    INSTALLATION_TOKEN_CACHE.write().unwrap().insert(
+        id,
+        CachedToken { token: "leaked-token".to_string(), expires_at_unix: i64::MAX },
+    );
+    *INSTALLATIONS_CACHE.write().await = Some(CachedInstallations {
+        token: "customer-a-oauth-token".to_string(),
+        installations: vec![GitHubInstallation {
+            id,
+            account: Account { login: "shared-org".to_string() },
+        }],
+        cached_at: Instant::now(),
+    });
+
+    clear_installation_caches().await;
+
+    assert!(!INSTALLATION_TOKEN_CACHE.read().unwrap().contains_key(&id));
+    assert!(INSTALLATIONS_CACHE.read().await.is_none());
 }

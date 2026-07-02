@@ -107,6 +107,13 @@ pub fn invalidate_installation_token(installation_id: u64) {
     }
 }
 
+pub async fn clear_installation_caches() {
+    *INSTALLATIONS_CACHE.write().await = None;
+    if let Ok(mut cache) = INSTALLATION_TOKEN_CACHE.write() {
+        cache.clear();
+    }
+}
+
 pub async fn resolve_provider_for_repo_owner(
     state: &AppState,
     organization_id: &str,
