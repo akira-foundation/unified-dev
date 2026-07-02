@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
-import { CreditCard, LogOut, Settings, User } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Settings, User } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import {
   DropdownMenu,
@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAvatar } from "@/hooks/useAvatar";
-import { useLicense } from "@/hooks/useLicense";
 import { toast } from "sonner";
 import { useI18n } from "@/i18n/i18n";
 import { useNavigationStore } from "@/stores/navigation-store";
@@ -19,21 +18,29 @@ import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
-const PLAN_BADGE: Record<string, string> = {
-  pro: "bg-purple-500/15 text-purple-400",
-  ultimate: "bg-amber-500/15 text-amber-400",
-};
+interface UserProfileDto {
+  email: string;
+}
 
 export function UserMenu() {
   const { t } = useI18n();
-  const { license, currentPlan } = useLicense();
-  const avatarUrl = useAvatar(license?.email);
+  const [email, setEmail] = useState("");
+  const avatarUrl = useAvatar(email || undefined);
   const navigateTo = useNavigationStore((s) => s.navigateTo);
   const setSettingsTab = useNavigationStore((s) => s.setSettingsTab);
   const { state } = useSidebar();
   const [open, setOpen] = useState(false);
 
-  const email = license?.email ?? "";
+  useEffect(() => {
+    void (async () => {
+      try {
+        const profile = await invoke<UserProfileDto | null>("get_user_profile");
+        setEmail(profile?.email ?? "");
+      } catch {
+      }
+    })();
+  }, []);
+
   const isCollapsed = state === "collapsed";
 
   function handleLogout() {
@@ -50,12 +57,6 @@ export function UserMenu() {
     setOpen(false);
     navigateTo("settings");
     setSettingsTab("general");
-  }
-
-  function handleSubscription() {
-    setOpen(false);
-    navigateTo("settings");
-    setSettingsTab("subscription");
   }
 
   const avatar = (
@@ -83,16 +84,6 @@ export function UserMenu() {
               <span className="truncate text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
                 {email}
               </span>
-              {currentPlan && (
-                <span
-                  className={cn(
-                    "w-fit rounded px-1 py-px text-[10px] font-semibold capitalize",
-                    PLAN_BADGE[currentPlan] ?? "bg-zinc-500/10 text-zinc-400",
-                  )}
-                >
-                  {currentPlan}
-                </span>
-              )}
             </div>
           )}
         </button>
@@ -103,26 +94,12 @@ export function UserMenu() {
           {avatar}
           <div className="flex min-w-0 flex-col">
             <span className="truncate text-[13px] font-medium">{email}</span>
-            {currentPlan && (
-              <span
-                className={cn(
-                  "mt-0.5 w-fit rounded px-1 py-px text-[10px] font-semibold capitalize",
-                  PLAN_BADGE[currentPlan] ?? "bg-zinc-500/10 text-zinc-400",
-                )}
-              >
-                {currentPlan}
-              </span>
-            )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSettings}>
           <Settings />
           {t("nav.settings")}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleSubscription}>
-          <CreditCard />
-          {t("nav.subscription")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={handleLogout}>

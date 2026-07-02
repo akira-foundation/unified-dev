@@ -58,7 +58,6 @@ use commands::notification::{
     mark_all_notifications_read, mark_notification_read, set_notification_prefs,
     unread_notifications_count,
 };
-use commands::license::{activate_license, checkout_url, claim_license_request, claim_license_verify, clear_license, downgrade_license, get_license, get_product_plans, list_invoices, manage_license, resume_license, verify_license};
 use commands::skill::{list_installed_skills, sync_skills, get_skills, set_skill_enabled, set_skill_icon, install_skill, uninstall_skill, fetch_recommended_skills, fetch_skills_from_repo};
 use commands::mcp::{list_mcp_servers, add_mcp_server, remove_mcp_server, set_mcp_server_enabled, connect_mcp_server, disconnect_mcp_server, cancel_mcp_connect};
 use commands::system::check_dependencies;
@@ -228,18 +227,6 @@ pub fn run() {
             set_remote_enabled,
             regenerate_remote_pairing_code,
             revoke_remote_device,
-            activate_license,
-            checkout_url,
-            get_product_plans,
-            get_license,
-            verify_license,
-            clear_license,
-            manage_license,
-            downgrade_license,
-            resume_license,
-            list_invoices,
-            claim_license_request,
-            claim_license_verify,
             oauth_login,
             oauth_logout,
             is_authenticated,

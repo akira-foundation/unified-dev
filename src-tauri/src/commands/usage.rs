@@ -29,17 +29,7 @@ pub async fn get_feature_usage(feature: String, state: State<'_, AppState>) -> A
 }
 
 async fn check_feature(state: &State<'_, AppState>, feature: &str) -> AppResult<UsageDto> {
-    let plan = license::get_plan(&state.pool().await?).await?;
     let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
-
-    if plan != "free" {
-        return Ok(UsageDto {
-            run_count: 0,
-            run_limit: None,
-            date,
-            is_free: false,
-        });
-    }
 
     let fingerprint = license::device_fingerprint();
     let has_token = license::load_customer_token(&state.pool().await?, &state.token_cipher)

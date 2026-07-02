@@ -57,8 +57,6 @@ pub async fn add_local(
         )));
     }
 
-    crate::app::license::access::require_feature(&state, "repos").await?;
-
     let repo_id = Uuid::new_v4().to_string().to_uppercase();
     let source_path_owned = local_path.clone();
     let repository = LocalRepository {

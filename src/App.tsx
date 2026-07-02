@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -15,15 +14,9 @@ import { AgentWorkspaceLayout } from "./components/agents/agent-workspace-layout
 import { Toaster } from "./components/ui/sonner";
 import { CommandPalette } from "./components/layout/command-palette";
 import { SearchOverlay } from "./components/layout/search-overlay";
-import { LicenseActivationDialog } from "./components/license-activation-dialog";
-import { LicenseExpiredScreen } from "./components/license/LicenseExpiredScreen";
-import { LicenseGraceBanner } from "./components/license/LicenseGraceBanner";
-import { LicensePaymentStatusBanner } from "./components/license/LicensePaymentStatusBanner";
 import { OnboardingOverlay, prefetchOauthProviders } from "./components/onboarding-overlay";
 import { UpgradeModal } from "./components/upgrade-modal";
-import { useLicense } from "./hooks/useLicense";
 import { useOnboardingStore } from "./stores/onboarding-store";
-import { useLicenseStore } from "./stores/license-store";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationPage } from "./pages/organization";
 import { OrganizationsPage } from "./pages/organizations";
@@ -70,17 +63,6 @@ export default function App() {
   const loadRepositories = useAgentsStore((state) => state.loadRepositories);
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
   const loadAutopilotJobs = useAutopilotStore((state) => state.loadJobs);
-  const verifyLicense = useLicenseStore((s) => s.verify);
-  const { isExpired } = useLicense();
-  const lastVerifyRef = useRef(0);
-  const [activationSessionId, setActivationSessionId] = useState<string | null>(null);
-
-  const verifyThrottled = useCallback(() => {
-    const now = Date.now();
-    if (now - lastVerifyRef.current < 30_000) return;
-    lastVerifyRef.current = now;
-    void verifyLicense();
-  }, [verifyLicense]);
 
   useEffect(() => {
     const unlisten = listen<{ kind: string; orgId: string }>("sync:completed", ({ payload }) => {
@@ -115,38 +97,11 @@ export default function App() {
         const authed = await invoke<boolean>("is_authenticated");
         if (!authed) {
           requireOnboardingAuth();
-          return;
         }
-        lastVerifyRef.current = Date.now();
-        void verifyLicense();
       } catch {
       }
     })();
-
-    const onVisible = () => {
-      if (document.visibilityState === "visible") verifyThrottled();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("online", verifyThrottled);
-    const unlistenFocus = getCurrentWindow().onFocusChanged(({ payload: focused }) => {
-      if (focused) verifyThrottled();
-    });
-    const interval = setInterval(verifyThrottled, 30 * 60 * 1000);
-
-    return () => {
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("online", verifyThrottled);
-      void unlistenFocus.then((fn) => fn());
-      clearInterval(interval);
-    };
-  }, [onboardingCompleted, verifyLicense, verifyThrottled]);
-
-  useEffect(() => {
-    const unlisten = listen<string>("license://activate", (event) => {
-      setActivationSessionId(event.payload);
-    });
-    return () => { unlisten.then((fn) => fn()); };
-  }, []);
+  }, [onboardingCompleted]);
 
   useEffect(() => {
     const unlisten = listen<{ tool: string; current: string; latest: string; command: string }>(
@@ -163,10 +118,6 @@ export default function App() {
     return () => { unlisten.then((fn) => fn()); };
   }, []);
 
-  if (onboardingCompleted && !onboardingAuthOnly && isExpired) {
-    return <LicenseExpiredScreen />;
-  }
-
   return (
     <AppShell variant="sidebar">
       {isAgentMode ? (
@@ -176,8 +127,6 @@ export default function App() {
       )}
       <AppContent className="flex h-svh flex-col overflow-hidden">
         <AppHeader />
-        <LicensePaymentStatusBanner />
-        <LicenseGraceBanner />
         <main className={cn(
           "flex-1 custom-scrollbar",
           isAgentMode ? "h-full overflow-hidden" : "overflow-y-auto"
@@ -213,11 +162,6 @@ export default function App() {
         <CommandPalette />
         <SearchOverlay />
         <UpgradeModal />
-        <LicenseActivationDialog
-          open={activationSessionId !== null}
-          initialSessionId={activationSessionId ?? ""}
-          onClose={() => setActivationSessionId(null)}
-        />
         {(!onboardingCompleted || onboardingAuthOnly) && <OnboardingOverlay />}
       </AppContent>
     </AppShell>

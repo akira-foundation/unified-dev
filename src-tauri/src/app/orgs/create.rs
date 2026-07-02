@@ -12,10 +12,6 @@ pub async fn create(
     state: State<'_, AppState>,
     input: CreateOrgRequest,
 ) -> Result<OrganizationSummary, String> {
-    crate::app::license::access::require_feature(&state, "orgs")
-        .await
-        .map_err(|e| e.to_string())?;
-
     let provider_exists =
         sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM providers WHERE id = ?")
             .bind(&input.provider_id)
