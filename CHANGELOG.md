@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.5](https://github.com/akira-foundation/unified-dev/compare/v0.12.4...v0.12.5) (2026-07-02)
+
+### Bug Fixes
+
+- **ai:** Prefer Claude Code CLI over ANTHROPIC_API_KEY for claude models ([cb46bfb](https://github.com/akira-foundation/unified-dev/commit/cb46bfb1b272417db28083223d100b3206528a04))
+- **repos:** Remove duplicate filter icon on repository PRs tab ([bdf8b79](https://github.com/akira-foundation/unified-dev/commit/bdf8b79e9324f14654f6d21dbf4fba3ed82c90e2))
+- **repos:** Keep PR detail on page when marking ready for review ([8d0f895](https://github.com/akira-foundation/unified-dev/commit/8d0f895c70a4a211fc5d07820eec739fa321c508))
+- **agents:** Persist Working timer across timeline remount ([e286e1d](https://github.com/akira-foundation/unified-dev/commit/e286e1d67fc52137b16080b27993c754ab824587))
+- **agents:** Fetch chat history without waiting for repositories load ([fab6d58](https://github.com/akira-foundation/unified-dev/commit/fab6d580b233e392494e94e67e57dfea4b4794b3))
+- **threads:** Sync pull requests when PR review lookup misses cache ([b7f7e51](https://github.com/akira-foundation/unified-dev/commit/b7f7e51035411a98ef1cdc7e485ab90f2c3cf712))
+- **agents:** Add manual Push & create PR fallback for autopilot runs ([8431a3d](https://github.com/akira-foundation/unified-dev/commit/8431a3da97b509e98cdd38f608f435a7dbba82e8))
+- **agents:** Resume Claude CLI session to keep tool context across turns ([c7e2ba6](https://github.com/akira-foundation/unified-dev/commit/c7e2ba6090946fa498bb0de4361378864481919a))
+
+
+### Features
+
+- **i18n:** Rename Clusters from Hubs in user-facing labels ([42f840c](https://github.com/akira-foundation/unified-dev/commit/42f840ca5248c9e0f73a241fc7fefeeb7a3b5ae8))
+
 ## [0.12.4](https://github.com/akira-foundation/unified-dev/compare/v0.12.3...v0.12.4) (2026-06-03)
 
 ### Bug Fixes
