@@ -79,20 +79,22 @@ export function AgentWorkspaceLayout() {
   const selectedIssue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
 
   useEffect(() => {
-    if (!isAgentMode) return;
-    if (!repositoriesLoaded) return;
-    if (selectedIssueId) {
-      if (!streamingThreadIds[selectedIssueId]) {
-        loadMessages(selectedIssueId);
-      }
-      const issue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
-      if (issue?.workspacePath) {
-        loadFileChanges(issue.workspacePath);
-        loadPrUrl(selectedIssueId, issue.workspacePath);
-      }
+    if (!isAgentMode || !selectedIssueId) return;
+    if (!streamingThreadIds[selectedIssueId]) {
+      loadMessages(selectedIssueId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAgentMode, selectedIssueId, repositoriesLoaded, loadMessages, loadFileChanges, loadPrUrl]);
+  }, [isAgentMode, selectedIssueId, loadMessages]);
+
+  useEffect(() => {
+    if (!isAgentMode || !repositoriesLoaded || !selectedIssueId) return;
+    const issue = allIssues.find((i: AgentIssue) => i.id === selectedIssueId);
+    if (issue?.workspacePath) {
+      loadFileChanges(issue.workspacePath);
+      loadPrUrl(selectedIssueId, issue.workspacePath);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAgentMode, selectedIssueId, repositoriesLoaded, loadFileChanges, loadPrUrl]);
 
   useEffect(() => {
     if (!isAgentMode) return;
