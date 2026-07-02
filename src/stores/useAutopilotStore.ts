@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAgentsStore } from "./useAgentsStore";
 import { openUpgradeModal } from "./upgrade-modal-store";
 import type { IssueDto } from "@/types/issue";
+import type { AiProviderGroup } from "@/types/ai-providers";
 
 function handleAutopilotError(err: unknown) {
   if (String(err) === "autopilot_requires_pro") {
@@ -67,6 +68,26 @@ const cancelTokens: Record<string, { cancelled: boolean }> = {};
 const agentWatchers: Record<string, () => void> = {};
 const threadWatchers: Record<string, () => void> = {};
 const autoPrDispatched = new Set<string>();
+const autoPrFailed = new Set<string>();
+
+function pickModelId(
+  config: AutopilotConfig,
+  repoId: string,
+  aiProviders: AiProviderGroup[],
+  getEffectiveModelId: (repoId: string, threadId: string) => string | null,
+): string | null {
+  switch (config.modelMode) {
+    case "current":
+      return getEffectiveModelId(repoId, "");
+    case "single":
+      return config.modelId;
+    default: {
+      const allModels = aiProviders.flatMap((p) => p.models);
+      if (allModels.length === 0) return null;
+      return allModels[Math.floor(Math.random() * allModels.length)].id;
+    }
+  }
+}
 
 function dbLog(
   jobId: string,
@@ -132,12 +153,10 @@ function watchThread(
     const stillStreaming = Boolean(currentAgentsState.streamingThreadIds[threadId]);
     const autoPrKey = `${jobId}:${threadId}`;
 
-    if (
-      !hasPrNow
-      && !stillStreaming
-      && job.config.prMode !== "off"
-      && !autoPrDispatched.has(autoPrKey)
-    ) {
+    const idleWithoutPr = !hasPrNow && !stillStreaming && job.config.prMode !== "off";
+    let justDispatched = false;
+
+    if (idleWithoutPr && !autoPrDispatched.has(autoPrKey)) {
       autoPrDispatched.add(autoPrKey);
       const modelId =
         job.config.modelMode === "single" && job.config.modelId
@@ -154,7 +173,13 @@ function watchThread(
           .sendMessage(threadId, prompt, modelId, false)
           .catch(() => {});
         dbLog(jobId, "auto_pr_dispatched", { threadRowId, repoName, detail: job.config.prMode });
+        justDispatched = true;
       }
+    }
+
+    if (idleWithoutPr && !justDispatched && autoPrDispatched.has(autoPrKey) && !autoPrFailed.has(autoPrKey)) {
+      autoPrFailed.add(autoPrKey);
+      dbLog(jobId, "auto_pr_failed", { threadRowId, repoName, detail: job.config.prMode });
     }
 
     const allCompleted = getAutopilotCompletedCount(job.threads, currentAgentsState.prUrlByThread, currentAgentsState.streamingThreadIds) === job.threads.length;
@@ -277,18 +302,7 @@ async function runJob(
       dbLog(jobId, "thread_created", { threadRowId, repoName: job.repoName, issueId: issue.id, issueNumber: issue.number });
 
       if (config.autoSend) {
-        let modelId: string | null = null;
-
-        if (config.modelMode === "current") {
-          modelId = getEffectiveModelId(job.repoId, "");
-        } else if (config.modelMode === "single") {
-          modelId = config.modelId;
-        } else {
-          const allModels = aiProviders.flatMap((p) => p.models);
-          if (allModels.length > 0) {
-            modelId = allModels[Math.floor(Math.random() * allModels.length)].id;
-          }
-        }
+        const modelId = pickModelId(config, job.repoId, aiProviders, getEffectiveModelId);
 
         if (modelId) {
           const message = `Implement the following issue:\n\n**${issue.title}**\n\n${issue.body ?? ""}`;
@@ -520,7 +534,7 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
       const jobs = Object.fromEntries(dbJobs.map((j) => [j.id, dbJobToStore(j)]));
       set({ jobs });
     } catch {
-      // DB not ready yet or first run — start empty
+      set({ jobs: {} });
     }
   },
 
@@ -561,7 +575,6 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
 
     set((s) => ({ jobs: { ...s.jobs, [jobId]: job } }));
 
-    // Persist to SQLite
     invoke("autopilot_save_job", {
       input: {
         id: jobId,
@@ -740,18 +753,7 @@ export const useAutopilotStore = create<AutopilotState>((set, get) => ({
       addThread(job.repoId, agentThread);
 
       const { config } = job;
-      let modelId: string | null = null;
-
-      if (config.modelMode === "current") {
-        modelId = getEffectiveModelId(job.repoId, "");
-      } else if (config.modelMode === "single") {
-        modelId = config.modelId;
-      } else {
-        const allModels = aiProviders.flatMap((p) => p.models);
-        if (allModels.length > 0) {
-          modelId = allModels[Math.floor(Math.random() * allModels.length)].id;
-        }
-      }
+      const modelId = pickModelId(config, job.repoId, aiProviders, getEffectiveModelId);
 
       if (modelId && config.autoSend) {
         const message = `Implement the following issue:\n\n**${issue.title}**\n\n${issue.body ?? ""}`;

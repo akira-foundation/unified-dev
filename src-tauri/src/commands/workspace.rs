@@ -36,6 +36,11 @@ pub async fn create_draft_pr(workspace_path: String, branch_name: String, title:
 }
 
 #[tauri::command]
+pub async fn check_branch_ahead(workspace_path: String) -> Result<bool, String> {
+    crate::app::repos::branch_ahead(workspace_path).await
+}
+
+#[tauri::command]
 pub async fn discard_file_changes(workspace_path: String, filename: String) -> Result<(), String> {
     crate::app::repos::discard_changes(workspace_path, filename).await
 }
