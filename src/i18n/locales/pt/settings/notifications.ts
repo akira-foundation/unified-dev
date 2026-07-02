@@ -1,0 +1,18 @@
+export const ptSettingsNotifications: Record<string, string> = {
+  "settings.notifications.title": "Notificações",
+  "settings.notifications.description": "Escolhe como e quando os alertas são apresentados.",
+  "settings.notifications.agentFinish.label": "Notificar quando o agente termina",
+  "settings.notifications.agentFinish.description": "Mostra uma notificação nativa quando um agente conclui o trabalho e a app não está em foco.",
+  "settings.notifications.dockBadge.label": "Badge no Dock",
+  "settings.notifications.dockBadge.description": "Mostra o número de workspaces que precisam de atenção como badge no ícone do dock.",
+  "settings.notifications.completionSound.label": "Som de conclusão",
+  "settings.notifications.completionSound.description": "Reproduz um som quando um agente conclui o trabalho.",
+  "settings.notifications.completionSound.unfocused": "Quando não focado",
+  "settings.notifications.completionSound.always": "Sempre",
+  "settings.notifications.completionSound.never": "Nunca",
+  "settings.notifications.sound.label": "Som",
+  "settings.notifications.sound.description": "Escolhe qual som de notificação reproduzir.",
+  "settings.notifications.sound.sparkleDing": "Sparkle Ding",
+  "settings.notifications.sound.chime": "Chime",
+  "settings.notifications.sound.pop": "Pop",
+};

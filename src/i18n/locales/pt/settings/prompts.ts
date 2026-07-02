@@ -1,0 +1,15 @@
+export const ptSettingsPrompts: Record<string, string> = {
+  "settings.prompts.title": "Prompts",
+  "settings.prompts.description": "Personaliza as instruções enviadas ao agente de código ao executar ações de Git e GitHub. Deixa em branco para usar o padrão incorporado.",
+  "settings.prompts.mergeLocal.label": "Merge Local",
+  "settings.prompts.mergeLocal.description": "Enviado quando o agente faz merge das alterações para a branch base sem push.",
+  "settings.prompts.mergePush.label": "Merge e Push",
+  "settings.prompts.mergePush.description": "Enviado quando o agente faz merge local e push para o remoto.",
+  "settings.prompts.draftPr.label": "Draft Pull Request",
+  "settings.prompts.draftPr.description": "Enviado quando o agente cria um PR draft no GitHub.",
+  "settings.prompts.createPr.label": "Pull Request",
+  "settings.prompts.createPr.description": "Enviado quando o agente cria um PR publicado no GitHub.",
+  "settings.prompts.badge.custom": "Personalizado",
+  "settings.prompts.badge.default": "Padrão",
+  "settings.prompts.resetToDefault": "Repor padrão",
+};

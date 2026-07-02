@@ -1,0 +1,15 @@
+export const enSettingsShortcuts: Record<string, string> = {
+  "settings.shortcuts.title": "Shortcuts",
+  "settings.shortcuts.description": "Keyboard shortcuts to boost your productivity.",
+  "settings.shortcuts.toggleTerminal": "Toggle Terminal",
+  "settings.shortcuts.toggleSidebar": "Toggle Sidebar",
+  "settings.shortcuts.toggleChanges": "Toggle Changes Panel",
+  "settings.shortcuts.toggleDiff": "Toggle Diff View",
+  "settings.shortcuts.togglePreview": "Toggle Preview",
+  "settings.shortcuts.mergePr": "Merge / Pull Request",
+  "settings.shortcuts.addAttachment": "Add Attachment",
+  "settings.shortcuts.togglePlan": "Toggle Plan Mode",
+  "settings.shortcuts.toggleOpinions": "Toggle Opinions",
+  "settings.shortcuts.toggleDictation": "Toggle Dictation",
+  "settings.shortcuts.focusPrompt": "Focus Prompt Input",
+};

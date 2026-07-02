@@ -1,0 +1,15 @@
+export const ptSettingsShortcuts: Record<string, string> = {
+  "settings.shortcuts.title": "Atalhos",
+  "settings.shortcuts.description": "Atalhos de teclado para aumentar a tua produtividade.",
+  "settings.shortcuts.toggleTerminal": "Alternar Terminal",
+  "settings.shortcuts.toggleSidebar": "Alternar Barra Lateral",
+  "settings.shortcuts.toggleChanges": "Alternar Painel de Alterações",
+  "settings.shortcuts.toggleDiff": "Alternar Vista de Diff",
+  "settings.shortcuts.togglePreview": "Alternar Pré-visualização",
+  "settings.shortcuts.mergePr": "Merge / Pull Request",
+  "settings.shortcuts.addAttachment": "Adicionar Anexo",
+  "settings.shortcuts.togglePlan": "Alternar Modo de Plano",
+  "settings.shortcuts.toggleOpinions": "Alternar Opiniões",
+  "settings.shortcuts.toggleDictation": "Alternar Ditado",
+  "settings.shortcuts.focusPrompt": "Focar Input de Prompt",
+};

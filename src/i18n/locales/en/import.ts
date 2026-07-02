@@ -1,0 +1,15 @@
+export const enImport: Record<string, string> = {
+  "import.title": "Import from {provider}",
+  "import.description": "Bring tracker projects in as repositories under a cluster.",
+  "import.scopesLabel": "Projects to import",
+  "import.search": "Search projects…",
+  "import.loading": "Loading…",
+  "import.empty": "Nothing to import",
+  "import.destLabel": "Destination cluster",
+  "import.newProject": "New cluster",
+  "import.apply": "Import",
+  "import.conflict.message": "Already exists: {names}. What do you want to do?",
+  "import.conflict.merge": "Merge",
+  "import.conflict.replace": "Replace",
+  "import.conflict.keep": "Keep both",
+};

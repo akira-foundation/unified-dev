@@ -1,0 +1,18 @@
+export const enSettingsNotifications: Record<string, string> = {
+  "settings.notifications.title": "Notifications",
+  "settings.notifications.description": "Choose how and when alerts are presented.",
+  "settings.notifications.agentFinish.label": "Notify when agent finishes",
+  "settings.notifications.agentFinish.description": "Show a native notification when an agent completes its work and the app is not focused.",
+  "settings.notifications.dockBadge.label": "Dock badge",
+  "settings.notifications.dockBadge.description": "Show the number of workspaces needing attention as a badge on the dock icon.",
+  "settings.notifications.completionSound.label": "Completion sound",
+  "settings.notifications.completionSound.description": "Play a sound when an agent completes its work.",
+  "settings.notifications.completionSound.unfocused": "When not focused",
+  "settings.notifications.completionSound.always": "Always",
+  "settings.notifications.completionSound.never": "Never",
+  "settings.notifications.sound.label": "Sound",
+  "settings.notifications.sound.description": "Choose which notification sound to play.",
+  "settings.notifications.sound.sparkleDing": "Sparkle Ding",
+  "settings.notifications.sound.chime": "Chime",
+  "settings.notifications.sound.pop": "Pop",
+};
