@@ -14,7 +14,6 @@ import {
   FileText,
   // Smartphone,
   RefreshCw,
-  CreditCard,
   Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,13 +39,12 @@ import { AdvancedTab } from "@/components/settings/advanced-tab";
 import { VcsProvidersTab } from "@/components/settings/vcs-providers-tab";
 import { WorkspacesTab } from "@/components/settings/workspaces-tab";
 import { PromptsTab } from "@/components/settings/prompts-tab";
-import { SubscriptionTab } from "@/components/settings/subscription-tab";
 import { UpdatesTab } from "@/components/settings/updates-tab";
 
 type TabId =
   | "general" | "appearance" | "behaviour" | "notifications"
   | "integrations" | "agents" | "remote" | "sync" | "shortcuts" | "dictation"
-  | "advanced" | "vcs-providers" | "workspaces" | "prompts" | "subscription" | "updates";
+  | "advanced" | "vcs-providers" | "workspaces" | "prompts" | "updates";
 
 const COMING_SOON_TABS: TabId[] = ["agents", "dictation", "workspaces", "remote", "shortcuts", "advanced"];
 
@@ -84,7 +82,6 @@ export function SettingsPage() {
         { id: "appearance" as TabId,    label: t("settings.tabs.appearance"),     icon: <Palette className="h-4 w-4" /> },
         { id: "behaviour" as TabId,     label: t("settings.tabs.behaviour"),      icon: <SlidersHorizontal className="h-4 w-4" /> },
         { id: "notifications" as TabId, label: t("settings.tabs.notifications"),  icon: <Bell className="h-4 w-4" /> },
-        { id: "subscription" as TabId,  label: t("settings.tabs.subscription"),   icon: <CreditCard className="h-4 w-4" /> },
         { id: "updates" as TabId,       label: t("settings.tabs.updates"),        icon: <Download className="h-4 w-4" /> },
       ],
     },
@@ -192,7 +189,6 @@ export function SettingsPage() {
               {id === "vcs-providers" && <VcsProvidersTab />}
               {id === "workspaces"    && <WorkspacesTab />}
               {id === "prompts"       && <PromptsTab />}
-              {id === "subscription"  && <SubscriptionTab />}
               {id === "updates"       && <UpdatesTab />}
             </Activity>
           ))}

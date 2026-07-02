@@ -14,8 +14,6 @@ export function actionLabel(action_type: string | null): string | null {
   switch (action_type) {
     case "update.cli":
       return "Update";
-    case "upgrade.pro":
-      return "Upgrade";
     case "autopilot.open":
       return "Open job";
     case "github.install":
@@ -33,11 +31,6 @@ export function runAction(item: NotificationActionTarget): void {
   const nav = useNavigationStore.getState();
 
   switch (item.action_type) {
-    case "upgrade.pro": {
-      nav.setSettingsTab("subscription");
-      nav.navigateTo("settings");
-      return;
-    }
     case "autopilot.open": {
       nav.navigateTo("agents");
       return;

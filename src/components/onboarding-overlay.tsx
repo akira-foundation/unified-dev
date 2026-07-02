@@ -20,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useOnboardingStore } from "@/stores/onboarding-store";
-import { useLicenseStore } from "@/stores/license-store";
 
 interface DependencyStatus {
   id: string;
@@ -146,8 +145,6 @@ export function OnboardingOverlay() {
     try {
       const result = await invoke<OauthLoginResult>("oauth_login", { provider });
       setAuthResult(result);
-      await useLicenseStore.getState().load();
-      await useLicenseStore.getState().verify();
       if (authOnly) {
         clearRequireAuth();
         window.location.reload();

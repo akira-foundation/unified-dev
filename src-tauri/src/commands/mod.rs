@@ -3,7 +3,6 @@ pub mod auth;
 pub mod autopilot;
 pub mod issue;
 pub mod system;
-pub mod license;
 pub mod mcp;
 pub mod notification;
 pub mod open_source;

@@ -25,7 +25,6 @@ const CATEGORIES: CategoryMeta[] = [
   { key: "sync", label: "Sync", description: "Repository, organization, and provider sync events." },
   { key: "workspace", label: "Workspace", description: "Long-running commands and draft PRs." },
   { key: "update", label: "Updates", description: "App and CLI tool updates available." },
-  { key: "license", label: "License & billing", description: "Trial expiry, plan changes, payment issues." },
   { key: "auth", label: "Authentication", description: "Session expired, App reinstall needed." },
   { key: "skill", label: "Skills", description: "Skill discovery and installation events." },
   { key: "usage_limit", label: "Usage limits", description: "Free tier limit warnings and reached." },

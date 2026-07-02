@@ -6,7 +6,7 @@ use crate::app::settings::request::{SyncSettingsDto, UpsertSyncSettingsRequest};
 use crate::app::settings::visibility::{
     UpsertVisibilityPreferencesRequest, VisibilityPreferencesDto,
 };
-use crate::app::support::error::{AppError, AppResult};
+use crate::app::support::error::AppResult;
 use crate::state::AppState;
 
 #[tauri::command]
@@ -79,17 +79,6 @@ pub async fn set_remote_enabled(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> AppResult<RemoteSettingsDto> {
-    if enabled {
-        let plan = crate::app::license::get_plan(&state.pool().await?).await?;
-        match crate::app::license::access::require_feature(&state, "remote_devices").await {
-            Ok(_) if plan == "ultimate" => {}
-            _ => {
-                return Err(AppError::FreeTierLimit(
-                    "remote_requires_ultimate".to_string(),
-                ))
-            }
-        }
-    }
     let settings = settings::remote::set_enabled(enabled, state, app).await?;
     Ok(settings)
 }

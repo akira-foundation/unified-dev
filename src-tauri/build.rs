@@ -27,11 +27,7 @@ fn main() {
 
     println!("cargo:rerun-if-changed=../.env");
 
-    let billing_envs = [
-        "AKIRA_BILLING_URL",
-        "AKIRA_BILLING_SECRET",
-        "AKIRA_LICENSE_PUBKEY",
-    ];
+    let billing_envs = ["AKIRA_BILLING_URL", "AKIRA_BILLING_SECRET"];
     let profile = std::env::var("PROFILE").unwrap_or_default();
     for key in billing_envs {
         if loaded.contains(key) || std::env::var(key).is_ok() {

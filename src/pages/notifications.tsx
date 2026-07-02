@@ -35,7 +35,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   sync: "Sync",
   workspace: "Workspace",
   update: "Update",
-  license: "License",
   auth: "Auth",
   skill: "Skill",
   usage_limit: "Usage limit",

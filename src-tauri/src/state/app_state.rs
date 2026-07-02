@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use akira_billing::gate::Gate;
 use sqlx::SqlitePool;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use crate::app::billing::BillingClient;
-use crate::app::license;
 use crate::app::support::error::{AppError, AppResult};
 use crate::app::support::security::TokenCipher;
 use crate::providers::registry::ProviderFactory;
@@ -20,13 +18,11 @@ pub struct AppState {
     pub abort_handles: Arc<Mutex<HashMap<String, JoinHandle<()>>>>,
     pub billing: Arc<RwLock<BillingClient>>,
     pub tracker_registry: Arc<TrackerRegistry>,
-    pub license_gate: Arc<Gate>,
 }
 
 impl AppState {
     pub fn new(provider_factory: Arc<ProviderFactory>, token_cipher: Arc<TokenCipher>) -> Self {
         let db: Arc<RwLock<Option<SqlitePool>>> = Arc::new(RwLock::new(None));
-        let license_gate = license::gate::build(db.clone());
         Self {
             provider_factory,
             token_cipher,
@@ -34,7 +30,6 @@ impl AppState {
             abort_handles: Arc::new(Mutex::new(HashMap::new())),
             billing: Arc::new(RwLock::new(BillingClient::from_build_env())),
             tracker_registry: Arc::new(TrackerRegistry::new()),
-            license_gate,
         }
     }
 

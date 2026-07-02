@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use tauri::{Emitter, Listener, Manager};
+use tauri::Manager;
 
 use crate::app::support::error::AppResult;
 use crate::app::support::security::{active_customer_get, KeyStore, TokenCipher};
@@ -44,11 +44,6 @@ async fn boot_logged_in(app: &tauri::AppHandle, customer_id: &str) -> AppResult<
         }
     }
 
-    {
-        let billing = app_state.billing.read().await;
-        let _ = app::license::bootstrap::ensure_free_envelope(&pool, &billing).await;
-    }
-
     start_background_services(app, &pool).await;
     app::notifications::refresh_badge(app, &pool).await;
 
@@ -76,25 +71,6 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     });
 
     setup_result.map_err(|error| Box::new(error) as Box<dyn std::error::Error>)?;
-
-    let app_handle = app.handle().clone();
-    app.listen("deep-link://new-url", move |event: tauri::Event| {
-        if let Ok(urls) = serde_json::from_str::<Vec<String>>(event.payload()) {
-            for url in urls {
-                if let Ok(parsed) = reqwest::Url::parse(&url) {
-                    if parsed.scheme() == "akira" && parsed.path() == "/license/activate" {
-                        if let Some(session_id) = parsed
-                            .query_pairs()
-                            .find(|(k, _)| k == "session_id")
-                            .map(|(_, v): (_, std::borrow::Cow<str>)| v.into_owned())
-                        {
-                            let _ = app_handle.emit("license://activate", session_id);
-                        }
-                    }
-                }
-            }
-        }
-    });
 
     Ok(())
 }
