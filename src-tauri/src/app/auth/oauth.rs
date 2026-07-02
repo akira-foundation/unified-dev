@@ -104,6 +104,10 @@ pub async fn login_with_provider(
         response
     };
 
+    if let Err(err) = database::migrate_legacy_if_needed(app, &response.customer.id).await {
+        eprintln!("legacy db migration skipped: {err}");
+    }
+
     let pool = database::open_customer_pool(app, &response.customer.id).await?;
     state.set_pool(pool.clone()).await;
 
