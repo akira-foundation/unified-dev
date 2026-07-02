@@ -66,8 +66,8 @@ pub async fn get_pr_review_context(
         .map(|(id,)| id)
         .ok_or_else(|| "Repository is not linked to any organization".to_string())?;
 
-    let prs = crate::app::orgs::list_repo_pull_requests(
-        state,
+    let cached = crate::app::orgs::list_repo_pull_requests(
+        state.clone(),
         organization_id.clone(),
         repo_name.clone(),
         Some("all".to_string()),
@@ -75,10 +75,24 @@ pub async fn get_pr_review_context(
     )
     .await?;
 
-    let pr = prs
-        .into_iter()
-        .find(|p| p.url == pr_url)
-        .ok_or_else(|| "PR not found in synced list".to_string())?;
+    let pr = match cached.into_iter().find(|p| p.url == pr_url) {
+        Some(pr) => pr,
+        None => {
+            let synced = crate::app::orgs::sync_pull_requests(
+                state,
+                organization_id.clone(),
+                repo_name.clone(),
+                Some(owner.clone()),
+                Some("all".to_string()),
+                None,
+            )
+            .await?;
+            synced
+                .into_iter()
+                .find(|p| p.url == pr_url)
+                .ok_or_else(|| "PR not found after syncing repository".to_string())?
+        }
+    };
 
     Ok(PrReviewContext {
         repo: ActiveRepoDto {
@@ -88,4 +102,24 @@ pub async fn get_pr_review_context(
         },
         pr,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_owner;
+
+    #[test]
+    fn parses_owner_from_https_url() {
+        assert_eq!(parse_owner("https://github.com/acme/repo.git"), Some("acme".to_string()));
+    }
+
+    #[test]
+    fn parses_owner_ignoring_trailing_slash() {
+        assert_eq!(parse_owner("https://github.com/acme/repo/"), Some("acme".to_string()));
+    }
+
+    #[test]
+    fn returns_none_without_owner_segment() {
+        assert_eq!(parse_owner("repo"), None);
+    }
 }
