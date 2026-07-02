@@ -1,8 +1,9 @@
 [package]
 name = "unified-dev"
 version = "0.12.5"
-description = "A Tauri App"
-authors = ["you"]
+description = "A desktop workspace for AI-assisted development"
+authors = ["Akira Foundation"]
+license = "AGPL-3.0-only"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
