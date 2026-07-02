@@ -79,14 +79,11 @@ mod tests {
             .run(&pool)
             .await
             .unwrap();
-        sqlx::query(
-            "INSERT INTO license (id, token, plan, cycle, email, status, valid_until, activated_at, last_verified_at, signature, customer_id)
-             VALUES ('local', '', '', '', 'a@b.c', 'active', '', '2026-01-01', '2026-01-01', '', ?)",
-        )
-        .bind(customer_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO license (id, customer_id) VALUES ('local', ?)")
+            .bind(customer_id)
+            .execute(&pool)
+            .await
+            .unwrap();
         sqlx::query("INSERT INTO providers (id, name, kind, auth_type, auth_payload, created_at) VALUES ('p1', 'gh', 'github', 'pat', '{}', '2026-01-01')")
             .execute(&pool)
             .await
