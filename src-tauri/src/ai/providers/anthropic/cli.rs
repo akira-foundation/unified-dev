@@ -1,16 +1,17 @@
 use async_trait::async_trait;
 use serde_json::json;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 use std::collections::HashMap;
 
 use crate::ai::provider::{AiProvider, AiRequest};
+use crate::ai::providers::anthropic::cli_session::{build_stdin, clear_session, extract_session_id, persist_session, read_session};
 use crate::ai::providers::anthropic::cli_stream::{emit_tool_result, emit_tool_use};
-use crate::app::chat::message::{parse_content_to_api, content_has_image};
 use crate::app::chat::stream::emit_token;
 use crate::app::mcp::types::McpServer;
 use crate::app::support::error::{AppError, AppResult};
+use crate::state::AppState;
 
 pub struct AnthropicCliProvider;
 
@@ -89,25 +90,9 @@ impl AnthropicCliProvider {
 
         let cli_model = resolve_cli_model(&request.model);
 
-        let current_has_image = content_has_image(&request.content);
-        let mut stdin_lines: Vec<String> = Vec::new();
-        for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
-            if current_has_image && content_has_image(&msg.content) {
-                continue;
-            }
-            let content = parse_content_to_api(&msg.content);
-            let line = json!({
-                "type": msg.role,
-                "message": { "role": msg.role, "content": content }
-            });
-            stdin_lines.push(line.to_string());
-        }
-        let current_content = parse_content_to_api(&request.content);
-        stdin_lines.push(json!({
-            "type": "user",
-            "message": { "role": "user", "content": current_content }
-        }).to_string());
-        let stdin_payload = stdin_lines.join("\n") + "\n";
+        let pool = app.state::<AppState>().db_pool.clone();
+        let stored_session = read_session(&pool, &request.thread_id).await;
+        let stdin_payload = build_stdin(request, stored_session.is_none());
 
         let mut cmd = tokio::process::Command::new(&claude_bin);
         cmd.arg("-p")
@@ -115,10 +100,13 @@ impl AnthropicCliProvider {
             .arg("--output-format").arg("stream-json")
             .arg("--verbose")
             .arg("--system-prompt").arg(&request.system_prompt)
-            .arg("--no-session-persistence")
             .arg("--add-dir").arg(&request.workspace_path)
             .arg("--allowedTools").arg("Bash Read Write Edit Glob Grep LS")
             .arg("--model").arg(cli_model);
+
+        if let Some(ref session_id) = stored_session {
+            cmd.arg("--resume").arg(session_id);
+        }
 
         if let Some(mcp_config_json) = build_mcp_config(&request.mcp_servers) {
             let tmp_path = std::env::temp_dir().join(format!("unified-mcp-{}.json", uuid::Uuid::new_v4()));
@@ -169,6 +157,7 @@ impl AnthropicCliProvider {
         let mut lines = BufReader::new(stdout).lines();
         let mut full_response = String::new();
         let mut tool_labels: HashMap<String, String> = HashMap::new();
+        let mut captured_session: Option<String> = None;
 
         while let Some(line) = lines.next_line().await.map_err(|e| {
             AppError::Internal(format!("Error reading claude CLI output: {e}"))
@@ -181,6 +170,12 @@ impl AnthropicCliProvider {
             let Ok(val) = serde_json::from_str::<serde_json::Value>(&line) else {
                 continue;
             };
+
+            if captured_session.is_none() {
+                if let Some(session_id) = extract_session_id(&val) {
+                    captured_session = Some(session_id);
+                }
+            }
 
             match val.get("type").and_then(|t| t.as_str()) {
                 Some("assistant") => {
@@ -244,6 +239,9 @@ impl AnthropicCliProvider {
                     }
                 }
                 Some("error") => {
+                    if stored_session.is_some() {
+                        clear_session(&pool, &request.thread_id).await;
+                    }
                     let msg = val.get("error")
                         .and_then(|e| e.get("message"))
                         .and_then(|m| m.as_str())
@@ -264,9 +262,18 @@ impl AnthropicCliProvider {
         }
 
         if full_response.is_empty() {
+            if stored_session.is_some() {
+                clear_session(&pool, &request.thread_id).await;
+            }
             return Err(AppError::Internal(
                 "Claude CLI returned an empty response.".to_string(),
             ));
+        }
+
+        if stored_session.is_none() {
+            if let Some(session_id) = captured_session {
+                persist_session(&pool, &request.thread_id, &session_id).await;
+            }
         }
 
         Ok(full_response)
