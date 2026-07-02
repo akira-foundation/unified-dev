@@ -25,7 +25,7 @@ const MAX_ITEMS: i64 = 500;
 pub async fn notify(app: &AppHandle, input: NotificationInput) -> AppResult<Option<Notification>> {
     let pool = {
         let state = app.state::<crate::state::AppState>();
-        state.db_pool.clone()
+        state.pool().await?
     };
 
     let category = input.category.as_str();
@@ -37,7 +37,9 @@ pub async fn notify(app: &AppHandle, input: NotificationInput) -> AppResult<Opti
     }
 
     let id = Uuid::new_v4().to_string();
-    let now = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
+    let now = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_default();
     let ttl_days = input.ttl_days.unwrap_or(DEFAULT_TTL_DAYS);
     let expires_at = OffsetDateTime::now_utc()
         .checked_add(time::Duration::days(ttl_days))
@@ -91,7 +93,11 @@ pub async fn notify(app: &AppHandle, input: NotificationInput) -> AppResult<Opti
     Ok(Some(record))
 }
 
-pub async fn list(pool: &SqlitePool, limit: i64, only_unread: bool) -> AppResult<Vec<Notification>> {
+pub async fn list(
+    pool: &SqlitePool,
+    limit: i64,
+    only_unread: bool,
+) -> AppResult<Vec<Notification>> {
     let sql = if only_unread {
         "SELECT id, category, severity, title, body, action_type, action_payload, read_at, created_at, expires_at
          FROM notifications WHERE read_at IS NULL ORDER BY created_at DESC LIMIT ?"
@@ -114,7 +120,9 @@ pub async fn count_unread(pool: &SqlitePool) -> AppResult<i64> {
 }
 
 pub async fn mark_read(pool: &SqlitePool, id: &str) -> AppResult<()> {
-    let now = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
+    let now = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_default();
     sqlx::query("UPDATE notifications SET read_at = ? WHERE id = ? AND read_at IS NULL")
         .bind(&now)
         .bind(id)
@@ -124,7 +132,9 @@ pub async fn mark_read(pool: &SqlitePool, id: &str) -> AppResult<()> {
 }
 
 pub async fn mark_all_read(pool: &SqlitePool) -> AppResult<()> {
-    let now = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
+    let now = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_default();
     sqlx::query("UPDATE notifications SET read_at = ? WHERE read_at IS NULL")
         .bind(&now)
         .execute(pool)
@@ -141,12 +151,16 @@ pub async fn delete(pool: &SqlitePool, id: &str) -> AppResult<()> {
 }
 
 pub async fn clear_all(pool: &SqlitePool) -> AppResult<()> {
-    sqlx::query("DELETE FROM notifications").execute(pool).await?;
+    sqlx::query("DELETE FROM notifications")
+        .execute(pool)
+        .await?;
     Ok(())
 }
 
 pub async fn prune_expired(pool: &SqlitePool) -> AppResult<()> {
-    let now = OffsetDateTime::now_utc().format(&Rfc3339).unwrap_or_default();
+    let now = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .unwrap_or_default();
     sqlx::query("DELETE FROM notifications WHERE expires_at IS NOT NULL AND expires_at < ?")
         .bind(&now)
         .execute(pool)

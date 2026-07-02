@@ -12,7 +12,14 @@ pub async fn fetch_calendar(
     state: State<'_, AppState>,
     year: Option<i32>,
 ) -> Result<Vec<ContributionCalendarDayDto>, String> {
-    let target_year = year.unwrap_or_else(|| chrono::Utc::now().date_naive().format("%Y").to_string().parse().unwrap_or(2025));
+    let target_year = year.unwrap_or_else(|| {
+        chrono::Utc::now()
+            .date_naive()
+            .format("%Y")
+            .to_string()
+            .parse()
+            .unwrap_or(2025)
+    });
 
     let from = format!("{}-01-01", target_year);
     let to = format!("{}-12-31", target_year);
@@ -25,7 +32,7 @@ pub async fn fetch_calendar(
     )
     .bind(&from)
     .bind(&to)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -57,16 +64,23 @@ async fn fetch_year_from_github(
         .await
         .map_err(|e| e.to_string())?;
 
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id =
+        crate::app::auth::current_customer_id(&state.pool().await.map_err(|e| e.to_string())?)
+            .await;
     let profile_row = sqlx::query("SELECT id FROM github_contribution_profiles WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1")
         .bind(customer_id)
-        .fetch_optional(&state.db_pool)
+        .fetch_optional(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
     let profile_id: Option<String> = profile_row.and_then(|r| r.try_get("id").ok());
 
     let mut out = Vec::new();
-    for week in data.viewer.contributions_collection.contribution_calendar.weeks {
+    for week in data
+        .viewer
+        .contributions_collection
+        .contribution_calendar
+        .weeks
+    {
         for day in week.contribution_days {
             if let Some(pid) = profile_id.as_deref() {
                 let _ = sqlx::query(
@@ -80,7 +94,7 @@ async fn fetch_year_from_github(
                 .bind(&day.date)
                 .bind(day.contribution_count)
                 .bind(&day.color)
-                .execute(&state.db_pool)
+                .execute(&state.pool().await.map_err(|e| e.to_string())?)
                 .await;
             }
             out.push(ContributionCalendarDayDto {

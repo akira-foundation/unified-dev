@@ -71,16 +71,16 @@ pub async fn verify_otp(
     .bind(&response.customer.id)
     .bind(&response.customer.email)
     .bind(&encrypted_token)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
-    let current_profile = profile::get(&state.db_pool).await.ok().flatten();
+    let current_profile = profile::get(&state.pool().await?).await.ok().flatten();
     let purchase_email = response.customer.email.clone();
     let should_update_profile = current_profile
         .map(|p| p.email != purchase_email)
         .unwrap_or(true);
     if should_update_profile {
-        let _ = profile::set(&purchase_email, &state.db_pool).await;
+        let _ = profile::set(&purchase_email, &state.pool().await?).await;
     }
 
     Ok(LicenseDto {

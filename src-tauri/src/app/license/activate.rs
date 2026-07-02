@@ -17,7 +17,7 @@ pub async fn activate(
 
     let verified = {
         let billing = state.billing.read().await;
-        let keys = refresh_public_keys(&state.db_pool, billing.inner()).await?;
+        let keys = refresh_public_keys(&state.pool().await?, billing.inner()).await?;
         activate_or_refresh(
             billing.inner(),
             &ActivateOrRefreshOptions {
@@ -34,7 +34,7 @@ pub async fn activate(
         .map_err(|e| translate_billing_error(e, "license_activate"))?
     };
 
-    persist::store_verified(&state.db_pool, &verified).await
+    persist::store_verified(&state.pool().await?, &verified).await
 }
 
 fn translate_billing_error(err: akira_billing::Error, context: &str) -> AppError {

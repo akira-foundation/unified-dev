@@ -7,8 +7,8 @@ use crate::ai::credentials::resolve_env_key;
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_anthropic_turn;
 use crate::ai::tools::{execute_tool, tool_definitions_anthropic, tool_label};
+use crate::app::chat::message::{content_has_image, parse_content_to_api};
 use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
-use crate::app::chat::message::{parse_content_to_api, content_has_image};
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
@@ -55,10 +55,10 @@ impl AnthropicProvider {
 
             let thinking_budget_tokens: Option<u32> = match request.thinking_budget.as_str() {
                 "x-high" => Some(10000),
-                "high"   => Some(5000),
+                "high" => Some(5000),
                 "medium" => Some(2000),
-                "low"    => Some(500),
-                _        => None,
+                "low" => Some(500),
+                _ => None,
             };
 
             let mut body = json!({
@@ -90,7 +90,9 @@ impl AnthropicProvider {
             if !response.status().is_success() {
                 let status = response.status();
                 let text = response.text().await.unwrap_or_default();
-                return Err(AppError::Internal(format!("Anthropic API error {status}: {text}")));
+                return Err(AppError::Internal(format!(
+                    "Anthropic API error {status}: {text}"
+                )));
             }
 
             let (text_in_turn, tool_use_blocks, stop_reason) =
@@ -118,27 +120,45 @@ impl AnthropicProvider {
 
             let mut tool_results: Vec<Value> = Vec::new();
             for block in &tool_use_blocks {
-                let args = block.input.clone().unwrap_or(Value::Object(Default::default()));
+                let args = block
+                    .input
+                    .clone()
+                    .unwrap_or(Value::Object(Default::default()));
                 let label = tool_label(&block.name, &args);
 
-                emit_tool_call(app, StreamToolCallPayload {
-                    thread_id: request.thread_id.clone(),
-                    label: label.clone(),
-                    status: "running".to_string(),
-                    output: None,
-                });
+                emit_tool_call(
+                    app,
+                    StreamToolCallPayload {
+                        thread_id: request.thread_id.clone(),
+                        label: label.clone(),
+                        status: "running".to_string(),
+                        output: None,
+                    },
+                );
 
-                let (result, new_path) = execute_tool(&block.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers, &request.mcp_tools).await;
+                let (result, new_path) = execute_tool(
+                    &block.name,
+                    &args,
+                    &workspace_path,
+                    &request.thread_id,
+                    &app.state::<AppState>().pool().await?,
+                    &request.mcp_servers,
+                    &request.mcp_tools,
+                )
+                .await;
                 if let Some(p) = new_path {
                     workspace_path = p;
                 }
 
-                emit_tool_call(app, StreamToolCallPayload {
-                    thread_id: request.thread_id.clone(),
-                    label,
-                    status: "done".to_string(),
-                    output: Some(result.clone()),
-                });
+                emit_tool_call(
+                    app,
+                    StreamToolCallPayload {
+                        thread_id: request.thread_id.clone(),
+                        label,
+                        status: "done".to_string(),
+                        output: Some(result.clone()),
+                    },
+                );
 
                 tool_results.push(json!({
                     "type": "tool_result",

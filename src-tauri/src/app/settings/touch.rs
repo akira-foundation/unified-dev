@@ -21,7 +21,7 @@ pub async fn touch(org_id: String, state: State<'_, AppState>, app: AppHandle) -
     .bind(&org_id)
     .bind(&now)
     .bind(&now)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     let _ = app.emit(

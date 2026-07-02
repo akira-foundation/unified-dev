@@ -35,10 +35,18 @@ pub async fn spawn_send_message(
 
     let handle = tokio::spawn(async move {
         if let Err(e) = session::run(
-            thread_id, message, model, silent,
-            plan_mode, thinking_budget, fast_mode,
-            pool, app.clone(),
-        ).await {
+            thread_id,
+            message,
+            model,
+            silent,
+            plan_mode,
+            thinking_budget,
+            fast_mode,
+            pool,
+            app.clone(),
+        )
+        .await
+        {
             emit_error(&app, &thread_id_err, &e.to_string());
         }
     });
@@ -61,8 +69,9 @@ pub async fn send_message(
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> AppResult<()> {
-    let lifecycle_state = crate::app::license::lifecycle::current_state(&state.db_pool).await?;
-    let plan = crate::app::license::get_plan(&state.db_pool).await?;
+    let lifecycle_state =
+        crate::app::license::lifecycle::current_state(&state.pool().await?).await?;
+    let plan = crate::app::license::get_plan(&state.pool().await?).await?;
     let effective_free = !matches!(
         lifecycle_state,
         akira_billing::lifecycle::LicenseState::Active
@@ -71,9 +80,10 @@ pub async fn send_message(
     if effective_free {
         let date = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let fingerprint = crate::app::license::device_fingerprint();
-        let has_token = crate::app::license::load_customer_token(&state.db_pool, &state.token_cipher)
-            .await?
-            .is_some();
+        let has_token =
+            crate::app::license::load_customer_token(&state.pool().await?, &state.token_cipher)
+                .await?
+                .is_some();
         let platform = std::env::consts::OS;
         let app_version = env!("CARGO_PKG_VERSION");
         let payload = UsagePayload {
@@ -110,7 +120,12 @@ pub async fn send_message(
                     category: crate::app::notifications::NotificationCategory::UsageLimit,
                     severity: crate::app::notifications::NotificationSeverity::Warning,
                     title: "Daily agent run limit reached".to_string(),
-                    body: response.limit.map(|limit| format!("{}/{} runs used today. Upgrade to Pro for unlimited.", response.count, limit)),
+                    body: response.limit.map(|limit| {
+                        format!(
+                            "{}/{} runs used today. Upgrade to Pro for unlimited.",
+                            response.count, limit
+                        )
+                    }),
                     action_type: Some("upgrade.pro".to_string()),
                     action_payload: None,
                     ttl_days: Some(1),
@@ -128,7 +143,10 @@ pub async fn send_message(
                         category: crate::app::notifications::NotificationCategory::UsageLimit,
                         severity: crate::app::notifications::NotificationSeverity::Info,
                         title: "Approaching daily run limit".to_string(),
-                        body: Some(format!("Last run of the day. {}/{} used.", response.count, limit)),
+                        body: Some(format!(
+                            "Last run of the day. {}/{} used.",
+                            response.count, limit
+                        )),
                         action_type: Some("upgrade.pro".to_string()),
                         action_payload: None,
                         ttl_days: Some(1),
@@ -147,10 +165,11 @@ pub async fn send_message(
         plan_mode,
         thinking_budget,
         fast_mode,
-        state.db_pool.clone(),
+        state.pool().await?,
         state.abort_handles.clone(),
         app,
-    ).await
+    )
+    .await
 }
 
 fn translate_billing_error(err: akira_billing::Error, context: &str) -> AppError {

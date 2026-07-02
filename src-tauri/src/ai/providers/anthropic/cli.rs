@@ -90,7 +90,7 @@ impl AnthropicCliProvider {
 
         let cli_model = resolve_cli_model(&request.model);
 
-        let pool = app.state::<AppState>().db_pool.clone();
+        let pool = app.state::<AppState>().pool().await?;
         let stored_session = read_session(&pool, &request.thread_id).await;
         let stdin_payload = build_stdin(request, stored_session.is_none());
 

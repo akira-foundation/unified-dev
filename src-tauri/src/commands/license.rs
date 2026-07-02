@@ -18,7 +18,10 @@ pub async fn get_product_plans(state: State<'_, AppState>) -> AppResult<ProductP
 }
 
 #[tauri::command]
-pub async fn activate_license(input: ActivateLicenseRequest, state: State<'_, AppState>) -> AppResult<LicenseDto> {
+pub async fn activate_license(
+    input: ActivateLicenseRequest,
+    state: State<'_, AppState>,
+) -> AppResult<LicenseDto> {
     license::activate(input, state).await
 }
 
@@ -28,25 +31,29 @@ pub async fn claim_license_request(email: String, state: State<'_, AppState>) ->
 }
 
 #[tauri::command]
-pub async fn claim_license_verify(email: String, otp: String, state: State<'_, AppState>) -> AppResult<LicenseDto> {
+pub async fn claim_license_verify(
+    email: String,
+    otp: String,
+    state: State<'_, AppState>,
+) -> AppResult<LicenseDto> {
     license::verify_otp(email, otp, state).await
 }
 
 #[tauri::command]
 pub async fn get_license(state: State<'_, AppState>) -> AppResult<Option<LicenseDto>> {
-    license::get_with_lifecycle(&state.db_pool).await
+    license::get_with_lifecycle(&state.pool().await?).await
 }
 
 #[tauri::command]
 pub async fn verify_license(state: State<'_, AppState>) -> AppResult<Option<LicenseDto>> {
     let fingerprint = license::device_fingerprint();
     let billing = state.billing.read().await.clone();
-    license::verify(&state.db_pool, &billing, &fingerprint).await
+    license::verify(&state.pool().await?, &billing, &fingerprint).await
 }
 
 #[tauri::command]
 pub async fn clear_license(state: State<'_, AppState>) -> AppResult<()> {
-    license::clear(&state.db_pool).await
+    license::clear(&state.pool().await?).await
 }
 
 #[tauri::command]
@@ -56,10 +63,13 @@ pub async fn manage_license(state: State<'_, AppState>) -> AppResult<String> {
 }
 
 #[tauri::command]
-pub async fn downgrade_license(target_plan: String, state: State<'_, AppState>) -> AppResult<DowngradeDto> {
+pub async fn downgrade_license(
+    target_plan: String,
+    state: State<'_, AppState>,
+) -> AppResult<DowngradeDto> {
     let billing = state.billing.read().await.clone();
     let dto = license::downgrade(&billing, target_plan).await?;
-    license::apply_downgrade(&state.db_pool, &dto).await?;
+    license::apply_downgrade(&state.pool().await?, &dto).await?;
     Ok(dto)
 }
 
@@ -67,13 +77,15 @@ pub async fn downgrade_license(target_plan: String, state: State<'_, AppState>) 
 pub async fn resume_license(state: State<'_, AppState>) -> AppResult<DowngradeDto> {
     let billing = state.billing.read().await.clone();
     let dto = license::resume(&billing).await?;
-    license::apply_downgrade(&state.db_pool, &dto).await?;
+    license::apply_downgrade(&state.pool().await?, &dto).await?;
     Ok(dto)
 }
 
 #[tauri::command]
-pub async fn list_invoices(cursor: Option<String>, state: State<'_, AppState>) -> AppResult<InvoicesPageDto> {
+pub async fn list_invoices(
+    cursor: Option<String>,
+    state: State<'_, AppState>,
+) -> AppResult<InvoicesPageDto> {
     let billing = state.billing.read().await.clone();
     license::list_invoices(&billing, cursor).await
 }
-

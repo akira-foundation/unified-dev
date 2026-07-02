@@ -58,7 +58,7 @@ async fn set_state(
     .bind(organization_id)
     .bind(repo_name)
     .bind(pr_number as i64)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -67,7 +67,7 @@ async fn set_state(
     )
     .bind(organization_id)
     .bind(repo_name)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -77,7 +77,7 @@ async fn set_state(
     .bind(open_prs_count)
     .bind(organization_id)
     .bind(repo_name)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 

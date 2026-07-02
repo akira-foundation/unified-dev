@@ -43,12 +43,14 @@ struct GitHubRateLimitResource {
 }
 
 pub async fn get_rate_limit(state: State<'_, AppState>) -> Result<Vec<RateLimitDto>, String> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id =
+        crate::app::auth::current_customer_id(&state.pool().await.map_err(|e| e.to_string())?)
+            .await;
     let providers = sqlx::query_as::<_, crate::database::records::ProviderRecord>(
         "SELECT id, name, kind, auth_type, auth_payload, created_at, account_login, account_type FROM providers WHERE kind = 'github' AND customer_id = ?",
     )
     .bind(customer_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -71,7 +73,9 @@ pub async fn get_rate_limit(state: State<'_, AppState>) -> Result<Vec<RateLimitD
         let token = match creds.auth {
             ProviderAuth::PersonalAccessToken { token } => token,
             ProviderAuth::GitHubOAuth { access_token, .. } => access_token,
-            ProviderAuth::GitHubApp { installation_token, .. } => installation_token,
+            ProviderAuth::GitHubApp {
+                installation_token, ..
+            } => installation_token,
             _ => continue,
         };
 

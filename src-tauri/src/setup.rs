@@ -23,7 +23,12 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
         {
             let app_state = app.state::<AppState>();
-            match app::license::load_customer_token(&app_state.db_pool, &app_state.token_cipher).await {
+            match app::license::load_customer_token(
+                &app_state.pool().await?,
+                &app_state.token_cipher,
+            )
+            .await
+            {
                 Ok(Some(token)) => {
                     let mut billing = app_state.billing.write().await;
                     billing.set_customer_token(token);
@@ -31,7 +36,7 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 Ok(None) => {}
                 Err(err) => {
                     eprintln!("customer token unavailable, continuing without it: {err}");
-                    let _ = app::license::clear_customer_token(&app_state.db_pool).await;
+                    let _ = app::license::clear_customer_token(&app_state.pool().await?).await;
                 }
             }
         }
@@ -39,7 +44,9 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         {
             let app_state = app.state::<AppState>();
             let billing = app_state.billing.read().await;
-            let _ = app::license::bootstrap::ensure_free_envelope(&app_state.db_pool, &billing).await;
+            let _ =
+                app::license::bootstrap::ensure_free_envelope(&app_state.pool().await?, &billing)
+                    .await;
         }
 
         let app_state = app.state::<AppState>();
@@ -48,10 +55,11 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                 let app_state = app.state::<AppState>();
                 let _ = app::remote::start(
                     &remote_settings,
-                    app_state.db_pool.clone(),
+                    app_state.pool().await?,
                     app_state.abort_handles.clone(),
                     app.handle().clone(),
-                ).await;
+                )
+                .await;
             }
         }
 
@@ -62,7 +70,7 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 
         {
             let app_state = app.state::<AppState>();
-            app::notifications::refresh_badge(app.handle(), &app_state.db_pool).await;
+            app::notifications::refresh_badge(app.handle(), &app_state.pool().await?).await;
         }
 
         Ok(())
@@ -76,11 +84,14 @@ pub fn init(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
             for url in urls {
                 if let Ok(parsed) = reqwest::Url::parse(&url) {
                     if parsed.scheme() == "akira" && parsed.path() == "/license/activate" {
-                        if let Some(session_id) = parsed.query_pairs().find(|(k, _)| k == "session_id").map(|(_, v): (_, std::borrow::Cow<str>)| v.into_owned()) {
+                        if let Some(session_id) = parsed
+                            .query_pairs()
+                            .find(|(k, _)| k == "session_id")
+                            .map(|(_, v): (_, std::borrow::Cow<str>)| v.into_owned())
+                        {
                             let _ = app_handle.emit("license://activate", session_id);
                         }
                     }
-
                 }
             }
         }

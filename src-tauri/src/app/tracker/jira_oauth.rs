@@ -7,8 +7,8 @@ use tokio::net::TcpListener;
 
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
-use crate::tracker::dto::TrackerNamed;
 use crate::tracker::drivers::jira::JiraOauthBundle;
+use crate::tracker::dto::TrackerNamed;
 
 pub async fn connect(state: &AppState, app: &AppHandle) -> AppResult<TrackerNamed> {
     let listener = TcpListener::bind("127.0.0.1:0")
@@ -23,33 +23,41 @@ pub async fn connect(state: &AppState, app: &AppHandle) -> AppResult<TrackerName
     let pkce = akira_billing::oauth::generate_pkce_challenge();
     let oauth_state = akira_billing::oauth::generate_oauth_state();
 
-    let url = state
-        .billing
-        .read()
-        .await
-        .jira_connect_url(&redirect_uri, &pkce.challenge, &oauth_state);
+    let url =
+        state
+            .billing
+            .read()
+            .await
+            .jira_connect_url(&redirect_uri, &pkce.challenge, &oauth_state);
 
     app.opener()
         .open_url(&url, None::<&str>)
         .map_err(|err| AppError::Provider(format!("could not open browser: {err}")))?;
 
-    let (code, returned_state) = tokio::time::timeout(Duration::from_secs(300), accept_callback(listener))
-        .await
-        .map_err(|_| AppError::Provider("Jira authorization timed out.".to_string()))??;
+    let (code, returned_state) =
+        tokio::time::timeout(Duration::from_secs(300), accept_callback(listener))
+            .await
+            .map_err(|_| AppError::Provider("Jira authorization timed out.".to_string()))??;
 
     if returned_state != oauth_state {
-        return Err(AppError::Provider("Jira authorization state mismatch.".to_string()));
+        return Err(AppError::Provider(
+            "Jira authorization state mismatch.".to_string(),
+        ));
     }
 
-    let tokens = state.billing.read().await.jira_exchange(&code, &pkce.verifier).await?;
+    let tokens = state
+        .billing
+        .read()
+        .await
+        .jira_exchange(&code, &pkce.verifier)
+        .await?;
 
     let sites = omnitrack::jira::accessible_resources(&tokens.access_token)
         .await
         .map_err(|err| AppError::Provider(format!("could not list Jira sites: {err}")))?;
-    let site = sites
-        .into_iter()
-        .next()
-        .ok_or_else(|| AppError::Provider("No Jira sites are accessible with this account.".to_string()))?;
+    let site = sites.into_iter().next().ok_or_else(|| {
+        AppError::Provider("No Jira sites are accessible with this account.".to_string())
+    })?;
 
     let bundle = JiraOauthBundle {
         cloud_id: site.cloud_id,
@@ -122,7 +130,12 @@ pub async fn ensure_fresh(state: &AppState, token: String) -> AppResult<String> 
         return Ok(token);
     };
 
-    let tokens = state.billing.read().await.jira_refresh(&refresh_token).await?;
+    let tokens = state
+        .billing
+        .read()
+        .await
+        .jira_refresh(&refresh_token)
+        .await?;
 
     let updated = JiraOauthBundle {
         cloud_id: bundle.cloud_id,
@@ -135,11 +148,13 @@ pub async fn ensure_fresh(state: &AppState, token: String) -> AppResult<String> 
 
     let encrypted = state.token_cipher.encrypt(&json)?;
     let now = chrono::Utc::now().to_rfc3339();
-    sqlx::query("UPDATE tracker_credentials SET token_cipher = ?, updated_at = ? WHERE provider = 'jira'")
-        .bind(&encrypted)
-        .bind(&now)
-        .execute(&state.db_pool)
-        .await?;
+    sqlx::query(
+        "UPDATE tracker_credentials SET token_cipher = ?, updated_at = ? WHERE provider = 'jira'",
+    )
+    .bind(&encrypted)
+    .bind(&now)
+    .execute(&state.pool().await?)
+    .await?;
 
     Ok(json)
 }

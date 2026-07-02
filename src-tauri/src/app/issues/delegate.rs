@@ -5,8 +5,8 @@ use uuid::Uuid;
 use crate::app::repos::git;
 use crate::app::repos::providers;
 use crate::app::repos::types::{AddLocalRepositoryResponse, LocalRepository};
-use crate::app::threads::create::ThreadConfig;
 use crate::app::support::error::{AppError, AppResult};
+use crate::app::threads::create::ThreadConfig;
 use crate::state::AppState;
 
 pub async fn delegate(
@@ -16,7 +16,7 @@ pub async fn delegate(
     issue_title: String,
     issue_identifier: Option<String>,
 ) -> AppResult<AddLocalRepositoryResponse> {
-    let pool = &state.db_pool;
+    let pool = &state.pool().await?;
 
     let owner = crate::app::issues::resolve_provider::resolve_owner(state, &org_id, &repo_name)
         .await
@@ -24,7 +24,8 @@ pub async fn delegate(
 
     let clone_url = format!("https://github.com/{}/{}", owner, repo_name);
 
-    let thread_title = build_thread_title(&issue_title, issue_identifier.as_deref(), &repo_name, pool).await?;
+    let thread_title =
+        build_thread_title(&issue_title, issue_identifier.as_deref(), &repo_name, pool).await?;
 
     let customer_id = crate::app::auth::current_customer_id(pool).await;
     let existing: Option<(String, String, String)> = sqlx::query_as(
@@ -40,7 +41,9 @@ pub async fn delegate(
         let base_repo_path = workspace_root.join("repo");
 
         if !git::is_valid_clone(&base_repo_path) {
-            return Err(AppError::Internal("Base repository clone not found or corrupted".to_string()));
+            return Err(AppError::Internal(
+                "Base repository clone not found or corrupted".to_string(),
+            ));
         }
 
         let thread = create_thread_with_title(
@@ -67,7 +70,10 @@ pub async fn delegate(
     } else {
         let home_dir = dirs::home_dir()
             .ok_or_else(|| AppError::Internal("Could not find home directory".to_string()))?;
-        let workspace_root = home_dir.join(".unifieddev").join("workspaces").join(&repo_name);
+        let workspace_root = home_dir
+            .join(".unifieddev")
+            .join("workspaces")
+            .join(&repo_name);
         if !workspace_root.exists() {
             std::fs::create_dir_all(&workspace_root).map_err(AppError::Io)?;
         }

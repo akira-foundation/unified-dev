@@ -2,8 +2,8 @@ use tauri::{AppHandle, State};
 
 use crate::app::autopilot;
 use crate::app::autopilot::dto::{
-    AutopilotJobDto, DeleteThreadRequest, SaveJobRequest, SaveThreadRequest, UpdateJobRequest, UpdateThreadRequest,
-    WriteLogRequest,
+    AutopilotJobDto, DeleteThreadRequest, SaveJobRequest, SaveThreadRequest, UpdateJobRequest,
+    UpdateThreadRequest, WriteLogRequest,
 };
 use crate::app::support::error::AppError;
 use crate::state::AppState;
@@ -24,8 +24,10 @@ async fn require_feature(
 }
 
 #[tauri::command]
-pub async fn autopilot_list_jobs(state: State<'_, AppState>) -> Result<Vec<AutopilotJobDto>, String> {
-    autopilot::list_jobs(&state.db_pool).await
+pub async fn autopilot_list_jobs(
+    state: State<'_, AppState>,
+) -> Result<Vec<AutopilotJobDto>, String> {
+    autopilot::list_jobs(&state.pool().await.map_err(|e| e.to_string())?).await
 }
 
 #[tauri::command]
@@ -35,7 +37,7 @@ pub async fn autopilot_save_job(
     input: SaveJobRequest,
 ) -> Result<(), String> {
     require_feature(&state, &app, "autopilot", "autopilot_requires_pro").await?;
-    autopilot::save_job(&state.db_pool, input).await
+    autopilot::save_job(&state.pool().await.map_err(|e| e.to_string())?, input).await
 }
 
 #[tauri::command]
@@ -48,7 +50,7 @@ pub async fn autopilot_update_job(
     let status = input.status.clone();
     let job_id = input.id.clone();
     let total = input.total;
-    autopilot::update_job(&state.db_pool, input).await?;
+    autopilot::update_job(&state.pool().await.map_err(|e| e.to_string())?, input).await?;
 
     let (severity, title) = match status.as_str() {
         "completed" => (
@@ -86,7 +88,7 @@ pub async fn autopilot_save_thread(
     input: SaveThreadRequest,
 ) -> Result<(), String> {
     require_feature(&state, &app, "autopilot", "autopilot_requires_pro").await?;
-    autopilot::save_thread(&state.db_pool, input).await
+    autopilot::save_thread(&state.pool().await.map_err(|e| e.to_string())?, input).await
 }
 
 #[tauri::command]
@@ -96,7 +98,7 @@ pub async fn autopilot_update_thread(
     input: UpdateThreadRequest,
 ) -> Result<(), String> {
     require_feature(&state, &app, "autopilot", "autopilot_requires_pro").await?;
-    autopilot::update_thread(&state.db_pool, input).await
+    autopilot::update_thread(&state.pool().await.map_err(|e| e.to_string())?, input).await
 }
 
 #[tauri::command]
@@ -104,7 +106,7 @@ pub async fn autopilot_delete_job(
     state: State<'_, AppState>,
     job_id: String,
 ) -> Result<(), String> {
-    autopilot::delete_job(&state.db_pool, job_id).await
+    autopilot::delete_job(&state.pool().await.map_err(|e| e.to_string())?, job_id).await
 }
 
 #[tauri::command]
@@ -112,7 +114,11 @@ pub async fn autopilot_delete_thread(
     state: State<'_, AppState>,
     input: DeleteThreadRequest,
 ) -> Result<(), String> {
-    autopilot::delete_thread(&state.db_pool, input.thread_row_id).await
+    autopilot::delete_thread(
+        &state.pool().await.map_err(|e| e.to_string())?,
+        input.thread_row_id,
+    )
+    .await
 }
 
 #[tauri::command]
@@ -122,5 +128,5 @@ pub async fn autopilot_write_log(
     input: WriteLogRequest,
 ) -> Result<(), String> {
     require_feature(&state, &app, "autopilot", "autopilot_requires_pro").await?;
-    autopilot::write_log(&state.db_pool, input).await
+    autopilot::write_log(&state.pool().await.map_err(|e| e.to_string())?, input).await
 }

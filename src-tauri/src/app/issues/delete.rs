@@ -15,7 +15,7 @@ pub async fn delete(
             "SELECT sync_with_provider, org_id, repo_name, number FROM issues WHERE id = ? LIMIT 1",
         )
         .bind(&issue_id)
-        .fetch_optional(&state.db_pool)
+        .fetch_optional(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?
     } else {
@@ -25,7 +25,7 @@ pub async fn delete(
         .bind(&org_id)
         .bind(&repo_name)
         .bind(number)
-        .fetch_optional(&state.db_pool)
+        .fetch_optional(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?
     };
@@ -34,8 +34,12 @@ pub async fn delete(
         row.ok_or_else(|| "Issue not found".to_string())?;
 
     if sync_with_provider {
-        let (provider, owner) =
-            super::resolve_provider::resolve_provider_and_owner(&state, &resolved_org_id, &resolved_repo_name).await?;
+        let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(
+            &state,
+            &resolved_org_id,
+            &resolved_repo_name,
+        )
+        .await?;
 
         let delete_result = provider
             .delete_issue(&owner, &resolved_repo_name, resolved_number as u64)
@@ -54,7 +58,7 @@ pub async fn delete(
     }
 
     delete_local_in_db(
-        &state.db_pool,
+        &state.pool().await.map_err(|e| e.to_string())?,
         &resolved_org_id,
         &resolved_repo_name,
         resolved_number,
@@ -146,7 +150,9 @@ mod tests {
         seed_issue(&pool, "a", 1).await;
         seed_issue(&pool, "b", 2).await;
 
-        delete_local_in_db(&pool, "o1", "r1", 1, None).await.unwrap();
+        delete_local_in_db(&pool, "o1", "r1", 1, None)
+            .await
+            .unwrap();
 
         assert_eq!(count(&pool).await, 1);
         let remaining_number: i64 = sqlx::query_scalar("SELECT number FROM issues")

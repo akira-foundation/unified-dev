@@ -16,7 +16,7 @@ pub async fn close(
     .bind(&org_id)
     .bind(&repo_name)
     .bind(number)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?
     .flatten()
@@ -24,7 +24,8 @@ pub async fn close(
 
     if sync_with_provider {
         let (provider, owner) =
-            super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name).await?;
+            super::resolve_provider::resolve_provider_and_owner(&state, &org_id, &repo_name)
+                .await?;
 
         provider
             .close_issue(&owner, &repo_name, number as u64, reason.as_deref())
@@ -32,7 +33,14 @@ pub async fn close(
             .map_err(|e| e.to_string())?;
     }
 
-    mark_closed_in_db(&state.db_pool, &org_id, &repo_name, number, reason.as_deref()).await
+    mark_closed_in_db(
+        &state.pool().await.map_err(|e| e.to_string())?,
+        &org_id,
+        &repo_name,
+        number,
+        reason.as_deref(),
+    )
+    .await
 }
 
 pub async fn mark_closed_in_db(

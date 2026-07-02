@@ -4,10 +4,18 @@ use crate::app::issues::request::CreateIssueRequest;
 use crate::providers::dto::IssueDto;
 use crate::state::AppState;
 
-pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Result<IssueDto, String> {
+pub async fn create(
+    state: State<'_, AppState>,
+    input: CreateIssueRequest,
+) -> Result<IssueDto, String> {
     let now = chrono::Utc::now().to_rfc3339();
     let (provider_kind, issue) = if input.sync_with_provider {
-        let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(&state, &input.org_id, &input.repo_name).await?;
+        let (provider, owner) = super::resolve_provider::resolve_provider_and_owner(
+            &state,
+            &input.org_id,
+            &input.repo_name,
+        )
+        .await?;
         let provider_kind = provider.kind().to_string();
 
         let issue = provider
@@ -29,7 +37,7 @@ pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Re
         )
         .bind(&input.org_id)
         .bind(&input.repo_name)
-        .fetch_one(&state.db_pool)
+        .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?
         .unwrap_or(0)
@@ -55,10 +63,15 @@ pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Re
         )
     };
 
-    let id = format!("{}:{}:{}:{}", input.org_id, provider_kind, input.repo_name, issue.number);
+    let id = format!(
+        "{}:{}:{}:{}",
+        input.org_id, provider_kind, input.repo_name, issue.number
+    );
     let labels_json = serde_json::to_string(&issue.labels).unwrap_or_else(|_| "[]".to_string());
-    let label_colors_json = serde_json::to_string(&issue.label_colors).unwrap_or_else(|_| "[]".to_string());
-    let assignees_json = serde_json::to_string(&issue.assignees).unwrap_or_else(|_| "[]".to_string());
+    let label_colors_json =
+        serde_json::to_string(&issue.label_colors).unwrap_or_else(|_| "[]".to_string());
+    let assignees_json =
+        serde_json::to_string(&issue.assignees).unwrap_or_else(|_| "[]".to_string());
 
     sqlx::query(
         r#"
@@ -88,7 +101,7 @@ pub async fn create(state: State<'_, AppState>, input: CreateIssueRequest) -> Re
     .bind(&issue.updated_at)
     .bind(&now)
     .bind(input.sync_with_provider)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 

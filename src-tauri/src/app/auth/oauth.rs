@@ -1,7 +1,9 @@
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use akira_billing::oauth::{build_oauth_init_url, generate_oauth_state, generate_pkce_challenge, BuildOauthInitUrl};
+use akira_billing::oauth::{
+    build_oauth_init_url, generate_oauth_state, generate_pkce_challenge, BuildOauthInitUrl,
+};
 use akira_billing::types::{OauthExchangeEntitlement, OauthExchangePayload};
 use serde::Serialize;
 use tauri::State;
@@ -102,7 +104,7 @@ pub async fn login_with_provider(
 
     persist_customer_session(&state, &response).await?;
 
-    let _ = profile::set(&response.customer.email, &state.db_pool).await;
+    let _ = profile::set(&response.customer.email, &state.pool().await?).await;
 
     Ok(LoginResult {
         customer_id: response.customer.id,
@@ -143,13 +145,17 @@ async fn await_callback(listener: TcpListener) -> AppResult<(String, String)> {
 
     *abort_slot().lock().await = None;
 
-    let (mut stream, _) = accept_result.map_err(|e| AppError::Provider(format!("oauth accept: {e}")))?;
+    let (mut stream, _) =
+        accept_result.map_err(|e| AppError::Provider(format!("oauth accept: {e}")))?;
 
     let mut buf = vec![0u8; 8192];
-    let n = tokio::time::timeout(Duration::from_secs(READ_TIMEOUT_SECS), stream.read(&mut buf))
-        .await
-        .map_err(|_| AppError::Provider("oauth callback read timed out".to_string()))?
-        .map_err(|e| AppError::Provider(format!("oauth callback read: {e}")))?;
+    let n = tokio::time::timeout(
+        Duration::from_secs(READ_TIMEOUT_SECS),
+        stream.read(&mut buf),
+    )
+    .await
+    .map_err(|_| AppError::Provider("oauth callback read timed out".to_string()))?
+    .map_err(|e| AppError::Provider(format!("oauth callback read: {e}")))?;
     let request = String::from_utf8_lossy(&buf[..n]);
 
     let path = request
@@ -212,7 +218,7 @@ async fn persist_customer_session(
     .bind(&response.customer.id)
     .bind(&response.customer.email)
     .bind(&encrypted_token)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(())

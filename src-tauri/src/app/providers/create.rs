@@ -4,13 +4,17 @@ use crate::app::providers::request::CreateProviderRequest;
 use crate::database::records::{ProviderRecord, ProviderSummary};
 use crate::state::AppState;
 
-pub async fn create(state: State<'_, AppState>, input: CreateProviderRequest) -> Result<ProviderSummary, String> {
+pub async fn create(
+    state: State<'_, AppState>,
+    input: CreateProviderRequest,
+) -> Result<ProviderSummary, String> {
     let id = uuid::Uuid::new_v4().to_string();
     let created_at = time::OffsetDateTime::now_utc()
         .format(&time::format_description::well_known::Rfc3339)
         .unwrap_or_default();
-    let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &input.auth)
-        .map_err(|e| e.to_string())?;
+    let (auth_type, auth_payload) =
+        crate::app::providers::credentials::serialize_auth(&state, &input.auth)
+            .map_err(|e| e.to_string())?;
 
     let record = ProviderRecord {
         id: id.clone(),
@@ -34,7 +38,7 @@ pub async fn create(state: State<'_, AppState>, input: CreateProviderRequest) ->
     .bind(&record.created_at)
     .bind(&record.account_login)
     .bind(&record.account_type)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 

@@ -1,7 +1,7 @@
 use tauri::State;
 
-use crate::state::AppState;
 use crate::app::support::error::AppResult;
+use crate::state::AppState;
 
 pub async fn save(action: String, content: String, state: State<'_, AppState>) -> AppResult<()> {
     let now = chrono::Utc::now().to_rfc3339();
@@ -11,7 +11,7 @@ pub async fn save(action: String, content: String, state: State<'_, AppState>) -
     .bind(&action)
     .bind(&content)
     .bind(&now)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(())

@@ -5,15 +5,17 @@ use crate::app::support::error::AppError;
 use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
-pub async fn update(state: State<'_, AppState>, input: UpdateOrgRequest) -> Result<OrganizationSummary, String> {
+pub async fn update(
+    state: State<'_, AppState>,
+    input: UpdateOrgRequest,
+) -> Result<OrganizationSummary, String> {
     if let Some(ref provider_id) = input.provider_id {
-        let provider_exists = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(1) FROM providers WHERE id = ?",
-        )
-        .bind(provider_id)
-        .fetch_one(&state.db_pool)
-        .await
-        .map_err(|e| e.to_string())?;
+        let provider_exists =
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(1) FROM providers WHERE id = ?")
+                .bind(provider_id)
+                .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
+                .await
+                .map_err(|e| e.to_string())?;
 
         if provider_exists == 0 {
             return Err(AppError::Provider("provider not found".to_string()).to_string());
@@ -24,7 +26,7 @@ pub async fn update(state: State<'_, AppState>, input: UpdateOrgRequest) -> Resu
         .bind(&input.name)
         .bind(&input.provider_id)
         .bind(&input.id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -46,7 +48,7 @@ pub async fn update(state: State<'_, AppState>, input: UpdateOrgRequest) -> Resu
         "#,
     )
     .bind(&input.id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())
 }

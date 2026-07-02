@@ -60,7 +60,10 @@ pub async fn reconnect_github(
     };
 
     let auth = ProviderAuth::GitHubApp {
-        oauth_access_token: user_token.as_ref().map(|t| t.token.clone()).unwrap_or_default(),
+        oauth_access_token: user_token
+            .as_ref()
+            .map(|t| t.token.clone())
+            .unwrap_or_default(),
         oauth_refresh_token: None,
         oauth_expires_at: None,
         installation_token: response.token,
@@ -68,8 +71,9 @@ pub async fn reconnect_github(
         expires_at,
     };
 
-    let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
-        .map_err(|error| AppError::Provider(error.to_string()))?;
+    let (auth_type, auth_payload) =
+        crate::app::providers::credentials::serialize_auth(&state, &auth)
+            .map_err(|error| AppError::Provider(error.to_string()))?;
 
     let rows = sqlx::query(
         "UPDATE providers SET auth_type = ?, auth_payload = ?, account_login = ?, account_type = ? WHERE id = ? AND kind = 'github'",
@@ -79,7 +83,7 @@ pub async fn reconnect_github(
     .bind(&response.account_login)
     .bind(&response.account_type)
     .bind(&provider_id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await
     .map_err(|error| AppError::Provider(format!("DB update failed: {error}")))?;
 
@@ -91,7 +95,7 @@ pub async fn reconnect_github(
         "SELECT id, name, kind, auth_type, auth_payload, created_at, account_login, account_type FROM providers WHERE id = ?",
     )
     .bind(&provider_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await?)
     .await
     .map_err(|error| AppError::Provider(format!("DB fetch failed: {error}")))?;
 
@@ -112,9 +116,9 @@ fn is_unauthorized(error: &akira_billing::Error) -> bool {
 fn translate_billing_error(error: akira_billing::Error) -> AppError {
     use akira_billing::Error as BErr;
     match error {
-        BErr::Api { status, code, .. } if !code.is_empty() => {
-            AppError::Provider(format!("github_installation_token failed ({status}): {code}"))
-        }
+        BErr::Api { status, code, .. } if !code.is_empty() => AppError::Provider(format!(
+            "github_installation_token failed ({status}): {code}"
+        )),
         BErr::Api { status, .. } => {
             AppError::Provider(format!("github_installation_token failed: HTTP {status}"))
         }

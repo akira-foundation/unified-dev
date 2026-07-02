@@ -6,12 +6,10 @@ use crate::database::records::SyncSettingsRecord;
 use crate::state::AppState;
 
 pub async fn get(id: String, state: State<'_, AppState>) -> AppResult<SyncSettingsDto> {
-    let row = sqlx::query_as::<_, SyncSettingsRecord>(
-        "SELECT * FROM sync_settings WHERE id = ?",
-    )
-    .bind(&id)
-    .fetch_optional(&state.db_pool)
-    .await?;
+    let row = sqlx::query_as::<_, SyncSettingsRecord>("SELECT * FROM sync_settings WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(&state.pool().await?)
+        .await?;
 
     let dto = match row {
         Some(r) => SyncSettingsDto {
@@ -27,7 +25,6 @@ pub async fn get(id: String, state: State<'_, AppState>) -> AppResult<SyncSettin
             sync_orgs_interval_secs: r.sync_orgs_interval_secs,
         },
         None => {
-
             if id == GLOBAL_ID {
                 SyncSettingsDto::defaults_for(GLOBAL_ID)
             } else {
@@ -41,7 +38,7 @@ pub async fn get(id: String, state: State<'_, AppState>) -> AppResult<SyncSettin
                     "SELECT * FROM sync_settings WHERE id = ?",
                 )
                 .bind(fallback_id)
-                .fetch_optional(&state.db_pool)
+                .fetch_optional(&state.pool().await?)
                 .await?;
 
                 match global {

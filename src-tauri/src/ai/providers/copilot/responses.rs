@@ -7,8 +7,8 @@ use crate::ai::credentials::{exchange_copilot_token, read_copilot_oauth_token};
 use crate::ai::provider::{AiProvider, AiRequest};
 use crate::ai::sse::stream_responses_sse;
 use crate::ai::tools::{execute_tool, tool_definitions_responses, tool_label};
-use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
 use crate::app::chat::message::parse_content_to_responses_api;
+use crate::app::chat::stream::{emit_tool_call, StreamToolCallPayload};
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
 use tauri::Manager;
@@ -27,10 +27,13 @@ impl CopilotResponsesProvider {
         let client = Client::new();
         let tools = tool_definitions_responses(&request.mcp_tools);
 
-        let mut input: Vec<Value> = vec![
-            json!({ "type": "message", "role": "system", "content": request.system_prompt })
-        ];
-        for msg in request.history.iter().filter(|m| m.role == "user" || m.role == "assistant") {
+        let mut input: Vec<Value> =
+            vec![json!({ "type": "message", "role": "system", "content": request.system_prompt })];
+        for msg in request
+            .history
+            .iter()
+            .filter(|m| m.role == "user" || m.role == "assistant")
+        {
             input.push(json!({ "type": "message", "role": msg.role, "content": parse_content_to_responses_api(&msg.content, &msg.role) }));
         }
         input.push(json!({ "type": "message", "role": "user", "content": parse_content_to_responses_api(&request.content, "user") }));
@@ -43,9 +46,9 @@ impl CopilotResponsesProvider {
 
             let reasoning_effort: Option<&str> = match request.thinking_budget.as_str() {
                 "x-high" | "high" => Some("high"),
-                "medium"          => Some("medium"),
-                "low"             => Some("low"),
-                _                 => None,
+                "medium" => Some("medium"),
+                "low" => Some("low"),
+                _ => None,
             };
 
             let is_reasoning_model = request.model.starts_with("o1")
@@ -106,28 +109,43 @@ impl CopilotResponsesProvider {
             }
 
             for tc in &tool_calls {
-                let args: Value =
-                    serde_json::from_str(&tc.arguments).unwrap_or(Value::Object(Default::default()));
+                let args: Value = serde_json::from_str(&tc.arguments)
+                    .unwrap_or(Value::Object(Default::default()));
                 let label = tool_label(&tc.name, &args);
 
-                emit_tool_call(app, StreamToolCallPayload {
-                    thread_id: request.thread_id.clone(),
-                    label: label.clone(),
-                    status: "running".to_string(),
-                    output: None,
-                });
+                emit_tool_call(
+                    app,
+                    StreamToolCallPayload {
+                        thread_id: request.thread_id.clone(),
+                        label: label.clone(),
+                        status: "running".to_string(),
+                        output: None,
+                    },
+                );
 
-                let (result, new_path) = execute_tool(&tc.name, &args, &workspace_path, &request.thread_id, &app.state::<AppState>().db_pool, &request.mcp_servers, &request.mcp_tools).await;
+                let (result, new_path) = execute_tool(
+                    &tc.name,
+                    &args,
+                    &workspace_path,
+                    &request.thread_id,
+                    &app.state::<AppState>().pool().await?,
+                    &request.mcp_servers,
+                    &request.mcp_tools,
+                )
+                .await;
                 if let Some(p) = new_path {
                     workspace_path = p;
                 }
 
-                emit_tool_call(app, StreamToolCallPayload {
-                    thread_id: request.thread_id.clone(),
-                    label,
-                    status: "done".to_string(),
-                    output: Some(result.clone()),
-                });
+                emit_tool_call(
+                    app,
+                    StreamToolCallPayload {
+                        thread_id: request.thread_id.clone(),
+                        label,
+                        status: "done".to_string(),
+                        output: Some(result.clone()),
+                    },
+                );
 
                 input.push(json!({
                     "type": "function_call_output",

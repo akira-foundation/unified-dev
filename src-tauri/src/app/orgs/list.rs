@@ -4,7 +4,9 @@ use crate::database::records::OrganizationSummary;
 use crate::state::AppState;
 
 pub async fn list(state: State<'_, AppState>) -> Result<Vec<OrganizationSummary>, String> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id =
+        crate::app::auth::current_customer_id(&state.pool().await.map_err(|e| e.to_string())?)
+            .await;
     sqlx::query_as::<_, OrganizationSummary>(
         r#"
         SELECT
@@ -25,7 +27,7 @@ pub async fn list(state: State<'_, AppState>) -> Result<Vec<OrganizationSummary>
         "#,
     )
     .bind(customer_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())
 }
