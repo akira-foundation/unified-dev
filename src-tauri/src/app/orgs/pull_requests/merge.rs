@@ -33,7 +33,7 @@ pub async fn merge(
     .bind(&organization_id)
     .bind(&repo_name)
     .bind(pr_number as i64)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -42,7 +42,7 @@ pub async fn merge(
     )
     .bind(&organization_id)
     .bind(&repo_name)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -52,7 +52,7 @@ pub async fn merge(
     .bind(open_prs_count)
     .bind(&organization_id)
     .bind(&repo_name)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -67,13 +67,16 @@ async fn close_linked_issues(
     repo_name: &str,
     pr_number: u64,
 ) {
+    let Ok(pool) = state.pool().await else {
+        return;
+    };
     let body: Option<String> = sqlx::query_scalar::<_, Option<String>>(
         "SELECT body FROM pull_requests WHERE org_id = ? AND repo_name = ? AND number = ?",
     )
     .bind(organization_id)
     .bind(repo_name)
     .bind(pr_number as i64)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&pool)
     .await
     .ok()
     .flatten()

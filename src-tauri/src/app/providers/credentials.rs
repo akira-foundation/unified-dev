@@ -13,7 +13,7 @@ pub async fn credentials(state: &AppState, provider_id: &str) -> AppResult<Provi
         "SELECT id, name, kind, auth_type, auth_payload, created_at, account_login, account_type FROM providers WHERE id = ?",
     )
     .bind(provider_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await?)
     .await
     .map_err(|_| AppError::Provider("provider not found".to_string()))?;
     let mut auth = deserialize_auth(state, &provider.auth_type, &provider.auth_payload)?;
@@ -103,7 +103,7 @@ pub async fn refresh_github_token(state: &AppState, provider_id: &str, auth: Pro
         .bind(&auth_type)
         .bind(&auth_payload)
         .bind(provider_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await
         .map_err(|e| AppError::Provider(e.to_string()))?;
 
@@ -145,7 +145,7 @@ pub async fn refresh_github_app_token(state: &AppState, provider_id: &str, auth:
         .bind(&auth_type)
         .bind(&auth_payload)
         .bind(provider_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await
         .map_err(|e| AppError::Provider(e.to_string()))?;
 

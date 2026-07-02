@@ -13,7 +13,7 @@ pub async fn list(
     current_login: Option<String>,
 ) -> Result<Vec<IssueDto>, String> {
     list_with_pool(
-        &state.db_pool,
+        &state.pool().await.map_err(|e| e.to_string())?,
         &org_id,
         &repo_name,
         scope.as_deref(),
@@ -38,7 +38,10 @@ pub async fn list_with_pool(
     .await
     .map_err(|e| e.to_string())?;
 
-    let issues: Vec<IssueDto> = records.into_iter().map(super::to_dto::record_to_dto).collect();
+    let issues: Vec<IssueDto> = records
+        .into_iter()
+        .map(super::to_dto::record_to_dto)
+        .collect();
     Ok(filter_by_scope(
         issues,
         scope.unwrap_or("my_queue"),
@@ -69,12 +72,7 @@ pub fn filter_by_scope(
                 }
                 login
                     .as_ref()
-                    .map(|current| {
-                        issue
-                            .assignees
-                            .iter()
-                            .any(|a| a.to_lowercase() == *current)
-                    })
+                    .map(|current| issue.assignees.iter().any(|a| a.to_lowercase() == *current))
                     .unwrap_or(false)
             }
         })
@@ -142,9 +140,7 @@ mod tests {
         assert_eq!(out.len(), 2);
         assert!(out.iter().any(|i| i.id == "local"));
         assert!(out.iter().all(|i| i.status == "open"));
-        assert!(!out
-            .iter()
-            .any(|i| i.assignees.iter().any(|a| a == "alice")));
+        assert!(!out.iter().any(|i| i.assignees.iter().any(|a| a == "alice")));
     }
 
     #[test]

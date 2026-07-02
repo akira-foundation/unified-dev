@@ -4,29 +4,37 @@ use uuid::Uuid;
 
 use crate::app::repos::git;
 use crate::app::repos::types::{AddLocalRepositoryResponse, LocalRepository};
+use crate::app::support::error::AppResult;
 use crate::app::threads::create_with_paths;
 use crate::state::AppState;
-use crate::app::support::error::AppResult;
 
 pub async fn add_local(
     local_path: String,
     state: tauri::State<'_, AppState>,
 ) -> AppResult<AddLocalRepositoryResponse> {
-    let pool = &state.db_pool;
+    let pool = &state.pool().await?;
     let source_path = Path::new(&local_path);
 
     if !git::is_git_repository(source_path) {
-        return Err(crate::app::support::error::AppError::Internal("This folder is not a git repository.".to_string()));
+        return Err(crate::app::support::error::AppError::Internal(
+            "This folder is not a git repository.".to_string(),
+        ));
     }
 
     let repo_name = git::get_repository_name(source_path)?;
     let default_branch = git::get_default_branch(source_path)?;
     let remote_url = git::get_remote_url(source_path, "origin");
 
-    let home_dir = dirs::home_dir().ok_or_else(|| crate::app::support::error::AppError::Internal("Could not find home directory".to_string()))?;
-    let workspace_root = home_dir.join(".unifieddev").join("workspaces").join(&repo_name);
+    let home_dir = dirs::home_dir().ok_or_else(|| {
+        crate::app::support::error::AppError::Internal("Could not find home directory".to_string())
+    })?;
+    let workspace_root = home_dir
+        .join(".unifieddev")
+        .join("workspaces")
+        .join(&repo_name);
     if !workspace_root.exists() {
-        std::fs::create_dir_all(&workspace_root).map_err(crate::app::support::error::AppError::Io)?;
+        std::fs::create_dir_all(&workspace_root)
+            .map_err(crate::app::support::error::AppError::Io)?;
     }
 
     let base_repo_path = workspace_root.join("repo");
@@ -35,13 +43,18 @@ pub async fn add_local(
     }
 
     let customer_id = crate::app::auth::current_customer_id(pool).await;
-    let existing: Option<(String,)> = sqlx::query_as("SELECT id FROM local_repositories WHERE source_path = ? AND customer_id = ? LIMIT 1")
-        .bind(&local_path)
-        .bind(&customer_id)
-        .fetch_optional(pool)
-        .await?;
+    let existing: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM local_repositories WHERE source_path = ? AND customer_id = ? LIMIT 1",
+    )
+    .bind(&local_path)
+    .bind(&customer_id)
+    .fetch_optional(pool)
+    .await?;
     if existing.is_some() {
-        return Err(crate::app::support::error::AppError::Internal(format!("The repository '{}' has already been added.", repo_name)));
+        return Err(crate::app::support::error::AppError::Internal(format!(
+            "The repository '{}' has already been added.",
+            repo_name
+        )));
     }
 
     crate::app::license::access::require_feature(&state, "repos").await?;
@@ -70,7 +83,15 @@ pub async fn add_local(
         .execute(pool)
         .await?;
 
-    let thread = create_with_paths(repo_id, &base_repo_path, &workspace_root, Path::new(&source_path_owned), repository.remote_url.clone(), pool).await?;
+    let thread = create_with_paths(
+        repo_id,
+        &base_repo_path,
+        &workspace_root,
+        Path::new(&source_path_owned),
+        repository.remote_url.clone(),
+        pool,
+    )
+    .await?;
 
     Ok(AddLocalRepositoryResponse { repository, thread })
 }

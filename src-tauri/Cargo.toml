@@ -20,6 +20,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 hmac = "0.12"
 sha2 = "0.10"
+hkdf = "0.12"
 hex = "0.4"
 tauri = { version = "2.11", features = [] }
 tauri-plugin-opener = "2"
@@ -31,6 +32,7 @@ async-trait = "0.1"
 base64 = "0.22"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
+libsqlite3-sys = { version = "0.30", features = ["bundled-sqlcipher-vendored-openssl"] }
 onyx = { package = "onyx-rs", version = "0.2.0" }
 rand = "0.9.3"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "macros", "migrate"] }

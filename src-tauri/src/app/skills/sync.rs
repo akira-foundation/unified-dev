@@ -1,9 +1,9 @@
-use tauri::{AppHandle, State};
-use std::collections::HashSet;
 use chrono::Utc;
+use std::collections::HashSet;
+use tauri::{AppHandle, State};
 
-use crate::state::AppState;
 use crate::app::support::error::AppResult;
+use crate::state::AppState;
 
 use super::types::InstalledSkill;
 use super::{parse_frontmatter, title_case};
@@ -13,7 +13,7 @@ pub async fn sync(
     workspace_path: Option<String>,
     state: State<'_, AppState>,
 ) -> AppResult<Vec<InstalledSkill>> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     let dirs = super::skill_dirs(&app_handle, workspace_path.as_deref());
     let mut seen: HashSet<String> = HashSet::new();
     let mut scanned_scopes: HashSet<&'static str> = HashSet::new();
@@ -62,7 +62,7 @@ pub async fn sync(
             .bind(&source_path)
             .bind(scope)
             .bind(&customer_id)
-            .execute(&state.db_pool)
+            .execute(&state.pool().await?)
             .await?;
 
             sqlx::query(
@@ -74,7 +74,7 @@ pub async fn sync(
             .bind(scope)
             .bind(&dir_name)
             .bind(&customer_id)
-            .execute(&state.db_pool)
+            .execute(&state.pool().await?)
             .await?;
 
             seen.insert(dir_name);
@@ -115,7 +115,7 @@ async fn prune_missing(
     for id in &seen_list {
         query = query.bind(*id);
     }
-    query.execute(&state.db_pool).await?;
+    query.execute(&state.pool().await?).await?;
 
     Ok(())
 }

@@ -2,12 +2,16 @@ use tauri::State;
 
 use crate::state::AppState;
 
-pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: String, repo_name: String) -> Result<(), String> {
+pub async fn sync_single_stats(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_name: String,
+) -> Result<(), String> {
     let repos = sqlx::query_as::<_, crate::database::records::OrganizationRepoSummary>(
         "SELECT id, organization_id, owner, repo_name, visibility, is_selected, auto_sync, default_branch, open_prs_count, is_fork, fork_owner, fork_repo, created_at FROM organization_repos WHERE organization_id = ? AND is_selected = 1 ORDER BY repo_name",
     )
     .bind(&organization_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -22,10 +26,17 @@ pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: Stri
     let current_fork_owner = repo.fork_owner.clone();
     let current_fork_repo = repo.fork_repo.clone();
 
-    let (provider, is_personal_owner) = match crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(&state, &organization_id, &owner).await {
-        Ok(p) => p,
-        Err(_) => return Ok(()),
-    };
+    let (provider, is_personal_owner) =
+        match crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(
+            &state,
+            &organization_id,
+            &owner,
+        )
+        .await
+        {
+            Ok(p) => p,
+            Err(_) => return Ok(()),
+        };
 
     let provider_repos = if is_personal_owner {
         provider.list_repositories().await
@@ -36,15 +47,29 @@ pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: Stri
     let (default_branch, visibility, is_fork, fork_owner, fork_repo) = provider_repos
         .ok()
         .and_then(|repos| repos.into_iter().find(|r| r.name == repo_name))
-        .map(|r| (r.default_branch, r.visibility, r.is_fork, r.fork_owner, r.fork_repo))
-        .unwrap_or((current_default_branch, current_visibility, current_is_fork, current_fork_owner, current_fork_repo));
+        .map(|r| {
+            (
+                r.default_branch,
+                r.visibility,
+                r.is_fork,
+                r.fork_owner,
+                r.fork_repo,
+            )
+        })
+        .unwrap_or((
+            current_default_branch,
+            current_visibility,
+            current_is_fork,
+            current_fork_owner,
+            current_fork_repo,
+        ));
 
     let open_prs_count: i64 = sqlx::query_scalar(
         "SELECT COUNT(*) FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
     )
     .bind(&organization_id)
     .bind(&repo_name)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .unwrap_or(0);
 
@@ -59,7 +84,7 @@ pub async fn sync_single_stats(state: State<'_, AppState>, organization_id: Stri
     .bind(&fork_repo)
     .bind(&organization_id)
     .bind(&repo_name)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await.map_err(|e| e.to_string())?)
     .await;
 
     Ok(())

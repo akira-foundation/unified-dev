@@ -1,9 +1,9 @@
-use tauri::{AppHandle, Manager, State};
-use std::io::Read;
 use chrono::Utc;
+use std::io::Read;
+use tauri::{AppHandle, Manager, State};
 
-use crate::state::AppState;
 use crate::app::support::error::AppResult;
+use crate::state::AppState;
 
 use super::types::InstalledSkill;
 use super::{parse_frontmatter, title_case};
@@ -42,7 +42,8 @@ pub async fn install(
     let mut strip_prefix = String::new();
 
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| crate::app::support::error::AppError::Internal(e.to_string()))?;
         let raw_name = file.name().to_string();
 
@@ -95,7 +96,7 @@ pub async fn install(
         name = title_case(&skill_id);
     }
 
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     sqlx::query(
         "INSERT INTO skills (id, name, description, enabled, icon_path, installed_at, source_path, scope, customer_id)
          VALUES (?, ?, ?, 1, NULL, ?, ?, 'global', ?)
@@ -112,7 +113,7 @@ pub async fn install(
     .bind(&now)
     .bind(&installed_source)
     .bind(&customer_id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(InstalledSkill {

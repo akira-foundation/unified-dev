@@ -7,7 +7,9 @@ use crate::state::AppState;
 use super::models::*;
 
 pub async fn fetch_summary(state: State<'_, AppState>) -> Result<ContributionSummaryDto, String> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id =
+        crate::app::auth::current_customer_id(&state.pool().await.map_err(|e| e.to_string())?)
+            .await;
     let row = sqlx::query(
         "SELECT id, login, name, avatar_url, bio, followers, following,
                 total_contributions, current_streak, best_streak,
@@ -16,7 +18,7 @@ pub async fn fetch_summary(state: State<'_, AppState>) -> Result<ContributionSum
          FROM github_contribution_profiles WHERE customer_id = ? ORDER BY created_at DESC LIMIT 1",
     )
     .bind(customer_id)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -98,7 +100,7 @@ async fn aggregate_totals(
             .map_err(|e| e.to_string())
     }
 
-    let pool = &state.db_pool;
+    let pool = &state.pool().await.map_err(|e| e.to_string())?;
     let repositories = count_for_profile(
         pool,
         "SELECT COUNT(*) FROM github_contributed_repositories WHERE profile_id = ?",
@@ -155,10 +157,7 @@ async fn aggregate_totals(
     })
 }
 
-async fn fetch_years(
-    state: &State<'_, AppState>,
-    profile_id: &str,
-) -> Result<Vec<i32>, String> {
+async fn fetch_years(state: &State<'_, AppState>, profile_id: &str) -> Result<Vec<i32>, String> {
     let rows = sqlx::query(
         "SELECT DISTINCT CAST(substr(day, 1, 4) AS INTEGER) AS year
          FROM github_contribution_snapshots
@@ -166,7 +165,7 @@ async fn fetch_years(
          ORDER BY year DESC",
     )
     .bind(profile_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -194,7 +193,7 @@ async fn fetch_organizations(
          LIMIT 12",
     )
     .bind(profile_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 
@@ -203,9 +202,12 @@ async fn fetch_organizations(
         .map(|r| OssOrgSummaryDto {
             login: r.try_get("owner_login").unwrap_or_default(),
             avatar_url: r.try_get("avatar_url").ok(),
-            url: r
-                .try_get::<String, _>("url")
-                .unwrap_or_else(|_| format!("https://github.com/{}", r.try_get::<String, _>("owner_login").unwrap_or_default())),
+            url: r.try_get::<String, _>("url").unwrap_or_else(|_| {
+                format!(
+                    "https://github.com/{}",
+                    r.try_get::<String, _>("owner_login").unwrap_or_default()
+                )
+            }),
         })
         .collect())
 }
@@ -221,7 +223,7 @@ async fn fetch_repos_preview(
          LIMIT 3",
     )
     .bind(profile_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
     let preview: Vec<String> = rows
@@ -233,7 +235,7 @@ async fn fetch_repos_preview(
         "SELECT COUNT(*) FROM github_contributed_repositories WHERE profile_id = ?",
     )
     .bind(profile_id)
-    .fetch_one(&state.db_pool)
+    .fetch_one(&state.pool().await.map_err(|e| e.to_string())?)
     .await
     .map_err(|e| e.to_string())?;
 

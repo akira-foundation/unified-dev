@@ -1,5 +1,5 @@
-use tauri::State;
 use std::collections::HashSet;
+use tauri::State;
 
 use crate::providers::dto::IssueDto;
 use crate::state::AppState;
@@ -18,7 +18,8 @@ pub async fn sync(
         _ => Some("open"),
     };
 
-    let (effective_owner, effective_repo) = resolve_upstream(&state, &org_id, &owner, &repo_name).await;
+    let (effective_owner, effective_repo) =
+        resolve_upstream(&state, &org_id, &owner, &repo_name).await;
 
     let (provider, _) = crate::app::orgs::resolve_provider::resolve_provider_for_repo_owner(
         &state,
@@ -48,22 +49,31 @@ pub async fn sync(
                     return true;
                 }
 
-                login.as_ref().map(|current| {
-                    issue.assignees.iter().any(|assignee| assignee.to_lowercase() == *current)
-                }).unwrap_or(false)
+                login
+                    .as_ref()
+                    .map(|current| {
+                        issue
+                            .assignees
+                            .iter()
+                            .any(|assignee| assignee.to_lowercase() == *current)
+                    })
+                    .unwrap_or(false)
             }
         })
         .collect::<Vec<_>>();
 
     if scope == "all" {
-        let remote_numbers: HashSet<i64> = filtered_issues.iter().map(|issue| issue.number as i64).collect();
+        let remote_numbers: HashSet<i64> = filtered_issues
+            .iter()
+            .map(|issue| issue.number as i64)
+            .collect();
 
         let local_numbers: Vec<i64> = sqlx::query_scalar::<_, i64>(
             "SELECT number FROM issues WHERE org_id = ? AND repo_name = ? AND sync_with_provider = 1",
         )
         .bind(&org_id)
         .bind(&repo_name)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -73,7 +83,7 @@ pub async fn sync(
                     .bind(&org_id)
                     .bind(&repo_name)
                     .bind(local_number)
-                    .execute(&state.db_pool)
+                    .execute(&state.pool().await.map_err(|e| e.to_string())?)
                     .await
                     .map_err(|e| e.to_string())?;
             }
@@ -85,8 +95,10 @@ pub async fn sync(
     for issue in &filtered_issues {
         let id = format!("{org_id}:{provider_kind}:{repo_name}:{}", issue.number);
         let labels_json = serde_json::to_string(&issue.labels).unwrap_or_else(|_| "[]".to_string());
-        let label_colors_json = serde_json::to_string(&issue.label_colors).unwrap_or_else(|_| "[]".to_string());
-        let assignees_json = serde_json::to_string(&issue.assignees).unwrap_or_else(|_| "[]".to_string());
+        let label_colors_json =
+            serde_json::to_string(&issue.label_colors).unwrap_or_else(|_| "[]".to_string());
+        let assignees_json =
+            serde_json::to_string(&issue.assignees).unwrap_or_else(|_| "[]".to_string());
 
         sqlx::query(
             r#"
@@ -128,7 +140,7 @@ pub async fn sync(
         .bind(&issue.created_at)
         .bind(&issue.updated_at)
         .bind(&now)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
     }
@@ -136,19 +148,32 @@ pub async fn sync(
     super::list::list(state, org_id, repo_name, Some(scope), current_login).await
 }
 
-async fn resolve_upstream(state: &AppState, org_id: &str, owner: &str, repo_name: &str) -> (String, String) {
+async fn resolve_upstream(
+    state: &AppState,
+    org_id: &str,
+    owner: &str,
+    repo_name: &str,
+) -> (String, String) {
+    let Ok(pool) = state.pool().await else {
+        return (owner.to_string(), repo_name.to_string());
+    };
     let result = sqlx::query_as::<_, (bool, Option<String>, Option<String>)>(
         "SELECT is_fork, fork_owner, fork_repo FROM organization_repos WHERE organization_id = ? AND repo_name = ? LIMIT 1",
     )
     .bind(org_id)
     .bind(repo_name)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&pool)
     .await;
 
     match result {
         Ok(Some((true, Some(fo), Some(fr)))) => return (fo, fr),
         Ok(Some((true, _, _))) => {
-            if let Some((fo, fr)) = crate::app::orgs::resolve_provider::fetch_and_persist_github_parent(state, org_id, owner, repo_name).await {
+            if let Some((fo, fr)) =
+                crate::app::orgs::resolve_provider::fetch_and_persist_github_parent(
+                    state, org_id, owner, repo_name,
+                )
+                .await
+            {
                 return (fo, fr);
             }
         }

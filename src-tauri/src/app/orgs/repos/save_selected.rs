@@ -4,8 +4,17 @@ use crate::app::orgs::request::SelectRepoRequest;
 use crate::providers::enums::PullRequestState;
 use crate::state::AppState;
 
-pub async fn save_selected(state: State<'_, AppState>, organization_id: String, repo_list: Vec<SelectRepoRequest>) -> Result<(), String> {
-    let provider = match crate::app::orgs::resolve_provider::resolve_provider_for_org(&state, &organization_id).await {
+pub async fn save_selected(
+    state: State<'_, AppState>,
+    organization_id: String,
+    repo_list: Vec<SelectRepoRequest>,
+) -> Result<(), String> {
+    let provider = match crate::app::orgs::resolve_provider::resolve_provider_for_org(
+        &state,
+        &organization_id,
+    )
+    .await
+    {
         Ok(p) => p,
         Err(_) => {
             let created_at = time::OffsetDateTime::now_utc()
@@ -26,7 +35,11 @@ pub async fn save_selected(state: State<'_, AppState>, organization_id: String, 
                 let count = provider
                     .list_pull_requests(&owner, &repo_name)
                     .await
-                    .map(|prs| prs.iter().filter(|pr| matches!(pr.state, PullRequestState::Open)).count() as i64)
+                    .map(|prs| {
+                        prs.iter()
+                            .filter(|pr| matches!(pr.state, PullRequestState::Open))
+                            .count() as i64
+                    })
                     .unwrap_or(0);
                 (repo_name, count)
             }
@@ -49,8 +62,14 @@ pub async fn save_selected(state: State<'_, AppState>, organization_id: String, 
     replace_selected_repos(&state, &organization_id, &enriched, &created_at).await
 }
 
-async fn replace_selected_repos(state: &AppState, organization_id: &str, repos: &[SelectRepoRequest], created_at: &str) -> Result<(), String> {
-    let mut transaction = state.db_pool.begin().await.map_err(|e| e.to_string())?;
+async fn replace_selected_repos(
+    state: &AppState,
+    organization_id: &str,
+    repos: &[SelectRepoRequest],
+    created_at: &str,
+) -> Result<(), String> {
+    let pool = state.pool().await.map_err(|e| e.to_string())?;
+    let mut transaction = pool.begin().await.map_err(|e| e.to_string())?;
 
     for repo in repos {
         let updated = sqlx::query(

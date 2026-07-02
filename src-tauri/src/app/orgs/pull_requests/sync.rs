@@ -13,7 +13,8 @@ pub async fn sync(
     current_login: Option<String>,
 ) -> Result<Vec<PullRequestDto>, String> {
     let _ = owner;
-    let (effective_owner, effective_repo, provider, is_upstream) = super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
+    let (effective_owner, effective_repo, provider, is_upstream) =
+        super::resolve_provider::resolve_pr_provider(&state, &organization_id, &repo_name).await?;
     let provider_kind = provider.kind().to_string();
 
     let prs = provider
@@ -24,9 +25,13 @@ pub async fn sync(
     let now = chrono::Utc::now().to_rfc3339();
 
     for pr in &prs {
-        let id = format!("{organization_id}:{provider_kind}:{repo_name}:{}", pr.number);
+        let id = format!(
+            "{organization_id}:{provider_kind}:{repo_name}:{}",
+            pr.number
+        );
         let labels_json = serde_json::to_string(&pr.labels).unwrap_or_else(|_| "[]".to_string());
-        let reviewers_json = serde_json::to_string(&pr.reviewers).unwrap_or_else(|_| "[]".to_string());
+        let reviewers_json =
+            serde_json::to_string(&pr.reviewers).unwrap_or_else(|_| "[]".to_string());
         let state_str = match pr.state {
             crate::providers::enums::PullRequestState::Open => "open",
             crate::providers::enums::PullRequestState::Closed => "closed",
@@ -76,19 +81,20 @@ pub async fn sync(
         .bind(&pr.created_at)
         .bind(&pr.updated_at)
         .bind(&now)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
     }
 
     if !prs.is_empty() && !is_upstream {
-        let remote_ids: std::collections::HashSet<i64> = prs.iter().map(|pr| pr.number as i64).collect();
+        let remote_ids: std::collections::HashSet<i64> =
+            prs.iter().map(|pr| pr.number as i64).collect();
         let local_numbers: Vec<i64> = sqlx::query_scalar::<_, i64>(
             "SELECT number FROM pull_requests WHERE org_id = ? AND repo_name = ? AND state = 'open'",
         )
         .bind(&organization_id)
         .bind(&repo_name)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.pool().await.map_err(|e| e.to_string())?)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -101,7 +107,7 @@ pub async fn sync(
                 .bind(&organization_id)
                 .bind(&repo_name)
                 .bind(number)
-                .execute(&state.db_pool)
+                .execute(&state.pool().await.map_err(|e| e.to_string())?)
                 .await
                 .map_err(|e| e.to_string())?;
             }
@@ -135,10 +141,16 @@ pub async fn sync(
         })
         .filter(|pr| match scope.as_str() {
             "all_open" => true,
-            _ => login.as_ref().map(|current| {
-                pr.author.as_ref().map(|a| a.to_lowercase() == *current).unwrap_or(false)
-                    || pr.reviewers.iter().any(|r| r.to_lowercase() == *current)
-            }).unwrap_or(true),
+            _ => login
+                .as_ref()
+                .map(|current| {
+                    pr.author
+                        .as_ref()
+                        .map(|a| a.to_lowercase() == *current)
+                        .unwrap_or(false)
+                        || pr.reviewers.iter().any(|r| r.to_lowercase() == *current)
+                })
+                .unwrap_or(true),
         })
         .collect();
 

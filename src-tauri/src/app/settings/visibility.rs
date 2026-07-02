@@ -33,17 +33,19 @@ pub async fn get(
     )
     .bind(&scope_type)
     .bind(&scope_id)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&state.pool().await?)
     .await?;
 
     Ok(match row {
-        Some((scope_type, scope_id, issue_scope, pr_scope, assign_issues_to_self)) => VisibilityPreferencesDto {
-            scope_type,
-            scope_id,
-            issue_scope,
-            pr_scope,
-            assign_issues_to_self: assign_issues_to_self != 0,
-        },
+        Some((scope_type, scope_id, issue_scope, pr_scope, assign_issues_to_self)) => {
+            VisibilityPreferencesDto {
+                scope_type,
+                scope_id,
+                issue_scope,
+                pr_scope,
+                assign_issues_to_self: assign_issues_to_self != 0,
+            }
+        }
         None => VisibilityPreferencesDto {
             scope_type,
             scope_id,
@@ -76,7 +78,7 @@ pub async fn upsert(
     .bind(input.assign_issues_to_self as i64)
     .bind(&now)
     .bind(&now)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(VisibilityPreferencesDto {
@@ -96,7 +98,7 @@ pub async fn reset(
     sqlx::query("DELETE FROM visibility_preferences WHERE scope_type = ? AND scope_id = ?")
         .bind(&scope_type)
         .bind(&scope_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
 
     get(scope_type, scope_id, state).await

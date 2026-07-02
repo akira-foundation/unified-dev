@@ -5,6 +5,7 @@ use akira_billing::types::SignedLicense;
 use chrono::Duration;
 use futures_util::FutureExt;
 use sqlx::SqlitePool;
+use tokio::sync::RwLock;
 
 use crate::app::support::error::{AppError, AppResult};
 
@@ -13,22 +14,29 @@ use super::signed_license::verify_envelope;
 
 const GATE_GRACE_WINDOW_DAYS: i64 = 365;
 
-pub fn build(pool: SqlitePool) -> Arc<Gate> {
+type DbHandle = Arc<RwLock<Option<SqlitePool>>>;
+
+pub fn build(db: DbHandle) -> Arc<Gate> {
     Arc::new(Gate::new(GateOptions {
-        loader: Some(build_loader(pool.clone())),
-        local_consumption: Some(build_local_consumption(pool)),
+        loader: Some(build_loader(db.clone())),
+        local_consumption: Some(build_local_consumption(db)),
         grace_window: Duration::days(GATE_GRACE_WINDOW_DAYS),
         now: None,
     }))
 }
 
-fn build_loader(pool: SqlitePool) -> LicenseLoader {
+async fn current_pool(db: &DbHandle) -> Option<SqlitePool> {
+    db.read().await.clone()
+}
+
+fn build_loader(db: DbHandle) -> LicenseLoader {
     Arc::new(move || {
-        let pool = pool.clone();
+        let db = db.clone();
         async move {
-            let envelope = load_envelope(&pool)
-                .await
-                .map_err(license_loader_error)?;
+            let Some(pool) = current_pool(&db).await else {
+                return Ok(None);
+            };
+            let envelope = load_envelope(&pool).await.map_err(license_loader_error)?;
             let Some(envelope) = envelope else {
                 return Ok(None);
             };
@@ -49,10 +57,16 @@ fn build_loader(pool: SqlitePool) -> LicenseLoader {
     })
 }
 
-fn build_local_consumption(pool: SqlitePool) -> LocalConsumption {
+fn build_local_consumption(db: DbHandle) -> LocalConsumption {
     Arc::new(move |feature: String| {
-        let pool = pool.clone();
-        async move { count_for(&pool, &feature).await.map_err(consumption_error) }.boxed()
+        let db = db.clone();
+        async move {
+            let Some(pool) = current_pool(&db).await else {
+                return Ok(0);
+            };
+            count_for(&pool, &feature).await.map_err(consumption_error)
+        }
+        .boxed()
     })
 }
 
@@ -163,7 +177,7 @@ mod tests {
     async fn gate_check_denies_when_no_license_envelope() {
         let pool = setup_test_db().await;
         seed_license(&pool, "free", false).await;
-        let gate = build(pool);
+        let gate = build(Arc::new(RwLock::new(Some(pool))));
         let access = gate.check("repos").await.expect("check");
         assert!(!access.allowed);
         assert_eq!(access.reason, "no_license");

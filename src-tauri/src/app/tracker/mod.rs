@@ -4,11 +4,11 @@ use std::sync::Arc;
 
 use crate::app::support::error::{AppError, AppResult};
 use crate::state::AppState;
-use crate::tracker::Tracker;
 use crate::tracker::dto::{
     StatusCategory, TrackerIssue, TrackerIssueDraft, TrackerIssueFilter, TrackerIssuePatch,
     TrackerNamed, TrackerPageRequest,
 };
+use crate::tracker::Tracker;
 
 pub mod jira_oauth;
 
@@ -91,15 +91,16 @@ impl From<ExternalIssueRow> for TrackerIssue {
 const ISSUE_COLUMNS: &str = "id, identifier, title, description, url, status, category, project_id, milestone_id, team_id, assignee_id, author_id, labels, priority, created_at, updated_at, project_name, milestone_name, team_name, assignee_name, author_name, label_names";
 
 async fn resolve_tracker(state: &AppState, provider: &str) -> AppResult<Arc<dyn Tracker>> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
-    let encrypted: Option<String> =
-        sqlx::query_scalar("SELECT token_cipher FROM tracker_credentials WHERE provider = ? AND customer_id = ?")
-            .bind(provider)
-            .bind(customer_id)
-            .fetch_optional(&state.db_pool)
-            .await?;
-    let encrypted =
-        encrypted.ok_or_else(|| AppError::Provider(format!("tracker not connected: {provider}")))?;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
+    let encrypted: Option<String> = sqlx::query_scalar(
+        "SELECT token_cipher FROM tracker_credentials WHERE provider = ? AND customer_id = ?",
+    )
+    .bind(provider)
+    .bind(customer_id)
+    .fetch_optional(&state.pool().await?)
+    .await?;
+    let encrypted = encrypted
+        .ok_or_else(|| AppError::Provider(format!("tracker not connected: {provider}")))?;
     let token = state.token_cipher.decrypt(&encrypted)?;
     let token = if provider == "jira" {
         jira_oauth::ensure_fresh(state, token).await?
@@ -121,7 +122,7 @@ pub async fn connect(state: &AppState, provider: String, token: String) -> AppRe
 
     let encrypted = state.token_cipher.encrypt(&token)?;
     let now = chrono::Utc::now().to_rfc3339();
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     sqlx::query(
         "INSERT INTO tracker_credentials (provider, token_cipher, account_id, account_name, created_at, updated_at, customer_id) \
          VALUES (?, ?, ?, ?, ?, ?, ?) \
@@ -134,7 +135,7 @@ pub async fn connect(state: &AppState, provider: String, token: String) -> AppRe
     .bind(&now)
     .bind(&now)
     .bind(&customer_id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(user)
@@ -147,27 +148,28 @@ pub fn providers(state: &AppState) -> Vec<String> {
 pub async fn disconnect(state: &AppState, provider: &str) -> AppResult<()> {
     sqlx::query("DELETE FROM tracker_credentials WHERE provider = ?")
         .bind(provider)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     sqlx::query("DELETE FROM external_issues WHERE provider = ?")
         .bind(provider)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     sqlx::query("DELETE FROM tracker_sync_state WHERE provider = ?")
         .bind(provider)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     Ok(())
 }
 
 pub async fn status(state: &AppState, provider: &str) -> AppResult<bool> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
-    let found: Option<String> =
-        sqlx::query_scalar("SELECT provider FROM tracker_credentials WHERE provider = ? AND customer_id = ?")
-            .bind(provider)
-            .bind(customer_id)
-            .fetch_optional(&state.db_pool)
-            .await?;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
+    let found: Option<String> = sqlx::query_scalar(
+        "SELECT provider FROM tracker_credentials WHERE provider = ? AND customer_id = ?",
+    )
+    .bind(provider)
+    .bind(customer_id)
+    .fetch_optional(&state.pool().await?)
+    .await?;
     Ok(found.is_some())
 }
 
@@ -317,7 +319,7 @@ pub async fn sync(
     )
     .bind(&provider)
     .bind(&synced_at)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(count)
@@ -368,7 +370,7 @@ async fn upsert_issue(
     .bind(&issue.assignee_name)
     .bind(&issue.author_name)
     .bind(&label_names)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     Ok(())
@@ -380,7 +382,7 @@ pub async fn list(state: &AppState, provider: &str) -> AppResult<Vec<TrackerIssu
     );
     let rows = sqlx::query_as::<_, ExternalIssueRow>(&query)
         .bind(provider)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.pool().await?)
         .await?;
     Ok(rows.into_iter().map(TrackerIssue::from).collect())
 }
@@ -389,7 +391,7 @@ pub async fn get(state: &AppState, id: &str) -> AppResult<TrackerIssue> {
     let query = format!("SELECT {ISSUE_COLUMNS} FROM external_issues WHERE id = ?");
     let row = sqlx::query_as::<_, ExternalIssueRow>(&query)
         .bind(id)
-        .fetch_optional(&state.db_pool)
+        .fetch_optional(&state.pool().await?)
         .await?
         .ok_or_else(|| AppError::Provider(format!("issue not found: {id}")))?;
     Ok(TrackerIssue::from(row))
@@ -433,7 +435,7 @@ pub async fn delete(state: &AppState, provider: String, id: String) -> AppResult
     tracker.delete_issue(&id).await?;
     sqlx::query("DELETE FROM external_issues WHERE id = ?")
         .bind(&id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     Ok(())
 }

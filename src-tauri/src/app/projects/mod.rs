@@ -43,17 +43,18 @@ pub struct RepoSource {
     pub created_at: String,
 }
 
-const PROJECT_COLUMNS: &str = "id, name, provider, external_id, color, org_id, created_at, updated_at";
+const PROJECT_COLUMNS: &str =
+    "id, name, provider, external_id, color, org_id, created_at, updated_at";
 const REPO_COLUMNS: &str = "id, project_id, name, default_vcs_source_id, created_at, updated_at";
 const SOURCE_COLUMNS: &str =
     "id, project_repo_id, provider, ref_type, ref, is_issue_source, is_vcs_target, created_at";
 
 pub async fn list(state: &AppState) -> AppResult<Vec<Project>> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     let query = format!("SELECT {PROJECT_COLUMNS} FROM projects WHERE customer_id = ? ORDER BY name COLLATE NOCASE ASC");
     Ok(sqlx::query_as::<_, Project>(&query)
         .bind(customer_id)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.pool().await?)
         .await?)
 }
 
@@ -61,7 +62,7 @@ async fn fetch_project(state: &AppState, id: &str) -> AppResult<Project> {
     let query = format!("SELECT {PROJECT_COLUMNS} FROM projects WHERE id = ?");
     sqlx::query_as::<_, Project>(&query)
         .bind(id)
-        .fetch_optional(&state.db_pool)
+        .fetch_optional(&state.pool().await?)
         .await?
         .ok_or_else(|| AppError::Provider(format!("project not found: {id}")))
 }
@@ -74,7 +75,7 @@ pub async fn create(
 ) -> AppResult<Project> {
     let id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     sqlx::query(
         "INSERT INTO projects (id, name, provider, external_id, color, org_id, created_at, updated_at, customer_id) \
          VALUES (?, ?, 'local', NULL, ?, ?, ?, ?, ?)",
@@ -86,7 +87,7 @@ pub async fn create(
     .bind(&now)
     .bind(&now)
     .bind(&customer_id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
     fetch_project(state, &id).await
 }
@@ -105,7 +106,7 @@ pub async fn update(
     .bind(&color)
     .bind(&now)
     .bind(&id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
     fetch_project(state, &id).await
 }
@@ -113,15 +114,16 @@ pub async fn update(
 pub async fn delete(state: &AppState, id: String) -> AppResult<()> {
     sqlx::query("DELETE FROM projects WHERE id = ?")
         .bind(&id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     Ok(())
 }
 
 pub async fn list_repos(state: &AppState) -> AppResult<Vec<ProjectRepo>> {
-    let query = format!("SELECT {REPO_COLUMNS} FROM project_repos ORDER BY name COLLATE NOCASE ASC");
+    let query =
+        format!("SELECT {REPO_COLUMNS} FROM project_repos ORDER BY name COLLATE NOCASE ASC");
     Ok(sqlx::query_as::<_, ProjectRepo>(&query)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.pool().await?)
         .await?)
 }
 
@@ -129,12 +131,16 @@ async fn fetch_repo(state: &AppState, id: &str) -> AppResult<ProjectRepo> {
     let query = format!("SELECT {REPO_COLUMNS} FROM project_repos WHERE id = ?");
     sqlx::query_as::<_, ProjectRepo>(&query)
         .bind(id)
-        .fetch_optional(&state.db_pool)
+        .fetch_optional(&state.pool().await?)
         .await?
         .ok_or_else(|| AppError::Provider(format!("repo not found: {id}")))
 }
 
-pub async fn create_repo(state: &AppState, project_id: String, name: String) -> AppResult<ProjectRepo> {
+pub async fn create_repo(
+    state: &AppState,
+    project_id: String,
+    name: String,
+) -> AppResult<ProjectRepo> {
     let id = Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
     sqlx::query(
@@ -146,7 +152,7 @@ pub async fn create_repo(state: &AppState, project_id: String, name: String) -> 
     .bind(&name)
     .bind(&now)
     .bind(&now)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
     fetch_repo(state, &id).await
 }
@@ -165,7 +171,7 @@ pub async fn update_repo(
     .bind(&default_vcs_source_id)
     .bind(&now)
     .bind(&id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
     fetch_repo(state, &id).await
 }
@@ -173,7 +179,7 @@ pub async fn update_repo(
 pub async fn delete_repo(state: &AppState, id: String) -> AppResult<()> {
     sqlx::query("DELETE FROM project_repos WHERE id = ?")
         .bind(&id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     Ok(())
 }
@@ -181,7 +187,7 @@ pub async fn delete_repo(state: &AppState, id: String) -> AppResult<()> {
 pub async fn list_sources(state: &AppState) -> AppResult<Vec<RepoSource>> {
     let query = format!("SELECT {SOURCE_COLUMNS} FROM repo_sources");
     Ok(sqlx::query_as::<_, RepoSource>(&query)
-        .fetch_all(&state.db_pool)
+        .fetch_all(&state.pool().await?)
         .await?)
 }
 
@@ -209,7 +215,7 @@ pub async fn add_source(
     .bind(is_issue_source)
     .bind(is_vcs_target)
     .bind(&now)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
     let query = format!(
@@ -219,7 +225,7 @@ pub async fn add_source(
         .bind(&provider)
         .bind(&ref_type)
         .bind(&reference)
-        .fetch_optional(&state.db_pool)
+        .fetch_optional(&state.pool().await?)
         .await?
         .ok_or_else(|| AppError::Provider("failed to persist repo source".into()))
 }
@@ -227,7 +233,7 @@ pub async fn add_source(
 pub async fn remove_source(state: &AppState, id: String) -> AppResult<()> {
     sqlx::query("DELETE FROM repo_sources WHERE id = ?")
         .bind(&id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     Ok(())
 }

@@ -8,16 +8,16 @@ pub use types::{McpServer, McpTool};
 
 use crate::app::support::error::AppResult;
 use crate::state::AppState;
-use tauri::State;
 use chrono::Utc;
+use tauri::State;
 
 pub async fn list(state: State<'_, AppState>) -> AppResult<Vec<McpServer>> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     let rows = sqlx::query_as::<_, McpServer>(
         "SELECT id, name, url, access_token, token_type, enabled, created_at FROM mcp_servers WHERE customer_id = ? ORDER BY name COLLATE NOCASE",
     )
     .bind(&customer_id)
-    .fetch_all(&state.db_pool)
+    .fetch_all(&state.pool().await?)
     .await?;
     Ok(rows)
 }
@@ -25,7 +25,7 @@ pub async fn list(state: State<'_, AppState>) -> AppResult<Vec<McpServer>> {
 pub async fn add(name: String, url: String, state: State<'_, AppState>) -> AppResult<McpServer> {
     let id = server_id_from_url(&url);
     let now = Utc::now().to_rfc3339();
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
 
     sqlx::query(
         "INSERT INTO mcp_servers (id, name, url, access_token, token_type, enabled, created_at, customer_id)
@@ -37,41 +37,56 @@ pub async fn add(name: String, url: String, state: State<'_, AppState>) -> AppRe
     .bind(&url)
     .bind(&now)
     .bind(&customer_id)
-    .execute(&state.db_pool)
+    .execute(&state.pool().await?)
     .await?;
 
-    Ok(McpServer { id, name, url, access_token: None, token_type: "bearer".to_string(), enabled: true, created_at: now })
+    Ok(McpServer {
+        id,
+        name,
+        url,
+        access_token: None,
+        token_type: "bearer".to_string(),
+        enabled: true,
+        created_at: now,
+    })
 }
 
 pub async fn remove(id: String, state: State<'_, AppState>) -> AppResult<()> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     sqlx::query("DELETE FROM mcp_servers WHERE id = ? AND customer_id IS ?")
         .bind(&id)
         .bind(&customer_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     Ok(())
 }
 
-pub async fn save_token(id: &str, access_token: &str, token_type: &str, pool: &sqlx::SqlitePool) -> AppResult<()> {
+pub async fn save_token(
+    id: &str,
+    access_token: &str,
+    token_type: &str,
+    pool: &sqlx::SqlitePool,
+) -> AppResult<()> {
     let customer_id = crate::app::auth::current_customer_id(pool).await;
-    sqlx::query("UPDATE mcp_servers SET access_token = ?, token_type = ? WHERE id = ? AND customer_id IS ?")
-        .bind(access_token)
-        .bind(token_type)
-        .bind(id)
-        .bind(&customer_id)
-        .execute(pool)
-        .await?;
+    sqlx::query(
+        "UPDATE mcp_servers SET access_token = ?, token_type = ? WHERE id = ? AND customer_id IS ?",
+    )
+    .bind(access_token)
+    .bind(token_type)
+    .bind(id)
+    .bind(&customer_id)
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
 pub async fn set_enabled(id: String, enabled: bool, state: State<'_, AppState>) -> AppResult<()> {
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
     sqlx::query("UPDATE mcp_servers SET enabled = ? WHERE id = ? AND customer_id IS ?")
         .bind(enabled)
         .bind(&id)
         .bind(&customer_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await?;
     Ok(())
 }

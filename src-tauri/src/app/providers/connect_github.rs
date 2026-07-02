@@ -9,7 +9,10 @@ use crate::state::AppState;
 
 const APP_NOT_INSTALLED_CODE: &str = "github_app_not_installed";
 
-pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -> AppResult<ProviderSummary> {
+pub async fn connect_github(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> AppResult<ProviderSummary> {
     crate::app::auth::ensure_authenticated(state.clone(), &app, "github").await?;
 
     let mut attempt = 0;
@@ -56,7 +59,10 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
     };
 
     let auth = ProviderAuth::GitHubApp {
-        oauth_access_token: user_token.as_ref().map(|t| t.token.clone()).unwrap_or_default(),
+        oauth_access_token: user_token
+            .as_ref()
+            .map(|t| t.token.clone())
+            .unwrap_or_default(),
         oauth_refresh_token: None,
         oauth_expires_at: None,
         installation_token: response.token,
@@ -64,17 +70,18 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         expires_at,
     };
 
-    let (auth_type, auth_payload) = crate::app::providers::credentials::serialize_auth(&state, &auth)
-        .map_err(|error| AppError::Provider(error.to_string()))?;
+    let (auth_type, auth_payload) =
+        crate::app::providers::credentials::serialize_auth(&state, &auth)
+            .map_err(|error| AppError::Provider(error.to_string()))?;
 
-    let customer_id = crate::app::auth::current_customer_id(&state.db_pool).await;
+    let customer_id = crate::app::auth::current_customer_id(&state.pool().await?).await;
 
     let existing: Option<(String, String)> = sqlx::query_as(
         "SELECT id, created_at FROM providers WHERE kind = 'github' AND account_login = ? AND customer_id = ? LIMIT 1",
     )
     .bind(&response.account_login)
     .bind(&customer_id)
-    .fetch_optional(&state.db_pool)
+    .fetch_optional(&state.pool().await?)
     .await
     .map_err(|e| AppError::Provider(e.to_string()))?;
 
@@ -89,7 +96,7 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         .bind(&response.account_type)
         .bind(&customer_id)
         .bind(&existing_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await
         .map_err(|error| AppError::Provider(format!("DB update failed: {error}")))?;
         (existing_id, existing_created_at)
@@ -109,7 +116,7 @@ pub async fn connect_github(state: State<'_, AppState>, app: tauri::AppHandle) -
         .bind(&response.account_login)
         .bind(&response.account_type)
         .bind(&customer_id)
-        .execute(&state.db_pool)
+        .execute(&state.pool().await?)
         .await
         .map_err(|error| AppError::Provider(format!("DB insert failed: {error}")))?;
         (new_id, new_created_at)
@@ -140,9 +147,9 @@ fn is_unauthorized(error: &akira_billing::Error) -> bool {
 fn translate_billing_error(error: akira_billing::Error) -> AppError {
     use akira_billing::Error as BErr;
     match error {
-        BErr::Api { status, code, .. } if !code.is_empty() => {
-            AppError::Provider(format!("github_installation_token failed ({status}): {code}"))
-        }
+        BErr::Api { status, code, .. } if !code.is_empty() => AppError::Provider(format!(
+            "github_installation_token failed ({status}): {code}"
+        )),
         BErr::Api { status, .. } => {
             AppError::Provider(format!("github_installation_token failed: HTTP {status}"))
         }
