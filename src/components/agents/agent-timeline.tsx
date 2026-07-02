@@ -9,6 +9,7 @@ import type { AgentTimelineStep } from "@/types/agents";
 import { parseContent } from "@/types/agents";
 import type { ChatMessage, ToolCallEvent } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
+import { elapsedSecondsSince } from "@/lib/elapsed";
 import { useToggle } from "@uidotdev/usehooks";
 
 interface AgentTimelineProps {
@@ -18,6 +19,7 @@ interface AgentTimelineProps {
   isStreaming: boolean;
   toolCalls: ToolCallEvent[];
   isLoadingMessages?: boolean;
+  streamStartedAt?: number;
 }
 
 function CodeBlock({ language, children }: { language: string; children: string }) {
@@ -256,7 +258,7 @@ function formatElapsed(seconds: number): string {
   return `${h}h ${remM}m`;
 }
 
-export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls, isLoadingMessages = false }: AgentTimelineProps) {
+export function AgentTimeline({ steps, messages, streamingContent, isStreaming, toolCalls, isLoadingMessages = false, streamStartedAt }: AgentTimelineProps) {
   const { t } = useI18n();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -270,14 +272,15 @@ export function AgentTimeline({ steps, messages, streamingContent, isStreaming, 
   }, [streamingContent]);
 
   useEffect(() => {
-    if (!isStreaming) {
+    if (!isStreaming || !streamStartedAt) {
       setElapsedSeconds(0);
       return;
     }
-    setElapsedSeconds(0);
-    const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    const tick = () => setElapsedSeconds(elapsedSecondsSince(streamStartedAt, Date.now()));
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [isStreaming]);
+  }, [isStreaming, streamStartedAt]);
 
   const hasContent = messages.length > 0 || isStreaming;
 

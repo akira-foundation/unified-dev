@@ -39,6 +39,7 @@ export function AgentWorkspaceLayout() {
     messagesLoadingByThread,
     streamingContentByThread,
     streamingThreadIds,
+    streamStartedAtByThread,
     toolCallsByThread,
     loadMessages,
     loadFileChanges,
@@ -227,6 +228,7 @@ export function AgentWorkspaceLayout() {
                 isStreaming={isCurrentThreadStreaming}
                 toolCalls={toolCalls}
                 isLoadingMessages={messagesLoading}
+                streamStartedAt={streamStartedAtByThread[selectedIssueId ?? ""]}
               />
             </div>
             <div className="shrink-0 pb-6 pt-2">

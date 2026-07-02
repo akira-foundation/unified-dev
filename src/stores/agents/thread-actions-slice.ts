@@ -96,14 +96,19 @@ export const createThreadActionsSlice: AgentsSliceCreator<ThreadActionsSlice> = 
     return { repositoryGroups: newGroups, selectedIssueId: thread.id };
   }),
   abortThread: async (threadId) => {
-    set((state) => ({
-      abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: true },
-      streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
-      streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
-      streamingThreadId: state.streamingThreadId === threadId ? null : state.streamingThreadId,
-      toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
-      messageQueueByThread: { ...state.messageQueueByThread, [threadId]: [] },
-    }));
+    set((state) => {
+      const streamStartedAtByThread = { ...state.streamStartedAtByThread };
+      delete streamStartedAtByThread[threadId];
+      return {
+        abortRequestedByThread: { ...state.abortRequestedByThread, [threadId]: true },
+        streamingThreadIds: { ...state.streamingThreadIds, [threadId]: false },
+        streamStartedAtByThread,
+        streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
+        streamingThreadId: state.streamingThreadId === threadId ? null : state.streamingThreadId,
+        toolCallsByThread: { ...state.toolCallsByThread, [threadId]: [] },
+        messageQueueByThread: { ...state.messageQueueByThread, [threadId]: [] },
+      };
+    });
 
     await invoke("abort_agent", { threadId }).catch(() => {});
   },
@@ -132,6 +137,7 @@ export const createThreadActionsSlice: AgentsSliceCreator<ThreadActionsSlice> = 
       const messagesByThread = { ...state.messagesByThread };
       const messagesLoadingByThread = { ...state.messagesLoadingByThread };
       const abortRequestedByThread = { ...state.abortRequestedByThread };
+      const streamStartedAtByThread = { ...state.streamStartedAtByThread };
       delete streamingContentByThread[threadId];
       delete toolCallsByThread[threadId];
       delete streamingThreadIds[threadId];
@@ -142,6 +148,7 @@ export const createThreadActionsSlice: AgentsSliceCreator<ThreadActionsSlice> = 
       delete messagesByThread[threadId];
       delete messagesLoadingByThread[threadId];
       delete abortRequestedByThread[threadId];
+      delete streamStartedAtByThread[threadId];
 
       return {
         repositoryGroups: newGroups,
@@ -156,6 +163,7 @@ export const createThreadActionsSlice: AgentsSliceCreator<ThreadActionsSlice> = 
         messagesByThread,
         messagesLoadingByThread,
         abortRequestedByThread,
+        streamStartedAtByThread,
       };
     });
 
@@ -183,6 +191,7 @@ export const createThreadActionsSlice: AgentsSliceCreator<ThreadActionsSlice> = 
     const collapsedFilesByThread = { ...state.collapsedFilesByThread };
     const messagesByThread = { ...state.messagesByThread };
     const messagesLoadingByThread = { ...state.messagesLoadingByThread };
+    const streamStartedAtByThread = { ...state.streamStartedAtByThread };
     for (const tid of removedThreadIds) {
       delete streamingContentByThread[tid];
       delete toolCallsByThread[tid];
@@ -193,6 +202,7 @@ export const createThreadActionsSlice: AgentsSliceCreator<ThreadActionsSlice> = 
       delete collapsedFilesByThread[tid];
       delete messagesByThread[tid];
       delete messagesLoadingByThread[tid];
+      delete streamStartedAtByThread[tid];
     }
 
     const nextSelectedId = removedThreadIds.has(state.selectedIssueId ?? "") ? null : state.selectedIssueId;
@@ -209,6 +219,7 @@ export const createThreadActionsSlice: AgentsSliceCreator<ThreadActionsSlice> = 
       collapsedFilesByThread,
       messagesByThread,
       messagesLoadingByThread,
+      streamStartedAtByThread,
     };
   }),
 });

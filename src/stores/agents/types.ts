@@ -79,6 +79,7 @@ export interface AgentsState {
   toolCallsByThread: Record<string, ToolCallEvent[]>;
   abortRequestedByThread: Record<string, boolean>;
   streamingThreadIds: Record<string, boolean>;
+  streamStartedAtByThread: Record<string, number>;
   streamingThreadId: string | null;
   messageQueueByThread: Record<string, Array<{ content: MessageContent; model: string; options?: SendMessageOptions }>>;
   setSelectedIssueId: (id: string | null) => void;
