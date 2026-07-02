@@ -24,12 +24,8 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(
-        provider_factory: Arc<ProviderFactory>,
-        token_cipher: Arc<TokenCipher>,
-        db_pool: sqlx::SqlitePool,
-    ) -> Self {
-        let db = Arc::new(RwLock::new(Some(db_pool)));
+    pub fn new(provider_factory: Arc<ProviderFactory>, token_cipher: Arc<TokenCipher>) -> Self {
+        let db: Arc<RwLock<Option<SqlitePool>>> = Arc::new(RwLock::new(None));
         let license_gate = license::gate::build(db.clone());
         Self {
             provider_factory,
@@ -66,17 +62,30 @@ mod tests {
     use crate::providers::registry::ProviderFactory;
     use crate::test_utils::setup_test_db;
 
-    fn build_state(pool: SqlitePool) -> AppState {
+    fn build_state() -> AppState {
         AppState::new(
             Arc::new(ProviderFactory::new()),
             Arc::new(TokenCipher::new([0u8; 32])),
-            pool,
         )
     }
 
     #[tokio::test]
-    async fn pool_returns_unauthenticated_after_clear() {
-        let state = build_state(setup_test_db().await);
+    async fn pool_is_unauthenticated_until_set() {
+        let state = build_state();
+
+        assert!(matches!(
+            state.pool().await,
+            Err(AppError::Unauthenticated)
+        ));
+
+        state.set_pool(setup_test_db().await).await;
+        assert!(state.pool().await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn clear_pool_reverts_to_unauthenticated() {
+        let state = build_state();
+        state.set_pool(setup_test_db().await).await;
         assert!(state.pool().await.is_ok());
 
         state.clear_pool().await;
@@ -85,16 +94,5 @@ mod tests {
             state.pool().await,
             Err(AppError::Unauthenticated)
         ));
-    }
-
-    #[tokio::test]
-    async fn set_pool_restores_access_after_clear() {
-        let state = build_state(setup_test_db().await);
-        state.clear_pool().await;
-        assert!(state.pool().await.is_err());
-
-        state.set_pool(setup_test_db().await).await;
-
-        assert!(state.pool().await.is_ok());
     }
 }
