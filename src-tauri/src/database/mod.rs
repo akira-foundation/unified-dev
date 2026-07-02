@@ -7,7 +7,10 @@ use tauri::Manager;
 use crate::app::support::error::AppResult;
 use crate::app::support::security::{derive_db_key, DbKeyStore};
 
+pub mod legacy_migration;
 pub mod records;
+
+pub use legacy_migration::migrate_legacy_if_needed;
 
 pub fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
     let app_dir = app.path().app_data_dir()?;
@@ -23,23 +26,6 @@ pub fn database_path(app: &tauri::AppHandle) -> AppResult<PathBuf> {
         "unified-dev.sqlite".to_string()
     };
     Ok(app_dir.join(filename))
-}
-
-pub async fn init_pool(app: &tauri::AppHandle) -> AppResult<SqlitePool> {
-    let db_path = database_path(app)?;
-    let connect_options = SqliteConnectOptions::new()
-        .filename(db_path)
-        .create_if_missing(true)
-        .foreign_keys(true);
-
-    let pool = SqlitePoolOptions::new()
-        .max_connections(5)
-        .connect_with(connect_options)
-        .await?;
-
-    sqlx::migrate!("./src/database/migrations").run(&pool).await?;
-
-    Ok(pool)
 }
 
 pub fn customer_db_path(app: &tauri::AppHandle, customer_id: &str) -> AppResult<PathBuf> {
