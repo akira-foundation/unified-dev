@@ -31,6 +31,7 @@ import { ProviderDetailPage } from "./pages/provider-detail";
 import { Bot, Building2, CircleDot, FolderGit2, FolderKanban, GitFork, GitPullRequest, LayoutDashboard, Settings } from "lucide-react";
 import { useNavigation } from "./hooks/useNavigation";
 import { useNavigationStore } from "./stores/navigation-store";
+import { useHotkey } from "./hooks/useHotkey";
 import { useAgentsStore } from "./stores/useAgentsStore";
 import { useAutopilotStore } from "./stores/useAutopilotStore";
 import { IssuesPage } from "./pages/issues";
@@ -57,6 +58,7 @@ export default function App() {
   const queryClient = useQueryClient();
   const { currentPage, navigateTo } = useNavigation("dashboard");
   const isAgentMode = useNavigationStore((state) => state.isAgentMode);
+  const setSettingsTab = useNavigationStore((state) => state.setSettingsTab);
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
   const onboardingAuthOnly = useOnboardingStore((s) => s.authOnly);
   const requireOnboardingAuth = useOnboardingStore((s) => s.requireAuth);
@@ -64,18 +66,27 @@ export default function App() {
   const loadAiProviders = useAgentsStore((state) => state.loadAiProviders);
   const loadAutopilotJobs = useAutopilotStore((state) => state.loadJobs);
 
+  useHotkey(",", () => {
+    setSettingsTab("general");
+    navigateTo("settings");
+  });
+
   useEffect(() => {
     const unlisten = listen<{ kind: string; orgId: string }>("sync:completed", ({ payload }) => {
-      if (payload.kind === "issues") {
-        queryClient.invalidateQueries({ queryKey: ["issues"] });
-        queryClient.invalidateQueries({ queryKey: ["tracker-issues"] });
-        queryClient.invalidateQueries({ queryKey: ["sidebar-open-issues"] });
-      } else if (payload.kind === "prs") {
-        queryClient.invalidateQueries({ queryKey: ["pull-requests"] });
-        queryClient.invalidateQueries({ queryKey: ["all-repositories"] });
-      } else if (payload.kind === "repos") {
-        queryClient.invalidateQueries({ queryKey: ["all-repositories"] });
-        queryClient.invalidateQueries({ queryKey: ["selected-repos"] });
+      switch (payload.kind) {
+        case "issues":
+          queryClient.invalidateQueries({ queryKey: ["issues"] });
+          queryClient.invalidateQueries({ queryKey: ["tracker-issues"] });
+          queryClient.invalidateQueries({ queryKey: ["sidebar-open-issues"] });
+          break;
+        case "prs":
+          queryClient.invalidateQueries({ queryKey: ["pull-requests"] });
+          queryClient.invalidateQueries({ queryKey: ["all-repositories"] });
+          break;
+        case "repos":
+          queryClient.invalidateQueries({ queryKey: ["all-repositories"] });
+          queryClient.invalidateQueries({ queryKey: ["selected-repos"] });
+          break;
       }
     });
     return () => {
