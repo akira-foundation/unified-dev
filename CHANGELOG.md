@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.12.5](https://github.com/akira-foundation/unified-dev/compare/v0.12.4...v0.12.5) (2026-07-02)
+## [1.0.0](https://github.com/akira-foundation/unified-dev/compare/v0.12.4...v1.0.0) (2026-07-03)
 
 ### Bug Fixes
 
@@ -17,11 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **threads:** Sync pull requests when PR review lookup misses cache ([b7f7e51](https://github.com/akira-foundation/unified-dev/commit/b7f7e51035411a98ef1cdc7e485ab90f2c3cf712))
 - **agents:** Add manual Push & create PR fallback for autopilot runs ([8431a3d](https://github.com/akira-foundation/unified-dev/commit/8431a3da97b509e98cdd38f608f435a7dbba82e8))
 - **agents:** Resume Claude CLI session to keep tool context across turns ([c7e2ba6](https://github.com/akira-foundation/unified-dev/commit/c7e2ba6090946fa498bb0de4361378864481919a))
+- **security:** Clear GitHub installation caches on logout ([c798a18](https://github.com/akira-foundation/unified-dev/commit/c798a18c8f0153c745299f125d62a150e0ef10b8))
+- **ui:** Add Cmd+, settings shortcut, fix stat card truncation ([841a5b1](https://github.com/akira-foundation/unified-dev/commit/841a5b15cd917d07cbaef9f14f516d74aca10712))
 
 
 ### Features
 
 - **i18n:** Rename Clusters from Hubs in user-facing labels ([42f840c](https://github.com/akira-foundation/unified-dev/commit/42f840ca5248c9e0f73a241fc7fefeeb7a3b5ae8))
+- **db:** Validate SQLCipher+sqlx linkage for per-customer DB isolation ([91c7228](https://github.com/akira-foundation/unified-dev/commit/91c7228488ab28f940e60bbbcf262f289677aae8))
+- **state:** Make AppState's DB pool swappable for per-customer isolation ([2cbe0fe](https://github.com/akira-foundation/unified-dev/commit/2cbe0fea7ad86c394637cd72b08a103df0c1f5f4))
+- **db:** Add per-customer DB open + keychain pointer module ([4270807](https://github.com/akira-foundation/unified-dev/commit/42708071b5c1a51c000c89486611df9f0f0c8806))
+- **setup:** Boot with logged-out state when no active customer ([705a2ff](https://github.com/akira-foundation/unified-dev/commit/705a2ffc5ba5750e7a6d1ec047e5ea2b186e384a))
+- **auth:** Swap the DB pool on login/logout for per-customer isolation ([3c9ec87](https://github.com/akira-foundation/unified-dev/commit/3c9ec87ea56fe0714dc5c924fadabd80e2a9077f))
+- **db:** Migrate-on-first-login split of the legacy shared DB ([2cf3ef6](https://github.com/akira-foundation/unified-dev/commit/2cf3ef6816716aaef66df9c551274a77321a5b22))
+- Remove paywall/license enforcement, keep login and usage tracking ([69e8116](https://github.com/akira-foundation/unified-dev/commit/69e8116099154901a14d22df1df2cb5045766673))
+- **db:** Drop plan/paywall columns from license table ([f059455](https://github.com/akira-foundation/unified-dev/commit/f05945521a88c7cf75b55e95e5e020aae527df14))
+- **worker:** Prune Stripe/paywall routes, keep GitHub auth + usage ([7529532](https://github.com/akira-foundation/unified-dev/commit/75295325d18352274983f0e5a6f0281b6c2cfa25))
 
 ## [0.12.4](https://github.com/akira-foundation/unified-dev/compare/v0.12.3...v0.12.4) (2026-06-03)
 
