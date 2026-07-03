@@ -9,7 +9,8 @@ describe("actionLabel", () => {
 
   it("keeps the remaining action labels", () => {
     expect(actionLabel("update.cli")).toBe("Update");
-    expect(actionLabel("upgrade.pro")).toBe("Upgrade");
+    expect(actionLabel("autopilot.open")).toBe("Open job");
+    expect(actionLabel("github.install")).toBe("Install App");
     expect(actionLabel("auth.reconnect")).toBe("Sign in");
   });
 
