@@ -19,7 +19,7 @@ jobs:
       - name: Checkout unified-dev-landing-page
         uses: actions/checkout@v4
         with:
-          repository: akira-foundation/unified-dev-landing-page
+          repository: kidiatoliny/unified-dev-landing-page
           token: ${{ secrets.DOCS_TOKEN }}
           path: landing-page
 
