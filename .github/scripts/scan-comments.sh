@@ -14,7 +14,7 @@
 #   - Config files: any path under a `config/` directory and
 #     `*.config.{php,js,ts,mjs,cjs}`
 #
-# Output (stdout): <file>:<line>:<excerpt>
+# Output: GitHub Actions ::error file=,line=:: annotations
 # Exit code: 0 no violations, 1 violations found
 
 set -uo pipefail
@@ -110,7 +110,7 @@ while IFS= read -r f; do
           fi
           in_doc=0
           if [ "$doc_pure" -eq 0 ]; then
-            echo "$f:$doc_start_ln: /** ... */ (narrative docblock)"
+            echo "::error file=$f,line=$doc_start_ln::narrative docblock (/** ... */)"
             violations=$((violations + 1))
           fi
           ;;
@@ -136,7 +136,7 @@ while IFS= read -r f; do
               if [ -z "$inner" ] || is_php_doc_tag "$inner"; then
                 continue
               fi
-              echo "$f:$ln: $trimmed"
+              echo "::error file=$f,line=$ln::disallowed comment: $trimmed"
               violations=$((violations + 1))
               ;;
             *)
@@ -155,14 +155,14 @@ while IFS= read -r f; do
         if is_allowed_pragma "$trimmed"; then
           continue
         fi
-        echo "$f:$ln: $trimmed"
+        echo "::error file=$f,line=$ln::disallowed comment: $trimmed"
         violations=$((violations + 1))
         ;;
       "//"*|"/*"*)
         if is_allowed_pragma "$trimmed"; then
           continue
         fi
-        echo "$f:$ln: $trimmed"
+        echo "::error file=$f,line=$ln::disallowed comment: $trimmed"
         violations=$((violations + 1))
         ;;
       "#"*)
@@ -172,7 +172,7 @@ while IFS= read -r f; do
         if is_allowed_pragma "$trimmed"; then
           continue
         fi
-        echo "$f:$ln: $trimmed"
+        echo "::error file=$f,line=$ln::disallowed comment: $trimmed"
         violations=$((violations + 1))
         ;;
     esac

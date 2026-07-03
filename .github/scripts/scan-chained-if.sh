@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # CI chained-if scan (PR version of commit-guard's scan-chained-if.sh).
-# Blocks `else if` / `elif` / `elsif` conditional chains in changed files.
+# Blocks else-if / elif / elsif conditional chains in changed source files.
+# Scoped to code files only (not scripts, workflows, or docs), otherwise the
+# regex matches its own definition text and other prose mentioning the word.
 
 set -uo pipefail
 
@@ -10,7 +12,8 @@ cd "$repo_root" || exit 0
 : "${BASE_SHA:?BASE_SHA must be set}"
 : "${HEAD_SHA:?HEAD_SHA must be set}"
 
-files=$(git diff --name-only --diff-filter=AM "$BASE_SHA...$HEAD_SHA" 2>/dev/null || true)
+files=$(git diff --name-only --diff-filter=AM "$BASE_SHA...$HEAD_SHA" 2>/dev/null \
+  | grep -E '\.(go|ts|tsx|js|jsx|mjs|cjs|php|rs|py|rb|swift|kt|java|cs|scala)$' || true)
 
 if [ -z "$files" ]; then
   exit 0
@@ -30,12 +33,12 @@ while IFS= read -r f; do
     trimmed="${line#"${line%%[![:space:]]*}"}"
 
     if printf '%s\n' "$trimmed" | grep -Eq '(^|[^[:alnum:]_])(else[[:space:]]+if|elif|elsif)([^[:alnum:]_]|$)'; then
-      echo "$f:$ln: $trimmed"
+      echo "::error file=$f,line=$ln::chained if/elif/elsif: $trimmed"
       violations=$((violations + 1))
     fi
 
     if [ "$previous_else_line" -gt 0 ] && printf '%s\n' "$trimmed" | grep -Eq '^if([^[:alnum:]_]|$)'; then
-      echo "$f:$previous_else_line-$ln: else followed by if"
+      echo "::error file=$f,line=$ln::else immediately followed by if (chain starting at line $previous_else_line)"
       violations=$((violations + 1))
     fi
 

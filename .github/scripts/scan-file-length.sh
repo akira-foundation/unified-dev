@@ -35,7 +35,7 @@ while IFS= read -r f; do
   base_lines=${base_lines:-0}
 
   if [ "$base_lines" -le "$CAP" ]; then
-    echo "$f: $head_lines lines > $CAP cap (was $base_lines at base, this PR pushed it over)"
+    echo "::error file=$f,line=1::$head_lines lines > $CAP cap (was $base_lines at base, this PR pushed it over)"
     violations=$((violations + 1))
   fi
 done <<EOF
