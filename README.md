@@ -102,8 +102,9 @@ process.
 - **Frontend**: React + TypeScript + Vite, in `src/`
 - **Backend**: Rust + [Tauri](https://tauri.app), in `src-tauri/`. SQLite (SQLCipher-encrypted,
   one database file per logged-in account) via `sqlx`.
-- **Worker**: a small Cloudflare Worker (`worker/`) that proxies GitHub OAuth token
-  exchange and anonymous usage counting — it never sees your code or credentials.
+- **Billing backend**: GitHub OAuth token exchange and anonymous usage counting are proxied
+  through a small external service (`AKIRA_BILLING_URL`) — it never sees your code or
+  credentials.
 
 ## License
 

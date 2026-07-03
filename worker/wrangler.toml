@@ -1,7 +1,0 @@
-name = "akira-github-proxy"
-main = "src/index.ts"
-compatibility_date = "2024-01-01"
-
-[[kv_namespaces]]
-binding = "LICENSES"
-id = "5923e0d588e24a3da139403a6760e0fe"
