@@ -4,18 +4,21 @@
 
 `.github/workflows/build-and-release.yml`, triggered by pushing a `v*` tag:
 
-1. Two parallel jobs build macOS binaries for `aarch64-apple-darwin` and
+1. Two parallel jobs build macOS binaries, one for `aarch64-apple-darwin` and one for
   `x86_64-apple-darwin`.
-2. Each job sets the version from the tag, writes a build-time `.env` from GitHub
-  Secrets (`AKIRA_API_URL`, `GITHUB_CLIENT_ID`, `AKIRA_BILLING_URL`,
-  `AKIRA_BILLING_SECRET`, `AKIRA_LICENSE_PUBKEY` - see note below), imports the Apple
-  signing certificate into a throwaway CI keychain, then runs `tauri build` with
-  `TAURI_SIGNING_PRIVATE_KEY`/`APPLE_SIGNING_IDENTITY`/`APPLE_ID`/`APPLE_PASSWORD`/
-  `APPLE_TEAM_ID` set for codesigning + notarization + updater-artifact signing.
-3. Artifacts are normalized to `unified_dev_<version>_<arch>.app.tar.gz` /
-  `.dmg`, with the `.sig` file (minisign signature) uploaded alongside.
-4. `git-cliff` generates the release body from Conventional Commits since the last tag.
-5. `softprops/action-gh-release` publishes the `.dmg`, `.app.tar.gz`, and `.sig` to the
+2. Each job sets the version from the tag.
+3. Each job writes a build-time `.env` from GitHub Secrets:
+   - `AKIRA_API_URL`, `GITHUB_CLIENT_ID`
+   - `AKIRA_BILLING_URL`, `AKIRA_BILLING_SECRET`
+   - `AKIRA_LICENSE_PUBKEY` (see the inconsistency note below)
+4. Each job imports the Apple signing certificate into a throwaway CI keychain.
+5. Each job runs `tauri build` for codesigning, notarization, and updater-artifact
+  signing, with these set: `TAURI_SIGNING_PRIVATE_KEY`, `APPLE_SIGNING_IDENTITY`,
+  `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`.
+6. Artifacts are normalized to `unified_dev_<version>_<arch>.app.tar.gz` and `.dmg`,
+  with a `.sig` file (minisign signature) uploaded alongside.
+7. `git-cliff` generates the release body from Conventional Commits since the last tag.
+8. `softprops/action-gh-release` publishes the `.dmg`, `.app.tar.gz`, and `.sig` to the
   GitHub Release for that tag.
 
 **Known inconsistency, not yet fixed**: this workflow still installs dependencies via
