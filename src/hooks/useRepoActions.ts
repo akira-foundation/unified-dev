@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { useAgentsStore } from "../stores/useAgentsStore";
 import { useNavigationStore } from "../stores/navigation-store";
 import { useI18n } from "../i18n/i18n";
-import { openUpgradeModal } from "../stores/upgrade-modal-store";
 import type { OrganizationRepoWithOrg } from "../types/organization";
 
 interface AddRemoteRepositoryResponse {
@@ -52,12 +51,7 @@ export function useRepoActions() {
         navigateTo("agents");
         toast.success(t("agents.sidebar.toast.repoAdded").replace("{name}", existing.name), { id: loadingToast });
       } catch (error) {
-        if (String(error) === "thread_limit_reached") {
-          openUpgradeModal("thread_limit_reached");
-          toast.dismiss(loadingToast);
-        } else {
-          toast.error(`Failed to create task: ${error}`, { id: loadingToast });
-        }
+        toast.error(`Failed to create task: ${error}`, { id: loadingToast });
       }
     } else {
       const url = `https://github.com/${repo.owner}/${repo.repo_name}`;
@@ -74,9 +68,7 @@ export function useRepoActions() {
         }
       } catch (error) {
         toast.dismiss(loadingToast);
-        if (String(error) === "repo_limit_reached") {
-          openUpgradeModal("repo_limit_reached");
-        } else if (String(error) === "gh_not_installed" || String(error) === "gh_not_authenticated") {
+        if (String(error) === "gh_not_installed" || String(error) === "gh_not_authenticated") {
           setGhCliError(error as "gh_not_installed" | "gh_not_authenticated");
         } else {
           toast.error(`Error: ${error}`);

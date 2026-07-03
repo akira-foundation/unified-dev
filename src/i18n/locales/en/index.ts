@@ -38,7 +38,6 @@ import { enSidebar } from "./sidebar";
 import { enTables } from "./tables";
 import { enToast } from "./toast";
 import { enToolbar } from "./toolbar";
-import { enUpgrade } from "./upgrade";
 import { enVisibility } from "./visibility";
 
 export const en: Record<string, string> = {
@@ -82,6 +81,5 @@ export const en: Record<string, string> = {
   ...enTables,
   ...enToast,
   ...enToolbar,
-  ...enUpgrade,
   ...enVisibility,
 };

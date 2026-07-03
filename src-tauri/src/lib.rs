@@ -74,7 +74,6 @@ use commands::projects::{
 };
 use commands::update_settings::{backup_database_now, get_update_settings, restore_database, set_update_settings};
 use commands::updater::{check_for_updates, install_update};
-use commands::usage::{get_feature_usage, get_usage};
 use commands::profile::{get_user_profile, set_user_profile};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -253,8 +252,6 @@ pub fn run() {
             backup_database_now,
             restore_database,
             check_dependencies,
-            get_usage,
-            get_feature_usage,
             get_user_profile,
             set_user_profile,
             fetch_github_contribution_summary,

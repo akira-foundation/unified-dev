@@ -2,14 +2,11 @@ import { create } from "zustand";
 import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { useAgentsStore } from "./useAgentsStore";
-import { openUpgradeModal } from "./upgrade-modal-store";
 import type { IssueDto } from "@/types/issue";
 import type { AiProviderGroup } from "@/types/ai-providers";
 
 function handleAutopilotError(err: unknown) {
-  if (String(err) === "autopilot_requires_pro") {
-    openUpgradeModal("autopilot_requires_pro");
-  }
+  console.error("Autopilot job persistence failed:", err);
 }
 
 export type AutopilotJobStatus = "running" | "waiting" | "stopping" | "done" | "stopped" | "error";

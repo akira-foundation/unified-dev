@@ -38,7 +38,6 @@ import { ptSidebar } from "./sidebar";
 import { ptTables } from "./tables";
 import { ptToast } from "./toast";
 import { ptToolbar } from "./toolbar";
-import { ptUpgrade } from "./upgrade";
 import { ptVisibility } from "./visibility";
 
 export const pt: Record<string, string> = {
@@ -82,6 +81,5 @@ export const pt: Record<string, string> = {
   ...ptTables,
   ...ptToast,
   ...ptToolbar,
-  ...ptUpgrade,
   ...ptVisibility,
 };
