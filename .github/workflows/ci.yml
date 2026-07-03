@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-guard:
+    name: Lint guard (file length, comments, chained-if, AI-tells, secrets)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve diff range
+        id: range
+        run: |
+          echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: File length (<= 300 lines)
+        env:
+          BASE_SHA: ${{ steps.range.outputs.base }}
+          HEAD_SHA: ${{ steps.range.outputs.head }}
+        run: bash .github/scripts/scan-file-length.sh
+
+      - name: Comment policy
+        env:
+          BASE_SHA: ${{ steps.range.outputs.base }}
+          HEAD_SHA: ${{ steps.range.outputs.head }}
+        run: bash .github/scripts/scan-comments.sh
+
+      - name: No chained if/elif/elsif
+        env:
+          BASE_SHA: ${{ steps.range.outputs.base }}
+          HEAD_SHA: ${{ steps.range.outputs.head }}
+        run: bash .github/scripts/scan-chained-if.sh
+
+      - name: AI-tells (emoji, em-dash, filler phrases)
+        env:
+          BASE_SHA: ${{ steps.range.outputs.base }}
+          HEAD_SHA: ${{ steps.range.outputs.head }}
+        run: bash .github/scripts/scan-ai-tells.sh
+
+      - name: Secrets scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  frontend:
+    name: Frontend (typecheck + test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bunx tsc --noEmit
+
+      - name: Test
+        run: bun run test
+
+  backend:
+    name: Backend (check + clippy + test)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Create .env for build
+        run: |
+          echo "AKIRA_BILLING_URL=https://billing.test" >> .env
+          echo "AKIRA_BILLING_SECRET=ci-placeholder" >> .env
+
+      - name: cargo check
+        working-directory: src-tauri
+        run: cargo check --all-targets
+
+      - name: cargo clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test

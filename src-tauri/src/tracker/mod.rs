@@ -1,6 +1,7 @@
 pub mod dto;
 pub mod map;
 pub mod registry;
+#[allow(clippy::module_inception)]
 pub mod tracker;
 
 pub mod drivers;
