@@ -279,7 +279,7 @@ pub async fn fetch_recommended(app: AppHandle) {
         .into_iter()
         .filter_map(|id| seen.remove(&id))
         .collect();
-    sorted.sort_by(|a, b| b.installs.cmp(&a.installs));
+    sorted.sort_by_key(|s| std::cmp::Reverse(s.installs));
 
     const BATCH: usize = 30;
 
