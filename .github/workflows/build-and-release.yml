@@ -134,7 +134,7 @@ jobs:
             ${{ steps.meta.outputs.tar_path }}.sig
           body_path: release-body.md
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   build-x86_64:
     name: Build (x86_64)
@@ -261,7 +261,7 @@ jobs:
             ${{ steps.meta.outputs.tar_path }}.sig
           body_path: release-body.md
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   publish:
     name: Publish latest.json
@@ -307,12 +307,23 @@ jobs:
           echo "Generated latest.json:"
           cat latest.json
 
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Generate release body for this tag
+        run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --latest --strip header --output release-body.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload latest.json to GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: latest.json
+          body_path: release-body.md
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
   sync-main:
     name: Sync version and changelog to main
