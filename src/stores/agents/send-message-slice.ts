@@ -4,8 +4,6 @@ import { toast } from "sonner";
 
 import type { MessageContent } from "@/types/agents";
 import { serializeContent, contentToText } from "@/types/agents";
-import { openUpgradeModal } from "@/stores/upgrade-modal-store";
-import { refreshUsage } from "@/stores/usage-store";
 import type { AgentsSliceCreator, AgentsState, ChatMessage } from "./types";
 
 const SLASH_COMMAND_MAP: Record<string, string> = {
@@ -261,7 +259,6 @@ export const createSendMessageSlice: AgentsSliceCreator<SendMessageSlice> = (set
         thinkingBudget: options?.thinkingBudget ?? "medium",
         fastMode: options?.fastMode ?? false,
       });
-      refreshUsage();
     } catch (err) {
       unlistenToken();
       unlistenDone();
@@ -273,11 +270,7 @@ export const createSendMessageSlice: AgentsSliceCreator<SendMessageSlice> = (set
         streamingContentByThread: { ...state.streamingContentByThread, [threadId]: "" },
         streamingThreadId: null,
       }));
-      if (String(err) === "run_limit_reached") {
-        openUpgradeModal("run_limit_reached");
-      } else {
-        toast.error(`Failed to send message: ${err}`);
-      }
+      toast.error(`Failed to send message: ${err}`);
     }
   } ,
 });

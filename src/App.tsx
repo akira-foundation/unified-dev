@@ -15,7 +15,6 @@ import { Toaster } from "./components/ui/sonner";
 import { CommandPalette } from "./components/layout/command-palette";
 import { SearchOverlay } from "./components/layout/search-overlay";
 import { OnboardingOverlay, prefetchOauthProviders } from "./components/onboarding-overlay";
-import { UpgradeModal } from "./components/upgrade-modal";
 import { useOnboardingStore } from "./stores/onboarding-store";
 import { DashboardPage } from "./pages/dashboard";
 import { OrganizationPage } from "./pages/organization";
@@ -172,7 +171,6 @@ export default function App() {
         <Toaster richColors />
         <CommandPalette />
         <SearchOverlay />
-        <UpgradeModal />
         {(!onboardingCompleted || onboardingAuthOnly) && <OnboardingOverlay />}
       </AppContent>
     </AppShell>

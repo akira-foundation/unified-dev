@@ -6,7 +6,6 @@ import { organizationService } from "../services/organizationService";
 import { useNavigationStore } from "../stores/navigation-store";
 import { queryKeys } from "../lib/query-keys";
 import type { UpdateOrganizationInput } from "../types/organization";
-import { openUpgradeModal } from "../stores/upgrade-modal-store";
 
 export function useOrganizations() {
   const queryClient = useQueryClient();
@@ -42,11 +41,6 @@ export function useOrganizations() {
       queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
       setActiveOrganizationId(created.id);
       navigateTo("organization");
-    },
-    onError: (err: unknown) => {
-      if (String(err) === "org_limit_reached") {
-        openUpgradeModal("org_limit_reached");
-      }
     },
   });
 

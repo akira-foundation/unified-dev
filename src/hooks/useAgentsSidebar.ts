@@ -7,11 +7,9 @@ import { useAgentsStore } from "@/stores/useAgentsStore";
 import { useI18n } from "@/i18n/i18n";
 import { useOrganizations } from "@/hooks/useOrganizations";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useUsage } from "@/hooks/useUsage";
 import { useAutopilotStore } from "@/stores/useAutopilotStore";
 import { useThreadSourceActions } from "@/hooks/useThreadSourceActions";
 import { repositorySelectionService } from "@/services/repositorySelectionService";
-import { openUpgradeModal } from "@/stores/upgrade-modal-store";
 import type { AgentRepository } from "@/types/agents";
 
 export function useAgentsSidebar() {
@@ -36,7 +34,6 @@ export function useAgentsSidebar() {
     setExpandedRepos,
     loadRepositories,
   } = useAgentsStore();
-  const { isFree } = useUsage();
   const { selectedJobId, jobs, selectJob, removeJobsForRepo, removeThreadReference } = useAutopilotStore();
 
   const [isAddingRepo, setIsAddingRepo] = useState(false);
@@ -78,10 +75,7 @@ export function useAgentsSidebar() {
         toast.error(t("agents.sidebar.toast.invalidResponse"), { id: loadingToast });
       }
     } catch (error) {
-      if (String(error) === "repo_limit_reached") {
-        openUpgradeModal("repo_limit_reached");
-        toast.dismiss(loadingToast);
-      } else if (String(error) === "gh_not_installed" || String(error) === "gh_not_authenticated") {
+      if (String(error) === "gh_not_installed" || String(error) === "gh_not_authenticated") {
         toast.dismiss(loadingToast);
         setGhCliError(error as "gh_not_installed" | "gh_not_authenticated");
       } else {
@@ -138,8 +132,7 @@ export function useAgentsSidebar() {
       addThread(repoId, thread);
       setExpandedRepos((prev) => ({ ...prev, [repoId]: true }));
     } catch (error) {
-      if (String(error) === "thread_limit_reached") openUpgradeModal("thread_limit_reached");
-      else toast.error(`Failed to create thread: ${error}`);
+      toast.error(`Failed to create thread: ${error}`);
     } finally {
       setAddingThreadForRepo(null);
     }
@@ -195,7 +188,6 @@ export function useAgentsSidebar() {
     showAddRepositoryDialog,
     setShowAddRepositoryDialog,
     expandedRepos,
-    isFree,
     selectedJobId,
     jobs,
     selectJob,

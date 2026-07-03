@@ -26,7 +26,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { openUpgradeModal } from "@/stores/upgrade-modal-store";
 import {
   RepoStreamingIndicator,
   ThreadPrCiBadge,
@@ -174,7 +173,6 @@ export function AgentsSidebarRepoList({ vm }: { vm: AgentsSidebarVm }) {
                               <DropdownMenuLabel className="px-3 py-2 text-[9px] font-medium tracking-[0.08em] text-zinc-500/70 dark:text-zinc-500">{t("common.manage")}</DropdownMenuLabel>
                               <DropdownMenuItem
                                 onClick={() => {
-                                  if (vm.isFree) { openUpgradeModal("autopilot_requires_pro"); return; }
                                   const activeJob = Object.values(vm.jobs).find((j) => j.repoId === repo.id && (j.status === "running" || j.status === "waiting"));
                                   if (activeJob) vm.selectJob(activeJob.id);
                                   else vm.setAutopilotTarget({ repoId: repo.id, repoName: repo.name });
