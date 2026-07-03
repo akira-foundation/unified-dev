@@ -44,9 +44,11 @@ jobs:
         run: bash .github/scripts/scan-ai-tells.sh
 
       - name: Secrets scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: trufflesecurity/trufflehog@main
+        with:
+          base: ${{ steps.range.outputs.base }}
+          head: ${{ steps.range.outputs.head }}
+          extra_args: --results=verified,unknown
 
   frontend:
     name: Frontend (typecheck + test)
