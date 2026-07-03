@@ -2,31 +2,44 @@
 
 ## Release pipeline
 
-`.github/workflows/build-and-release.yml`, triggered by pushing a `v*` tag:
+`.github/workflows/build-and-release.yml`, triggered by pushing a `v*` tag. Two
+parallel jobs, one per target (`aarch64-apple-darwin`, `x86_64-apple-darwin`), each run
+the same sequence:
 
-1. Two parallel jobs build macOS binaries, one for `aarch64-apple-darwin` and one for
-  `x86_64-apple-darwin`.
-2. Each job sets the version from the tag.
-3. Each job writes a build-time `.env` from GitHub Secrets:
-   - `AKIRA_API_URL`, `GITHUB_CLIENT_ID`
-   - `AKIRA_BILLING_URL`, `AKIRA_BILLING_SECRET`
-   - `AKIRA_LICENSE_PUBKEY` (see the inconsistency note below)
-4. Each job imports the Apple signing certificate into a throwaway CI keychain.
-5. Each job runs `tauri build` for codesigning, notarization, and updater-artifact
-  signing, with these set: `TAURI_SIGNING_PRIVATE_KEY`, `APPLE_SIGNING_IDENTITY`,
-  `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`.
-6. Artifacts are normalized to `unified_dev_<version>_<arch>.app.tar.gz` and `.dmg`,
-  with a `.sig` file (minisign signature) uploaded alongside.
-7. `git-cliff` generates the release body from Conventional Commits since the last tag.
-8. `softprops/action-gh-release` publishes the `.dmg`, `.app.tar.gz`, and `.sig` to the
-  GitHub Release for that tag.
+| Step | What happens |
+|---|---|
+| 1 | Set the version from the tag |
+| 2 | Write a build-time `.env` from GitHub Secrets (see **Build secrets** below) |
+| 3 | Import the Apple signing certificate into a throwaway CI keychain |
+| 4 | Run `tauri build` - codesigning, notarization, and updater-artifact signing (see **Signing secrets** below) |
+| 5 | Normalize output to `unified_dev_<version>_<arch>.app.tar.gz` and `.dmg`, with a `.sig` file (minisign signature) alongside |
+| 6 | `git-cliff` generates the release body from Conventional Commits since the last tag |
+| 7 | `softprops/action-gh-release` publishes the `.dmg`, `.app.tar.gz`, and `.sig` to the GitHub Release |
+
+**Build secrets** (written into the build-time `.env`)
+
+| Variable | Status |
+|---|---|
+| `AKIRA_BILLING_URL`, `AKIRA_BILLING_SECRET` | Live - same variables used for local dev, see [04-configuration.md](04-configuration.md) |
+| `AKIRA_API_URL` | Dead - no consumer anywhere in the codebase |
+| `GITHUB_CLIENT_ID` | Dead - no consumer anywhere in the codebase |
+| `AKIRA_LICENSE_PUBKEY` | Dead - described a paywall/license flow removed in v0.12.7; not even in `.env.example` anymore |
+
+**Signing secrets** (used by `tauri build` for codesigning/notarization)
+
+| Variable | Purpose |
+|---|---|
+| `TAURI_SIGNING_PRIVATE_KEY` | Signs the updater artifact (`.sig`) |
+| `APPLE_SIGNING_IDENTITY` | Codesigning identity imported into the CI keychain |
+| `APPLE_ID`, `APPLE_PASSWORD` | Apple notarization auth |
+| `APPLE_TEAM_ID` | Apple Developer team ID |
 
 **Known inconsistency, not yet fixed**: this workflow still installs dependencies via
 `pnpm/action-setup` + `pnpm install --frozen-lockfile`, contradicting the Bun-only
 policy in [06-development.md](06-development.md) - the CI workflow was not updated when
-the project standardized on Bun. It also still writes `AKIRA_LICENSE_PUBKEY` into the
-build `.env`, a variable that no longer exists in `.env.example` and has no consumer
-left in the code after the v0.12.7 paywall removal.
+the project standardized on Bun. It also still writes three dead variables
+(`AKIRA_API_URL`, `GITHUB_CLIENT_ID`, `AKIRA_LICENSE_PUBKEY`) into the build `.env` for
+no reason - none of them have a consumer in the code after the v0.12.7 paywall removal.
 
 ## Auto-update
 
