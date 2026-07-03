@@ -28,3 +28,6 @@ dist-ssr
 # Claude Code session/worktrees
 .claude/
 /marketing
+
+# graphify knowledge-graph output (generated, local only)
+graphify-out/
