@@ -202,7 +202,7 @@ struct GrokRunnerTests {
                 $0["id"]?.intValue == id && $0["result"] != nil
             }?["result"]?["outcome"]?["optionId"]?.stringValue
         }
-        let compound = "make build && echo a"
+        let compound = "rg x && echo a"
 
         try await runner.send("first")
         box.process.emit(permissionRequestLine(id: 7, command: compound))

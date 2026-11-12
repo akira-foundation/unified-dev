@@ -574,8 +574,8 @@ private func eventually(
         @Sendable func decided(_ id: Int) -> String? {
             box.process.sentFrame { $0["id"]?.intValue == id && $0["result"] != nil }?["result"]?["decision"]?.stringValue
         }
-        let compound = "make build && echo a"
-        let wrapped = "/bin/zsh -lc 'make build && echo a'"
+        let compound = "rg x && echo a"
+        let wrapped = "/bin/zsh -lc 'rg x && echo a'"
 
         box.process.emit(commandStarted("off", compound))
         box.process.emit(commandApproval(71, "off", command: compound))
@@ -601,7 +601,7 @@ private func eventually(
         #expect(decided(74) == CodexApprovalDecision.decline.rawValue)
 
         box.process.emit(commandStarted("other", compound))
-        box.process.emit(commandApproval(75, "other", command: "make build && echo b"))
+        box.process.emit(commandApproval(75, "other", command: "rg x && echo b"))
         await eventually("the mismatched request to wait") {
             ((try? await store.pendingPermissionAsks(sessionID: session.id)) ?? []).count == 2
         }

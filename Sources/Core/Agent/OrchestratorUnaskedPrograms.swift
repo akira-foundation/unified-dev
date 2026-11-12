@@ -22,10 +22,22 @@ enum OrchestratorUnaskedPrograms {
         "repeat", "coproc", "ifne", "chronic", "uv", "uvx", "bundle", "poetry", "pipenv", "pipx", "pnpm", "npm", "npx",
         "bunx", "yarn", "devbox", "nix", "nix-shell", "conda", "rye", "hatch", "pdm", "rtk",
     ]
+    static let wrappersThatAddNothing: Set<String> = [
+        "env", "command", "builtin", "time", "nice", "timeout", "gtimeout", "nohup", "stdbuf", "xargs", "noglob",
+        "nocorrect",
+    ]
+    static let runWithoutAsking: Set<String> = [
+        "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "sort", "uniq", "cut", "tr", "paste",
+        "column", "nl", "rev", "tac", "comm", "diff", "cmp", "jq", "file", "stat", "du", "df", "tree", "strings", "od",
+        "hexdump", "shasum", "md5", "cksum", "pwd", "cd", "basename", "dirname", "realpath", "readlink", "which", "type",
+        "echo", "printf", "test", "true", "false", "date", "sleep", "seq", "whoami", "id", "uname", "hostname", "sw_vers",
+        "printenv", "tar",
+    ]
     static let findWriters = ["-delete", "-fprint", "-fls"]
     static let findRunners: Set<String> = ["-exec", "-execdir", "-ok", "-okdir"]
 
     private static let keywords: Set<String> = ["if", "elif", "then", "else", "do", "while", "until", "!"]
+    private static let closers: Set<String> = ["fi", "done", "esac"]
     private static let fileWriters: Set<String> = [
         "tee", "cp", "mv", "rm", "rmdir", "mkdir", "touch", "ln", "chmod", "chown", "chgrp", "truncate", "patch",
         "install", "rsync", "dd", "shred", "unlink", "ditto", "mkfifo", "vi", "vim", "nvim", "ed", "ex", "emacs", "nano",
@@ -57,6 +69,10 @@ enum OrchestratorUnaskedPrograms {
         String(word.split(separator: "/").last ?? Substring(word)).lowercased()
     }
 
+    static func isAnOption(_ word: String) -> Bool {
+        word.hasPrefix("-") || word.contains(/^[0-9][0-9.]*[smhd]?$/)
+    }
+
     static func isKeyword(_ word: String) -> Bool {
         keywords.contains(word)
     }
@@ -84,7 +100,7 @@ enum OrchestratorUnaskedPrograms {
         return arguments.dropLast().allSatisfy { word in !arithmeticTests.contains(word) && !word.contains { "$`[]".contains($0) } }
     }
 
-    static func feedsItsInput(_ head: String, _ arguments: [String]) -> Bool {
+    private static func feedsItsInput(_ head: String, _ arguments: [String]) -> Bool {
         if head == "parallel" { return true }
         if head == "env" { return arguments.contains { $0.hasPrefix("-S") || names($0, oneOf: ["--split-string"]) } }
         guard head == "xargs" else { return false }
@@ -100,7 +116,13 @@ enum OrchestratorUnaskedPrograms {
         if interpreters.contains(head) { return interpreter(head, arguments) }
         if awks.contains(head) { return awk(arguments) }
         if seds.contains(head) { return sed(arguments) }
-        return writesThroughAFlag(head, arguments) ? .refused : .passes
+        if writesThroughAFlag(head, arguments) { return .refused }
+        if head == "for" || (closers.contains(head) && arguments.isEmpty) { return .passes }
+        return runWithoutAsking.contains(head) ? .passes : .asks
+    }
+
+    static func ownVerdict(ofRunner head: String, _ arguments: [String]) -> Verdict {
+        wrappersThatAddNothing.contains(head) && !feedsItsInput(head, arguments) ? .passes : .asks
     }
 
     private static func writesThroughAFlag(_ head: String, _ arguments: [String]) -> Bool {
@@ -128,14 +150,7 @@ enum OrchestratorUnaskedPrograms {
     }
 
     private static func interpreter(_ head: String, _ arguments: [String]) -> Verdict {
-        if ["perl", "ruby"].contains(head), arguments.contains(where: editsInPlace) { return .refused }
-        let inlineLetters = head == "swift" ? "e" : "ceErp"
-        let isInline = arguments.contains { word in
-            word == "eval" || word.hasPrefix("<") || word.hasPrefix("/dev/") || hasShortFlag(word, in: inlineLetters)
-                || ["--eval", "--print", "--command"].contains { word.hasPrefix($0) }
-        }
-        guard !isInline, let first = arguments.first, first == "-m" || !first.hasPrefix("-") else { return .asks }
-        return .passes
+        ["perl", "ruby"].contains(head) && arguments.contains(where: editsInPlace) ? .refused : .asks
     }
 
     private static func awk(_ arguments: [String]) -> Verdict {

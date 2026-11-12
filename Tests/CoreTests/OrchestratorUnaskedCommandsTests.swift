@@ -95,7 +95,7 @@ struct OrchestratorUnaskedCommandsTests {
         "args", "argv", "arguments", "script", "stdin", "shell", "code", "somethingNew",
     ])
     func unknownFieldAsks(_ key: String) {
-        let input = JSONValue.object(["command": .string("make build"), key: .array([.string("x")])])
+        let input = JSONValue.object(["command": .string("rg x"), key: .array([.string("x")])])
         #expect(!OrchestratorToolGuard.answersItself(toolName: "Bash", input: input, worktree: "/w", runsUnasked: true))
     }
 
@@ -112,19 +112,19 @@ struct OrchestratorUnaskedCommandsTests {
     @Test("on, the fields the agents really send do not stop an answer")
     func knownFieldsAnswer() {
         let claude = JSONValue.object([
-            "command": .string("make build"), "description": .string("d"), "timeout": .integer(1),
+            "command": .string("rg x"), "description": .string("d"), "timeout": .integer(1),
             "run_in_background": .bool(false),
         ])
         let codex = JSONValue.object([
-            "command": .string("make build"), "cwd": .string("/other"), CodexTranslation.itemKey: .object([:]),
+            "command": .string("rg x"), "cwd": .string("/other"), CodexTranslation.itemKey: .object([:]),
         ])
         let grok = JSONValue.object([
-            "command": .string("make build"), "cmd": .string("make build"), GrokTranslation.itemKey: .object([:]),
+            "command": .string("rg x"), "cmd": .string("rg x"), GrokTranslation.itemKey: .object([:]),
         ])
         for input in [claude, codex, grok] {
             #expect(OrchestratorToolGuard.answersItself(toolName: "Bash", input: input, worktree: "/w", runsUnasked: true))
         }
-        let differs = JSONValue.object(["command": .string("make build"), "cmd": .string("rm x")])
+        let differs = JSONValue.object(["command": .string("rg x"), "cmd": .string("rm x")])
         #expect(!OrchestratorToolGuard.answersItself(toolName: "Bash", input: differs, worktree: "/w", runsUnasked: true))
     }
 
@@ -151,7 +151,7 @@ struct OrchestratorUnaskedCommandsTests {
             repoID: repo.id, name: "crew", branch: "b/crew", path: TestScratch.unique("crew"), baseBranch: "main"
         ))
         let crewGrants = SessionGrants(store: store, workspaceID: crew.id)
-        let compound = shell("make build && echo \"a b\"")
+        let compound = shell("rg x && echo \"a b\"")
         let refused = shell("eval git push")
 
         #expect(await !lead.answersItself(toolName: "Bash", input: compound))
@@ -174,5 +174,6 @@ struct OrchestratorUnaskedCommandsTests {
     func copy() {
         #expect(OrchestratorUnaskedCommands.caveat.contains("you would not see them first"))
         #expect(OrchestratorUnaskedCommands.caveat.contains("stay refused"))
+        #expect(OrchestratorUnaskedCommands.caveat.contains("Anything else asks you first"))
     }
 }

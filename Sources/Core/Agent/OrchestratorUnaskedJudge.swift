@@ -78,8 +78,7 @@ struct OrchestratorUnaskedJudge {
         case _ where Programs.leftWithTheOwner.contains(head):
             return .asks
         case _ where Programs.runners.contains(head):
-            let judged = runner(rest, depth: depth)
-            return Programs.feedsItsInput(head, rest) ? max(judged, .asks) : judged
+            return max(runner(rest, depth: depth), Programs.ownVerdict(ofRunner: head, rest))
         default:
             return Programs.verdict(of: head, rest)
         }
@@ -115,6 +114,7 @@ struct OrchestratorUnaskedJudge {
 
     private mutating func runner(_ arguments: [String], depth: Int) -> Verdict {
         var worst = Verdict.passes
+        var run: Verdict?
         for index in arguments.indices {
             let word = arguments[index]
             guard Self.isSimple(word) || OrchestratorShellJudge.isAssignment(word) else {
@@ -122,9 +122,11 @@ struct OrchestratorUnaskedJudge {
                 continue
             }
             if Programs.runners.contains(Programs.name(of: word)) { continue }
-            worst = max(worst, clause(Array(arguments[index...]), depth: depth + 1))
+            let judged = clause(Array(arguments[index...]), depth: depth + 1)
+            if judged == .refused { worst = .refused }
+            if run == nil, !Programs.isAnOption(word) { run = judged }
         }
-        return worst
+        return max(worst, run ?? .passes)
     }
 
     private mutating func wordWithSpacesOrUnread(_ word: String, depth: Int) -> Verdict {

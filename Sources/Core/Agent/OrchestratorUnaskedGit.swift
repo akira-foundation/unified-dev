@@ -19,15 +19,10 @@ enum OrchestratorUnaskedGit {
     private static let fetchShortFlagsThatMoveBranches = "pPuf"
     private static let lsRemoteShortFlagsThatRun = "u"
 
-    private static let ghReadVerbs: [String: Set<String>] = [
-        "pr": ["view", "list", "status", "diff", "checks"],
-        "issue": ["view", "list", "status"],
-        "run": ["view", "list", "watch"],
-        "repo": ["view", "list"],
-        "release": ["view", "list"],
-        "workflow": ["view", "list"],
-        "label": ["list"],
-    ]
+    private static let ghReadVerbs = OrchestratorReadList.ghVerbs.merging(["repo": ["view", "list"], "label": ["list"]]) {
+        $0.union($1)
+    }
+    private static let ghFlagsThatWait = ["--watch", "--interval"]
     private static let ghCommandsThatOnlyRead: Set<String> = ["search", "api", "status"]
     private static let ghWritingFlags = ["--method", "--field", "--raw-field", "--input"]
     private static let ghWritingShortFlags = "XFf"
@@ -77,6 +72,7 @@ enum OrchestratorUnaskedGit {
         let shortWIsTheBrowser = !ghVerbsWhereShortWIsNotTheBrowser.contains("\(command) \(verb)")
         if arguments.contains(where: { opensABrowser($0, shortWIsTheBrowser: shortWIsTheBrowser) }) { return .asks }
         if reachesAnotherHost(arguments, command: command, verb: verb) { return .asks }
+        if arguments.contains(where: { OrchestratorUnaskedPrograms.names($0, oneOf: ghFlagsThatWait) }) { return .asks }
         let writes = command == "api" && arguments.contains { word in
             word.contains("$") || OrchestratorUnaskedPrograms.names(word, oneOf: ghWritingFlags)
                 || OrchestratorUnaskedPrograms.hasShortFlag(word, in: ghWritingShortFlags)

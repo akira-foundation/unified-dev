@@ -1792,7 +1792,7 @@ struct AgentRunnerPermissionTests {
         func ask(_ id: String, _ command: String) -> PermissionAsk {
             PermissionAsk(requestID: id, toolName: "Bash", input: .object(["command": .string(command)]))
         }
-        let compound = "make build && echo \"a b\""
+        let compound = "rg x && echo \"a b\""
 
         await runner.ingest(.permissionAsk(ask("off", compound)))
         #expect(answers(on: process).isEmpty)

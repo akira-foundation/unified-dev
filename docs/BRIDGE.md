@@ -1599,8 +1599,8 @@ substitution, a here document, `eval`, `sh -c` and programs known to run other p
 | Answer | What gets it |
 | --- | --- |
 | Refused | Anywhere in the command: a git verb in `OrchestratorShellJudge.gitVerbs`, `gh pr merge`, `gh pr checkout`, a redirection to a file, a program on the list of those that write files, or one whose flag says it writes or edits in place |
-| Left for the owner | The judge cannot read it, or the program is on `OrchestratorUnaskedPrograms.leftWithTheOwner`: a command name or git verb only known at run time, a script on standard input or inline, an environment variable set for a command, git flags that bring in other configuration, a git verb it does not know, a `gh` command off its short list, `gh` deleting or setting something, unterminated quoting, an ask with a field it does not know, or nesting and work beyond a fixed limit |
-| Unified Dev allows it, once | Everything else |
+| Unified Dev allows it, once | Every program in the command is on `OrchestratorUnaskedPrograms.runWithoutAsking`, or is `git`, `gh`, `find`, `sed` or `awk` used only to read, and nothing in it is refused or left for the owner |
+| Left for the owner | Everything else: any program off that list, builds, test runs, scripts in the worktree, interpreters, `curl` and every other network tool among them, a runner that does more than wrap (`ssh`, `sudo`, `npx`, `watch`, `tmux` and the like) whatever it runs, a command the judge cannot read, a command name or git verb only known at run time, a script on standard input or inline, an environment variable set for a command, git flags that bring in other configuration, a git verb it does not know, a `gh` command off its short list, `gh` deleting or setting something, a `gh` read that waits on what it follows (`gh run watch`, `--watch`, `--interval`), unterminated quoting, an ask with a field it does not know, or nesting and work beyond a fixed limit |
 
 The refusal outranks the other two, so one refused clause refuses the whole command. Tools other
 than the shell are untouched: file edits and terminals stay refused and another server's MCP tool
@@ -1610,14 +1610,20 @@ still asks. The orchestrator still does not implement, and the refusal says so t
 but a construct it misreads can pass, so its refusals are a net rather than a wall, and they are not
 what makes the switch safe to turn on.
 
-**A program off those lists passes, because the owner asked for this to mean everything else.** The
-judge reads words and runs nothing, so what a program does once it is running is beyond it. A script
-or a build in the worktree can write files, or commit and push, and no list names every way to do
-that. The limits on paths and directories that hold the read list do not hold here, so a command
-can read outside the worktree and send what it read over the network. That is the cost of turning
-the switch on, along with the one the settings footer names: text planted in a file or an issue the
-orchestrator reads can run commands the owner does not see first. Each one still leaves its tool
-row in the transcript. The Run button on a code block is not affected.
+**The list is closed.** A program passes only when Unified Dev names it, and it names programs that
+read: listing and reading files, searching and filtering text, paths, the date and the machine's own name.
+`git` and `gh` pass only for their reads, by the verbs and flags above, and the `gh` verbs they share with
+the read list are one table, `OrchestratorReadList.ghVerbs`, with `gh repo view`, `gh repo list` and
+`gh label list` added here, since the judge checks the host they name. A wrapper that only changes how
+a program runs, `env`, `time`, `nice`, `timeout`, `nohup`, `command`, `builtin`, `stdbuf`, `xargs` without
+a replacement string, `noglob` and `nocorrect`, is judged by what it runs. Everything else asks rather
+than being refused, so nothing that worked before is blocked: it comes back to the owner once.
+
+The judge reads words and runs nothing, so a listed program can still read outside the worktree, and a
+`gh` read sends what it is given to GitHub. That is the cost of turning the switch on, along with the one
+the settings footer names: text planted in a file or an issue the orchestrator reads can choose which of
+those reads run, and the owner does not see them first. Each one still leaves its tool row in the
+transcript. The Run button on a code block is not affected.
 
 **The setting is read on every ask.** `SessionGrants` reads it from the store each time it judges a
 command, so turning it off applies to the next ask, in a chat already running, with no restart.
