@@ -33,6 +33,7 @@ enum OrchestratorUnaskedPrograms {
         "echo", "printf", "test", "true", "false", "date", "sleep", "seq", "whoami", "id", "uname", "hostname", "sw_vers",
         "printenv", "tar",
     ]
+    static let steeredByTheirArguments: Set<String> = ["sort", "uniq", "tree", "file", "rg", "tar", "date", "hostname"]
     static let findWriters = ["-delete", "-fprint", "-fls"]
     static let findRunners: Set<String> = ["-exec", "-execdir", "-ok", "-okdir"]
 
@@ -57,6 +58,10 @@ enum OrchestratorUnaskedPrograms {
     private static let tarWritingFlags = [
         "--extract", "--get", "--create", "--append", "--update", "--use-compress", "--checkpoint-action", "--to-command",
         "--rsh",
+    ]
+    private static let flagsThatRunAProgram: [String: [String]] = [
+        "sort": ["--compress-program"],
+        "rg": ["--pre", "--hostname-bin"],
     ]
     private static let reachesBeyondTheShell: Set<String> = [
         "path", "fpath", "cdpath", "manpath", "module_path", "mailpath", "http_proxy", "https_proxy", "ftp_proxy",
@@ -104,10 +109,12 @@ enum OrchestratorUnaskedPrograms {
         if head == "parallel" { return true }
         if head == "env" { return arguments.contains { $0.hasPrefix("-S") || names($0, oneOf: ["--split-string"]) } }
         guard head == "xargs" else { return false }
-        return arguments.contains { word in
-            shells.contains(name(of: word)) || scripted.contains(name(of: word))
-                || word.hasPrefix("-I") || word.hasPrefix("-J") || word.hasPrefix("-i") || word.hasPrefix("--replace")
+        let replaces = arguments.contains { word in
+            word.hasPrefix("-I") || word.hasPrefix("-J") || word.hasPrefix("-i") || word.hasPrefix("--replace")
         }
+        guard !replaces else { return true }
+        guard let program = arguments.first(where: { !isAnOption($0) }).map(name(of:)) else { return false }
+        return !runWithoutAsking.contains(program) || steeredByTheirArguments.contains(program)
     }
 
     static func verdict(of head: String, _ arguments: [String]) -> Verdict {
@@ -117,6 +124,7 @@ enum OrchestratorUnaskedPrograms {
         if awks.contains(head) { return awk(arguments) }
         if seds.contains(head) { return sed(arguments) }
         if writesThroughAFlag(head, arguments) { return .refused }
+        if runsThroughAFlag(head, arguments) { return .asks }
         if head == "for" || (closers.contains(head) && arguments.isEmpty) { return .passes }
         return runWithoutAsking.contains(head) ? .passes : .asks
     }
@@ -131,12 +139,39 @@ enum OrchestratorUnaskedPrograms {
             arguments.contains { names($0, oneOf: curlWritingFlags) || hasShortFlag($0, in: "oODcK") }
         case "sort":
             arguments.contains { names($0, oneOf: ["--output"]) || hasShortFlag($0, in: "o") }
+        case "uniq":
+            operands(arguments, skippingValuesOf: "fs").count > 1
+        case "tree":
+            arguments.contains { names($0, oneOf: ["--output"]) || hasShortFlag($0, in: "oR") }
+        case "file":
+            arguments.contains { names($0, oneOf: ["--compile"]) || hasShortFlag($0, in: "C") }
         case "tar":
             arguments.contains { names($0, oneOf: tarWritingFlags) || hasShortFlag($0, in: "xcruI") }
                 || arguments.first.map { word in !word.hasPrefix("-") && word.contains { "xcru".contains($0) } } == true
         default:
             false
         }
+    }
+
+    private static func runsThroughAFlag(_ head: String, _ arguments: [String]) -> Bool {
+        guard let flags = flagsThatRunAProgram[head] else { return false }
+        return arguments.contains { names($0, oneOf: flags) }
+    }
+
+    private static func operands(_ arguments: [String], skippingValuesOf letters: String) -> [String] {
+        var operands: [String] = []
+        var words = arguments.makeIterator()
+        while let word = words.next() {
+            if word == "--" { return operands + Array(IteratorSequence(words)) }
+            guard word.hasPrefix("-"), word != "-" else {
+                operands.append(word)
+                continue
+            }
+            let takesAValue = word.hasPrefix("--") ? !word.contains("=") && word.hasPrefix("--skip-")
+                : word.last.map(letters.contains) == true
+            if takesAValue { _ = words.next() }
+        }
+        return operands
     }
 
     static func names(_ word: String, oneOf flags: [String]) -> Bool {

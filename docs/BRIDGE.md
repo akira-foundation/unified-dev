@@ -1616,7 +1616,11 @@ read: listing and reading files, searching and filtering text, paths, the date a
 the read list are one table, `OrchestratorReadList.ghVerbs`, with `gh repo view`, `gh repo list` and
 `gh label list` added here, since the judge checks the host they name. A wrapper that only changes how
 a program runs, `env`, `time`, `nice`, `timeout`, `nohup`, `command`, `builtin`, `stdbuf`, `xargs` without
-a replacement string, `noglob` and `nocorrect`, is judged by what it runs. Everything else asks rather
+a replacement string, `noglob` and `nocorrect`, is judged by what it runs. A listed program whose
+arguments make it write a file, `uniq` with an output operand, `tree -o` or `tree -R`, and `file -C`, is
+refused, and one told to run another program, `sort --compress-program`, `rg --pre` and
+`rg --hostname-bin`, asks. `xargs` adds arguments from what it reads, so it passes only in front of a
+listed program outside `OrchestratorUnaskedPrograms.steeredByTheirArguments`. Everything else asks rather
 than being refused, so nothing that worked before is blocked: it comes back to the owner once.
 
 The judge reads words and runs nothing, so a listed program can still read outside the worktree, and a
