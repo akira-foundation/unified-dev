@@ -37,6 +37,9 @@ struct OrchestratorUnaskedJudge {
         if parsed.writesFile { return .refused }
         guard !parsed.clauses.isEmpty else { return .asks }
         var worst: Verdict = parsed.isUnreadable ? .asks : .passes
+        if parsed.clauses.contains(where: Programs.changesDirectory), parsed.clauses.joined().contains(where: Programs.namesGit) {
+            worst = .asks
+        }
         for (position, clause) in parsed.clauses.enumerated() {
             worst = max(worst, self.clause(clause, depth: depth))
             if parsed.clausesWithExpansions.contains(position), clause.contains(where: Programs.decidesByItsWords) {
@@ -61,7 +64,11 @@ struct OrchestratorUnaskedJudge {
     private mutating func command(_ first: String, _ rest: [String], depth: Int) -> Verdict {
         if Programs.tests.contains(first) { return Programs.isPlainTest(rest) ? .passes : .asks }
         guard Self.isSimple(first) else { return .asks }
-        let head = Programs.name(of: first)
+        let judged = command(named: Programs.name(of: first), rest, depth: depth)
+        return Programs.isFoundOnTheSystemPath(first) ? judged : max(judged, .asks)
+    }
+
+    private mutating func command(named head: String, _ rest: [String], depth: Int) -> Verdict {
         switch head {
         case "git":
             return OrchestratorUnaskedGit.verdict(rest)
@@ -78,7 +85,7 @@ struct OrchestratorUnaskedJudge {
         case _ where Programs.leftWithTheOwner.contains(head):
             return .asks
         case _ where Programs.runners.contains(head):
-            return max(runner(rest, depth: depth), Programs.ownVerdict(ofRunner: head, rest))
+            return max(runner(rest, depth: depth), wrapper(head, rest, depth: depth))
         default:
             return Programs.verdict(of: head, rest)
         }
@@ -107,14 +114,22 @@ struct OrchestratorUnaskedJudge {
         for index in arguments.indices where Programs.findRunners.contains(arguments[index]) {
             let start = index + 1
             guard start < arguments.count else { return .asks }
+            if arguments[index].hasSuffix("dir"), Programs.namesGit(arguments[start]) { worst = max(worst, .asks) }
             worst = max(worst, clause(Array(arguments[start...]), depth: depth + 1))
         }
         return worst
     }
 
+    private mutating func wrapper(_ head: String, _ arguments: [String], depth: Int) -> Verdict {
+        guard !Programs.feedsItsInput(head, arguments),
+              let wrapped = OrchestratorUnaskedWrappers.command(of: head, arguments) else { return .asks }
+        guard let program = wrapped.first else { return .passes }
+        if head == "xargs", !Programs.takesAnyArgumentsSafely(Programs.name(of: program)) { return .asks }
+        return clause(wrapped, depth: depth + 1)
+    }
+
     private mutating func runner(_ arguments: [String], depth: Int) -> Verdict {
         var worst = Verdict.passes
-        var run: Verdict?
         for index in arguments.indices {
             let word = arguments[index]
             guard Self.isSimple(word) || OrchestratorShellJudge.isAssignment(word) else {
@@ -122,11 +137,9 @@ struct OrchestratorUnaskedJudge {
                 continue
             }
             if Programs.runners.contains(Programs.name(of: word)) { continue }
-            let judged = clause(Array(arguments[index...]), depth: depth + 1)
-            if judged == .refused { worst = .refused }
-            if run == nil, !Programs.isAnOption(word) { run = judged }
+            if clause(Array(arguments[index...]), depth: depth + 1) == .refused { worst = .refused }
         }
-        return max(worst, run ?? .passes)
+        return worst
     }
 
     private mutating func wordWithSpacesOrUnread(_ word: String, depth: Int) -> Verdict {

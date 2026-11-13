@@ -310,7 +310,7 @@ chat may leave its profile to talk, and answers exactly as an unknown tool other
 `tools/call`, through `BridgeToolHandling.isServed`. An orchestrator's list is always fenced.
 
 **The switch.** One per profile, in Profile Settings, under the key `ProfileBridgeSwitch.key(profile:)`,
-off by default and read on every call. It is held to the rule of the orchestrator's unasked switch: it lives
+off by default and read on every call. It is held to the rule of who may write the orchestrator's unasked switch: it lives
 in the app's `settings` table, only its settings section writes it (and a seeded preview), and
 `OrchestratorUnaskedReachTests` reads it back after calling every bridge tool in every role.
 
@@ -1615,17 +1615,30 @@ what makes the switch safe to turn on.
 read: listing and reading files, searching and filtering text, paths, the date and the machine's own name.
 `git` and `gh` pass only for their reads, by the verbs and flags above, and the `gh` verbs they share with
 the read list are one table, `OrchestratorReadList.ghVerbs`, with `gh repo view`, `gh repo list` and
-`gh label list` added here, since the judge checks the host they name. A wrapper that only changes how
-a program runs, `env`, `time`, `nice`, `timeout`, `nohup`, `command`, `builtin`, `stdbuf`, `xargs` without
-a replacement string, `noglob` and `nocorrect`, is judged by what it runs. A listed program whose
-arguments make it write a file, `uniq` with an output operand, `tree -o` or `tree -R`, and `file -C`, is
-refused, and one told to run another program, `sort --compress-program`, `rg --pre` and
-`rg --hostname-bin`, asks. `xargs` adds arguments from what it reads, so it passes only in front of a
-listed program outside `OrchestratorUnaskedPrograms.steeredByTheirArguments`. Everything else asks rather
+`gh label list` added here, since the judge checks the host they name. A listed name passes only bare or
+in one of the system's own directories, `/bin`, `/usr/bin`, `/sbin`, `/usr/sbin`, `/usr/local/bin` and
+`/opt/homebrew/bin`, so `./git` or `tools/cat` committed to the project asks. git asks when it is pointed
+at another repository: `git -C`, a command that also changes directory, `find -execdir git`, a shell
+call whose working directory is not the worktree, and `git ls-remote` with an address rather than a
+remote's name, since another repository's own configuration can run programs and an address can
+name any host. `sed` passes only with scripts that print, delete or substitute with `/`, and `awk`
+asks when it loads an extension or runs a file. `tail -f` asks, as `gh run watch` does, because it
+holds the call until what it follows ends.
+
+A wrapper that only changes how a program runs, `env`, `time`, `nice`, `timeout`, `nohup`, `command`,
+`builtin`, `stdbuf`, `xargs` without a replacement string, `noglob` and `nocorrect`, is judged by the
+program it runs. `OrchestratorUnaskedWrappers` knows each one's options and which of them take a value,
+so a value is never taken for the program, and an option it does not know asks: `env -P`, `env -C` and
+`time -o` among them. A listed program whose arguments make it write a file, `uniq` with an output
+operand, `tree -o`, `tree -R` with `-H`, `file -C`, and `tar` told to delete or join archives, is refused,
+and one told to run another program or reach a host, `sort --compress-program`, `rg --pre`,
+`rg --hostname-bin`, `tar -F`, `tar --info-script` and an archive named with a host, asks. `xargs` adds
+arguments from what it reads, so it passes only in front of a listed program outside
+`OrchestratorUnaskedPrograms.steeredByTheirArguments`. Everything else asks rather
 than being refused, so nothing that worked before is blocked: it comes back to the owner once.
 
 The judge reads words and runs nothing, so a listed program can still read outside the worktree, and a
-`gh` read sends what it is given to GitHub. That is the cost of the switch being on, along with the one
+`gh` read or `git fetch` reaches GitHub, or the host a remote names, with what it is given. That is the cost of the switch being on, along with the one
 the settings footer names: text planted in a file or an issue the orchestrator reads can choose which of
 those reads run, and the owner does not see them first. Each one still leaves its tool row in the
 transcript. The Run button on a code block is not affected.

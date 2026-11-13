@@ -6,7 +6,7 @@ enum OrchestratorUnaskedGit {
     private static let flagsTakingAWord: Set<String> = [
         "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--attr-source",
     ]
-    private static let flagsThatRedirectGit = ["-c", "--config-env", "--exec-path", "--git-dir", "--work-tree", "--namespace"]
+    private static let flagsThatRedirectGit = ["-C", "-c", "--config-env", "--exec-path", "--git-dir", "--work-tree", "--namespace"]
     private static let reads: Set<String> = [
         "status", "log", "diff", "show", "blame", "shortlog", "describe", "rev-parse", "rev-list", "ls-files", "ls-tree",
         "ls-remote", "merge-base", "cat-file", "grep", "for-each-ref", "show-ref", "name-rev", "whatchanged", "fetch",
@@ -45,7 +45,7 @@ enum OrchestratorUnaskedGit {
         }
         let after = Array(arguments[(index + 1)...])
         if verb == "fetch", after.contains(where: movesBranches) { return .asks }
-        if verb == "ls-remote", after.contains(where: { OrchestratorUnaskedPrograms.hasShortFlag($0, in: lsRemoteShortFlagsThatRun) }) {
+        if verb == "ls-remote", after.contains(where: { $0.contains(":") || OrchestratorUnaskedPrograms.hasShortFlag($0, in: lsRemoteShortFlagsThatRun) }) {
             return .asks
         }
         return after.contains { word in

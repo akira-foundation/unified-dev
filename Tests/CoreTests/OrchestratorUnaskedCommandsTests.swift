@@ -128,7 +128,7 @@ struct OrchestratorUnaskedCommandsTests {
             "run_in_background": .bool(false),
         ])
         let codex = JSONValue.object([
-            "command": .string("rg x"), "cwd": .string("/other"), CodexTranslation.itemKey: .object([:]),
+            "command": .string("rg x"), "cwd": .string("/w"), CodexTranslation.itemKey: .object([:]),
         ])
         let grok = JSONValue.object([
             "command": .string("rg x"), "cmd": .string("rg x"), GrokTranslation.itemKey: .object([:]),
@@ -138,6 +138,16 @@ struct OrchestratorUnaskedCommandsTests {
         }
         let differs = JSONValue.object(["command": .string("rg x"), "cmd": .string("rm x")])
         #expect(!OrchestratorToolGuard.answersItself(toolName: "Bash", input: differs, worktree: "/w", runsUnasked: true))
+    }
+
+    @Test("on, a command set to run outside the worktree stays with the owner", arguments: [
+        "cwd", "workdir", "working_directory", "directory",
+    ])
+    func elsewhereAsks(_ key: String) {
+        let elsewhere = JSONValue.object(["command": .string("git status"), key: .string("/w/vendor/planted.git")])
+        let here = JSONValue.object(["command": .string("git status"), key: .string("/w")])
+        #expect(!OrchestratorToolGuard.answersItself(toolName: "Bash", input: elsewhere, worktree: "/w", runsUnasked: true))
+        #expect(OrchestratorToolGuard.answersItself(toolName: "Bash", input: here, worktree: "/w", runsUnasked: true))
     }
 
     @Test("on, the switch reaches shell tools alone")
@@ -191,7 +201,7 @@ struct OrchestratorUnaskedCommandsTests {
     func copy() {
         #expect(OrchestratorUnaskedCommands.caveat.contains("you would not see them first"))
         #expect(OrchestratorUnaskedCommands.caveat.contains("stay refused"))
-        #expect(OrchestratorUnaskedCommands.caveat.contains("Builds, scripts and network tools ask you first"))
+        #expect(OrchestratorUnaskedCommands.caveat.contains("Builds, scripts and other network tools ask you first"))
         #expect(OrchestratorUnaskedCommands.caveat.hasPrefix("On by default."))
     }
 }

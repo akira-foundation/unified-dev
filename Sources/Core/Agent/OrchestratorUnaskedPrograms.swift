@@ -22,21 +22,21 @@ enum OrchestratorUnaskedPrograms {
         "repeat", "coproc", "ifne", "chronic", "uv", "uvx", "bundle", "poetry", "pipenv", "pipx", "pnpm", "npm", "npx",
         "bunx", "yarn", "devbox", "nix", "nix-shell", "conda", "rye", "hatch", "pdm", "rtk",
     ]
-    static let wrappersThatAddNothing: Set<String> = [
-        "env", "command", "builtin", "time", "nice", "timeout", "gtimeout", "nohup", "stdbuf", "xargs", "noglob",
-        "nocorrect",
-    ]
     static let runWithoutAsking: Set<String> = [
         "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "rg", "sort", "uniq", "cut", "tr", "paste",
         "column", "nl", "rev", "tac", "comm", "diff", "cmp", "jq", "file", "stat", "du", "df", "tree", "strings", "od",
         "hexdump", "shasum", "md5", "cksum", "pwd", "cd", "basename", "dirname", "realpath", "readlink", "which", "type",
-        "echo", "printf", "test", "true", "false", "date", "sleep", "seq", "whoami", "id", "uname", "hostname", "sw_vers",
+        "echo", "printf", "test", "true", "false", "date", "seq", "whoami", "id", "uname", "hostname", "sw_vers",
         "printenv", "tar",
     ]
     static let steeredByTheirArguments: Set<String> = ["sort", "uniq", "tree", "file", "rg", "tar", "date", "hostname"]
     static let findWriters = ["-delete", "-fprint", "-fls"]
     static let findRunners: Set<String> = ["-exec", "-execdir", "-ok", "-okdir"]
 
+    private static let systemDirectories: Set<String> = [
+        "/bin", "/usr/bin", "/sbin", "/usr/sbin", "/usr/local/bin", "/opt/homebrew/bin",
+    ]
+    private static let directoryChangers: Set<String> = ["cd", "pushd", "popd", "chdir"]
     private static let keywords: Set<String> = ["if", "elif", "then", "else", "do", "while", "until", "!"]
     private static let closers: Set<String> = ["fi", "done", "esac"]
     private static let fileWriters: Set<String> = [
@@ -57,11 +57,13 @@ enum OrchestratorUnaskedPrograms {
     ]
     private static let tarWritingFlags = [
         "--extract", "--get", "--create", "--append", "--update", "--use-compress", "--checkpoint-action", "--to-command",
-        "--rsh",
+        "--rsh", "--delete", "--catenate", "--concatenate",
     ]
     private static let flagsThatRunAProgram: [String: [String]] = [
         "sort": ["--compress-program"],
         "rg": ["--pre", "--hostname-bin"],
+        "tail": ["--follow"],
+        "tar": ["--info-script", "--new-volume-script", "--rmt-command", "--to-command", "--use-compress-program"],
     ]
     private static let reachesBeyondTheShell: Set<String> = [
         "path", "fpath", "cdpath", "manpath", "module_path", "mailpath", "http_proxy", "https_proxy", "ftp_proxy",
@@ -74,8 +76,22 @@ enum OrchestratorUnaskedPrograms {
         String(word.split(separator: "/").last ?? Substring(word)).lowercased()
     }
 
-    static func isAnOption(_ word: String) -> Bool {
-        word.hasPrefix("-") || word.contains(/^[0-9][0-9.]*[smhd]?$/)
+    static func isFoundOnTheSystemPath(_ word: String) -> Bool {
+        guard let slash = word.lastIndex(of: "/") else { return true }
+        return systemDirectories.contains(String(word[..<slash]))
+    }
+
+    static func changesDirectory(_ clause: [String]) -> Bool {
+        clause.drop(while: isKeyword).first.map { directoryChangers.contains(name(of: $0)) } == true
+    }
+
+    static func namesGit(_ word: String) -> Bool {
+        let program = name(of: word)
+        return program == "git" || program.hasPrefix("git-")
+    }
+
+    static func takesAnyArgumentsSafely(_ program: String) -> Bool {
+        runWithoutAsking.contains(program) && !steeredByTheirArguments.contains(program)
     }
 
     static func isKeyword(_ word: String) -> Bool {
@@ -105,16 +121,14 @@ enum OrchestratorUnaskedPrograms {
         return arguments.dropLast().allSatisfy { word in !arithmeticTests.contains(word) && !word.contains { "$`[]".contains($0) } }
     }
 
-    private static func feedsItsInput(_ head: String, _ arguments: [String]) -> Bool {
+    static func feedsItsInput(_ head: String, _ arguments: [String]) -> Bool {
         if head == "parallel" { return true }
         if head == "env" { return arguments.contains { $0.hasPrefix("-S") || names($0, oneOf: ["--split-string"]) } }
         guard head == "xargs" else { return false }
-        let replaces = arguments.contains { word in
-            word.hasPrefix("-I") || word.hasPrefix("-J") || word.hasPrefix("-i") || word.hasPrefix("--replace")
+        return arguments.contains { word in
+            shells.contains(name(of: word)) || scripted.contains(name(of: word))
+                || word.hasPrefix("-I") || word.hasPrefix("-J") || word.hasPrefix("-i") || word.hasPrefix("--replace")
         }
-        guard !replaces else { return true }
-        guard let program = arguments.first(where: { !isAnOption($0) }).map(name(of:)) else { return false }
-        return !runWithoutAsking.contains(program) || steeredByTheirArguments.contains(program)
     }
 
     static func verdict(of head: String, _ arguments: [String]) -> Verdict {
@@ -129,10 +143,6 @@ enum OrchestratorUnaskedPrograms {
         return runWithoutAsking.contains(head) ? .passes : .asks
     }
 
-    static func ownVerdict(ofRunner head: String, _ arguments: [String]) -> Verdict {
-        wrappersThatAddNothing.contains(head) && !feedsItsInput(head, arguments) ? .passes : .asks
-    }
-
     private static func writesThroughAFlag(_ head: String, _ arguments: [String]) -> Bool {
         switch head {
         case "curl":
@@ -142,12 +152,13 @@ enum OrchestratorUnaskedPrograms {
         case "uniq":
             operands(arguments, skippingValuesOf: "fs").count > 1
         case "tree":
-            arguments.contains { names($0, oneOf: ["--output"]) || hasShortFlag($0, in: "oR") }
+            arguments.contains { names($0, oneOf: ["--output"]) || hasShortFlag($0, in: "o") }
+                || (arguments.contains { hasShortFlag($0, in: "R") } && arguments.contains { hasShortFlag($0, in: "H") })
         case "file":
             arguments.contains { names($0, oneOf: ["--compile"]) || hasShortFlag($0, in: "C") }
         case "tar":
-            arguments.contains { names($0, oneOf: tarWritingFlags) || hasShortFlag($0, in: "xcruI") }
-                || arguments.first.map { word in !word.hasPrefix("-") && word.contains { "xcru".contains($0) } } == true
+            arguments.contains { names($0, oneOf: tarWritingFlags) || hasShortFlag($0, in: "xcruAI") }
+                || arguments.first.map { word in !word.hasPrefix("-") && word.contains { "xcruA".contains($0) } } == true
         default:
             false
         }
@@ -155,6 +166,8 @@ enum OrchestratorUnaskedPrograms {
 
     private static func runsThroughAFlag(_ head: String, _ arguments: [String]) -> Bool {
         guard let flags = flagsThatRunAProgram[head] else { return false }
+        if head == "tar", arguments.contains(where: { $0.contains(":") || hasShortFlag($0, in: "FM") }) { return true }
+        if head == "tail", arguments.contains(where: { hasShortFlag($0, in: "fF") }) { return true }
         return arguments.contains { names($0, oneOf: flags) }
     }
 
@@ -190,8 +203,8 @@ enum OrchestratorUnaskedPrograms {
 
     private static func awk(_ arguments: [String]) -> Verdict {
         let isUnreadable = arguments.isEmpty || arguments.contains { word in
-            ["-f", "--file", "-i", "--include"].contains { word.hasPrefix($0) }
-                || ["system", "getline", "|", ">"].contains { word.contains($0) }
+            ["-f", "--file", "-i", "--include", "-l", "--load", "-E", "--exec"].contains { word.hasPrefix($0) }
+                || ["system", "getline", "|", ">", "@load", "@include"].contains { word.contains($0) }
         }
         return isUnreadable ? .asks : .passes
     }
@@ -199,7 +212,7 @@ enum OrchestratorUnaskedPrograms {
     private static func sed(_ arguments: [String]) -> Verdict {
         if arguments.contains(where: { names($0, oneOf: ["--in-place"]) || hasShortFlag($0, in: "iI") }) { return .refused }
         guard let scripts = sedScripts(arguments), !scripts.isEmpty else { return .asks }
-        return scripts.contains(where: sedScriptMayWriteOrRun) ? .asks : .passes
+        return scripts.allSatisfy(isPlainSedScript) ? .passes : .asks
     }
 
     private static func sedScripts(_ arguments: [String]) -> [String]? {
@@ -225,11 +238,10 @@ enum OrchestratorUnaskedPrograms {
         return scripts.isEmpty ? Array(positional.prefix(1)) : scripts
     }
 
-    private static func sedScriptMayWriteOrRun(_ script: String) -> Bool {
-        let commands = script
-            .replacing(/s([^a-zA-Z0-9\s\\])(?:\\.|(?!\1).)*\1(?:\\.|(?!\1).)*\1[gpiImM0-9]*/, with: "")
-            .replacing(/\/(?:\\.|[^\/])*\//, with: "")
-        return commands.contains(/(^|[^A-Za-z]|[IM])[wWe]/) || commands.contains(/(^|[^A-Za-z])s[A-Za-z0-9\s\\]/)
+    private static func isPlainSedScript(_ script: String) -> Bool {
+        script.contains(
+            /^(?:\s*(?:(?:[0-9]+|\$|\/(?:\\.|[^\/\\\n])*\/)(?:,(?:[0-9]+|\$|\/(?:\\.|[^\/\\\n])*\/))?)?\s*(?:[pdqn=]|s\/(?:\\.|[^\/\\\n])*\/(?:\\.|[^\/\\\n])*\/[gpiI0-9]*)\s*;?)+$/
+        )
     }
 
     private static func editsInPlace(_ word: String) -> Bool {

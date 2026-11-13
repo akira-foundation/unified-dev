@@ -58,7 +58,8 @@ public enum OrchestratorToolGuard {
            OrchestratorShellJudge.reads(command) {
             return true
         }
-        guard runsUnasked, holdsOnlyTheCommand(input, command: command) else { return false }
+        guard runsUnasked, holdsOnlyTheCommand(input, command: command),
+              directoryKeys.allSatisfy({ runs(in: input[$0], worktree: worktree) }) else { return false }
         return OrchestratorUnaskedJudge.verdict(command) == .passes
     }
 
