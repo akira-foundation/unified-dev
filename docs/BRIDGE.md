@@ -1589,7 +1589,8 @@ command on the list, through `CodeBlockCommand.mayRun`, and the copy button stay
 ### Running commands without asking
 
 A project's settings carry a switch, **Run commands without asking**, in the Workspaces pane. It is
-off by default, and off changes nothing above. It belongs to one project: another project's
+on by default: a project with nothing stored counts as on, and a value the owner saved, on or off, is
+kept as saved. `OrchestratorUnaskedCommands.parse` takes that decision. Off changes nothing above. It belongs to one project: another project's
 orchestrator does not inherit it, and a workspace that is not the orchestrator is not affected.
 
 On, a shell command that would have stopped for the owner is judged by `OrchestratorUnaskedJudge`,
@@ -1624,7 +1625,7 @@ listed program outside `OrchestratorUnaskedPrograms.steeredByTheirArguments`. Ev
 than being refused, so nothing that worked before is blocked: it comes back to the owner once.
 
 The judge reads words and runs nothing, so a listed program can still read outside the worktree, and a
-`gh` read sends what it is given to GitHub. That is the cost of turning the switch on, along with the one
+`gh` read sends what it is given to GitHub. That is the cost of the switch being on, along with the one
 the settings footer names: text planted in a file or an issue the orchestrator reads can choose which of
 those reads run, and the owner does not see them first. Each one still leaves its tool row in the
 transcript. The Run button on a code block is not affected.
@@ -1647,7 +1648,7 @@ nowhere in `Sources/Core/Bridge`, in `AppModel` or in a file that serves a tool.
 calls every bridge tool's handler, in every role it is served to, with every field set to one of six values
 naming the switch or its owner, then with only the fields it requires and with every field, read from their
 names and filled with the quick prompt and suggestion ids that exist, and reads the switch back from the store
-after each call. It then cuts, sets up, archives, restores and opens a workspace with settings files planted in
+after each call, starting from an off the owner saved, so that it is still off. It then cuts, sets up, archives, restores and opens a workspace with settings files planted in
 the project, which is where those paths read them, and loads the worktree's planted files through
 `SettingsLoader` directly, reading the switch back after each step. What it does not reach: the app's own
 closures behind the tools `AppModel.bridgeToolbox()` adds, which the suite replaces with stubs, so for those the

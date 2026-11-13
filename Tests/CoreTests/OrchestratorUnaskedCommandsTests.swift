@@ -30,20 +30,32 @@ struct OrchestratorUnaskedCommandsTests {
         return (repo, SessionGrants(store: store, workspaceID: lead.id))
     }
 
-    @Test("off by default, and only the exact stored value turns it on", arguments: [nil, "", "true", "1", "ON", "yes"])
-    func offUnlessStoredOn(_ stored: String?) {
+    @Test("on when nothing is stored")
+    func onWhenAbsent() {
+        #expect(OrchestratorUnaskedCommands.parse(nil))
+    }
+
+    @Test("on when on is stored")
+    func onWhenStoredOn() {
+        #expect(OrchestratorUnaskedCommands.parse("on"))
+    }
+
+    @Test("off when off or anything else is stored", arguments: ["off", "", "true", "1", "ON", "yes"])
+    func offWhenStoredOtherwise(_ stored: String) {
         #expect(!OrchestratorUnaskedCommands.parse(stored))
     }
 
-    @Test("switching off removes the row rather than storing a second value")
-    func switchingOffRemovesTheRow() async throws {
+    @Test("a project with nothing stored is on, and each saved value is kept as saved")
+    func savedValuesAreKept() async throws {
         let store = try makeTestStore("unasked-row")
         let repoID = RepoID.new()
-        #expect(await !OrchestratorUnaskedCommands.isOn(repoID: repoID, in: store))
-        try await OrchestratorUnaskedCommands.save(true, repoID: repoID, to: store)
         #expect(await OrchestratorUnaskedCommands.isOn(repoID: repoID, in: store))
         try await OrchestratorUnaskedCommands.save(false, repoID: repoID, to: store)
-        #expect(try await store.setting(OrchestratorUnaskedCommands.key(repoID: repoID)) == nil)
+        #expect(await !OrchestratorUnaskedCommands.isOn(repoID: repoID, in: store))
+        #expect(try await store.setting(OrchestratorUnaskedCommands.key(repoID: repoID)) == "off")
+        try await OrchestratorUnaskedCommands.save(true, repoID: repoID, to: store)
+        #expect(await OrchestratorUnaskedCommands.isOn(repoID: repoID, in: store))
+        #expect(try await store.setting(OrchestratorUnaskedCommands.key(repoID: repoID)) == "on")
     }
 
     @Test("off, the guard answers only what it answers today", arguments: [
@@ -146,7 +158,7 @@ struct OrchestratorUnaskedCommandsTests {
     func grantsReadLive() async throws {
         let store = try makeTestStore("unasked-grants")
         let (repo, lead) = try await seedOrchestrator(store)
-        let (_, otherLead) = try await seedOrchestrator(store, named: "s")
+        let (otherRepo, otherLead) = try await seedOrchestrator(store, named: "s")
         let crew = try await store.upsert(Workspace(
             repoID: repo.id, name: "crew", branch: "b/crew", path: TestScratch.unique("crew"), baseBranch: "main"
         ))
@@ -154,6 +166,11 @@ struct OrchestratorUnaskedCommandsTests {
         let compound = shell("rg x && echo \"a b\"")
         let refused = shell("eval git push")
 
+        #expect(await lead.answersItself(toolName: "Bash", input: compound))
+        #expect(await lead.refusal(toolName: "Bash", input: refused) == Self.repositoryRefusal)
+
+        try await OrchestratorUnaskedCommands.save(false, repoID: otherRepo.id, to: store)
+        try await OrchestratorUnaskedCommands.save(false, repoID: repo.id, to: store)
         #expect(await !lead.answersItself(toolName: "Bash", input: compound))
         #expect(await lead.refusal(toolName: "Bash", input: refused) == nil)
 
@@ -174,6 +191,7 @@ struct OrchestratorUnaskedCommandsTests {
     func copy() {
         #expect(OrchestratorUnaskedCommands.caveat.contains("you would not see them first"))
         #expect(OrchestratorUnaskedCommands.caveat.contains("stay refused"))
-        #expect(OrchestratorUnaskedCommands.caveat.contains("Anything else asks you first"))
+        #expect(OrchestratorUnaskedCommands.caveat.contains("Builds, scripts and network tools ask you first"))
+        #expect(OrchestratorUnaskedCommands.caveat.hasPrefix("On by default."))
     }
 }

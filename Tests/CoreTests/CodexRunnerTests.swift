@@ -537,6 +537,7 @@ private func eventually(
         let store = try makeTestStore("codex-runner-orchestrator-read")
         let (session, _) = try await makeCodexSession(store, permissionMode: .bypassPermissions)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -567,6 +568,7 @@ private func eventually(
         let store = try makeTestStore("codex-runner-orchestrator-unasked")
         let (session, _) = try await makeCodexSession(store, permissionMode: .bypassPermissions)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }

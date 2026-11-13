@@ -1774,6 +1774,7 @@ struct AgentRunnerPermissionTests {
         let store = try makeTestStore("perm-orchestrator")
         let session = try await makeSession(store)
         try await orchestrate(session, in: store)
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let (runner, process) = try await running(store, session: session)
 
         await runner.ingest(.permissionAsk(shellAsk(command)))
@@ -1788,6 +1789,7 @@ struct AgentRunnerPermissionTests {
         let store = try makeTestStore("perm-orchestrator")
         let session = try await makeSession(store)
         try await orchestrate(session, in: store)
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let (runner, process) = try await running(store, session: session)
         func ask(_ id: String, _ command: String) -> PermissionAsk {
             PermissionAsk(requestID: id, toolName: "Bash", input: .object(["command": .string(command)]))

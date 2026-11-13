@@ -166,6 +166,7 @@ struct GrokRunnerTests {
         let store = try makeTestStore("grok-orchestrator-read")
         let session = try await makeGrokSession(store)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedGrokBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -194,6 +195,7 @@ struct GrokRunnerTests {
         let store = try makeTestStore("grok-orchestrator-unasked")
         let session = try await makeGrokSession(store)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedGrokBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
