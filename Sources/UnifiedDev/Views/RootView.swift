@@ -159,6 +159,7 @@ struct RootView: View {
             } onConfirm: { request in
                 request.model.runSetupAgain()
             }
+            .modifier(CodeBlockRunConfirmation())
             .alert(
                 app.alert?.title ?? "",
                 isPresented: $app.alert.isPresent(),

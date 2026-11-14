@@ -246,18 +246,4 @@ struct CodeBlockRunTests {
     private func finished(_ output: String, after duration: Duration = .zero) -> CodeBlockRun {
         .finished(ShellResult(status: 0, stdout: output, stderr: ""), after: duration)
     }
-
-    @Test("an orchestrator offers Run only for what its read list accepts")
-    func orchestratorRun() {
-        #expect(CodeBlockCommand.mayRun("git log -1", orchestrates: true))
-        #expect(CodeBlockCommand.mayRun("ls\ncat README.md", orchestrates: true))
-        #expect(!CodeBlockCommand.mayRun("rm -rf Sources", orchestrates: true))
-        #expect(!CodeBlockCommand.mayRun("echo hi > notes.txt", orchestrates: true))
-        #expect(!CodeBlockCommand.mayRun("git commit -am x", orchestrates: true))
-    }
-
-    @Test("an ordinary workspace runs whatever the reply showed")
-    func ordinaryRun() {
-        #expect(CodeBlockCommand.mayRun("rm -rf Sources", orchestrates: false))
-    }
 }
