@@ -34,7 +34,7 @@ struct TerminalPaletteTests {
 
     @Test("a terminal in a dark appearance gets colours readable on the dark pane, and none of the light ones")
     func darkAppearanceGetsTheDarkPalette() {
-        let choice = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: nil)
+        let choice = TerminalColourChoice(appearance: "NSAppearanceNameDarkAqua", matchedAppearance: "NSAppearanceNameDarkAqua", ghostty: nil)
         let colours = TerminalPalette.colours(dark: choice.isDark)
         let pane = TerminalPalette.measuredPaneBackground.dark
         #expect(colours[4] == 0x7AB4FF)
@@ -46,15 +46,29 @@ struct TerminalPaletteTests {
     func reinstallsOnlyOnChange() {
         var theme = GhosttyTheme()
         theme.background = GhosttyColor(red: 1, green: 2, blue: 3)
-        let dark = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: nil)
-        let darkAgain = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: nil)
-        let light = TerminalColourChoice(appearanceNamed: "NSAppearanceNameAqua", ghostty: nil)
-        let themed = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: theme)
+        let dark = TerminalColourChoice(appearance: "NSAppearanceNameDarkAqua", matchedAppearance: "NSAppearanceNameDarkAqua", ghostty: nil)
+        let darkAgain = TerminalColourChoice(appearance: "NSAppearanceNameDarkAqua", matchedAppearance: "NSAppearanceNameDarkAqua", ghostty: nil)
+        let light = TerminalColourChoice(appearance: "NSAppearanceNameAqua", matchedAppearance: "NSAppearanceNameAqua", ghostty: nil)
+        let themed = TerminalColourChoice(appearance: "NSAppearanceNameDarkAqua", matchedAppearance: "NSAppearanceNameDarkAqua", ghostty: theme)
         #expect(dark.replaces(nil))
         #expect(!darkAgain.replaces(dark))
         #expect(light.replaces(dark))
         #expect(themed.replaces(dark))
         #expect(dark.replaces(themed))
+    }
+
+    @Test("a change inside dark, such as Increase Contrast, installs again even though the mode stays dark")
+    func reinstallsWhenTheAppearanceChangesWithinAMode() {
+        let dark = TerminalColourChoice(
+            appearance: "NSAppearanceNameDarkAqua", matchedAppearance: "NSAppearanceNameDarkAqua", ghostty: nil
+        )
+        let highContrast = TerminalColourChoice(
+            appearance: "NSAppearanceNameAccessibilityHighContrastDarkAqua",
+            matchedAppearance: "NSAppearanceNameDarkAqua",
+            ghostty: nil
+        )
+        #expect(highContrast.isDark)
+        #expect(highContrast.replaces(dark))
     }
 
     @Test("every colour but the exempt shade clears its floor on the measured pane background")

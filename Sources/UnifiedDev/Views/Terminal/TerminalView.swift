@@ -206,7 +206,8 @@ final class AppTerminalView: LocalProcessTerminalView {
 
     func applyAppearanceColors() {
         let choice = TerminalColourChoice(
-            appearanceNamed: effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])?.rawValue,
+            appearance: effectiveAppearance.name.rawValue,
+            matchedAppearance: effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])?.rawValue,
             ghostty: ghostty
         )
         guard choice.replaces(installedColours) else { return }

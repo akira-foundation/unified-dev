@@ -44,11 +44,13 @@ public enum TerminalPalette {
 }
 
 public struct TerminalColourChoice: Equatable, Sendable {
+    public let appearance: String
     public let isDark: Bool
     public let ghostty: GhosttyTheme?
 
-    public init(appearanceNamed name: String?, ghostty: GhosttyTheme?) {
-        isDark = TerminalPalette.isDark(appearanceNamed: name)
+    public init(appearance: String, matchedAppearance: String?, ghostty: GhosttyTheme?) {
+        self.appearance = appearance
+        isDark = TerminalPalette.isDark(appearanceNamed: matchedAppearance)
         self.ghostty = ghostty
     }
 
