@@ -121,13 +121,14 @@ mkdir -p "$UD_SETTINGS_HOME"
 
 # The shim, built once and named in the environment, because `BridgeRegistration.shimPath` looks
 # beside the running executable and the running executable here is the test bundle's. Failing to
-# build it is not fatal: `BridgeShimTests` is skipped when the variable names nothing, exactly as
-# the live suites are, and the rest of the bridge is still covered against the socket directly.
-if swift build --scratch-path "$SCRATCH" --product bridge >/dev/null 2>&1; then
-  export UD_BRIDGE_SHIM="$(swift build --scratch-path "$SCRATCH" --show-bin-path)/bridge"
-else
-  print -r -- "===> could not build bridge, so the shim tests will be skipped"
+# build it is fatal: `BridgeAskIdentityTests` registers a chat through the shim and would fail with
+# a message about the registry rather than about the build.
+if ! bridge_log="$(swift build --scratch-path "$SCRATCH" --product bridge 2>&1)"; then
+  print -r -- "$bridge_log" | tail -n 40 >&2
+  print -r -- "===> could not build bridge, and the suite cannot run without it" >&2
+  exit 1
 fi
+export UD_BRIDGE_SHIM="$(swift build --scratch-path "$SCRATCH" --show-bin-path)/bridge"
 
 runs="${UD_TEST_RUNS:-1}"
 failed=0
