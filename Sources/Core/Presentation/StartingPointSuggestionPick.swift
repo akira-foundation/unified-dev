@@ -45,9 +45,7 @@ public struct StartingPointSuggestionPick: Sendable, Hashable {
             lines.remove(at: index)
             let following = index < lines.count && isBlank(lines[index]) ? index : nil
             let preceding = index == lines.count && index > 0 && isBlank(lines[index - 1]) ? index - 1 : nil
-            guard let blank = following ?? preceding else { continue }
-            lines.remove(at: blank)
-            index = min(index, blank)
+            if let blank = following ?? preceding { lines.remove(at: blank) }
         }
         return lines.joined(separator: "\n")
     }
