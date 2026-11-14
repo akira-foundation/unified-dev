@@ -144,6 +144,8 @@ for the same reason. Still to do, each against a real repository:
   fork on its own;
 - a failed build's log for Ask to fix, from `bkt pipeline logs` for Pipelines only;
 - sign-in per profile in Profile Settings, as above;
+- the starting points suggested below the new workspace composer, which offer recent branches
+  alone on Bitbucket, with no pull request waiting on the owner and no issue assigned to them;
 - the readers that still ask `gh` whatever the host: the workspace list and merge tools of the
   bridge, the pull request auto fix, and the check failure request. They find nothing on a
   Bitbucket workspace, as they did before Bitbucket was read at all.

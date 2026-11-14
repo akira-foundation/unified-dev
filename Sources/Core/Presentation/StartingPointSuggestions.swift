@@ -3,11 +3,6 @@ import Foundation
 public enum StartingPointSuggestions {
     public static let limit = 4
     static let branchWindow: TimeInterval = 14 * 24 * 3600
-    static let freshness = Duration.seconds(120)
-
-    typealias Readings = SharedReadings<StartingPointReadingRequest, StartingPointReading>
-
-    private static let shared = Readings()
 
     public static func choose(
         _ reading: StartingPointReading,
@@ -49,25 +44,5 @@ public enum StartingPointSuggestions {
             }
         }
         return groups.indices.flatMap { groups[$0].prefix(taken[$0]) }
-    }
-
-    public static func load(_ request: StartingPointReadingRequest) async -> StartingPointReading? {
-        await load(request, from: shared)
-    }
-
-    static func load(_ request: StartingPointReadingRequest, from readings: Readings) async -> StartingPointReading? {
-        try? await readings.value(for: request, notOlderThan: freshness) {
-            await read(repoPath: request.repoPath, asksGitHub: request.asksGitHub)
-        }
-    }
-
-    static func read(repoPath: String, asksGitHub: Bool) async -> StartingPointReading {
-        async let branches = Git.recentBranches(of: repoPath)
-        guard asksGitHub, await Forge.kind(forDirectory: repoPath) == .gitHub else {
-            return StartingPointReading(branches: await branches)
-        }
-        async let requests = GitHub.pullRequestsAwaitingViewer(repoPath: repoPath)
-        async let issues = GitHub.issuesAssignedToViewer(repoPath: repoPath)
-        return StartingPointReading(pullRequests: await requests, issues: await issues, branches: await branches)
     }
 }

@@ -126,7 +126,7 @@ struct NewWorkspacePane: View {
             reading = nil
             return
         }
-        let loaded = await StartingPointSuggestions.load(request)
+        let loaded = await StartingPointReader.load(request)
         guard !Task.isCancelled else { return }
         reading = loaded
     }

@@ -150,6 +150,26 @@ struct StartingPointSuggestionTests {
         #expect(open.prompt(into: "Typed\n\n" + line) == "Typed\n\n" + line)
     }
 
+    @Test("replacing an issue's line takes that line and one blank beside it, and leaves the rest as typed")
+    func issueLineReplacedInPlace() {
+        let other = StartingPointSuggestion.issue(AssignedIssue(number: 40, title: "Other")).pick(defaultBranch: "main")
+        let replacement = "Work on issue #40, \"Other\"."
+        #expect(other.prompt(into: "A\n\nWork on issue #34, \"Old\".\n\nB") == "A\n\nB\n\n" + replacement)
+        #expect(other.prompt(into: "Intro\n  Work on issue #34.\n    indented code")
+            == "Intro\n    indented code\n\n" + replacement)
+        #expect(other.prompt(into: "Typed\r\n\r\nWork on issue #34, \"Old\".\r") == "Typed\n\n" + replacement)
+        #expect(other.prompt(into: "Please Work on issue #12.") == "Please Work on issue #12.\n\n" + replacement)
+        #expect(StartingPointSuggestionPick.withoutIssueLines("  keep\n\n\n\nthis  ") == "  keep\n\n\n\nthis  ")
+    }
+
+    @Test("the line an issue adds is always a line that a later pick knows to replace")
+    func issueLineIsRecognised() throws {
+        for title in ["Suggest starting points", "", "Fix \"quoted\" titles", "A, B, and C."] {
+            let pick = StartingPointSuggestion.issue(AssignedIssue(number: 7, title: title)).pick(defaultBranch: "main")
+            #expect(StartingPointSuggestionPick.isIssueLine(try #require(pick.prompt)))
+        }
+    }
+
     @Test("the row that is already the starting point says so")
     func chosen() {
         let listed = request(3)
@@ -197,9 +217,9 @@ struct StartingPointSuggestionTests {
         #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "")).title == "Issue #8")
         #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "Fix")).reference == "#8")
         #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 1)).reference == nil)
-        #expect(StartingPointSuggestion.authored(request(9)).spoken == "Pull request #9, Request 9")
-        #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "Fix")).spoken == "Issue #8, Fix")
-        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 1)).spoken == "Branch a")
+        #expect(StartingPointSuggestion.authored(request(9)).spoken == "pull request #9, Request 9")
+        #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "Fix")).spoken == "issue #8, Fix")
+        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 1)).spoken == "existing branch a")
     }
 
     @Test("GitHub is asked only once the pull requests answered, and nothing is read while they load")
@@ -229,7 +249,7 @@ struct StartingPointSuggestionTests {
         let json = #"[{"number":34,"title":"Suggest"},{"number":0,"title":"zero"},{"title":"none"},{"number":7}]"#
         #expect(GitHub.decodeAssignedIssues(from: Data(json.utf8))
             == [AssignedIssue(number: 34, title: "Suggest"), AssignedIssue(number: 7, title: "")])
-        #expect(GitHub.decodeAssignedIssues(from: Data("not json".utf8)).isEmpty)
+        #expect(GitHub.decodeAssignedIssues(from: Data("not json".utf8)) == nil)
     }
 }
 

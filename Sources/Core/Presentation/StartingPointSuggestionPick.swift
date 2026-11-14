@@ -30,15 +30,29 @@ public struct StartingPointSuggestionPick: Sendable, Hashable {
     static let issueLead = "Work on issue #"
 
     static func withoutIssueLines(_ text: String) -> String {
-        let kept = text.components(separatedBy: "\n").filter { !isIssueLine($0) }
-        guard kept.count < text.components(separatedBy: "\n").count else { return text }
-        return kept.joined(separator: "\n")
-            .replacing(/\n{3,}/, with: "\n\n")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        var lines = text.components(separatedBy: "\n")
+        var index = 0
+        while index < lines.count {
+            guard isIssueLine(lines[index]) else {
+                index += 1
+                continue
+            }
+            lines.remove(at: index)
+            let following = index < lines.count && isBlank(lines[index]) ? index : nil
+            let preceding = index > 0 && isBlank(lines[index - 1]) ? index - 1 : nil
+            guard let blank = following ?? preceding else { continue }
+            lines.remove(at: blank)
+            index = min(index, blank)
+        }
+        return lines.joined(separator: "\n")
     }
 
     static func isIssueLine(_ line: String) -> Bool {
-        line.trimmingCharacters(in: .whitespaces).wholeMatch(of: /Work on issue #\d+(, ".*")?\./) != nil
+        line.trimmingCharacters(in: .whitespacesAndNewlines).wholeMatch(of: /Work on issue #\d+(, ".*")?\./) != nil
+    }
+
+    private static func isBlank(_ line: String) -> Bool {
+        line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     static func mentions(_ number: Int, in text: String) -> Bool {

@@ -151,7 +151,7 @@ extension GitHub {
     static func repositoryArguments(_ arguments: [String], context: GitRepositoryContext?) -> [String] {
         let family = arguments.first ?? ""
         let action = arguments.dropFirst().first ?? ""
-        let acceptsRepo = family == "pr" || (family == "run" && action == "view")
+        let acceptsRepo = family == "pr" || (family == "run" && action == "view") || (family == "issue" && action == "list")
         guard acceptsRepo, !isUnselectedPullRequestView(arguments),
               repositoryOption(in: arguments) == nil,
               !arguments.contains("--repo"), !arguments.contains("-R"),
