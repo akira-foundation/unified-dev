@@ -10,11 +10,13 @@ public extension AgentKind {
         permissionMode: PermissionMode? = nil,
         resuming: String? = nil,
         account: AgentAccountHome? = nil,
-        orchestrates: Bool = false
+        orchestrates: Bool = false,
+        chrome: Bool = false
     ) -> String? {
         guard let arguments = interactiveArguments(
             prompt: prompt, sessionID: sessionID, model: model,
-            effort: effort, permissionMode: permissionMode, resuming: resuming, orchestrates: orchestrates
+            effort: effort, permissionMode: permissionMode, resuming: resuming, orchestrates: orchestrates,
+            chrome: chrome
         ) else { return nil }
         let command = AgentAccountEnvironment.subshell(around: TerminalLaunchScript.shellCommand(
             directory: directory,
@@ -39,7 +41,8 @@ public extension AgentKind {
         effort: String,
         permissionMode requested: PermissionMode? = nil,
         resuming: String? = nil,
-        orchestrates: Bool = false
+        orchestrates: Bool = false,
+        chrome: Bool = false
     ) -> [String]? {
         let permissionMode = orchestrates ? OrchestratorToolGuard.permissionMode(requested ?? .auto) : requested
         let events = [
@@ -69,6 +72,7 @@ public extension AgentKind {
             if let mode { arguments += ["--permission-mode", mode] }
             if !effort.isEmpty { arguments += ["--effort", effort] }
             if orchestrates { arguments += OrchestratorToolGuard.claudeArguments }
+            if chrome, !orchestrates { arguments.append(ClaudeChrome.flag) }
         case .codex:
             arguments = resuming.map { ["resume", $0] } ?? []
             if let permissionMode {

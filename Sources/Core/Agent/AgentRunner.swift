@@ -58,6 +58,9 @@ public actor AgentRunner {
     private var isFastMode = false
     private var configuredExecutable = AgentKind.claudeCode.executableName
     private var outputStyle: String?
+    private let usesChrome: Bool
+    private var launchedWithChrome = false
+    private var chromeNoticeGiven = false
     private var awaitingSideContextAcknowledgement = false
     private let segment: RunnerSegment
     private var promptedGeneration: Int?
@@ -88,6 +91,7 @@ public actor AgentRunner {
         mcpConfigPath: String? = nil,
         account: AgentAccountHome? = nil,
         gitHub: GitHubLogin = .thisMac,
+        usesChrome: Bool = false,
         inheritedEnvironment: [String: String]? = nil,
         shutdownBudget: Duration = AgentRunner.defaultShutdownBudget,
         activity: ClaudeAccountActivity = .shared,
@@ -102,6 +106,7 @@ public actor AgentRunner {
         self.account = account
         self.segment = RunnerSegment(sessionID: session.id, store: store, id: segmentID)
         self.gitHub = gitHub
+        self.usesChrome = usesChrome
         self.inheritedEnvironment = inheritedEnvironment
         self.shutdownBudget = shutdownBudget
         self.makeProcess = makeProcess
@@ -126,7 +131,8 @@ public actor AgentRunner {
         isFastMode: Bool = false,
         outputStyle: String? = nil,
         mcpConfigPath: String? = nil,
-        orchestrates: Bool = false
+        orchestrates: Bool = false,
+        chrome: Bool = false
     ) -> [String] {
         let orchestrating = orchestrates && session.workspaceID != nil
         var arguments = [
@@ -160,6 +166,7 @@ public actor AgentRunner {
         if let mcpConfigPath, !mcpConfigPath.isEmpty {
             arguments += BridgeRegistration.claudeArguments(configPath: mcpConfigPath)
         }
+        if chrome, !orchestrating { arguments.append(ClaudeChrome.flag) }
         if let resume, !resume.isEmpty {
             arguments += ["--resume", resume]
         }
@@ -193,7 +200,8 @@ public actor AgentRunner {
                 isFastMode: isFastMode,
                 outputStyle: outputStyle,
                 mcpConfigPath: mcpConfigPath,
-                orchestrates: orchestrates
+                orchestrates: orchestrates,
+                chrome: usesChrome
             ),
             cwd: workspacePath,
             environment: AgentAccountEnvironment.apply(
@@ -352,6 +360,8 @@ public actor AgentRunner {
         cancelled = false
         stderrTail = []
         let spec = launch()
+        launchedWithChrome = spec.arguments.contains(ClaudeChrome.flag)
+        chromeNoticeGiven = false
         requestedResume = AgentSessionSettlement.resumable(session: session, account: account)
         launchedCommand = Shell.which(spec.executable) ?? spec.executable
         let process = makeProcess(spec)
@@ -448,6 +458,7 @@ public actor AgentRunner {
 
         switch event {
         case .initialized(let info):
+            await noteChromeMissing(from: info)
             await ClaudeResolvedModel.record(
                 requested: ModelAlias.cliValue(for: session.model),
                 reported: info.model,
@@ -524,6 +535,12 @@ public actor AgentRunner {
         } catch {
             await report("could not mark the conversation for a full handoff", error)
         }
+    }
+
+    private func noteChromeMissing(from info: AgentInit) async {
+        guard !chromeNoticeGiven,
+              let notice = ClaudeChromeNotice.missing(requested: launchedWithChrome, initEvent: info.raw) else { return }
+        chromeNoticeGiven = await persist(kind: .notice, payload: notice.payload) != nil
     }
 
     @discardableResult

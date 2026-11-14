@@ -371,7 +371,8 @@ final class TerminalSessionStore {
                    model: session.model, effort: session.effort,
                    permissionMode: session.permissionMode, resuming: externalSession,
                    account: account,
-                   orchestrates: workspace.isOrchestrator
+                   orchestrates: workspace.isOrchestrator,
+                   chrome: await ClaudeChrome.launches(in: store, orchestrates: workspace.isOrchestrator)
                ) {
                 await recall.rememberResume(resume, inPane: tab.id, store: store)
             }

@@ -987,11 +987,13 @@ final class WorkspaceModel {
                 for: session.agentKind, in: AccountScope(workspaceID: workspace.id, repoID: workspace.repoID)
             )
             let orchestrates = await app.store?.orchestratesAtLaunch(workspaceID: workspace.id) ?? workspace.isOrchestrator
+            let chrome = await ClaudeChrome.launches(in: app.store, orchestrates: orchestrates)
             return try session.agentKind.prepareInteractiveCommand(
                 directory: workspace.path, prompt: prompt, sessionID: session.id,
                 model: session.model, effort: session.effort, permissionMode: session.permissionMode,
                 account: account,
-                orchestrates: orchestrates
+                orchestrates: orchestrates,
+                chrome: chrome
             )
         } catch {
             app.alert = AppAlert(title: "Could not launch the agent", message: error.readableMessage)

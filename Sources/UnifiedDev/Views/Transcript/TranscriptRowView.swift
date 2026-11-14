@@ -170,7 +170,11 @@ struct TranscriptRowView: View, Equatable {
             )
 
         case .notice:
-            RateLimitRowView(payload: row.payload)
+            if let chrome = ClaudeChromeNotice.decode(row.payload) {
+                ClaudeChromeNoticeRowView(notice: chrome)
+            } else {
+                RateLimitRowView(payload: row.payload)
+            }
 
         case .system:
             if let info = initInfo {

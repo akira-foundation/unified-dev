@@ -80,6 +80,10 @@ struct AgentsSettingsView: View {
 
                 capabilitySection
 
+                if selection == .claudeCode {
+                    ClaudeChromeSettingsSection()
+                }
+
                 AgentAccountsSection(
                     panel: accountPanel,
                     activity: accounts.activity,

@@ -10,10 +10,11 @@ public struct AgentRunnerFingerprint: Sendable, Equatable {
     public let orchestrates: Bool
     public let segment: SessionSegmentID
     public let gitHub: GitHubLogin
+    public let usesChrome: Bool
 
     public init(
         session: Session, account: AgentAccountHome?, orchestrates: Bool, segment: SessionSegmentID,
-        gitHub: GitHubLogin = .thisMac
+        gitHub: GitHubLogin = .thisMac, usesChrome: Bool = false
     ) {
         model = session.model
         effort = session.effort
@@ -24,5 +25,6 @@ public struct AgentRunnerFingerprint: Sendable, Equatable {
         self.orchestrates = orchestrates
         self.segment = segment
         self.gitHub = gitHub
+        self.usesChrome = usesChrome
     }
 }
