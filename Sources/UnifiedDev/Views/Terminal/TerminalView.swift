@@ -202,11 +202,19 @@ final class AppTerminalView: LocalProcessTerminalView {
         usesGhosttyTheme ? TerminalGhostty.theme(for: effectiveAppearance) : nil
     }
 
+    private var installedColours: TerminalColourChoice?
+
     func applyAppearanceColors() {
-        if let ghostty {
-            applyGhosttyColors(ghostty)
+        let choice = TerminalColourChoice(
+            appearanceNamed: effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])?.rawValue,
+            ghostty: ghostty
+        )
+        guard choice.replaces(installedColours) else { return }
+        installedColours = choice
+        if let theme = choice.ghostty {
+            applyGhosttyColors(theme)
         } else {
-            applyAppColors()
+            applyAppColors(dark: choice.isDark)
         }
         needsDisplay = true
     }
@@ -229,9 +237,8 @@ final class AppTerminalView: LocalProcessTerminalView {
         }
     }
 
-    private func applyAppColors() {
-        let isDark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-        installColors(TerminalPalette.colours(dark: isDark).map(SwiftTerm.Color.init(rgb:)))
+    private func applyAppColors(dark: Bool) {
+        installColors(TerminalPalette.colours(dark: dark).map(SwiftTerm.Color.init(rgb:)))
         nativeForegroundColor = resolved(Palette.textPrimary).withAlphaComponent(1)
         nativeBackgroundColor = .clear
         caretColor = .textInsertionPointColor

@@ -1,7 +1,9 @@
 import Foundation
 
 public enum TerminalPalette {
-    public static let measuredBackground = PaletteInk.Pair(light: 0xFFFFFF, dark: 0x303135)
+    public static let darkAppearanceName = "NSAppearanceNameDarkAqua"
+
+    public static let measuredPaneBackground = PaletteInk.Pair(light: 0xFFFFFF, dark: 0x303135)
 
     public static let ansi: [PaletteInk.Pair] = [
         PaletteInk.Pair(light: 0x000000, dark: 0x1C1C1E),
@@ -24,15 +26,33 @@ public enum TerminalPalette {
 
     public static let brightBlack = 8
 
+    public static func isDark(appearanceNamed name: String?) -> Bool {
+        name == darkAppearanceName
+    }
+
     public static func colours(dark: Bool) -> [UInt32] {
         ansi.map { $0.member(dark: dark) }
     }
 
-    public static func backgroundShade(dark: Bool) -> Int {
+    public static func exemptShade(dark: Bool) -> Int {
         dark ? 0 : 15
     }
 
-    public static func floor(forIndex index: Int) -> Double {
+    public static func contrastFloor(forIndex index: Int) -> Double {
         index == brightBlack ? 4.0 : Contrast.textFloor
+    }
+}
+
+public struct TerminalColourChoice: Equatable, Sendable {
+    public let isDark: Bool
+    public let ghostty: GhosttyTheme?
+
+    public init(appearanceNamed name: String?, ghostty: GhosttyTheme?) {
+        isDark = TerminalPalette.isDark(appearanceNamed: name)
+        self.ghostty = ghostty
+    }
+
+    public func replaces(_ installed: TerminalColourChoice?) -> Bool {
+        installed != self
     }
 }

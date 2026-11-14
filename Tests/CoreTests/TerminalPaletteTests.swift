@@ -25,15 +25,47 @@ struct TerminalPaletteTests {
         }
     }
 
-    @Test("every colour but the background's own shade clears its floor on the measured background")
+    @Test("only the dark aqua appearance name picks the dark palette")
+    func appearanceNamePicksTheMode() {
+        #expect(TerminalPalette.isDark(appearanceNamed: "NSAppearanceNameDarkAqua"))
+        #expect(!TerminalPalette.isDark(appearanceNamed: "NSAppearanceNameAqua"))
+        #expect(!TerminalPalette.isDark(appearanceNamed: nil))
+    }
+
+    @Test("a terminal in a dark appearance gets colours readable on the dark pane, and none of the light ones")
+    func darkAppearanceGetsTheDarkPalette() {
+        let choice = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: nil)
+        let colours = TerminalPalette.colours(dark: choice.isDark)
+        let pane = TerminalPalette.measuredPaneBackground.dark
+        #expect(colours[4] == 0x7AB4FF)
+        #expect(Contrast.ratio(colours[15], pane) >= Contrast.textFloor)
+        #expect(!colours.contains(TerminalPalette.ansi[4].light))
+    }
+
+    @Test("the colours are installed again only when the appearance or the Ghostty theme changes")
+    func reinstallsOnlyOnChange() {
+        var theme = GhosttyTheme()
+        theme.background = GhosttyColor(red: 1, green: 2, blue: 3)
+        let dark = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: nil)
+        let darkAgain = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: nil)
+        let light = TerminalColourChoice(appearanceNamed: "NSAppearanceNameAqua", ghostty: nil)
+        let themed = TerminalColourChoice(appearanceNamed: "NSAppearanceNameDarkAqua", ghostty: theme)
+        #expect(dark.replaces(nil))
+        #expect(!darkAgain.replaces(dark))
+        #expect(light.replaces(dark))
+        #expect(themed.replaces(dark))
+        #expect(dark.replaces(themed))
+    }
+
+    @Test("every colour but the exempt shade clears its floor on the measured pane background")
     func everyColourIsReadable() {
         for (mode, isDark) in Self.modes {
-            let background = TerminalPalette.measuredBackground.member(dark: isDark)
+            let background = TerminalPalette.measuredPaneBackground.member(dark: isDark)
             let colours = TerminalPalette.colours(dark: isDark)
-            for index in 0..<16 where index != TerminalPalette.backgroundShade(dark: isDark) {
+            for index in 0..<16 where index != TerminalPalette.exemptShade(dark: isDark) {
                 let ratio = Contrast.ratio(colours[index], background)
                 #expect(
-                    ratio >= TerminalPalette.floor(forIndex: index),
+                    ratio >= TerminalPalette.contrastFloor(forIndex: index),
                     "index \(index) in \(mode) is \(ratio):1 on \(String(background, radix: 16))"
                 )
             }
@@ -42,16 +74,16 @@ struct TerminalPaletteTests {
 
     @Test("bright black is held to four to one, and every other index to the text floor")
     func floors() {
-        #expect(TerminalPalette.floor(forIndex: 8) == 4.0)
+        #expect(TerminalPalette.contrastFloor(forIndex: 8) == 4.0)
         for index in 0..<16 where index != 8 {
-            #expect(TerminalPalette.floor(forIndex: index) == Contrast.textFloor)
+            #expect(TerminalPalette.contrastFloor(forIndex: index) == Contrast.textFloor)
         }
     }
 
     @Test("the exempt shade is black in dark and bright white in light")
     func exemptShades() {
-        #expect(TerminalPalette.backgroundShade(dark: true) == 0)
-        #expect(TerminalPalette.backgroundShade(dark: false) == 15)
+        #expect(TerminalPalette.exemptShade(dark: true) == 0)
+        #expect(TerminalPalette.exemptShade(dark: false) == 15)
     }
 
     @Test("blue is told apart from magenta in both modes")
@@ -91,6 +123,15 @@ struct TerminalPaletteTests {
                     "\(bright) does not move away from \(normal) in \(mode)"
                 )
             }
+        }
+    }
+
+    @Test("the grey pairs differ too: black from bright black, white from bright white")
+    func greyPairsAreDistinct() {
+        for isDark in [false, true] {
+            let colours = TerminalPalette.colours(dark: isDark)
+            #expect(colours[0] != colours[8])
+            #expect(colours[7] != colours[15])
         }
     }
 }
