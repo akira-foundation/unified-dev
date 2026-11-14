@@ -15,7 +15,7 @@ final class CodeBlockRunStore {
     struct PendingRun: Identifiable, Equatable {
         let id = UUID()
         var session: SessionID
-        var model: WorkspaceModel
+        weak var model: WorkspaceModel?
         var question: CodeBlockConfirmation
 
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
@@ -41,7 +41,7 @@ final class CodeBlockRunStore {
         guard runs[Key(session: session, command: command)]?.isRunning != true, canRun(in: session, of: model) else { return }
         let folder = model.workspace.path
         switch CodeBlockLaunch.of(command, in: folder, orchestrates: model.workspace.isOrchestrator) {
-        case .runs: start(command, in: session, of: model)
+        case .runs: start(command, in: session, of: model, folder: folder)
         case let .asks(question): pending = PendingRun(session: session, model: model, question: question)
         }
     }
@@ -49,14 +49,18 @@ final class CodeBlockRunStore {
     func answer(_ request: PendingRun, confirmed: Bool) {
         if pending == request { pending = nil }
         guard let command = request.question.answer(confirmed: confirmed) else { return }
-        start(command, in: request.session, of: request.model)
+        let key = Key(session: request.session, command: command)
+        guard let model = request.model, canRun(in: request.session, of: model) else {
+            runs[key] = .failed("the chat no longer accepts messages")
+            return
+        }
+        start(command, in: request.session, of: model, folder: request.question.folder)
     }
 
-    private func start(_ command: String, in session: SessionID, of model: WorkspaceModel) {
+    private func start(_ command: String, in session: SessionID, of model: WorkspaceModel, folder: String) {
         let key = Key(session: session, command: command)
-        guard runs[key]?.isRunning != true, canRun(in: session, of: model) else { return }
+        guard runs[key]?.isRunning != true else { return }
         runs[key] = .running
-        let folder = model.workspace.path
         tasks[key] = Task { [weak self, weak model] in
             let outcome = await Self.outcome(of: command, in: folder)
             self?.tasks[key] = nil

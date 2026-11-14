@@ -33,6 +33,14 @@ struct CodeBlockLaunchTests {
         #expect(question.message.contains("may change files"))
     }
 
+    @Test("a character that hides or reorders text is spelt out in the question, and runs as written")
+    func hiddenCharacters() {
+        let command = "echo safe \u{202E}fdsa\u{200B} > x\u{00A0}y\ttab"
+        let question = CodeBlockConfirmation(command: command, folder: folder)
+        #expect(question.message.hasPrefix("echo safe \\u{202E}fdsa\\u{200B} > x\\u{A0}y\ttab\n\n"))
+        #expect(question.answer(confirmed: true) == command)
+    }
+
     @Test("confirming runs exactly the command shown")
     func confirming() {
         let question = CodeBlockConfirmation(command: "touch a\ntouch b", folder: folder)

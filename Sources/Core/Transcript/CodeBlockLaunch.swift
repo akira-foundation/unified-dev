@@ -19,10 +19,30 @@ public struct CodeBlockConfirmation: Sendable, Equatable {
     public static let cancelLabel = "Cancel"
 
     public var message: String {
-        command + "\n\nIt runs in \(folder). It is not on the list of commands that only read, so it may change files."
+        Self.visible(command) + "\n\nIt runs in \(folder). It is not on the list of commands that only read, so it may change files."
     }
 
     public func answer(confirmed: Bool) -> String? {
         confirmed ? command : nil
+    }
+
+    static func visible(_ text: String) -> String {
+        var shown = ""
+        for scalar in text.unicodeScalars {
+            guard hides(scalar) else {
+                shown.unicodeScalars.append(scalar)
+                continue
+            }
+            shown += "\\u{" + String(scalar.value, radix: 16, uppercase: true) + "}"
+        }
+        return shown
+    }
+
+    private static func hides(_ scalar: Unicode.Scalar) -> Bool {
+        guard scalar != "\n", scalar != "\t", scalar != " " else { return false }
+        switch scalar.properties.generalCategory {
+        case .control, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator: return true
+        default: return false
+        }
     }
 }
