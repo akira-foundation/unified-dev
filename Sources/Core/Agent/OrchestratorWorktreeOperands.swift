@@ -14,6 +14,11 @@ enum OrchestratorWorktreeOperands {
 
     private static let ghFlagsWithoutAValue: Set<String> = ["--paginate", "--include", "-i", "--silent", "--verbose", "--slurp"]
 
+    private static let searchLongFlagsWithAttachedValue: Set<String> = [
+        "--color", "--colour", "--max-count", "--glob", "--iglob", "--type", "--type-not", "--context", "--after-context",
+        "--before-context", "--max-depth", "--include", "--exclude", "--exclude-dir", "--sort", "--sortr",
+    ]
+
     static func notPaths(_ clause: [String], head: Int) -> Set<Int> {
         let rest = (head + 1)..<clause.count
         switch Programs.name(of: clause[head]) {
@@ -50,7 +55,10 @@ enum OrchestratorWorktreeOperands {
     }
 
     private static func takesNoValue(_ flag: String) -> Bool {
-        if flag.hasPrefix("--") { return flag.contains("=") || searchLongFlagsWithoutAValue.contains(flag) }
+        if flag.hasPrefix("--") {
+            guard let equals = flag.firstIndex(of: "=") else { return searchLongFlagsWithoutAValue.contains(flag) }
+            return searchLongFlagsWithAttachedValue.contains(String(flag[..<equals]))
+        }
         if flag.contains(/^-[ABCm][0-9]+$/) { return true }
         return flag.dropFirst().allSatisfy(searchLettersWithoutAValue.contains)
     }

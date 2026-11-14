@@ -43,7 +43,7 @@ struct OrchestratorWorktreeReachTests {
         "gh pr view https://github.com/o/r/pull/1", "wc -l README.md src/a.txt", "rg -g '*.swift' x", "grep -rn x src",
         "rg \"count == 0\" src", "rg \"// TODO\" src", "grep -n \"=>\" README.md", "ls -d .*", "rg 'let .* = ' src",
         "git log --oneline | awk '{print $1}'", "rg 'return nil$' src", "gh api /repos/o/r/pulls --paginate",
-        "rg -e /api src", "sed -e '/x/p' README.md", "for i in 1 2; do cd .; done; ls",
+        "rg -e /api src", "rg --glob=*.swift x src", "grep --color=never -n x README.md", "sed -e '/x/p' README.md", "for i in 1 2; do cd .; done; ls",
     ])
     func insidePasses(_ command: String) throws {
         let fixture = try Fixture()
@@ -70,6 +70,8 @@ struct OrchestratorWorktreeReachTests {
         "jq -n 'include \"/etc/x\"; 1'", "head -n1 file:///etc/hosts", "cat =ls", "realpath ..", "stat ~/.zshrc",
         "sed --expression=p /etc/hosts", "sed --expression=p ~/x", "sed -n p ../x", "grep -f /etc/hosts x",
         "rg --ignore-file /etc/hosts x", "grep -e x /etc/hosts", "rg -- x /etc/hosts",
+        "grep --regexp=. /etc/hosts", "rg --regexp=. /etc", "grep --file=README.md ~/.zshrc", "grep --reg=x -- /etc/hosts",
+        "grep -ex /etc/hosts", "grep -fREADME.md /etc/hosts",
     ])
     func outsideAsks(_ command: String) throws {
         let fixture = try Fixture()
