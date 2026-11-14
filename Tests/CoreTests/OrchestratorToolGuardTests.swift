@@ -226,10 +226,10 @@ struct OrchestratorToolGuardTests {
 
     @Test("Grok in an orchestrator neither approves by itself nor runs everything")
     func grokAsks() {
-        let meta = GrokClient.sessionMeta(.auto, asksEveryCall: true)
+        let meta = ACPClient.sessionMeta(.auto, asksEveryCall: true)
         #expect(meta["yoloMode"]?.boolValue == false)
         #expect(meta["autoMode"]?.boolValue == false)
-        #expect(GrokClient.sessionMeta(.auto, asksEveryCall: false)["autoMode"]?.boolValue == true)
+        #expect(ACPClient.sessionMeta(.auto, asksEveryCall: false)["autoMode"]?.boolValue == true)
     }
 
     @Test("an ordinary workspace is launched exactly as before")

@@ -58,6 +58,21 @@ public extension SetupCheck {
                 isInteractive: true
             )
 
+        case (.antigravity, .missing):
+            return SetupFix(
+                summary: "Install Antigravity",
+                command: "brew install --cask antigravity-cli",
+                url: URL(string: "https://antigravity.google/product/antigravity-cli")
+            )
+
+        case (.antigravity, .needsSignIn):
+            return SetupFix(
+                summary: "Sign in to Antigravity",
+                command: AgentKind.antigravity.loginCommand,
+                url: nil,
+                isInteractive: true
+            )
+
         case (.gitHub, .missing):
             return SetupFix(
                 summary: "Install the GitHub CLI",

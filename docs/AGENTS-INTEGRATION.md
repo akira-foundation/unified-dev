@@ -18,6 +18,7 @@ log, put on the pasteboard, or included in an error message. When a field is mis
 | Claude Code | `claude` | `claude --version` | `2.1.234 (Claude Code)` |
 | Codex | `codex` | `codex --version` | `codex-cli 0.147.0` |
 | Grok | `grok` | `grok --version` | `grok 1.0.24 (68e414c661e3) [alpha]` |
+| Antigravity | `agy` | `agy --version` | `1.5.9` |
 | Cursor | `cursor-agent` | `cursor-agent --version` | not installed here |
 | OpenCode | `opencode` | `opencode --version` | not installed here |
 
@@ -139,6 +140,18 @@ displayed when no auth file is present. Config file to offer for opening: `~/.gr
 
 Login command: `grok login`.
 
+## Antigravity
+
+Nothing under `~/.gemini` is read. Whether the CLI is signed in is asked of it instead: `agy models`
+prints the model list and exits 0 when it is, and exits 1 with "Please sign in to view available
+models" on stderr when it is not. `AntigravityModelList.read` makes that one decision, and the
+same output is the model list the composer offers, so the account card and the models agree. The
+card says "Google sign in" and names no account, because nothing the CLI prints names one.
+
+Login command: `agy acp --login`. Only the default account is offered: the login follows `HOME`
+and no narrower variable moves it, so a second directory cannot hold a second account. See
+`ANTIGRAVITY.md`.
+
 ## Cursor and OpenCode
 
 Not installed here, so nothing about their auth files is verified. Detect the binary and show the
@@ -232,10 +245,13 @@ no account it knows.
 
 ## What Unified Dev can actually run
 
-Claude Code, Codex and Grok. The stream-json protocol in `PROTOCOL.md` is Claude Code's and
-`AgentRunner` speaks it; the JSON-RPC app-server protocol in `CODEX.md` is Codex's and
-`CodexRunner` speaks it; ACP over `grok agent --no-leader stdio` in `GROK.md` is Grok's and
-`GrokRunner` speaks it. All three answer to `SessionRunner`, and `AgentKind.canRunWorkspaces` is
+Claude Code, Codex, Grok and Antigravity. The stream-json protocol in `PROTOCOL.md` is Claude
+Code's and `AgentRunner` speaks it; the JSON-RPC app-server protocol in `CODEX.md` is Codex's and
+`CodexRunner` speaks it; ACP is spoken by `ACPRunner` for the last two, over
+`grok agent --no-leader stdio` as `GROK.md` describes and over `agy acp` as `ANTIGRAVITY.md`
+describes. What differs between those two CLIs, the launch, the shape of a config value, the
+session `_meta` and the mode, is `ACPDialect`, and nothing else in the ACP client asks which agent
+it is talking to. All four answer to `SessionRunner`, and `AgentKind.canRunWorkspaces` is
 the one place that decides which backends a chat can be started on. Cursor and OpenCode are
 detected and configurable and neither has a runner, so neither is offered anywhere a chat is
 started. The UI must say so plainly rather than implying a connected CLI is a usable backend.

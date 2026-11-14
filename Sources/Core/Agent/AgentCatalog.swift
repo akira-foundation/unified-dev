@@ -201,6 +201,14 @@ public actor AgentCatalog {
                 version: version,
                 apiKeyIsSet: !(key ?? "").isEmpty
             )
+        case .antigravity:
+            let result = try? await Shell.run(
+                executablePath,
+                AntigravityModelList.arguments,
+                env: ACPDialect.antigravity.quietEnvironment,
+                timeout: AntigravityModelList.timeout
+            )
+            details = antigravityDetails(reading: result.map(AntigravityModelList.read), version: version)
         case .cursor, .openCode:
             details = []
         }
@@ -400,6 +408,15 @@ public actor AgentCatalog {
             details.append(AgentDetail(label: "API key", value: "Set"))
         }
         return details
+    }
+
+    public static func antigravityDetails(reading: AntigravityModelList.Reading?, version: String?) -> [AgentDetail] {
+        guard case .models = reading else { return [] }
+        return [
+            AgentDetail(label: "Version", value: version ?? unknown),
+            AgentDetail(label: "Provider", value: "Google"),
+            AgentDetail(label: "Login method", value: "Google sign in"),
+        ]
     }
 
     static func grokLoginMethod(_ authMode: String?) -> String {

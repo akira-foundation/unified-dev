@@ -1,10 +1,10 @@
 import Foundation
 
-public enum GrokEvent: Sendable, Hashable {
-    case sessionReady(GrokSession)
-    case update(GrokSessionUpdate)
-    case permission(GrokPermissionRequest)
-    case promptCompleted(GrokPromptResult)
+public enum ACPEvent: Sendable, Hashable {
+    case sessionReady(ACPSession)
+    case update(ACPSessionUpdate)
+    case permission(ACPPermissionRequest)
+    case promptCompleted(ACPPromptResult)
     case closed(reason: String)
     case unknown(method: String, raw: Data)
 
@@ -19,37 +19,37 @@ public enum GrokEvent: Sendable, Hashable {
     }
 }
 
-public struct GrokSession: Sendable, Hashable {
+public struct ACPSession: Sendable, Hashable {
     public let id: String
-    public let models: [GrokModel]
+    public let models: [ACPModel]
     public let currentModelID: String
     public let raw: Data
 
-    public init(id: String, models: [GrokModel] = [], currentModelID: String = "", raw: Data = Data()) {
+    public init(id: String, models: [ACPModel] = [], currentModelID: String = "", raw: Data = Data()) {
         self.id = id
         self.models = models
         self.currentModelID = currentModelID
         self.raw = raw
     }
 
-    public static func decode(_ json: JSONValue, raw: Data = Data()) -> GrokSession? {
+    public static func decode(_ json: JSONValue, raw: Data = Data()) -> ACPSession? {
         guard let id = json["sessionId"]?.stringValue, !id.isEmpty else { return nil }
         let modelsJSON = json["models"] ?? json["_meta"]?["modelState"] ?? .null
-        return GrokSession(
+        return ACPSession(
             id: id,
-            models: GrokModel.decodeList(modelsJSON),
+            models: ACPModel.decodeList(modelsJSON),
             currentModelID: modelsJSON["currentModelId"]?.stringValue ?? "",
             raw: raw
         )
     }
 }
 
-public struct GrokSessionUpdate: Sendable, Hashable {
+public struct ACPSessionUpdate: Sendable, Hashable {
     public enum Kind: Sendable, Hashable {
         case text(String)
         case thought(String)
-        case toolCall(GrokToolCall)
-        case toolCallUpdate(GrokToolCall)
+        case toolCall(ACPToolCall)
+        case toolCallUpdate(ACPToolCall)
         case usage(used: Int, size: Int)
         case other(String)
     }
@@ -58,7 +58,7 @@ public struct GrokSessionUpdate: Sendable, Hashable {
     public let kind: Kind
     public let raw: JSONValue
 
-    public static func decode(params: JSONValue) -> GrokSessionUpdate? {
+    public static func decode(params: JSONValue) -> ACPSessionUpdate? {
         let update = params["update"] ?? params
         guard let type = update["sessionUpdate"]?.stringValue else { return nil }
         let sessionID = params["sessionId"]?.stringValue ?? ""
@@ -69,9 +69,9 @@ public struct GrokSessionUpdate: Sendable, Hashable {
         case "agent_thought_chunk":
             kind = .thought(Self.contentText(update["content"]))
         case "tool_call":
-            kind = .toolCall(GrokToolCall.decode(update, isUpdate: false))
+            kind = .toolCall(ACPToolCall.decode(update, isUpdate: false))
         case "tool_call_update":
-            kind = .toolCallUpdate(GrokToolCall.decode(update, isUpdate: true))
+            kind = .toolCallUpdate(ACPToolCall.decode(update, isUpdate: true))
         case "usage_update":
             kind = .usage(
                 used: update["used"]?.intValue ?? 0,
@@ -80,7 +80,7 @@ public struct GrokSessionUpdate: Sendable, Hashable {
         default:
             kind = .other(type)
         }
-        return GrokSessionUpdate(sessionID: sessionID, kind: kind, raw: update)
+        return ACPSessionUpdate(sessionID: sessionID, kind: kind, raw: update)
     }
 
     static func contentText(_ json: JSONValue?) -> String {
@@ -88,7 +88,7 @@ public struct GrokSessionUpdate: Sendable, Hashable {
     }
 }
 
-public struct GrokToolCall: Sendable, Hashable {
+public struct ACPToolCall: Sendable, Hashable {
     public let id: String
     public let title: String
     public let kind: String
@@ -100,18 +100,18 @@ public struct GrokToolCall: Sendable, Hashable {
     public let path: String
     public let json: JSONValue
 
-    public static func decode(_ json: JSONValue, isUpdate: Bool) -> GrokToolCall {
+    public static func decode(_ json: JSONValue, isUpdate: Bool) -> ACPToolCall {
         let locations = json["locations"]?.arrayValue ?? []
         let path = json["rawInput"]?["path"]?.stringValue
             ?? json["rawInput"]?["file_path"]?.stringValue
             ?? locations.first?["path"]?.stringValue
             ?? ""
-        return GrokToolCall(
+        return ACPToolCall(
             id: json["toolCallId"]?.stringValue ?? "",
             title: json["title"]?.stringValue ?? "",
             kind: json["kind"]?.stringValue ?? "",
             status: json["status"]?.stringValue ?? (isUpdate ? "" : "pending"),
-            toolName: json["toolName"]?.stringValue ?? "",
+            toolName: json["toolName"]?.stringValue ?? json["name"]?.stringValue ?? "",
             rawInput: json["rawInput"] ?? .object([:]),
             rawOutput: json["rawOutput"] ?? .null,
             contentText: contentText(json["content"]),
@@ -143,14 +143,14 @@ public struct GrokToolCall: Sendable, Hashable {
     }
 }
 
-public struct GrokPromptResult: Sendable, Hashable {
-    public let requestID: GrokRequestID
+public struct ACPPromptResult: Sendable, Hashable {
+    public let requestID: ACPRequestID
     public let sessionID: String
     public let stopReason: String
     public let raw: JSONValue
 
     public init(
-        requestID: GrokRequestID,
+        requestID: ACPRequestID,
         sessionID: String,
         stopReason: String,
         raw: JSONValue
@@ -167,14 +167,14 @@ public struct GrokPromptResult: Sendable, Hashable {
     }
 }
 
-public struct GrokPermissionOption: Sendable, Hashable {
+public struct ACPPermissionOption: Sendable, Hashable {
     public let id: String
     public let name: String
     public let kind: String
 
-    public static func decode(_ json: JSONValue) -> GrokPermissionOption? {
+    public static func decode(_ json: JSONValue) -> ACPPermissionOption? {
         guard let id = json["optionId"]?.stringValue, !id.isEmpty else { return nil }
-        return GrokPermissionOption(
+        return ACPPermissionOption(
             id: id,
             name: json["name"]?.stringValue ?? id,
             kind: json["kind"]?.stringValue ?? ""
@@ -185,21 +185,21 @@ public struct GrokPermissionOption: Sendable, Hashable {
     public var isAlways: Bool { kind == "allow_always" || kind == "reject_always" }
 }
 
-public struct GrokPermissionRequest: Sendable, Hashable {
-    public let id: GrokRequestID
+public struct ACPPermissionRequest: Sendable, Hashable {
+    public let id: ACPRequestID
     public let sessionID: String
-    public let toolCall: GrokToolCall
-    public let options: [GrokPermissionOption]
+    public let toolCall: ACPToolCall
+    public let options: [ACPPermissionOption]
     public let raw: Data
 
-    public static func decode(_ request: GrokServerRequest) -> GrokPermissionRequest? {
+    public static func decode(_ request: ACPServerRequest) -> ACPPermissionRequest? {
         guard request.method == "session/request_permission" else { return nil }
         let toolJSON = request.params["toolCall"] ?? .object([:])
-        let options = (request.params["options"]?.arrayValue ?? []).compactMap(GrokPermissionOption.decode)
-        return GrokPermissionRequest(
+        let options = (request.params["options"]?.arrayValue ?? []).compactMap(ACPPermissionOption.decode)
+        return ACPPermissionRequest(
             id: request.id,
             sessionID: request.params["sessionId"]?.stringValue ?? "",
-            toolCall: GrokToolCall.decode(toolJSON, isUpdate: false),
+            toolCall: ACPToolCall.decode(toolJSON, isUpdate: false),
             options: options,
             raw: request.raw
         )

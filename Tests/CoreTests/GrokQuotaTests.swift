@@ -141,7 +141,7 @@ struct GrokQuotaTests {
 
         #expect(await reading.value == nil)
         #expect(watchdogs.asked == [.milliseconds(200), .milliseconds(200)])
-        #expect(GrokQuotaSource.timeout < GrokClient.requestTimeout)
+        #expect(GrokQuotaSource.timeout < ACPClient.requestTimeout)
     }
 
     @Test("a Grok that never finishes the handshake is given up on too", .timeLimit(.minutes(1)))

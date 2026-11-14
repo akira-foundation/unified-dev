@@ -309,9 +309,9 @@ id_type_allowed_files=(
   'Sources/Core/Agent/Codex/CodexEvent.swift'   # the Codex app-server protocol
   'Sources/Core/Agent/Codex/CodexTurnHandle.swift' # turn ids assigned by that server
   'Sources/Core/Agent/Codex/CodexClient.swift'  # the same protocol's request envelopes
-  'Sources/Core/Agent/Grok/GrokEvent.swift'     # Grok's ACP session and tool-call ids
-  'Sources/Core/Agent/Grok/GrokClient.swift'    # the same protocol's request envelopes
-  'Sources/Core/Agent/Grok/GrokRunner.swift'    # Grok session ids assigned by that server
+  'Sources/Core/Agent/ACP/ACPEvent.swift'       # ACP session and tool-call ids, Grok's and Antigravity's
+  'Sources/Core/Agent/ACP/ACPClient.swift'      # the same protocol's request envelopes
+  'Sources/Core/Agent/ACP/ACPRunner.swift'      # ACP session ids assigned by that server
   'Sources/Core/Agent/AgentRetry.swift'   # the same stream-json, one line of it
 )
 # Names that are never a Unified Dev row, wherever they appear. This list should only
@@ -340,7 +340,7 @@ id_type_allowed_lines=(
   'Sources/Core/Presentation/ChatFontCatalogue.swift'          # a font family, which macOS names
   'Sources/Core/Persistence/Settings.swift'                  # a run script named in settings
   'Sources/Core/Agent/Codex/CodexModelCatalog.swift'         # a model name the CLI offers
-  'Sources/Core/Agent/Grok/GrokModelCatalog.swift'           # a model name the CLI offers
+  'Sources/Core/Agent/ACP/ACPModel.swift'                    # a model name the CLI offers
   'Sources/Core/Agent/AgentModel.swift'                      # model and effort names the CLIs offer
   'Sources/Core/Presentation/ComposerEffort.swift'           # the same effort names, and the empty one that means none
   'Sources/Core/System/EditorCatalog.swift'             # an application, by bundle id

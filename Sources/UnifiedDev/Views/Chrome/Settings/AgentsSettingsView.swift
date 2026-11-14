@@ -371,7 +371,7 @@ struct AgentsSettingsView: View {
             if let store = app.store {
                 do {
                     try await store.setSetting(AgentCatalog.executablePathSettingKey(kind), value)
-                    if kind == .grok { ComposerModelCatalog.shared.refresh() }
+                    if AgentModelSource.followsExecutablePath(kind) { ComposerModelCatalog.shared.refresh() }
                     saveFailure = nil
                 } catch {
                     saveFailure = "The executable path for \(kind.label) could not be stored."

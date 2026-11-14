@@ -240,6 +240,7 @@ enum SetupRehearsal {
         claude: SetupOutcome = .ready(detail: "you@example.com"),
         codex: SetupOutcome = .ready(detail: "you@example.com"),
         grok: SetupOutcome = .missing,
+        antigravity: SetupOutcome = .missing,
         gitHub: SetupOutcome = .ready(detail: "Signed in"),
         bitbucket: SetupOutcome = .ready(detail: "Signed in")
     ) -> SetupReport {
@@ -248,6 +249,7 @@ enum SetupRehearsal {
             SetupCheck(tool: .claudeCode, outcome: claude),
             SetupCheck(tool: .codex, outcome: codex),
             SetupCheck(tool: .grok, outcome: grok),
+            SetupCheck(tool: .antigravity, outcome: antigravity),
             SetupCheck(tool: .gitHub, outcome: gitHub),
             SetupCheck(tool: .bitbucket, outcome: bitbucket),
         ])

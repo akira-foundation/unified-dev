@@ -1706,8 +1706,9 @@ final class TranscriptModel {
                 account: account,
                 gitHub: gitHub
             )
-        case .grok:
-            return GrokRunner(
+        case .grok, .antigravity:
+            return ACPRunner(
+                dialect: session.agentKind == .antigravity ? .antigravity : .grok,
                 workspacePath: workspacePath,
                 session: session,
                 store: store,

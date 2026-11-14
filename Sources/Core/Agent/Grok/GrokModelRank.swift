@@ -1,7 +1,7 @@
 import Foundation
 
 public enum GrokModelRank {
-    public static func ordered(_ models: [GrokModel]) -> [GrokModel] {
+    public static func ordered(_ models: [ACPModel]) -> [ACPModel] {
         models.enumerated()
             .sorted { left, right in
                 let a = key(left.element.id)

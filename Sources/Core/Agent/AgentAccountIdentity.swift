@@ -29,7 +29,7 @@ public struct AgentAccountIdentity: Sendable, Hashable {
         switch home.provider {
         case .claudeCode: readClaude(identity: identity, credential: credential)
         case .codex: readCodex(credential: credential)
-        case .grok, .cursor, .openCode: AgentAccountIdentity()
+        case .grok, .antigravity, .cursor, .openCode: AgentAccountIdentity()
         }
     }
 

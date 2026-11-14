@@ -131,7 +131,7 @@ struct OrchestratorUnaskedCommandsTests {
             "command": .string("rg x"), "cwd": .string("/w"), CodexTranslation.itemKey: .object([:]),
         ])
         let grok = JSONValue.object([
-            "command": .string("rg x"), "cmd": .string("rg x"), GrokTranslation.itemKey: .object([:]),
+            "command": .string("rg x"), "cmd": .string("rg x"), ACPTranslation.itemKey: .object([:]),
         ])
         for input in [claude, codex, grok] {
             #expect(OrchestratorToolGuard.answersItself(toolName: "Bash", input: input, worktree: "/w", runsUnasked: true))

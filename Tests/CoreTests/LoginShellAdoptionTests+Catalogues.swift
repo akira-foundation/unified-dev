@@ -108,7 +108,7 @@ extension LoginShellAdoptionTests {
     func grokModelsWaitForTheProbe() async {
         let spawns = await spawnsAfterTheProbe { spawn in
             let catalog = GrokModelCatalog.live(cwd: "/tmp/w", makeClient: { configuration in
-                GrokClient(configuration: configuration, makeProcess: spawn)
+                ACPClient(configuration: configuration, makeProcess: spawn)
             })
             _ = try? await catalog.models()
         }

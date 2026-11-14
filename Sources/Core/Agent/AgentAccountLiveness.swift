@@ -23,7 +23,7 @@ public struct AgentAccountLiveness: Sendable {
             switch provider {
             case .claudeCode: self = .claudeAuthStatus
             case .codex: self = .codexLoginStatus
-            case .grok, .cursor, .openCode: return nil
+            case .grok, .antigravity, .cursor, .openCode: return nil
             }
         }
 

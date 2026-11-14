@@ -78,7 +78,7 @@ public enum AgentAccountRoster {
             }
         case .grok:
             nil
-        case .cursor, .openCode:
+        case .antigravity, .cursor, .openCode:
             "This agent has no setting that gives an account a directory of its own."
         }
     }

@@ -26,17 +26,18 @@ struct RunnerStoredRowsTests {
         let store = try makeTestStore("decided-rows")
         let session = try await decidedRowsSession(store)
         let box = decidedRowsBox()
-        let runner = GrokRunner(
+        let runner = ACPRunner(
+            dialect: .grok,
             workspacePath: "/tmp/w", session: session, store: store,
             segmentID: try await activeSegmentID(store, session),
-            makeClient: { GrokClient(configuration: $0, makeProcess: box.factory) }
+            makeClient: { ACPClient(configuration: $0, makeProcess: box.factory) }
         )
         defer { runner.terminateNow() }
         let feed = try #require(runner.presentationFeed)
         let relay = try #require(runner.storedMessages)
 
         try await runner.send("hello")
-        box.process.emit(GrokOutgoing.notification(method: "session/update", params: .object([
+        box.process.emit(ACPOutgoing.notification(method: "session/update", params: .object([
             "sessionId": .string("s"),
             "update": .object(["sessionUpdate": .string("agent_message_chunk"), "content": .object([
                 "type": .string("text"), "text": .string("Hi there"),

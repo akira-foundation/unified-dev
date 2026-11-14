@@ -32,22 +32,22 @@ struct RepliedInChatTests {
 
     @Test("Grok rejects once and never for good")
     func grokRejectsOnce() {
-        let request = GrokPermissionRequest(
+        let request = ACPPermissionRequest(
             id: .number(3),
             sessionID: "sess-1",
-            toolCall: GrokToolCall.decode(.object([
+            toolCall: ACPToolCall.decode(.object([
                 "toolCallId": .string("call_1"),
                 "toolName": .string("run_terminal_cmd"),
                 "rawInput": .object(["command": .string("ls")]),
             ]), isUpdate: false),
             options: [
-                GrokPermissionOption(id: "allow-once", name: "Allow once", kind: "allow_once"),
-                GrokPermissionOption(id: "reject-always", name: "Never", kind: "reject_always"),
-                GrokPermissionOption(id: "reject-once", name: "Reject", kind: "reject_once"),
+                ACPPermissionOption(id: "allow-once", name: "Allow once", kind: "allow_once"),
+                ACPPermissionOption(id: "reject-always", name: "Never", kind: "reject_always"),
+                ACPPermissionOption(id: "reject-once", name: "Reject", kind: "reject_once"),
             ],
             raw: Data()
         )
 
-        #expect(GrokPermission.optionID(for: PermissionDecision.repliedInChat, in: request) == "reject-once")
+        #expect(ACPPermission.optionID(for: PermissionDecision.repliedInChat, in: request) == "reject-once")
     }
 }

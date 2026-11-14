@@ -1,8 +1,9 @@
 import Foundation
 import Synchronization
 
-public actor GrokClient {
+public actor ACPClient {
     public struct Configuration: Sendable {
+        public var dialect: ACPDialect
         public var executable: String
         public var cwd: String
         public var account: AgentAccountHome?
@@ -15,7 +16,8 @@ public actor GrokClient {
         public var asksEveryCall: Bool
 
         public init(
-            executable: String = GrokClient.executable,
+            dialect: ACPDialect,
+            executable: String,
             cwd: String,
             account: AgentAccountHome? = nil,
             clientName: String = "Unified Dev",
@@ -26,6 +28,7 @@ public actor GrokClient {
             alwaysApprove: Bool = false,
             asksEveryCall: Bool = false
         ) {
+            self.dialect = dialect
             self.executable = executable
             self.cwd = cwd
             self.account = account
@@ -39,25 +42,17 @@ public actor GrokClient {
         }
     }
 
-    public static let executable = "grok"
-    public static let arguments = ["agent", "--no-leader", "stdio"]
-
     public static func launch(_ configuration: Configuration) -> AgentLaunch {
-        var arguments: [String] = ["agent"]
-        if configuration.alwaysApprove { arguments.append("--always-approve") }
-        if !configuration.model.isEmpty {
-            arguments += ["--model", configuration.model]
-        }
-        if !configuration.effort.isEmpty {
-            arguments += ["--reasoning-effort", configuration.effort]
-        }
-        arguments += ["--no-leader", "stdio"]
-        return AgentLaunch(
+        AgentLaunch(
             executable: configuration.executable,
-            arguments: arguments,
+            arguments: configuration.dialect.arguments(
+                model: configuration.model,
+                effort: configuration.effort,
+                alwaysApprove: configuration.alwaysApprove
+            ),
             cwd: configuration.cwd,
             environment: AgentAccountEnvironment.apply(configuration.account, to: configuration.environment)
-                .merging(["GROK_DISABLE_AUTOUPDATER": "1"]) { _, ours in ours }
+                .merging(configuration.dialect.quietEnvironment) { _, ours in ours }
         )
     }
 
@@ -70,22 +65,22 @@ public actor GrokClient {
     private var stderrTask: Task<Void, Never>?
 
     private var nextRequestID = 1
-    private var pending: [GrokRequestID: CheckedContinuation<JSONValue, Error>] = [:]
-    private var promptIDs: Set<GrokRequestID> = []
+    private var pending: [ACPRequestID: CheckedContinuation<JSONValue, Error>] = [:]
+    private var promptIDs: Set<ACPRequestID> = []
     private var handshakeCompleted = false
     private var closedReason: String?
-    private var advertised: [GrokModel] = []
+    private var advertised: [ACPModel] = []
     private var currentModelID = ""
 
     private var stderrTail: [String] = []
     private static let stderrTailLimit = 40
 
-    private let sink = EventFanout<GrokEvent>()
+    private let sink = EventFanout<ACPEvent>()
 
     public init(
         configuration: Configuration,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = GrokClient.spawn,
-        watchdogSleep: @escaping @Sendable (Duration) async throws -> Void = GrokClient.taskSleep
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = ACPClient.spawn,
+        watchdogSleep: @escaping @Sendable (Duration) async throws -> Void = ACPClient.taskSleep
     ) {
         self.configuration = configuration
         self.makeProcess = makeProcess
@@ -104,7 +99,7 @@ public actor GrokClient {
         )
     }
 
-    public nonisolated var events: AsyncStream<GrokEvent> { sink.stream() }
+    public nonisolated var events: AsyncStream<ACPEvent> { sink.stream() }
 
     public var isRunning: Bool { process?.isRunning ?? false }
 
@@ -116,11 +111,11 @@ public actor GrokClient {
 
     public var diagnostics: [String] { stderrTail }
 
-    public func advertisedModels() -> [GrokModel] { advertised }
+    public func advertisedModels() -> [ACPModel] { advertised }
 
     public static let requestTimeout = Duration.seconds(120)
 
-    public func start(timeout: Duration = GrokClient.requestTimeout) async throws {
+    public func start(timeout: Duration = ACPClient.requestTimeout) async throws {
         guard process == nil else { return }
 
         let process = makeProcess(Self.launch(configuration))
@@ -145,7 +140,7 @@ public actor GrokClient {
             timeout: timeout
         )
         let modelState = result["_meta"]?["modelState"] ?? .null
-        advertised = GrokModel.decodeList(modelState)
+        advertised = ACPModel.decodeList(modelState)
         currentModelID = modelState["currentModelId"]?.stringValue ?? ""
         notify("initialized", params: .object([:]))
         handshakeCompleted = true
@@ -153,7 +148,7 @@ public actor GrokClient {
 
     public func stop() {
         terminateNow()
-        finish(reason: "The Grok connection was closed")
+        finish(reason: "The \(configuration.dialect.name) connection was closed")
     }
 
     public nonisolated func terminateNow() {
@@ -169,12 +164,12 @@ public actor GrokClient {
 
     @discardableResult
     public func send(
-        _ method: String, params: JSONValue?, timeout: Duration = GrokClient.requestTimeout
+        _ method: String, params: JSONValue?, timeout: Duration = ACPClient.requestTimeout
     ) async throws -> JSONValue {
-        if let closedReason { throw GrokClientError.connectionClosed(closedReason) }
-        guard process != nil else { throw GrokClientError.notInitialized }
+        if let closedReason { throw ACPClientError.connectionClosed(closedReason) }
+        guard process != nil else { throw ACPClientError.notInitialized }
 
-        let id = GrokRequestID.number(nextRequestID)
+        let id = ACPRequestID.number(nextRequestID)
         nextRequestID += 1
 
         let watchdog = Task { [weak self, watchdogSleep] in
@@ -185,25 +180,25 @@ public actor GrokClient {
 
         return try await withCheckedThrowingContinuation { continuation in
             pending[id] = continuation
-            write(GrokOutgoing.request(id: id, method: method, params: params))
+            write(ACPOutgoing.request(id: id, method: method, params: params))
         }
     }
 
-    private func abandon(_ id: GrokRequestID, method: String, after timeout: Duration) {
+    private func abandon(_ id: ACPRequestID, method: String, after timeout: Duration) {
         guard let continuation = pending.removeValue(forKey: id) else { return }
         continuation.resume(
-            throwing: GrokClientError.timedOut(
+            throwing: ACPClientError.timedOut(
                 method: method, seconds: Int(timeout.components.seconds)
             )
         )
     }
 
     public func notify(_ method: String, params: JSONValue?) {
-        write(GrokOutgoing.notification(method: method, params: params))
+        write(ACPOutgoing.notification(method: method, params: params))
     }
 
-    public func answer(_ id: GrokRequestID, with result: JSONValue) {
-        write(GrokOutgoing.response(id: id, result: result))
+    public func answer(_ id: ACPRequestID, with result: JSONValue) {
+        write(ACPOutgoing.response(id: id, result: result))
     }
 
     private func write(_ line: String) {
@@ -214,15 +209,15 @@ public actor GrokClient {
         cwd: String? = nil,
         mcpServers: [JSONValue] = [],
         permissionMode: PermissionMode = .auto
-    ) async throws -> GrokSession {
+    ) async throws -> ACPSession {
         let result = try await send("session/new", params: sessionParams(
             sessionID: nil,
             cwd: cwd,
             mcpServers: mcpServers,
             permissionMode: permissionMode
         ))
-        guard let session = GrokSession.decode(result) else {
-            throw GrokClientError.unexpectedResult(method: "session/new")
+        guard let session = ACPSession.decode(result) else {
+            throw ACPClientError.unexpectedResult(method: "session/new")
         }
         if !session.models.isEmpty { advertised = session.models }
         return session
@@ -233,36 +228,36 @@ public actor GrokClient {
         cwd: String? = nil,
         mcpServers: [JSONValue] = [],
         permissionMode: PermissionMode = .auto
-    ) async throws -> GrokSession {
+    ) async throws -> ACPSession {
         let result = try await send("session/resume", params: sessionParams(
             sessionID: sessionID,
             cwd: cwd,
             mcpServers: mcpServers,
             permissionMode: permissionMode
         ))
-        if let session = GrokSession.decode(result) {
+        if let session = ACPSession.decode(result) {
             if !session.models.isEmpty { advertised = session.models }
             return session
         }
-        return GrokSession(id: sessionID, models: advertised, currentModelID: currentModelID)
+        return ACPSession(id: sessionID, models: advertised, currentModelID: currentModelID)
     }
 
     public func setConfigOption(sessionID: String, configID: String, value: String) async throws {
         _ = try await send("session/set_config_option", params: .object([
             "sessionId": .string(sessionID),
             "configId": .string(configID),
-            "value": .object(["value": .string(value)]),
+            "value": configuration.dialect.configValue(value),
         ]))
     }
 
     @discardableResult
-    public func beginPrompt(sessionID: String, text: String) throws -> GrokRequestID {
-        if let closedReason { throw GrokClientError.connectionClosed(closedReason) }
-        guard process != nil else { throw GrokClientError.notInitialized }
-        let id = GrokRequestID.number(nextRequestID)
+    public func beginPrompt(sessionID: String, text: String) throws -> ACPRequestID {
+        if let closedReason { throw ACPClientError.connectionClosed(closedReason) }
+        guard process != nil else { throw ACPClientError.notInitialized }
+        let id = ACPRequestID.number(nextRequestID)
         nextRequestID += 1
         promptIDs.insert(id)
-        write(GrokOutgoing.request(
+        write(ACPOutgoing.request(
             id: id,
             method: "session/prompt",
             params: .object([
@@ -301,8 +296,10 @@ public actor GrokClient {
         var members: [String: JSONValue?] = [
             "cwd": .string(cwd ?? configuration.cwd),
             "mcpServers": .array(mcpServers),
-            "_meta": Self.sessionMeta(permissionMode, asksEveryCall: configuration.asksEveryCall),
         ]
+        if configuration.dialect.sendsSessionMeta {
+            members["_meta"] = Self.sessionMeta(permissionMode, asksEveryCall: configuration.asksEveryCall)
+        }
         if let sessionID { members["sessionId"] = .string(sessionID) }
         return .object(omittingNil: members)
     }
@@ -310,10 +307,10 @@ public actor GrokClient {
     private func readLines(from lines: AsyncThrowingStream<String, Error>) async {
         do {
             for try await line in lines {
-                guard let frame = GrokFrame.decode(line: line) else { continue }
+                guard let frame = ACPFrame.decode(line: line) else { continue }
                 handle(frame)
             }
-            finish(reason: "The Grok process ended")
+            finish(reason: "The \(configuration.dialect.name) process ended")
         } catch {
             finish(reason: error.readableMessage)
         }
@@ -326,11 +323,11 @@ public actor GrokClient {
         }
     }
 
-    private func handle(_ frame: GrokFrame) {
+    private func handle(_ frame: ACPFrame) {
         switch frame {
         case .response(let id, let result, _):
             if promptIDs.remove(id) != nil {
-                sink.yield(.promptCompleted(GrokPromptResult(
+                sink.yield(.promptCompleted(ACPPromptResult(
                     requestID: id,
                     sessionID: result["sessionId"]?.stringValue ?? "",
                     stopReason: result["stopReason"]?.stringValue ?? "end_turn",
@@ -342,7 +339,7 @@ public actor GrokClient {
 
         case .failure(let id, let error, _):
             if promptIDs.remove(id) != nil {
-                sink.yield(.promptCompleted(GrokPromptResult(
+                sink.yield(.promptCompleted(ACPPromptResult(
                     requestID: id,
                     sessionID: "",
                     stopReason: "refusal",
@@ -353,10 +350,10 @@ public actor GrokClient {
             pending.removeValue(forKey: id)?.resume(throwing: error)
 
         case .request(let request):
-            if let permission = GrokPermissionRequest.decode(request) {
+            if let permission = ACPPermissionRequest.decode(request) {
                 sink.yield(.permission(permission))
             } else {
-                write(GrokOutgoing.failure(
+                write(ACPOutgoing.failure(
                     id: request.id,
                     code: -32601,
                     message: "Unified Dev does not implement \(request.method)"
@@ -365,7 +362,7 @@ public actor GrokClient {
 
         case .notification(let notification):
             if notification.method == "session/update",
-               let update = GrokSessionUpdate.decode(params: notification.params) {
+               let update = ACPSessionUpdate.decode(params: notification.params) {
                 sink.yield(.update(update))
             } else {
                 sink.yield(.unknown(method: notification.method, raw: notification.raw))
@@ -383,7 +380,7 @@ public actor GrokClient {
         let waiters = pending
         pending.removeAll()
         for (_, continuation) in waiters {
-            continuation.resume(throwing: GrokClientError.connectionClosed(reason))
+            continuation.resume(throwing: ACPClientError.connectionClosed(reason))
         }
         promptIDs.removeAll()
 

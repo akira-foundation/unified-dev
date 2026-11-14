@@ -6,7 +6,7 @@ public enum ProviderMark {
         case .claudeCode: claude
         case .codex: codex
         case .grok: grok
-        case .cursor, .openCode: nil
+        case .antigravity, .cursor, .openCode: nil
         }
     }
 

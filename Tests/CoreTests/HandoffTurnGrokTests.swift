@@ -85,7 +85,7 @@ struct HandoffTurnGrokTests: HandoffTurnRunnerFixture {
             ]),
         ])
 
-        box.process.emit(GrokOutgoing.notification(method: "session/update", params: update))
+        box.process.emit(ACPOutgoing.notification(method: "session/update", params: update))
         box.process.emit(#"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"sess-1","update":{"sessionUpdate":"tool_call","toolCallId":"t1","title":"ls","kind":"execute","status":"in_progress"}}}"#)
 
         await waitUntil("the first reply to confirm", within: .seconds(60)) {

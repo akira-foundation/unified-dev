@@ -85,7 +85,7 @@ struct AgentLaunchAccountTests {
     }
 
     @Test func theGrokLaunchCarriesTheAccountHome() {
-        let launch = GrokClient.launch(.init(cwd: "/w", account: workGrok, environment: LaunchAccountFixture.inherited))
+        let launch = ACPClient.launch(.init(dialect: .grok, executable: "grok", cwd: "/w", account: workGrok, environment: LaunchAccountFixture.inherited))
         #expect(launch.environment["GROK_HOME"] == workGrok.directory.path)
         #expect(launch.environment["GROK_DISABLE_AUTOUPDATER"] == "1")
         LaunchAccountFixture.expectClean(launch.environment)
@@ -98,7 +98,7 @@ struct AgentLaunchAccountTests {
     }
 
     @Test func aGrokLaunchWithNoAccountStillStrips() {
-        let launch = GrokClient.launch(.init(cwd: "/w", account: nil, environment: LaunchAccountFixture.inherited))
+        let launch = ACPClient.launch(.init(dialect: .grok, executable: "grok", cwd: "/w", account: nil, environment: LaunchAccountFixture.inherited))
         #expect(launch.environment["GROK_HOME"] == nil)
         #expect(launch.environment["GROK_DISABLE_AUTOUPDATER"] == "1")
         LaunchAccountFixture.expectClean(launch.environment)

@@ -35,7 +35,7 @@ public struct SetupProbe: Sendable {
     public func check(_ tool: SetupTool) async -> SetupCheck {
         switch tool {
         case .git: await SetupCheck(tool: tool, outcome: gitOutcome())
-        case .claudeCode, .codex, .grok: await SetupCheck(tool: tool, outcome: agentOutcome(tool))
+        case .claudeCode, .codex, .grok, .antigravity: await SetupCheck(tool: tool, outcome: agentOutcome(tool))
         case .gitHub: await SetupCheck(tool: tool, outcome: gitHubOutcome())
         case .bitbucket: await SetupCheck(tool: tool, outcome: bitbucketOutcome())
         }

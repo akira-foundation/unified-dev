@@ -65,13 +65,14 @@ private func codexAuthFile(
 struct AgentCatalogTests {
     @Test("describes every agent kind")
     func describesKinds() {
-        #expect(AgentKind.allCases.map(\.label) == ["Claude Code", "Codex", "Grok", "Cursor", "OpenCode"])
-        #expect(AgentKind.allCases.map(\.executableName) == ["claude", "codex", "grok", "cursor-agent", "opencode"])
-        #expect(AgentKind.allCases.filter(\.canRunWorkspaces) == [.claudeCode, .codex, .grok])
-        #expect(AgentKind.runnableSentence == "Claude Code, Codex and Grok")
+        #expect(AgentKind.allCases.map(\.label) == ["Claude Code", "Codex", "Grok", "Antigravity", "Cursor", "OpenCode"])
+        #expect(AgentKind.allCases.map(\.executableName) == ["claude", "codex", "grok", "agy", "cursor-agent", "opencode"])
+        #expect(AgentKind.allCases.filter(\.canRunWorkspaces) == [.claudeCode, .codex, .grok, .antigravity])
+        #expect(AgentKind.runnableSentence == "Claude Code, Codex, Grok and Antigravity")
         #expect(AgentKind.claudeCode.loginCommand == "claude auth login")
         #expect(AgentKind.codex.loginCommand == "codex login")
         #expect(AgentKind.grok.loginCommand == "grok login")
+        #expect(AgentKind.antigravity.loginCommand == "agy acp --login")
         #expect(AgentKind.codex.configPath.hasSuffix("/.codex/config.toml"))
         #expect(AgentKind.claudeCode.configPath.hasSuffix("/.claude/settings.json"))
         #expect(AgentKind.grok.configPath.hasSuffix("/.grok/config.toml"))

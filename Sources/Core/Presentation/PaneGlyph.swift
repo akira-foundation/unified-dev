@@ -24,6 +24,7 @@ public enum PaneGlyph {
         case .claudeCode: "asterisk"
         case .codex: "circle.hexagongrid"
         case .grok: "sparkles"
+        case .antigravity: "atom"
         case .cursor: "cursorarrow"
         case .openCode: "chevron.left.forwardslash.chevron.right"
         }

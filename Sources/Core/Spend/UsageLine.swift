@@ -13,7 +13,7 @@ public enum UsageLine {
             ClaudeUsageLine.record(in: bytes, from: start, to: end)
         case .codex:
             CodexUsageLine.record(in: bytes, from: start, to: end, carry: &carry)
-        case .grok, .cursor, .openCode:
+        case .grok, .antigravity, .cursor, .openCode:
             nil
         }
     }
