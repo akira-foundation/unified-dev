@@ -18,7 +18,7 @@ struct MarkdownCodeHeader: View {
                 .foregroundStyle(Palette.textTertiary)
             Spacer(minLength: MarkdownMetrics.blockGap)
             HStack(spacing: Metrics.spacing) {
-                if let command, canRun, let run = actions.runCommand, actions.mayRunCommand(command) {
+                if let command, canRun, let run = actions.runCommand {
                     CodeBlockRunButtons(
                         command: command,
                         isRunning: actions.commandRun(command)?.isRunning == true,

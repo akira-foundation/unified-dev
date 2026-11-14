@@ -1,0 +1,56 @@
+{
+  "welcome": false,
+  "projects": [
+    {
+      "name": "lantern",
+      "files": {
+        "README.md": "# Lantern\n",
+        "notes/wick.md": "Trim the wick before lighting.\n"
+      },
+      "commits": [
+        "Hang the lantern"
+      ],
+      "workspaces": [
+        {
+          "name": "Keeper",
+          "branch": "keeper",
+          "orchestrator": true,
+          "chats": [
+            {
+              "title": "Commands",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "The wick worktree is gone. What do I run?"
+                },
+                {
+                  "from": "agent",
+                  "text": "First, a read, which runs at once:\n\n```bash\ngit log --oneline -3\n```\n\nThen recreate the worktree. This one writes, so it asks first:\n\n```bash\ngit worktree add \\\n  ../wick-recovered \\\n  -b wick-recovered\n```\n\nAnd one more write, to cancel:\n\n```sh\ntouch notes/lit.md\n```"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Wick",
+          "branch": "wick",
+          "chats": [
+            {
+              "title": "Commands",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Leave a mark in this worktree."
+                },
+                {
+                  "from": "agent",
+                  "text": "This is not an orchestrator, so it runs without asking, as before:\n\n```sh\ntouch notes/mark.md && ls notes\n```"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

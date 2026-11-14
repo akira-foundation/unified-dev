@@ -196,10 +196,6 @@ enum TranscriptLink {
                 return PromptAttachment.sent(path: target.path).url(in: target.worktree)
             },
             runCommand: runCommand(in: model, session: session),
-            mayRunCommand: { command in
-                guard let model else { return false }
-                return CodeBlockRunStore.shared.mayRun(command, of: model)
-            },
             stopCommand: { command in
                 guard let session else { return }
                 CodeBlockRunStore.shared.stop(command, in: session)

@@ -1583,8 +1583,11 @@ What happens to the rest depends on the agent:
 | Codex | Runs in the read only sandbox, and reaches the owner only when it asks to leave it. It is answered only when the request is a command request about running that command, names the command a known item runs, and carries no field beyond those known to change nothing about what runs; anything else goes to the owner, including a field added by a later version of Codex. A command Codex wraps in its own shell is never answered | No approval request exists for an MCP tool call, so nothing here judges one |
 | Grok | Asked on every call | Asked, and so are the bridge's own tools, since only Claude's runner answers those |
 
-The same judge decides the Run button on a code block: in an orchestrator it is offered only for a
-command on the list, through `CodeBlockCommand.mayRun`, and the copy button stays.
+The same judge decides the Run button on a code block, which only the owner presses. In an
+orchestrator a command on the list runs at once, and any other command first opens an alert showing
+the whole command, continuation lines included, the folder it runs in and that it may change files;
+it runs only when the owner confirms, and cancelling runs nothing. `CodeBlockLaunch.of` takes that
+decision. Outside an orchestrator the button runs what the reply showed, as it always has.
 
 ### Running commands without asking
 
