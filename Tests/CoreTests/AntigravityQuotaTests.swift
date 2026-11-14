@@ -63,7 +63,7 @@ struct AntigravityQuotaTests {
     func asksTheUsageCommand() async throws {
         let calls = CallCount()
         let payload = try #require(await source(replying: AntigravityWire.usageReply, calls: calls).read())
-        #expect(calls.calls == [["-p", "/usage", "--output-format", "json", "--print-timeout", "20s"]])
+        #expect(calls.calls == [["-p", "/usage", "--output-format", "json", "--print-timeout", "10s"]])
         #expect(AgentQuotaAdapters.quotas(fromRateLimitEvent: payload, at: now).count == 2)
     }
 
@@ -82,8 +82,44 @@ struct AntigravityQuotaTests {
 
     @Test("a failed or signed out agy is unanswered rather than read as an empty quota")
     func failureIsUnanswered() async {
-        #expect(await source(replying: "", status: 1).read() == nil)
-        #expect(await source(replying: "not json").read() == nil)
+        let refusal = AntigravityUsageRefusal()
+        #expect(await source(replying: "", status: 1, refusal: refusal).read() == nil)
+        #expect(await source(replying: "not json", refusal: refusal).read() == nil)
+        let error = #"{"status":"ERROR","num_turns":0,"usage":{"total_tokens":0}}"#
+        #expect(await source(replying: error, refusal: refusal).read() == nil)
+        #expect(!refusal.hasRefused)
+    }
+
+    @Test("a turn is refused whether it ended well, failed, or carried the usage command's name")
+    func everyTurnIsRefused() {
+        let turns = [
+            (#"{"status":"ERROR","num_turns":1}"#, Int32(1)),
+            (#"{"status":"SUCCESS","num_turns":0,"usage":{"total_tokens":42}}"#, Int32(0)),
+            (#"{"command":{"name":"usage"},"num_turns":1}"#, Int32(0)),
+        ]
+        for (stdout, status) in turns {
+            let reading = AntigravityQuotaSource.reading(ShellResult(status: status, stdout: stdout, stderr: ""))
+            #expect(reading == .ranATurn, "\(stdout)")
+        }
+    }
+
+    @Test("a run that never finished is taken for a turn and not asked again")
+    func timeoutIsRefused() async {
+        let refusal = AntigravityUsageRefusal()
+        let hung = AntigravityQuotaSource(
+            executable: "/bin/agy", refusal: refusal, run: { _, _, _ in nil }, loginShellReady: {}
+        )
+        #expect(await hung.read() == AntigravityQuotaSource.reportsNothing)
+        #expect(refusal.hasRefused)
+    }
+
+    @Test("a read that overlaps one in flight does not start a second agy")
+    func overlappingReadsAreSerialised() {
+        let refusal = AntigravityUsageRefusal()
+        #expect(refusal.admit())
+        #expect(!refusal.admit())
+        refusal.finish(refusing: false)
+        #expect(refusal.admit())
     }
 
     @Test("Antigravity's limits show in the panel and its mark is the official one")

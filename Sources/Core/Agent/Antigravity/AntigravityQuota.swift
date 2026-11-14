@@ -5,9 +5,9 @@ public struct AntigravityQuotaSource: AgentQuotaSource {
 
     public static let provider = AgentKind.antigravity
 
-    public static let arguments = ["-p", "/usage", "--output-format", "json", "--print-timeout", "20s"]
+    public static let arguments = ["-p", "/usage", "--output-format", "json", "--print-timeout", "10s"]
 
-    public static let timeout = Duration.seconds(30)
+    public static let timeout = Duration.seconds(20)
 
     static let reportsNothing = Data("{}".utf8)
 
@@ -54,15 +54,29 @@ public struct AntigravityQuotaSource: AgentQuotaSource {
     }
 
     public func read() async -> Data? {
-        guard !refusal.hasRefused else { return Self.reportsNothing }
+        guard refusal.admit() else { return refusal.hasRefused ? Self.reportsNothing : nil }
         await loginShellReady()
-        guard let result = await run(executable, Self.arguments, cwd), result.ok else { return nil }
-        guard let reply = JSONValue.parse(Data(result.stdout.utf8)) else { return nil }
-        guard AntigravityQuotaAdapter.isUsageCommand(reply) else {
-            refusal.refuse()
-            return Self.reportsNothing
+        let reading = Self.reading(await run(executable, Self.arguments, cwd))
+        refusal.finish(refusing: reading == .ranATurn)
+        switch reading {
+        case .usage(let payload): return payload
+        case .ranATurn: return Self.reportsNothing
+        case .unanswered: return nil
         }
-        return Data(result.stdout.utf8)
+    }
+
+    enum Reading: Equatable {
+        case usage(Data)
+        case ranATurn
+        case unanswered
+    }
+
+    static func reading(_ result: ShellResult?) -> Reading {
+        guard let result else { return .ranATurn }
+        let payload = Data(result.stdout.utf8)
+        guard let reply = JSONValue.parse(payload) else { return .unanswered }
+        if AntigravityQuotaAdapter.ranATurn(reply) { return .ranATurn }
+        return result.ok && AntigravityQuotaAdapter.isUsageCommand(reply) ? .usage(payload) : .unanswered
     }
 
     public func account(from payload: Data, at now: Date) -> AgentAccount? { nil }
@@ -71,6 +85,7 @@ public struct AntigravityQuotaSource: AgentQuotaSource {
 public final class AntigravityUsageRefusal: @unchecked Sendable {
     private let lock = NSLock()
     private var refused = false
+    private var asking = false
 
     public init() {}
 
@@ -80,9 +95,18 @@ public final class AntigravityUsageRefusal: @unchecked Sendable {
         return refused
     }
 
-    func refuse() {
+    func admit() -> Bool {
         lock.lock()
-        refused = true
+        defer { lock.unlock() }
+        guard !refused, !asking else { return false }
+        asking = true
+        return true
+    }
+
+    func finish(refusing: Bool) {
+        lock.lock()
+        asking = false
+        refused = refused || refusing
         lock.unlock()
     }
 }
@@ -93,7 +117,11 @@ public enum AntigravityQuotaAdapter: AgentQuotaAdapter {
     static let week: TimeInterval = 604_800
 
     static func isUsageCommand(_ reply: JSONValue) -> Bool {
-        reply["command"]?["name"]?.stringValue == "usage" && (reply["num_turns"]?.intValue ?? 0) == 0
+        reply["command"]?["name"]?.stringValue == "usage" && !ranATurn(reply)
+    }
+
+    static func ranATurn(_ reply: JSONValue) -> Bool {
+        (reply["num_turns"]?.intValue ?? 0) > 0 || (reply["usage"]?["total_tokens"]?.intValue ?? 0) > 0
     }
 
     public static func quotas(from line: JSONValue, at now: Date) -> [AgentQuota] {
