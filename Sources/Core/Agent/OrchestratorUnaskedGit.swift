@@ -24,7 +24,7 @@ enum OrchestratorUnaskedGit {
     }
     private static let ghFlagsThatWait = ["--watch", "--interval"]
     private static let ghCommandsThatOnlyRead: Set<String> = ["search", "api", "status"]
-    private static let ghWritingFlags = ["--method", "--field", "--raw-field", "--input"]
+    private static let ghWritingFlags = ["--method", "--field", "--raw-field", "--input", "--cache"]
     private static let ghWritingShortFlags = "XFf"
     private static let ghVerbsWhereShortWIsNotTheBrowser: Set<String> = ["run list"]
 

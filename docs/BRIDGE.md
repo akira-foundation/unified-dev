@@ -1643,12 +1643,17 @@ worktree, and that limit holds for the read list above as well, switch on or off
 argument, the value after `=`, `@` or `:` in one, the words of a nested shell and of a command
 substitution, and the target of each change of directory, and resolves each one on disk with
 `WorktreePathResolver` before deciding, so a link inside the worktree is judged by where it really
-leads and `~` by the home it names. A change of directory passes only into a directory inside the
-worktree with no link below it that leads out, since the shell may keep that directory for the next
-command. Anything whose path is only known at run time asks: an expansion handed to a program that
-reads files, a glob that matches a link out, a program fed its arguments by another, and the flags that
-make `find`, `grep`, `rg`, `tree`, `ls`, `du` and `diff` follow links as they walk. Outside the
-worktree, or in doubt, it asks rather than refusing.
+leads and `~` by the home it names. The search pattern of `grep` and `rg`, the script of `sed` and
+the endpoint of `gh api` are not paths and are left out, and only where the words before them leave
+no doubt which word that is. A change of directory passes only with one operand that names an existing
+directory inside the worktree explicitly, from `/`, `./` or `../`, so that no search path the shell
+keeps can send it elsewhere, and only when no link below that directory leads out. The orchestrator's
+Claude is launched with `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` set, so each command starts from the
+worktree again; Codex and Grok name the directory of every command, and it has to be the worktree.
+Anything whose path is only known at run time asks: an expansion handed to a program that reads files,
+a glob that matches a link out, a program fed its arguments by another, a list of files to check read
+from a file, and the flags that make `find`, `grep`, `rg`, `tree`, `ls`, `du` and `diff` follow links
+as they walk. Outside the worktree, or in doubt, it asks rather than refusing.
 
 The judge reads words and runs nothing, and a `gh` read or `git fetch` reaches GitHub, or the host a
 remote names, with what it is given. That is the cost of the switch being on, along with the one

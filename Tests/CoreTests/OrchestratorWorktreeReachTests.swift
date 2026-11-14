@@ -38,9 +38,12 @@ struct OrchestratorWorktreeReachTests {
 
     @Test("a read of a path inside the worktree passes", arguments: [
         "cat README.md", "cat src/a.txt", "cat ./src/../README.md", "cat inner-link", "ls", "ls src", "rg x src",
-        "head -n 5 README.md", "cat src/*.txt", "cd src && cat a.txt", "cd clean && ls deeper", "git show HEAD:README.md",
+        "head -n 5 README.md", "cat src/*.txt", "cd ./src && cat a.txt", "cd ./clean && ls deeper", "git show HEAD:README.md",
         "git log -1", "sed -n '/x/p' README.md", "echo \"$(git status)\"", "gh api /repos/o/r/pulls",
         "gh pr view https://github.com/o/r/pull/1", "wc -l README.md src/a.txt", "rg -g '*.swift' x", "grep -rn x src",
+        "rg \"count == 0\" src", "rg \"// TODO\" src", "grep -n \"=>\" README.md", "ls -d .*", "rg 'let .* = ' src",
+        "git log --oneline | awk '{print $1}'", "rg 'return nil$' src", "gh api /repos/o/r/pulls --paginate",
+        "rg -e /api src", "sed -e '/x/p' README.md", "for i in 1 2; do cd .; done; ls",
     ])
     func insidePasses(_ command: String) throws {
         let fixture = try Fixture()
@@ -53,6 +56,11 @@ struct OrchestratorWorktreeReachTests {
         let fixture = try Fixture()
         #expect(fixture.answers("cat \(fixture.worktree)/README.md"))
         #expect(fixture.answers("cd \(fixture.worktree)/src && cat a.txt"))
+        let resolved = WorktreePathResolver(worktree: fixture.worktree).root
+        #expect(OrchestratorToolGuard.answersItself(
+            toolName: "Shell", input: .object(["command": .string("ls"), "cwd": .string(resolved)]),
+            worktree: fixture.worktree, runsUnasked: true
+        ))
     }
 
     @Test("a read that names a path outside the worktree asks", arguments: [
@@ -60,6 +68,8 @@ struct OrchestratorWorktreeReachTests {
         "cat </etc/hosts", "rg --ignore-file=/etc/hosts y", "grep -f/etc/hosts x", "grep -f ../x y",
         "tar -tf /tmp/x.tar", "git log -- /etc", "git show HEAD:../x", "diff README.md /etc/hosts",
         "jq -n 'include \"/etc/x\"; 1'", "head -n1 file:///etc/hosts", "cat =ls", "realpath ..", "stat ~/.zshrc",
+        "sed --expression=p /etc/hosts", "sed --expression=p ~/x", "sed -n p ../x", "grep -f /etc/hosts x",
+        "rg --ignore-file /etc/hosts x", "grep -e x /etc/hosts", "rg -- x /etc/hosts",
     ])
     func outsideAsks(_ command: String) throws {
         let fixture = try Fixture()
@@ -78,8 +88,9 @@ struct OrchestratorWorktreeReachTests {
     }
 
     @Test("a change of directory passes only into a directory with no way out below it", arguments: [
-        "cd .. && cat x", "cd", "cd -", "cd /tmp && ls", "cd ~ && ls", "cd trap && ls", "cd trap", "pushd trap",
-        "popd", "cd $HOME && ls", "builtin cd ..",
+        "cd .. && cat x", "cd", "cd -", "cd /tmp && ls", "cd ~ && ls", "cd ./trap && ls", "cd ./trap", "pushd ./trap",
+        "popd", "cd $HOME && ls", "builtin cd ..", "cd src && ls", "cd ./src ./clean && ls", "cd ./missing && ls",
+        "cd +1", "cd ./README.md",
     ])
     func directoryChangeOutAsks(_ command: String) throws {
         let fixture = try Fixture()
@@ -90,7 +101,9 @@ struct OrchestratorWorktreeReachTests {
         "sh -c 'cat /etc/hosts'", "bash -c \"cat \\/etc/hosts\"", "sh -c 'cd .. && cat x'", "cat $(echo x)",
         "cat $HOME/x", "cat \"$HOME\"/x", "ls | xargs cat", "find . -type l -exec cat {} ;", "find -L . -name x",
         "rg -L x", "rg --follow x", "grep -R x .", "tree -l", "ls -LR", "du -L", "diff -r src clean",
-        "for f in *; do cat \"$f\"; done",
+        "for f in *; do cat \"$f\"; done", "echo $HOME/*", "printf '%s' $PWD/../*", "shasum -c sums.txt",
+        "cksum --check sums.txt", "find -H . -name x", "find . -follow", "grep -S x .", "ls --dereference x",
+        "egrep -R x .",
     ])
     func indirectionAsks(_ command: String) throws {
         let fixture = try Fixture()
@@ -100,10 +113,11 @@ struct OrchestratorWorktreeReachTests {
     @Test("gh and git reading a local file outside the worktree ask", arguments: [
         "gh api repos/o/r --input /etc/hosts", "gh api -F body=@/etc/hosts repos/o/r", "gh api -F body=@../x repos/o/r",
         "gh pr view 1 --template \"$(cat /etc/hosts)\"", "git -C /tmp status", "git show HEAD -- /etc/hosts",
-        "git diff --no-index README.md /etc/hosts", "git grep -f /etc/hosts",
+        "git diff --no-index README.md /etc/hosts", "git grep -f /etc/hosts", "git log -- ../x", "git diff HEAD -- ~/.zshrc",
     ])
     func ghAndGitOutsideAsk(_ command: String) throws {
         let fixture = try Fixture()
+        #expect(fixture.verdict(command) == .asks)
         #expect(!fixture.answers(command))
     }
 
@@ -116,5 +130,12 @@ struct OrchestratorWorktreeReachTests {
         #expect(OrchestratorToolGuard.answersItself(
             toolName: "Bash", input: .object(["command": .string("cat README.md")]), worktree: fixture.worktree
         ))
+    }
+
+    @Test("the orchestrator's Claude goes back to the worktree after every command")
+    func claudeKeepsTheWorktree() {
+        let settings = AgentRunner.settingsJSON(outputStyle: nil, orchestrates: true) ?? ""
+        #expect(JSONValue.parse(settings)?["env"]?["CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR"] == .string("1"))
+        #expect(JSONValue.parse(AgentRunner.settingsJSON(outputStyle: nil, guardsCrossing: true) ?? "")?["env"] == nil)
     }
 }

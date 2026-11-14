@@ -6,11 +6,13 @@ struct OrchestratorWorktreeReach {
 
     private static let deepest = 8
     private static let mostSteps = 2_000
+    private static let mostBases = 16
     private static let separators = Set(" \t\n\"'`\\()[]{}<>=@:,;|&")
     private static let scriptMarks = Set(" \t\n;|&")
     private static let globMarks = Set("*?[")
     private static let directoryChangers: Set<String> = ["cd", "pushd", "chdir"]
     private static let directoryPrefixes: Set<String> = ["builtin", "command"]
+    private static let directoryFlags: Set<String> = ["-P", "-L", "--"]
     private static let printers: Set<String> = ["echo", "printf"]
     private static let readsWhatItIsFed: Set<String> = ["xargs", "parallel", "popd"]
     private static let findFollows: Set<String> = ["-L", "-H", "-follow", "-exec", "-execdir", "-ok", "-okdir"]
@@ -23,10 +25,13 @@ struct OrchestratorWorktreeReach {
         "ls": ("L", ["--dereference"]),
         "du": ("L", ["--dereference"]),
         "diff": ("r", ["--recursive"]),
+        "shasum": ("c", ["--check"]),
+        "cksum": ("c", ["--check"]),
     ]
 
     private let paths: WorktreePathResolver
     private var steps = 0
+    private var walked: [String: Bool] = [:]
 
     static func verdict(_ command: String, worktree: String) -> Verdict {
         var reach = OrchestratorWorktreeReach(paths: WorktreePathResolver(worktree: worktree))
@@ -37,21 +42,25 @@ struct OrchestratorWorktreeReach {
         self.paths = paths
     }
 
-    private mutating func verdict(of command: String, bases outer: [String], depth: Int) -> Verdict {
+    private mutating func hasRoom(atDepth depth: Int) -> Bool {
         steps += 1
-        guard depth < Self.deepest, steps < Self.mostSteps else { return .asks }
+        return depth < Self.deepest && steps < Self.mostSteps
+    }
+
+    private mutating func verdict(of command: String, bases outer: [String], depth: Int) -> Verdict {
+        guard hasRoom(atDepth: depth) else { return .asks }
         let parsed = OrchestratorShellParser.parseIntoSubstitutions(command)
         var bases = outer
         for clause in parsed.clauses {
+            guard hasRoom(atDepth: depth) else { return .asks }
             guard let change = directoryChange(in: clause) else { continue }
             guard let target = change, let reached = directories(target, from: bases) else { return .asks }
-            bases += reached
+            bases = Array(Set(bases + reached)).sorted()
+            guard bases.count <= Self.mostBases else { return .asks }
         }
         for (position, clause) in parsed.clauses.enumerated() {
-            if parsed.clausesWithExpansions.contains(position), !onlyPrints(clause), clause.contains(where: { $0.contains("$") }) {
-                return .asks
-            }
-            guard self.clause(clause, bases: bases, depth: depth) == .passes else { return .asks }
+            if parsed.clausesWithExpansions.contains(position), carriesAnExpansion(clause) { return .asks }
+            guard hasRoom(atDepth: depth), self.clause(clause, bases: bases, depth: depth) == .passes else { return .asks }
         }
         return .passes
     }
@@ -59,15 +68,24 @@ struct OrchestratorWorktreeReach {
     private mutating func clause(_ clause: [String], bases: [String], depth: Int) -> Verdict {
         if followsLinks(clause) { return .asks }
         let head = headIndex(clause)
-        let exempt = notPaths(clause, head: head)
+        let exempt = head.map { OrchestratorWorktreeOperands.notPaths(clause, head: $0) } ?? []
+        let runsScripts = clause.contains { word in
+            let name = Programs.name(of: word)
+            return Programs.shells.contains(name) || Programs.scripted.contains(name) || Programs.runners.contains(name)
+        }
         for (index, word) in clause.enumerated() where index != head && !exempt.contains(index) {
-            if word.contains(where: Self.scriptMarks.contains),
+            if runsScripts, word.contains(where: Self.scriptMarks.contains),
                verdict(of: word, bases: bases, depth: depth + 1) != .passes {
                 return .asks
             }
             guard staysInside(word, bases: bases) else { return .asks }
         }
         return .passes
+    }
+
+    private func carriesAnExpansion(_ clause: [String]) -> Bool {
+        let printsOnly = headIndex(clause).map { Self.printers.contains(clause[$0]) } == true
+        return clause.contains { word in word.contains("$") && !(printsOnly && word == "$") }
     }
 
     private func staysInside(_ word: String, bases: [String]) -> Bool {
@@ -99,12 +117,14 @@ struct OrchestratorWorktreeReach {
         return found + rest.split(whereSeparator: Self.separators.contains)
     }
 
-    private func directories(_ target: String, from bases: [String]) -> [String]? {
-        guard target != "-", staysInside(target, bases: bases) else { return nil }
+    private mutating func directories(_ target: String, from bases: [String]) -> [String]? {
+        let named = target.hasPrefix("/") || target.hasPrefix("./") || target.hasPrefix("../") || [".", ".."].contains(target)
+        guard named, staysInside(target, bases: bases) else { return nil }
         var reached: [String] = []
         for base in bases {
-            let start = target.hasPrefix("~") ? paths.home + target.dropFirst() : target
-            guard let directory = paths.resolve(start, from: base), paths.holdsNoWayOut(below: directory) else { return nil }
+            guard let directory = paths.resolve(target, from: base), paths.isDirectory(directory) else { return nil }
+            if walked[directory] == nil { walked[directory] = paths.holdsNoWayOut(below: directory) }
+            guard walked[directory] == true else { return nil }
             reached.append(directory)
         }
         return reached
@@ -114,12 +134,11 @@ struct OrchestratorWorktreeReach {
         let words = clause.drop { Programs.isKeyword($0) || OrchestratorShellJudge.isAssignment($0) }
             .drop { Self.directoryPrefixes.contains($0) }
         guard let first = words.first, Self.directoryChangers.contains(Programs.name(of: first)) else { return nil }
-        return .some(words.dropFirst().first { !$0.hasPrefix("-") || $0 == "-" })
-    }
-
-    private func onlyPrints(_ clause: [String]) -> Bool {
-        guard let head = headIndex(clause) else { return false }
-        return Self.printers.contains(clause[head]) && !clause[head].contains("$")
+        let operands = words.dropFirst().filter { !Self.directoryFlags.contains($0) }
+        guard operands.count == 1, let target = operands.first, !target.hasPrefix("-"), !target.hasPrefix("+") else {
+            return .some(nil)
+        }
+        return .some(target)
     }
 
     private func headIndex(_ clause: [String]) -> Int? {
@@ -138,25 +157,5 @@ struct OrchestratorWorktreeReach {
             }
         }
         return false
-    }
-
-    private func notPaths(_ clause: [String], head: Int?) -> Set<Int> {
-        guard let head else { return [] }
-        let rest = clause.indices.dropFirst(head + 1)
-        switch Programs.name(of: clause[head]) {
-        case "sed", "gsed":
-            return sedScripts(clause, rest)
-        case "gh":
-            guard let api = rest.first(where: { clause[$0] == "api" }) else { return [] }
-            return Set(rest.drop(while: { $0 <= api }).prefix { clause[$0].hasPrefix("-") == false }.prefix(1))
-        default:
-            return []
-        }
-    }
-
-    private func sedScripts(_ clause: [String], _ rest: Range<Int>) -> Set<Int> {
-        let expressions = rest.filter { index in index > rest.startIndex && clause[index - 1].contains(/^-[nEru]*e$/) }
-        if !expressions.isEmpty { return Set(expressions) }
-        return Set(rest.first { !clause[$0].hasPrefix("-") }.map { [$0] } ?? [])
     }
 }

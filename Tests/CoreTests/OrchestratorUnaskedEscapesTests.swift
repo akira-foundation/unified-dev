@@ -48,7 +48,8 @@ struct OrchestratorUnaskedEscapesTests {
     @Test("git pointed at another repository asks", arguments: [
         "git -C vendor/x.git status", "cd vendor/x.git && git status", "cd vendor/x.git; git log",
         "find vendor -name HEAD -execdir git status ;", "git ls-remote https://example.test/x",
-        "git ls-remote host:x", "pushd vendor && git diff",
+        "git ls-remote host:x", "pushd vendor && git diff", "builtin cd vendor/x.git; git status",
+        "command cd vendor; git log", "X=1 cd vendor; git log", "gh api repos/o/r --cache 1h",
     ])
     func gitElsewhereAsks(_ command: String) {
         #expect(OrchestratorUnaskedJudge.verdict(command) == .asks)

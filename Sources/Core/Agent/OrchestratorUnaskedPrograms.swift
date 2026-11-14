@@ -82,7 +82,8 @@ enum OrchestratorUnaskedPrograms {
     }
 
     static func changesDirectory(_ clause: [String]) -> Bool {
-        clause.drop(while: isKeyword).first.map { directoryChangers.contains(name(of: $0)) } == true
+        clause.drop { isKeyword($0) || OrchestratorShellJudge.isAssignment($0) || ["builtin", "command"].contains($0) }
+            .first.map { directoryChangers.contains(name(of: $0)) } == true
     }
 
     static func namesGit(_ word: String) -> Bool {

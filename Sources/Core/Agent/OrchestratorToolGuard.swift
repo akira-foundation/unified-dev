@@ -28,6 +28,8 @@ public enum OrchestratorToolGuard {
 
     public static let claudePermissions: [String: [String]] = ["ask": ["Bash", "mcp__*"]]
 
+    public static let claudeEnvironment = ["CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"]
+
     public static let claudeDisallowedTools: [String] =
         ["Edit", "Write", "MultiEdit", "NotebookEdit"] + OrchestratorShellJudge.gitVerbs.map { "Bash(git \($0):*)" }
 
@@ -78,7 +80,7 @@ public enum OrchestratorToolGuard {
     private static func runs(in directory: JSONValue?, worktree: String) -> Bool {
         guard let directory else { return true }
         guard let path = directory.stringValue else { return false }
-        return URL(fileURLWithPath: path).standardized.path == URL(fileURLWithPath: worktree).standardized.path
+        return WorktreePathResolver(worktree: path).root == WorktreePathResolver(worktree: worktree).root
     }
 
     public static func terminalRefusal(workspaceID: WorkspaceID, store: Store) async -> String? {

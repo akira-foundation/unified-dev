@@ -4,18 +4,23 @@ struct WorktreePathResolver {
     private static let mostGlobMatches = 4_000
     private static let mostEntriesWalked = 20_000
 
+    private static let mostGlobbedComponents = 2
+
     let root: String
     let home: String
+    private var given = ""
 
     init(worktree: String, home: String = NSHomeDirectory()) {
         let standard = URL(fileURLWithPath: worktree).standardized.path
         self.home = home
         root = WorktreePathResolver(root: "/", home: home).resolve(standard, from: "/") ?? standard
+        given = standard
     }
 
     private init(root: String, home: String) {
         self.root = root
         self.home = home
+        given = root
     }
 
     func contains(_ path: String) -> Bool {
@@ -43,17 +48,26 @@ struct WorktreePathResolver {
         return current
     }
 
+    func isDirectory(_ path: String) -> Bool {
+        var info = stat()
+        return stat(path, &info) == 0 && (info.st_mode & S_IFMT) == S_IFDIR
+    }
+
     func staysInside(_ path: String, from bases: [String]) -> Bool {
+        if path.hasPrefix("/"), !isUnder(path, given) && !isUnder(path, root) { return false }
         let tried = path.hasPrefix("/") ? Array(bases.prefix(1)) : bases
         return tried.allSatisfy { base in resolve(path, from: base).map(contains) == true }
     }
 
     func globStaysInside(_ pattern: String, from bases: [String]) -> Bool {
-        guard !pattern.contains("**"), staysInside(pattern, from: bases) else { return false }
+        let globbed = pattern.split(separator: "/").filter { $0.contains { "*?[".contains($0) } }
+        guard !pattern.contains("**"), globbed.count <= Self.mostGlobbedComponents, staysInside(pattern, from: bases) else {
+            return false
+        }
         let tried = pattern.hasPrefix("/") ? Array(bases.prefix(1)) : bases
         return tried.allSatisfy { base in
             guard let matches = Self.matches(pattern.hasPrefix("/") ? pattern : "\(base)/\(pattern)") else { return false }
-            return matches.allSatisfy { match in resolve(match, from: base).map(contains) == true }
+            return matches.filter(Self.namesAnEntry).allSatisfy { match in resolve(match, from: base).map(contains) == true }
         }
     }
 
@@ -71,6 +85,16 @@ struct WorktreePathResolver {
             guard let target = Self.physical(entry.path), contains(target) else { return false }
         }
         return true
+    }
+
+    private func isUnder(_ path: String, _ directory: String) -> Bool {
+        let lexical = URL(fileURLWithPath: path).standardized.path
+        return lexical == directory || lexical.hasPrefix(directory.hasSuffix("/") ? directory : directory + "/")
+    }
+
+    private static func namesAnEntry(_ match: String) -> Bool {
+        let last = match.split(separator: "/").last
+        return last != "." && last != ".."
     }
 
     private static func parent(of path: String) -> String {
@@ -92,7 +116,7 @@ struct WorktreePathResolver {
     private static func matches(_ pattern: String) -> [String]? {
         var found = glob_t()
         defer { globfree(&found) }
-        let status = glob(pattern, 0, nil, &found)
+        let status = glob(pattern, GLOB_LIMIT, nil, &found)
         guard status == 0 else { return status == GLOB_NOMATCH ? [] : nil }
         let count = Int(found.gl_pathc)
         guard count <= mostGlobMatches, let paths = found.gl_pathv else { return nil }
