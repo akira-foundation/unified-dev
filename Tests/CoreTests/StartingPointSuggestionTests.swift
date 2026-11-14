@@ -28,7 +28,7 @@ struct StartingPointSuggestionTests {
     ) -> [StartingPointSuggestion] {
         let reading = StartingPointReading(
             pullRequests: PullRequestsAwaitingViewer(reviewRequested: review, authored: authored),
-            issues: issues, branches: branches, readAt: now
+            issues: issues, branches: branches
         )
         return StartingPointSuggestions.choose(
             reading, defaultBranch: "main", holders: holders, openPullRequests: open, now: now
@@ -139,6 +139,13 @@ struct StartingPointSuggestionTests {
         let other = StartingPointSuggestion.issue(AssignedIssue(number: 40, title: "Other")).pick(defaultBranch: "main")
         #expect(other.prompt(into: "Keep it small\n\n" + line) == "Keep it small\n\nWork on issue #40, \"Other\".")
 
+        #expect(other.prompt(into: line + "\nKeep the public API stable")
+            == "Keep the public API stable\n\nWork on issue #40, \"Other\".")
+        #expect(other.prompt(into: "Work on issue #12 first, then rebase.\n\n" + line)
+            == "Work on issue #12 first, then rebase.\n\nWork on issue #40, \"Other\".")
+        #expect(other.prompt(into: line + "\n\nThen #40 too") == "Then #40 too")
+        #expect(pick.prompt(into: line) == line)
+
         let open = StartingPointSuggestion.branch(branch("spike", hoursAgo: 1)).pick(defaultBranch: "main")
         #expect(open.prompt(into: "Typed\n\n" + line) == "Typed\n\n" + line)
     }
@@ -153,6 +160,8 @@ struct StartingPointSuggestionTests {
         #expect(StartingPointSuggestion.branch(spike)
             .isChosen(by: .existingBranch(ExistingBranch(name: "spike", isLocal: false))))
         #expect(!StartingPointSuggestion.branch(spike).isChosen(by: .newBranch(from: "spike")))
+        #expect(!StartingPointSuggestion.branch(spike)
+            .isChosen(by: .existingBranch(ExistingBranch(name: "tidy", isLocal: true))))
         #expect(!StartingPointSuggestion.issue(AssignedIssue(number: 1, title: "")).isChosen(by: .newBranch(from: "main")))
     }
 
@@ -171,17 +180,19 @@ struct StartingPointSuggestionTests {
         #expect(StartingPointSuggestion.authored(request(1, draft: true)).reason(now: now) == "Your draft")
         #expect(StartingPointSuggestion.issue(AssignedIssue(number: 1, title: "")).reason(now: now) == "Assigned to you")
         #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: -3)).reason(now: now) == "Touched just now")
-        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 0.2)).reason(now: now) == "Touched just now")
-        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 1)).reason(now: now) == "Touched an hour ago")
-        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 5)).reason(now: now) == "Touched 5 hours ago")
-        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 30)).reason(now: now) == "Touched yesterday")
-        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 80)).reason(now: now) == "Touched 3 days ago")
+        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 0.2)).reason(now: now) == "Touched 12m ago")
+        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 5)).reason(now: now) == "Touched 5h ago")
+        #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 80)).reason(now: now) == "Touched 3d ago")
     }
 
     @Test("a row reads as what it is, and has something to show with no title")
     func titles() {
         let untitled = PullRequestListing(number: 9, title: "", headRefName: "spike", baseRefName: "main")
         #expect(StartingPointSuggestion.authored(untitled).title == "spike")
+        #expect(StartingPointSuggestion.reviewRequested(request(10, head: "fix", fork: true).untitled).title
+            == "someone:fix")
+        #expect(StartingPointSuggestion.reviewRequested(request(10)).reference == "#10")
+        #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "")).id == "issue:8")
         #expect(StartingPointSuggestion.authored(request(9)).title == "Request 9")
         #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "")).title == "Issue #8")
         #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "Fix")).reference == "#8")
@@ -219,5 +230,15 @@ struct StartingPointSuggestionTests {
         #expect(GitHub.decodeAssignedIssues(from: Data(json.utf8))
             == [AssignedIssue(number: 34, title: "Suggest"), AssignedIssue(number: 7, title: "")])
         #expect(GitHub.decodeAssignedIssues(from: Data("not json".utf8)).isEmpty)
+    }
+}
+
+private extension PullRequestListing {
+    var untitled: PullRequestListing {
+        PullRequestListing(
+            number: number, title: "", author: author, headRefName: headRefName, baseRefName: baseRefName,
+            isDraft: isDraft, state: state, isCrossRepository: isCrossRepository,
+            headRepositoryOwner: headRepositoryOwner
+        )
     }
 }

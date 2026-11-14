@@ -30,8 +30,7 @@ enum StartingPointSuggestionProbe {
         let reading = StartingPointReading(
             pullRequests: PullRequestsAwaitingViewer(reviewRequested: [review], authored: [authored]),
             issues: [AssignedIssue(number: 34, title: "Suggest starting points below the new workspace composer")],
-            branches: [RecentBranch(name: "feat/shade", touched: now.addingTimeInterval(-5 * 3600))],
-            readAt: now
+            branches: [RecentBranch(name: "feat/shade", touched: now.addingTimeInterval(-5 * 3600))]
         )
         let suggestions = StartingPointSuggestions.choose(reading, defaultBranch: "develop", holders: [:], now: now)
         return (suggestions, .pullRequest(authored))

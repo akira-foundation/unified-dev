@@ -20,7 +20,7 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
 
     public var title: String {
         switch self {
-        case .reviewRequested(let request), .authored(let request): request.title.isEmpty ? request.headRefName : request.title
+        case .reviewRequested(let request), .authored(let request): request.title.isEmpty ? request.qualifiedHead : request.title
         case .issue(let issue): issue.title.isEmpty ? "Issue #\(issue.number)" : issue.title
         case .branch(let branch): branch.name
         }
@@ -47,7 +47,7 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
         case .reviewRequested: "Review requested"
         case .authored(let request): request.isDraft ? "Your draft" : "Your pull request"
         case .issue: "Assigned to you"
-        case .branch(let branch): Self.touched(branch.touched, now: now)
+        case .branch(let branch): "Touched \(HomeAge.phrase(for: branch.touched, now: now))"
         }
     }
 
@@ -70,16 +70,6 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
             branch.name == chosen.name
         default:
             false
-        }
-    }
-
-    static func touched(_ date: Date, now: Date) -> String {
-        let hours = Int(max(0, now.timeIntervalSince(date)) / 3600)
-        switch hours {
-        case ..<1: return "Touched just now"
-        case ..<24: return hours == 1 ? "Touched an hour ago" : "Touched \(hours) hours ago"
-        case ..<48: return "Touched yesterday"
-        default: return "Touched \(hours / 24) days ago"
         }
     }
 }

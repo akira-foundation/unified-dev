@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import Core
 
@@ -7,6 +8,12 @@ struct StartingPointReadingTests {
     private actor Asked {
         private(set) var commands: [[String]] = []
         func record(_ arguments: [String]) { commands.append(arguments) }
+    }
+
+    private final class StoppedClock: Sendable {
+        private let instant = Mutex(ContinuousClock.now)
+        var now: ContinuousClock.Instant { instant.withLock { $0 } }
+        func advance(_ by: Duration) { instant.withLock { $0 += by } }
     }
 
     private static func listing(_ number: Int, state: String = "OPEN") -> String {
@@ -28,29 +35,39 @@ struct StartingPointReadingTests {
         "issue", "list", "--state", "open", "--assignee", "@me", "--limit", "10", "--json", "number,title",
     ]
 
-    private func answering(_ asked: Asked) -> @Sendable ([String], String?) async throws -> ShellResult {
-        { arguments, _ in
-            await asked.record(arguments)
-            let stdout = switch Array(arguments.prefix(6)) {
-            case Array(Self.review.prefix(6)): Self.reviewAnswer
-            case Array(Self.authored.prefix(6)): Self.authoredAnswer
-            default: Self.issueAnswer
-            }
-            return ShellResult(status: 0, stdout: stdout, stderr: "")
+    private static func answer(_ arguments: [String]) -> String {
+        switch Array(arguments.prefix(6)) {
+        case Array(review.prefix(6)): reviewAnswer
+        case Array(authored.prefix(6)): authoredAnswer
+        default: issueAnswer
         }
     }
 
-    private func repository(_ name: String, origin: String? = nil) async throws -> String {
+    private func answering(_ asked: Asked, status: Int32 = 0) -> @Sendable ([String], String?) async throws -> ShellResult {
+        { arguments, _ in
+            await asked.record(arguments)
+            return ShellResult(status: status, stdout: Self.answer(arguments), stderr: "")
+        }
+    }
+
+    private func repository(_ name: String, remotes: [String: String] = [:]) async throws -> String {
         let repo = TestScratch.unique(name)
         try FileManager.default.createDirectory(atPath: repo, withIntermediateDirectories: true)
         let identity = ["-c", "user.name=Test", "-c", "user.email=test@example.com"]
         _ = try await Git.run(["init", "-q", "-b", "main"], in: repo)
         _ = try await Git.run(identity + ["commit", "-q", "--allow-empty", "-m", "one"], in: repo,
                               environment: ["GIT_COMMITTER_DATE": "1700000000 +0000"])
-        _ = try await Git.run(["branch", "older"], in: repo)
+        _ = try await Git.run(["branch", "zebra-older"], in: repo)
         _ = try await Git.run(identity + ["commit", "-q", "--allow-empty", "-m", "two"], in: repo,
                               environment: ["GIT_COMMITTER_DATE": "1800000000 +0000"])
-        if let origin { _ = try await Git.run(["remote", "add", "origin", origin], in: repo) }
+        _ = try await Git.run(["branch", "zz-newest"], in: repo)
+        _ = try await Git.run(["checkout", "-q", "zz-newest"], in: repo)
+        _ = try await Git.run(identity + ["commit", "-q", "--allow-empty", "-m", "three"], in: repo,
+                              environment: ["GIT_COMMITTER_DATE": "1900000000 +0000"])
+        _ = try await Git.run(["checkout", "-q", "main"], in: repo)
+        for (name, url) in remotes.sorted(by: { $0.key < $1.key }) {
+            _ = try await Git.run(["remote", "add", name, url], in: repo)
+        }
         return repo
     }
 
@@ -59,7 +76,7 @@ struct StartingPointReadingTests {
         let repo = try await repository("suggestions-ask")
         let asked = Asked()
         let reading = await GitHub.$commandOverride.withValue(answering(asked)) {
-            await StartingPointSuggestions.read(repoPath: repo, asksGitHub: true, now: Date())
+            await StartingPointSuggestions.read(repoPath: repo, asksGitHub: true)
         }
         let commands = await asked.commands
         #expect(commands.contains(Self.review))
@@ -68,17 +85,36 @@ struct StartingPointReadingTests {
         #expect(reading.pullRequests.reviewRequested.map(\.number) == [21])
         #expect(reading.pullRequests.authored.map(\.number) == [22])
         #expect(reading.issues == [AssignedIssue(number: 34, title: "Suggest starting points")])
-        #expect(reading.branches.map(\.name) == ["main", "older"])
     }
 
-    @Test("issues are read from the repository the pull requests are read from")
+    @Test("recent branches come from git by the date of their last commit, not by name")
+    func recentBranchesByDate() async throws {
+        let repo = try await repository("suggestions-git")
+        let reading = await StartingPointSuggestions.read(repoPath: repo, asksGitHub: false)
+        #expect(reading.branches.map(\.name) == ["zz-newest", "main", "zebra-older"])
+        #expect(reading.branches.first?.touched == Date(timeIntervalSince1970: 1_900_000_000))
+        #expect(await Git.recentBranches(of: repo, count: 2).map(\.name) == ["zz-newest", "main"])
+    }
+
+    @Test("issues are read from the repository the pull requests are read from, in a fork as well")
     func issuesNameTheRepository() async throws {
-        let repo = try await repository("suggestions-repo", origin: "https://github.com/akira/lantern.git")
+        let repo = try await repository("suggestions-repo", remotes: [
+            "origin": "https://github.com/fork-owner/lantern.git",
+            "upstream": "https://github.com/akira/lantern.git",
+        ])
         let asked = Asked()
         _ = await GitHub.$commandOverride.withValue(answering(asked)) {
-            await GitHub.issuesAssignedToViewer(repoPath: repo)
+            await StartingPointSuggestions.read(repoPath: repo, asksGitHub: true)
         }
-        #expect(await asked.commands == [Self.issues + ["--repo", "github.com/akira/lantern"]])
+        let commands = await asked.commands
+        let pullRequestRepo = try #require(commands.first { $0.first == "pr" }.flatMap(Self.repoOption))
+        let issueCommand = try #require(commands.first { $0.first == "issue" })
+        #expect(Array(issueCommand.prefix(Self.issues.count)) == Self.issues)
+        #expect(Self.repoOption(issueCommand) == pullRequestRepo)
+    }
+
+    private static func repoOption(_ arguments: [String]) -> String? {
+        arguments.firstIndex(of: "--repo").flatMap { arguments.indices.contains($0 + 1) ? arguments[$0 + 1] : nil }
     }
 
     @Test("a project with no remote asks gh nothing and still has its branches")
@@ -86,85 +122,100 @@ struct StartingPointReadingTests {
         let repo = try await repository("suggestions-local")
         let asked = Asked()
         let reading = await GitHub.$commandOverride.withValue(answering(asked)) {
-            await StartingPointSuggestions.read(repoPath: repo, asksGitHub: false, now: Date())
+            await StartingPointSuggestions.read(repoPath: repo, asksGitHub: false)
         }
         #expect(await asked.commands.isEmpty)
         #expect(reading.pullRequests == PullRequestsAwaitingViewer())
         #expect(reading.issues.isEmpty)
-        #expect(reading.branches.map(\.name) == ["main", "older"])
+        #expect(reading.branches.count == 3)
     }
 
-    @Test("gh refusing leaves nothing to suggest from it, rather than an error under the composer")
+    @Test("a project on Bitbucket asks gh nothing")
+    func bitbucketAsksNothing() async throws {
+        let repo = try await repository("suggestions-bitbucket")
+        let asked = Asked()
+        let reading = await Forge.$remoteOverride.withValue({ _ in "https://bitbucket.org/akira/lantern.git" }) {
+            await GitHub.$commandOverride.withValue(answering(asked)) {
+                await StartingPointSuggestions.read(repoPath: repo, asksGitHub: true)
+            }
+        }
+        #expect(await asked.commands.isEmpty)
+        #expect(reading.branches.count == 3)
+    }
+
+    @Test("gh refusing leaves nothing to suggest from it, even when it printed something")
     func refusalIsQuiet() async {
         let path = TestScratch.unique("suggestions-refused")
-        let reading = await GitHub.$commandOverride.withValue({ _, _ in
-            ShellResult(status: 1, stdout: "", stderr: "HTTP 401: Bad credentials")
-        }) {
-            await StartingPointSuggestions.read(repoPath: path, asksGitHub: true, now: Date())
+        let asked = Asked()
+        let reading = await GitHub.$commandOverride.withValue(answering(asked, status: 1)) {
+            await StartingPointSuggestions.read(repoPath: path, asksGitHub: true)
         }
+        #expect(await asked.commands.count == 3)
         #expect(reading.pullRequests == PullRequestsAwaitingViewer())
         #expect(reading.issues.isEmpty)
     }
 
-    @Test("pressing + again within two minutes reuses the last reading, and at two minutes asks again")
+    @Test("pressing + again within two minutes reuses the last reading, and at two minutes reads again")
     func reusesAFreshReading() async {
-        let path = TestScratch.unique("suggestions-cache")
-        defer { StartingPointSuggestions.forget(repoPath: path) }
+        let clock = StoppedClock()
+        let readings = StartingPointSuggestions.Readings(now: { clock.now })
+        let request = StartingPointReadingRequest(repoPath: TestScratch.unique("suggestions-cache"), asksGitHub: true)
         let asked = Asked()
-        let start = Date()
         await GitHub.$commandOverride.withValue(answering(asked)) {
-            _ = await StartingPointSuggestions.load(repoPath: path, asksGitHub: true, now: start)
+            _ = await StartingPointSuggestions.load(request, from: readings)
         }
-        let first = await asked.commands.count
-        #expect(first == 3)
+        #expect(await asked.commands.count == 3)
 
-        await GitHub.$commandOverride.withValue(answering(asked)) {
-            _ = await StartingPointSuggestions.load(repoPath: path, asksGitHub: true, now: start.addingTimeInterval(119))
+        clock.advance(.seconds(119))
+        let kept = await GitHub.$commandOverride.withValue(answering(asked)) {
+            await StartingPointSuggestions.load(request, from: readings)
         }
-        #expect(await asked.commands.count == first)
-        #expect(StartingPointSuggestions.fresh(repoPath: path, asksGitHub: true, now: start.addingTimeInterval(119))?
-            .readAt == start)
-        #expect(StartingPointSuggestions.fresh(repoPath: path, asksGitHub: true, now: start.addingTimeInterval(120)) == nil)
+        #expect(await asked.commands.count == 3)
+        #expect(kept?.issues.map(\.number) == [34])
 
-        let later = start.addingTimeInterval(120)
+        clock.advance(.seconds(1))
         await GitHub.$commandOverride.withValue(answering(asked)) {
-            _ = await StartingPointSuggestions.load(repoPath: path, asksGitHub: true, now: later)
+            _ = await StartingPointSuggestions.load(request, from: readings)
         }
-        #expect(StartingPointSuggestions.fresh(repoPath: path, asksGitHub: true, now: later)?.readAt == later)
+        #expect(await asked.commands.count > 3)
     }
 
     @Test("a reading taken without GitHub is not reused once GitHub can be asked")
     func keyedByWhetherGitHubWasAsked() async {
+        let readings = StartingPointSuggestions.Readings()
         let path = TestScratch.unique("suggestions-key")
-        defer { StartingPointSuggestions.forget(repoPath: path) }
         let asked = Asked()
-        let start = Date()
         await GitHub.$commandOverride.withValue(answering(asked)) {
-            _ = await StartingPointSuggestions.load(repoPath: path, asksGitHub: false, now: start)
-            _ = await StartingPointSuggestions.load(repoPath: path, asksGitHub: true, now: start)
+            _ = await StartingPointSuggestions.load(StartingPointReadingRequest(repoPath: path, asksGitHub: false), from: readings)
+            _ = await StartingPointSuggestions.load(StartingPointReadingRequest(repoPath: path, asksGitHub: true), from: readings)
         }
         #expect(await asked.commands.count == 3)
     }
 
-    @Test("a read cut short by leaving the pane is not kept as an empty reading")
-    func cancelledReadIsNotKept() async {
-        let path = TestScratch.unique("suggestions-cancelled")
-        defer { StartingPointSuggestions.forget(repoPath: path) }
+    @Test("leaving the pane in the middle of a read still keeps the whole reading for the next visit")
+    func cancelledCallerKeepsTheReading() async {
+        let readings = StartingPointSuggestions.Readings()
+        let request = StartingPointReadingRequest(repoPath: TestScratch.unique("suggestions-cancelled"), asksGitHub: true)
         let asked = Asked()
         let task = Task {
-            withUnsafeCurrentTask { $0?.cancel() }
-            return await GitHub.$commandOverride.withValue(answering(asked)) {
-                await StartingPointSuggestions.load(repoPath: path, asksGitHub: true)
+            await GitHub.$commandOverride.withValue(answering(asked)) {
+                await StartingPointSuggestions.load(request, from: readings)
             }
         }
-        #expect(await task.value == nil)
-        #expect(StartingPointSuggestions.fresh(repoPath: path, asksGitHub: true) == nil)
+        task.cancel()
+        _ = await task.value
+        let next = await GitHub.$commandOverride.withValue(answering(asked)) {
+            await StartingPointSuggestions.load(request, from: readings)
+        }
+        #expect(next?.issues.map(\.number) == [34])
+        #expect(next?.pullRequests.reviewRequested.map(\.number) == [21])
+        #expect(await asked.commands.count == 3)
     }
 
-    @Test("a pull request listing that is answered lets the suggestions ask GitHub")
-    func answered() {
-        #expect(PullRequestLoad.listed([]).answered)
-        #expect(!PullRequestLoad.loading.answered)
-        #expect(!PullRequestLoad.unavailable("Sign in with gh to list pull requests").answered)
+    @Test("a pull request listing that answered lets the suggestions ask GitHub")
+    func isListed() {
+        #expect(PullRequestLoad.listed([]).isListed)
+        #expect(!PullRequestLoad.loading.isListed)
+        #expect(!PullRequestLoad.unavailable("Sign in with gh to list pull requests").isListed)
     }
 }

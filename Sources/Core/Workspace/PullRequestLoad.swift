@@ -10,7 +10,7 @@ public enum PullRequestLoad: Sendable, Equatable {
         return requests
     }
 
-    public var answered: Bool {
+    public var isListed: Bool {
         guard case .listed = self else { return false }
         return true
     }

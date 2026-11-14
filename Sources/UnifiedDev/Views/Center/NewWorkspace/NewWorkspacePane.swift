@@ -9,6 +9,7 @@ struct NewWorkspacePane: View {
     @State private var catalogue: WorkspaceSourceCatalogue?
     @State private var pullRequests = PullRequestLoad.loading
     @State private var reading: StartingPointReading?
+    @State private var loadedRepoID: RepoID?
     @State private var pickProblem: String?
     @State private var isLookingUp = false
     @State private var isChoosingStart = false
@@ -72,7 +73,7 @@ struct NewWorkspacePane: View {
 
             NewWorkspaceComposer(repo: repo, draft: draft)
 
-            if let catalogue, let reading, !app.drafts.isCreating(repoID) {
+            if let catalogue, let reading, readingRequest(repo) != nil, !app.drafts.isCreating(repoID) {
                 let suggestions = StartingPointSuggestions.choose(
                     reading, defaultBranch: repo.defaultBranch, holders: catalogue.holders,
                     openPullRequests: pullRequests.requests, now: Date()
@@ -114,21 +115,24 @@ struct NewWorkspacePane: View {
     }
 
     private func readingRequest(_ repo: Repo) -> StartingPointReadingRequest? {
-        StartingPointReadingRequest(
+        guard loadedRepoID == repo.id else { return nil }
+        return StartingPointReadingRequest(
             repoPath: repo.path, offersPullRequests: catalogue?.offersPullRequests, pullRequests: pullRequests
         )
     }
 
     private func loadSuggestions(_ request: StartingPointReadingRequest?) async {
-        reading = request.flatMap { StartingPointSuggestions.fresh(repoPath: $0.repoPath, asksGitHub: $0.asksGitHub) }
-        guard let request else { return }
-        guard let loaded = await StartingPointSuggestions.load(
-            repoPath: request.repoPath, asksGitHub: request.asksGitHub
-        ) else { return }
+        guard let request else {
+            reading = nil
+            return
+        }
+        let loaded = await StartingPointSuggestions.load(request)
+        guard !Task.isCancelled else { return }
         reading = loaded
     }
 
     private func load(_ repo: Repo) async {
+        loadedRepoID = nil
         catalogue = nil
         pullRequests = .loading
         pickProblem = nil
@@ -139,6 +143,7 @@ struct NewWorkspacePane: View {
         let requests = await PullRequestLoad.read(repoPath: repo.path, offered: listed.offersPullRequests)
         guard !Task.isCancelled else { return }
         pullRequests = requests
+        loadedRepoID = repo.id
         catalogue = listed.with(pullRequests: requests.requests)
         guard await WorkspaceStartContext.fetchBranchList(repoPath: repo.path) else { return }
         let current = await app.refreshDefaultBranch(of: repo)

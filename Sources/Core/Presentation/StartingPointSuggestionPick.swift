@@ -22,16 +22,23 @@ public struct StartingPointSuggestionPick: Sendable, Hashable {
 
     public func prompt(into existing: String) -> String {
         guard let prompt, let issue else { return existing }
-        if Self.mentions(issue.number, in: existing) { return existing }
-        return WorkspaceDraft.receiving(prompt, into: Self.withoutIssueLines(existing))
+        let typed = Self.withoutIssueLines(existing)
+        if Self.mentions(issue.number, in: typed) { return typed }
+        return WorkspaceDraft.receiving(prompt, into: typed)
     }
 
     static let issueLead = "Work on issue #"
 
     static func withoutIssueLines(_ text: String) -> String {
-        text.components(separatedBy: "\n\n")
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix(issueLead) }
-            .joined(separator: "\n\n")
+        let kept = text.components(separatedBy: "\n").filter { !isIssueLine($0) }
+        guard kept.count < text.components(separatedBy: "\n").count else { return text }
+        return kept.joined(separator: "\n")
+            .replacing(/\n{3,}/, with: "\n\n")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func isIssueLine(_ line: String) -> Bool {
+        line.trimmingCharacters(in: .whitespaces).wholeMatch(of: /Work on issue #\d+(, ".*")?\./) != nil
     }
 
     static func mentions(_ number: Int, in text: String) -> Bool {

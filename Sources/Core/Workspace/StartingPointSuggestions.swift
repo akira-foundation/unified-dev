@@ -1,17 +1,13 @@
 import Foundation
-import Synchronization
 
 public enum StartingPointSuggestions {
     public static let limit = 4
     static let branchWindow: TimeInterval = 14 * 24 * 3600
-    static let freshness: TimeInterval = 120
+    static let freshness = Duration.seconds(120)
 
-    private struct CacheKey: Hashable {
-        let repoPath: String
-        let asksGitHub: Bool
-    }
+    typealias Readings = SharedReadings<StartingPointReadingRequest, StartingPointReading>
 
-    private static let readings = Mutex<[CacheKey: StartingPointReading]>([:])
+    private static let shared = Readings()
 
     public static func choose(
         _ reading: StartingPointReading,
@@ -55,42 +51,23 @@ public enum StartingPointSuggestions {
         return groups.indices.flatMap { groups[$0].prefix(taken[$0]) }
     }
 
-    public static func fresh(repoPath: String, asksGitHub: Bool, now: Date = Date()) -> StartingPointReading? {
-        guard let cached = cached(repoPath: repoPath, asksGitHub: asksGitHub), isFresh(cached, now: now) else {
-            return nil
-        }
-        return cached
+    public static func load(_ request: StartingPointReadingRequest) async -> StartingPointReading? {
+        await load(request, from: shared)
     }
 
-    static func cached(repoPath: String, asksGitHub: Bool) -> StartingPointReading? {
-        readings.withLock { $0[CacheKey(repoPath: repoPath, asksGitHub: asksGitHub)] }
-    }
-
-    static func isFresh(_ reading: StartingPointReading, now: Date) -> Bool {
-        now.timeIntervalSince(reading.readAt) < freshness
-    }
-
-    public static func load(repoPath: String, asksGitHub: Bool, now: Date = Date()) async -> StartingPointReading? {
-        if let reading = fresh(repoPath: repoPath, asksGitHub: asksGitHub, now: now) { return reading }
-        let reading = await read(repoPath: repoPath, asksGitHub: asksGitHub, now: now)
-        guard !Task.isCancelled else { return nil }
-        readings.withLock { $0[CacheKey(repoPath: repoPath, asksGitHub: asksGitHub)] = reading }
-        return reading
-    }
-
-    static func forget(repoPath: String) {
-        readings.withLock { cache in
-            for key in cache.keys where key.repoPath == repoPath { cache.removeValue(forKey: key) }
+    static func load(_ request: StartingPointReadingRequest, from readings: Readings) async -> StartingPointReading? {
+        try? await readings.value(for: request, notOlderThan: freshness) {
+            await read(repoPath: request.repoPath, asksGitHub: request.asksGitHub)
         }
     }
 
-    static func read(repoPath: String, asksGitHub: Bool, now: Date) async -> StartingPointReading {
+    static func read(repoPath: String, asksGitHub: Bool) async -> StartingPointReading {
         async let branches = Git.recentBranches(of: repoPath)
-        guard asksGitHub else { return StartingPointReading(branches: await branches, readAt: now) }
+        guard asksGitHub, await Forge.kind(forDirectory: repoPath) == .gitHub else {
+            return StartingPointReading(branches: await branches)
+        }
         async let requests = GitHub.pullRequestsAwaitingViewer(repoPath: repoPath)
         async let issues = GitHub.issuesAssignedToViewer(repoPath: repoPath)
-        return StartingPointReading(
-            pullRequests: await requests, issues: await issues, branches: await branches, readAt: now
-        )
+        return StartingPointReading(pullRequests: await requests, issues: await issues, branches: await branches)
     }
 }
