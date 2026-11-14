@@ -5,7 +5,7 @@
       "name": "tidewater",
       "files": {
         "README.md": "# Tidewater\n",
-        ".unifieddev/settings.toml": "[models]\ndefault = \"codex:gpt-5.5\"\n\n[[quick_prompts]]\nname = \"Read the tide\"\nprompt = \"List the files in this project and stop.\"\nnew_chat = true\n"
+        ".unifieddev/settings.toml": "[models]\ndefault = \"codex:gpt-5.6-sol\"\n\n[[quick_prompts]]\nname = \"Read the tide\"\nprompt = \"List the files in this project and stop.\"\nnew_chat = true\n"
       },
       "commits": ["Chart the tide"],
       "workspaces": [{ "name": "Ebb", "branch": "ebb" }]

@@ -9,6 +9,8 @@ enum TestScenarios {
         .deletingLastPathComponent()
         .path
 
+    static let codexModel = "gpt-5.6-sol"
+
     static func shipped(_ name: String) throws -> PreviewScenario {
         try PreviewScenario.read(path: repositoryRoot + "/Tools/scenarios/\(name).json")
     }
