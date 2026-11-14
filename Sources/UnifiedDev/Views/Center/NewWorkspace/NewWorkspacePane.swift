@@ -65,7 +65,7 @@ struct NewWorkspacePane: View {
             .disabled(app.drafts.isCreating(repoID))
 
             let suggested = suggestions(for: repo)
-            if !suggested.isEmpty {
+            if !suggested.isEmpty, !app.drafts.isCreating(repoID) {
                 StartingPointSuggestionList(
                     suggestions: suggested,
                     point: draft.startingPoint,
@@ -90,7 +90,7 @@ struct NewWorkspacePane: View {
     }
 
     private func suggestions(for repo: Repo) -> [StartingPointSuggestion] {
-        guard let catalogue, let reading, readingRequest(repo) != nil, !app.drafts.isCreating(repoID) else {
+        guard let catalogue, let reading, readingRequest(repo) != nil else {
             return []
         }
         return StartingPointSuggestions.choose(

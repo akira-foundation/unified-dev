@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Core
 
-@Suite("Starting points suggested below the new workspace composer")
+@Suite("Starting points suggested under the new workspace header")
 struct StartingPointSuggestionTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
