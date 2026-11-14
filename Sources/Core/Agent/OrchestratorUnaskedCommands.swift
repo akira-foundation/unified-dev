@@ -7,6 +7,7 @@ public enum OrchestratorUnaskedCommands {
 
     public static let caveat = "On by default. Only a short list of programs that read runs without asking: "
         + "listing and reading files, searching text, and the reads of git and gh, which reach GitHub. "
+        + "Those reads stay inside the orchestrator's worktree: a path outside it, or a link that leads out, asks you first. "
         + "Builds, scripts and other network tools ask you first, "
         + "and edits, commits, pushes, merges and rebases it can recognise stay refused. "
         + "Text planted in a file or an issue the orchestrator reads can still choose which of those reads run, "

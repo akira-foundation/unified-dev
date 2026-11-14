@@ -203,5 +203,6 @@ struct OrchestratorUnaskedCommandsTests {
         #expect(OrchestratorUnaskedCommands.caveat.contains("stay refused"))
         #expect(OrchestratorUnaskedCommands.caveat.contains("Builds, scripts and other network tools ask you first"))
         #expect(OrchestratorUnaskedCommands.caveat.hasPrefix("On by default."))
+        #expect(OrchestratorUnaskedCommands.caveat.contains("stay inside the orchestrator's worktree"))
     }
 }

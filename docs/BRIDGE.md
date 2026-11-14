@@ -1637,8 +1637,21 @@ arguments from what it reads, so it passes only in front of a listed program out
 `OrchestratorUnaskedPrograms.steeredByTheirArguments`. Everything else asks rather
 than being refused, so nothing that worked before is blocked: it comes back to the owner once.
 
-The judge reads words and runs nothing, so a listed program can still read outside the worktree, and a
-`gh` read or `git fetch` reaches GitHub, or the host a remote names, with what it is given. That is the cost of the switch being on, along with the one
+**Paths stay in the worktree.** A command that passes the judge passes only if
+`OrchestratorWorktreeReach` also finds that every path it can name stays inside the orchestrator's
+worktree, and that limit holds for the read list above as well, switch on or off. It reads every
+argument, the value after `=`, `@` or `:` in one, the words of a nested shell and of a command
+substitution, and the target of each change of directory, and resolves each one on disk with
+`WorktreePathResolver` before deciding, so a link inside the worktree is judged by where it really
+leads and `~` by the home it names. A change of directory passes only into a directory inside the
+worktree with no link below it that leads out, since the shell may keep that directory for the next
+command. Anything whose path is only known at run time asks: an expansion handed to a program that
+reads files, a glob that matches a link out, a program fed its arguments by another, and the flags that
+make `find`, `grep`, `rg`, `tree`, `ls`, `du` and `diff` follow links as they walk. Outside the
+worktree, or in doubt, it asks rather than refusing.
+
+The judge reads words and runs nothing, and a `gh` read or `git fetch` reaches GitHub, or the host a
+remote names, with what it is given. That is the cost of the switch being on, along with the one
 the settings footer names: text planted in a file or an issue the orchestrator reads can choose which of
 those reads run, and the owner does not see them first. Each one still leaves its tool row in the
 transcript. The Run button on a code block is not affected.

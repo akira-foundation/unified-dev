@@ -55,12 +55,13 @@ public enum OrchestratorToolGuard {
     static func answersItself(toolName: String, input: JSONValue, worktree: String, runsUnasked: Bool = false) -> Bool {
         guard shellTools.contains(toolName), let command = input["command"]?.stringValue else { return false }
         if input["cmd"].map({ names($0, command) }) ?? true, directoryKeys.allSatisfy({ runs(in: input[$0], worktree: worktree) }),
-           OrchestratorShellJudge.reads(command) {
+           OrchestratorShellJudge.reads(command), OrchestratorWorktreeReach.verdict(command, worktree: worktree) == .passes {
             return true
         }
         guard runsUnasked, holdsOnlyTheCommand(input, command: command),
               directoryKeys.allSatisfy({ runs(in: input[$0], worktree: worktree) }) else { return false }
         return OrchestratorUnaskedJudge.verdict(command) == .passes
+            && OrchestratorWorktreeReach.verdict(command, worktree: worktree) == .passes
     }
 
     private static func holdsOnlyTheCommand(_ input: JSONValue, command: String) -> Bool {
