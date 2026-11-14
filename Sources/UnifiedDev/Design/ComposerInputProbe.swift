@@ -97,18 +97,22 @@ enum ComposerInputProbe {
             check(ancestor === surface, "drop surface is not an ancestor of the native editor")
 
             let line = NSLayoutManager().defaultLineHeight(for: text.font!)
-            for count in [1, 2, 10, 25, 1] {
+            let fewest = ComposerEditor.minimumLines
+            let most = ComposerEditor.maximumLines
+            for count in [1, fewest - 1, fewest, fewest + 1, most, most + 15, 1] {
                 draft.text = Array(repeating: "Line", count: count).joined(separator: "\n")
                 await settle(window)
-                check(abs(scroll.contentSize.height - ceil(line * CGFloat(min(count, 10)))) <= 1,
-                      "editor did not size to \(min(count, 10)) lines for a \(count)-line draft")
-                if count > 10 {
+                let shown = min(max(count, fewest), most)
+                check(abs(scroll.contentSize.height - ceil(line * CGFloat(shown))) <= 1,
+                      "editor did not size to \(shown) lines for a \(count)-line draft")
+                if count > most {
                     check(text.frame.height > scroll.contentSize.height, "long draft cannot scroll internally")
                 }
             }
-            draft.text = "Line\n"
+            draft.text = Array(repeating: "Line", count: fewest).joined(separator: "\n") + "\n"
             await settle(window)
-            check(abs(scroll.contentSize.height - ceil(line * 2)) <= 1, "trailing newline did not grow the editor")
+            check(abs(scroll.contentSize.height - ceil(line * CGFloat(fewest + 1))) <= 1,
+                  "trailing newline did not grow the editor")
 
             let file = directory.appending(path: "Finder file.txt")
             try Data("finder attachment".utf8).write(to: file)

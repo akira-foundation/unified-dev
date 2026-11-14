@@ -150,13 +150,29 @@ struct WorktreeWatcherBranchTests {
         #expect(WorktreeWatcher.movedBranchNames(relative) == nil)
     }
 
+    private func untilEarlierEventsAreDelivered() async throws {
+        let folder = TestScratch.unique("fsevents-marker")
+        try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+        let marker = folder + "/marker"
+        let seen = Mutex(false)
+        let watcher = WorktreeWatcher(onFilesChanged: { changes in
+            if changes.contains(where: { $0.path == marker }) { seen.withLock { $0 = true } }
+        }, onChange: { _ in })
+        defer { watcher.stop() }
+        watcher.watch(roots: [folder])
+
+        try Data("marker".utf8).write(to: URL(filePath: marker))
+        await waitUntil("the marker written after the worktrees is delivered", within: .seconds(20)) {
+            seen.withLock { $0 }
+        }
+    }
+
     private func wokenByACommit(in pair: Pair, branches: [String: Set<String>]) async throws -> Set<String> {
+        try await untilEarlierEventsAreDelivered()
         let reported = Mutex<Set<String>>([])
         let watcher = WorktreeWatcher { changed in reported.withLock { $0.formUnion(changed) } }
         defer { watcher.stop() }
         watcher.watch(roots: [pair.one, pair.two], branches: branches)
-        try await Task.sleep(for: .milliseconds(500))
-        reported.withLock { $0.removeAll() }
 
         try await Shell.check("git", ["commit", "-q", "--allow-empty", "-m", "Move one"], cwd: pair.one)
 

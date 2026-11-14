@@ -120,17 +120,25 @@ struct LoginShellProbeTests {
     )
     func slowZshrcIsStopped() async throws {
         let home = try directory("slow-zdotdir")
-        try "sleep 30\n".write(
-            toFile: (home as NSString).appendingPathComponent(".zshrc"), atomically: true, encoding: .utf8
-        )
-        let started = ContinuousClock.now
+        let zshrc = """
+            print $$ > "$ZDOTDIR/pid.partial"
+            mv "$ZDOTDIR/pid.partial" "$ZDOTDIR/pid"
+            sleep 30
 
-        let found = await LoginShellPath.discover(
-            shell: "/bin/zsh", environment: [:], overlay: ["ZDOTDIR": home], timeout: .seconds(2)
-        )
+            """
+        try zshrc.write(toFile: (home as NSString).appendingPathComponent(".zshrc"), atomically: true, encoding: .utf8)
 
-        #expect(found.isEmpty)
-        #expect(started.duration(to: .now) < .seconds(5))
+        let pidFile = (home as NSString).appendingPathComponent("pid")
+
+        for seconds in [2, 4, 8] where !FileManager.default.fileExists(atPath: pidFile) {
+            let found = await LoginShellPath.discover(
+                shell: "/bin/zsh", environment: [:], overlay: ["ZDOTDIR": home], timeout: .seconds(seconds)
+            )
+            #expect(found.isEmpty)
+        }
+
+        let shell = try #require(try pids(at: pidFile).first)
+        await waitUntil("the zsh that was reading its .zshrc has gone") { kill(shell, 0) != 0 }
     }
 
     @Test(

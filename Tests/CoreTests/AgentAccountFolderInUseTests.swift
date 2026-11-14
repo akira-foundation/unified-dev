@@ -15,35 +15,38 @@ struct AgentAccountFolderInUseTests {
         return made.home
     }
 
-    private func cli(underFolder folder: URL) throws -> Process {
+    private func whileACliHolds<T>(
+        _ folder: URL,
+        sourceLocation: SourceLocation = #_sourceLocation,
+        _ body: (ChildProcess) async throws -> T
+    ) async throws -> T {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let held = folder.appending(path: "held.log")
         try Data().write(to: held)
-        let process = Process()
-        process.executableURL = URL(filePath: "/usr/bin/tail")
-        process.arguments = ["-f", held.path]
-        try process.run()
-        return process
-    }
-
-    private func stop(_ process: Process) {
-        process.terminate()
-        process.waitUntilExit()
+        let cli = try ChildProcess("/usr/bin/tail", ["-f", held.path])
+        do {
+            let value = try await body(cli)
+            await cli.stop(sourceLocation: sourceLocation)
+            return value
+        } catch {
+            await cli.stop(sourceLocation: sourceLocation)
+            throw error
+        }
     }
 
     @Test func aCliInATerminalPaneKeepsTheFolderEvenThoughNoTurnIsRecorded() async throws {
         let store = try makeTestStore("in-use")
         let support = scratchSupport()
         let home = try await account(in: store, support: support)
-        let pane = try cli(underFolder: home.directory)
-        defer { stop(pane) }
+        try await whileACliHolds(home.directory) { _ in
+            await #expect(throws: AgentAccountError.folderInUse(home.directory.path)) {
+                try await AgentAccountRemoval.remove(home, support: support, store: store, keychain: .untouched)
+            }
 
-        await #expect(throws: AgentAccountError.folderInUse(home.directory.path)) {
-            try await AgentAccountRemoval.remove(home, support: support, store: store, keychain: .untouched)
+            let accounts = try await store.agentAccounts().map(\.id)
+            #expect(FileManager.default.fileExists(atPath: home.directory.path))
+            #expect(accounts == [home.id])
         }
-
-        #expect(FileManager.default.fileExists(atPath: home.directory.path))
-        #expect(try await store.agentAccounts().map(\.id) == [home.id])
     }
 
     @Test func aTurnStillRecordedInAnArchivedWorkspaceKeepsTheFolder() async throws {
@@ -72,26 +75,24 @@ struct AgentAccountFolderInUseTests {
         let support = scratchSupport()
         let made = AgentAccountCreation.plan(provider: .claudeCode, label: "Client", existing: [], support: support)
         try AgentAccountCreation.prepareDirectory(of: made.home)
-        let login = try cli(underFolder: made.directory)
-        defer { stop(login) }
+        try await whileACliHolds(made.directory) { _ in
+            await #expect(throws: AgentAccountError.folderInUse(made.directory.path)) {
+                try await AgentAccountRemoval.removeUnfinished(made.home, support: support, keychain: .untouched)
+            }
 
-        await #expect(throws: AgentAccountError.folderInUse(made.directory.path)) {
-            try await AgentAccountRemoval.removeUnfinished(made.home, support: support, keychain: .untouched)
+            #expect(FileManager.default.fileExists(atPath: made.directory.path))
         }
-
-        #expect(FileManager.default.fileExists(atPath: made.directory.path))
     }
 
-    @Test func aReservationAProcessStillHoldsIsNotDiscarded() throws {
+    @Test func aReservationAProcessStillHoldsIsNotDiscarded() async throws {
         let support = scratchSupport()
         let reservation = try AgentAccountCreation.reserve(
             provider: .claudeCode, label: "Client", existing: [], support: support
         )
-        let login = try cli(underFolder: reservation.plan.directory)
-        defer { stop(login) }
-
-        #expect(!reservation.discard())
-        #expect(FileManager.default.fileExists(atPath: reservation.plan.directory.path))
+        try await whileACliHolds(reservation.plan.directory) { _ in
+            #expect(!reservation.discard())
+            #expect(FileManager.default.fileExists(atPath: reservation.plan.directory.path))
+        }
     }
 
     @Test func aFolderAlreadyGoneIsForgottenEvenWhenTheProcessesCannotBeRead() async throws {
@@ -247,12 +248,13 @@ struct AgentAccountFolderInUseTests {
         #expect(use == .unknown)
     }
 
-    @Test func aRealProcessIsFoundByTheFolderItNames() throws {
+    @Test func aRealProcessIsFoundByTheFolderItNames() async throws {
         let folder = URL(filePath: TestScratch.unique("account"), directoryHint: .isDirectory)
-        let process = try cli(underFolder: folder)
-        defer { stop(process) }
 
-        #expect(AgentAccountFolderUse.of(folder, among: ProcessVectors.ofThisUser()) == .held(pids: [process.processIdentifier]))
+        try await whileACliHolds(folder) { cli in
+            let use = AgentAccountFolderUse.of(folder, among: ProcessVectors.ofThisUser())
+            #expect(use == .held(pids: [cli.process.processIdentifier]))
+        }
     }
 
     @Test func aFolderIsAlsoHeldThroughItsResolvedPath() throws {

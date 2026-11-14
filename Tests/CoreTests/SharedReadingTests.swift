@@ -15,6 +15,29 @@ private final class FakeClock: Sendable {
     func advance(_ by: Duration) { instant.withLock { $0 += by } }
 }
 
+private final class ReadGate: Sendable {
+    private let state = Mutex<(isOpen: Bool, waiting: [CheckedContinuation<Void, Never>])>((false, []))
+
+    func open() {
+        let waiting = state.withLock { state in
+            state.isOpen = true
+            defer { state.waiting = [] }
+            return state.waiting
+        }
+        for continuation in waiting { continuation.resume() }
+    }
+
+    func passed() async {
+        await withCheckedContinuation { continuation in
+            let isOpen = state.withLock { state in
+                if !state.isOpen { state.waiting.append(continuation) }
+                return state.isOpen
+            }
+            if isOpen { continuation.resume() }
+        }
+    }
+}
+
 @Suite struct SharedReadingTests {
     @Test func callersWithinTheAgeShareOneReading() async {
         let counter = ReadCounter()
@@ -55,14 +78,18 @@ private final class FakeClock: Sendable {
 
     @Test func callersArrivingDuringAReadWaitForIt() async {
         let counter = ReadCounter()
-        let reading = SharedReading<Int> {
-            try? await Task.sleep(for: .milliseconds(100))
+        let clock = FakeClock()
+        let gate = ReadGate()
+        let reading = SharedReading<Int>(now: { clock.now }) {
+            await gate.passed()
             return counter.read()
         }
 
         async let first = reading.value(notOlderThan: .seconds(2))
         async let second = reading.value(notOlderThan: .seconds(2))
         async let third = reading.value(notOlderThan: .seconds(2))
+        await waitUntil("two callers wait on the read the first one started") { await reading.waitingOnRead == 2 }
+        gate.open()
         let values = await [first, second, third]
 
         #expect(counter.reads == 1)

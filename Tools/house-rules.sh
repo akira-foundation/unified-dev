@@ -709,6 +709,14 @@ if hits="$(git grep --untracked -n -I -e 'ProfileBridgeSwitch\.save' -e 'Profile
   report "ProfileBridgeSwitch is saved from ProfileBridgeSection and, in a seeded preview, by the scenario seeder, and nowhere else."
 fi
 
+echo "==> no async closure literal is a default argument in the core"
+async_default='\)[[:space:]]*async([[:space:]]+throws)?([[:space:]]*->[^={]+)?[[:space:]]*=[[:space:]]*\{'
+stored='^[^:]+:[0-9]+:[[:space:]]*((public|private|fileprivate|internal|nonisolated|static|lazy)[[:space:]]+)*(let|var)[[:space:]]'
+if hits="$(git grep --untracked -n -I -E "$async_default" -- 'Sources/Core/*.swift' 'Sources/bridge/*.swift' | grep -vE "$stored" || true)" && [ -n "$hits" ]; then
+  echo "$hits" | show
+  report "An async closure literal as a default argument is copied into every client and can abort the test process (swiftlang/swift#92017). Name it as a static let and default to that."
+fi
+
 echo "==> an extension of a debug-only type is debug-only too"
 debug_types="$(git grep --untracked -l -I '^#if DEBUG' -- 'Sources/*.swift' | xargs grep -h -oE '^(public |final |@MainActor )*(struct|enum|class|actor) [A-Z][A-Za-z0-9]*' 2>/dev/null | awk '{print $NF}' | sort -u || true)"
 for type in $debug_types; do

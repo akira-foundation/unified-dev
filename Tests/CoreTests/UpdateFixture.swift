@@ -68,14 +68,12 @@ struct UpdateFixture {
     }
 
     func runReplacement(staged: URL, target: URL, requirement: String, log: URL) async throws -> Int32 {
-        let finished = Process()
-        finished.executableURL = URL(filePath: "/usr/bin/true")
-        try finished.run()
-        finished.waitUntilExit()
+        let finished = try ChildProcess("/usr/bin/true", [])
+        await finished.awaitExit()
 
         let replacement = UpdateInstaller.Replacement(staged: staged, target: target, requirement: requirement, log: log)
         let process = try UpdateInstaller.launchReplacement(
-            processID: finished.processIdentifier, replacement: replacement, reopen: "/usr/bin/true"
+            processID: finished.process.processIdentifier, replacement: replacement, reopen: "/usr/bin/true"
         )
         return await withCheckedContinuation { continuation in
             DispatchQueue.global().async {

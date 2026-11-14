@@ -7,8 +7,6 @@ public struct GrokQuotaSource: AgentQuotaSource {
 
     public static let timeout = Duration.seconds(20)
 
-    public static let loginShellProbe: @Sendable () async -> Void = { await LoginShellPath.ready() }
-
     static let methodNotFound = -32601
 
     static let reportsNothing = Data("{}".utf8)
@@ -32,7 +30,7 @@ public struct GrokQuotaSource: AgentQuotaSource {
         bundleIdentifier: String? = Bundle.main.bundleIdentifier,
         makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = GrokClient.spawn,
         watchdogSleep: @escaping @Sendable (Duration) async throws -> Void = GrokClient.taskSleep,
-        loginShellReady: @escaping @Sendable () async -> Void = GrokQuotaSource.loginShellProbe
+        loginShellReady: @escaping @Sendable () async -> Void = LoginShellPath.readiness
     ) {
         self.executable = executable
         self.cwd = cwd

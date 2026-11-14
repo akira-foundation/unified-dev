@@ -80,9 +80,11 @@ public struct StartedWorkspace: Sendable {
 }
 
 extension WorkspaceManager {
+    public static let unnamed: @Sendable () async -> String? = { nil }
+
     public func start(
         _ request: WorkspaceStartRequest,
-        namer: @Sendable () async -> String? = { nil },
+        namer: @Sendable () async -> String? = WorkspaceManager.unnamed,
         setupOutput: (@Sendable (String) -> Void)? = nil
     ) async throws -> StartedWorkspace {
         if request.orchestrates {

@@ -35,10 +35,6 @@ struct WorktreeWatcherDescriptorTests {
         }
     }
 
-    private static func openDescriptors() -> Int {
-        (0..<4096).filter { fcntl(Int32($0), F_GETFD) != -1 }.count
-    }
-
     private static func standardInput() -> ino_t? {
         var status = stat()
         return fstat(STDIN_FILENO, &status) == 0 ? status.st_ino : nil
@@ -74,35 +70,36 @@ struct WorktreeWatcherDescriptorTests {
         let input = try #require(Self.standardInput())
 
         watcher.watch(roots: fixture.roots)
-        let settled = Self.openDescriptors()
         for round in 0..<60 {
             watcher.watch(roots: Array(fixture.roots.dropFirst(round % fixture.roots.count)))
         }
         watcher.watch(roots: fixture.roots)
         let watching = watcher.isWatching
-        let after = Self.openDescriptors()
+        let heldWhileWatching = fixture.descriptorsInside()
         watcher.stop()
 
         #expect(watching)
-        #expect(after - settled < 30)
+        #expect(heldWhileWatching == 0)
+        #expect(fixture.descriptorsInside() == 0)
         #expect(Self.standardInput() == input)
     }
 
     @Test("the lowest closed descriptor is reopened on the null device")
     func reopensTheLowestClosedDescriptor() throws {
-        let lowest = open("/dev/null", O_RDONLY)
-        try #require(lowest >= 0)
-        close(lowest)
-
-        let reopened = WorktreeWatcher.reopenNullDevice(ifClosed: lowest)
+        var lowest: Int32 = -1
+        var reopened = false
+        for _ in 0..<50 where !reopened {
+            lowest = open("/dev/null", O_RDONLY)
+            try #require(lowest >= 0)
+            close(lowest)
+            reopened = WorktreeWatcher.reopenNullDevice(ifClosed: lowest)
+        }
         defer { if reopened { close(lowest) } }
 
         var status = stat()
         var null = stat()
-        #expect(fcntl(lowest, F_GETFD) != -1)
-        if reopened {
-            #expect(fstat(lowest, &status) == 0 && stat("/dev/null", &null) == 0 && status.st_rdev == null.st_rdev)
-        }
+        #expect(reopened)
+        #expect(fstat(lowest, &status) == 0 && stat("/dev/null", &null) == 0 && status.st_rdev == null.st_rdev)
     }
 
     @Test("a descriptor that is open is left alone")

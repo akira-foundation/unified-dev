@@ -6,6 +6,7 @@ public actor SharedReading<Value: Sendable> {
     private var last: (value: Value, at: ContinuousClock.Instant)?
     private var inFlight: (reading: Task<Value?, Never>, startedAt: ContinuousClock.Instant)?
     private var generation = 0
+    private(set) var waitingOnRead = 0
 
     public init(
         now: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now },
@@ -18,7 +19,11 @@ public actor SharedReading<Value: Sendable> {
     public func value(notOlderThan maxAge: Duration) async -> Value? {
         let asked = now()
         if let last, asked - last.at < maxAge { return last.value }
-        if let inFlight, asked - inFlight.startedAt < maxAge { return await inFlight.reading.value }
+        if let inFlight, asked - inFlight.startedAt < maxAge {
+            waitingOnRead += 1
+            defer { waitingOnRead -= 1 }
+            return await inFlight.reading.value
+        }
         let reading = Task { await read() }
         let started = generation
         inFlight = (reading, asked)

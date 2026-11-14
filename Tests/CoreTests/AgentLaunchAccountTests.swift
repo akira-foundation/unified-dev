@@ -41,7 +41,8 @@ struct AgentLaunchAccountTests {
         let source = ClaudeCodeQuotaSource(
             environment: LaunchAccountFixture.inherited,
             account: workClaude,
-            makeProcess: log.factory
+            makeProcess: log.factory,
+            loginShellReady: {}
         )
         _ = await source.read()
         let launch = log.first
@@ -58,7 +59,9 @@ struct AgentLaunchAccountTests {
         let account = AgentAccountHome(
             provider: .claudeCode, id: AgentAccountID("work"), directory: directory, isDefault: false
         )
-        let source = ClaudeCodeQuotaSource(account: account, clock: { fetched.addingTimeInterval(60) })
+        let source = ClaudeCodeQuotaSource(
+            account: account, clock: { fetched.addingTimeInterval(60) }, loginShellReady: {}
+        )
         let standing = await source.standing()
         let reported = try #require(standing.lastReportedAt)
         #expect(abs(reported.timeIntervalSince(fetched)) < 0.01)
@@ -67,7 +70,7 @@ struct AgentLaunchAccountTests {
     @Test func theCodexQuotaSourceActuallyAsksUnderTheAccount() async {
         let log = LaunchLog()
         let source = CodexQuotaSource(
-            environment: LaunchAccountFixture.inherited, account: workCodex, makeProcess: log.factory
+            environment: LaunchAccountFixture.inherited, account: workCodex, makeProcess: log.factory, loginShellReady: {}
         )
         _ = await source.read()
         let launch = log.first

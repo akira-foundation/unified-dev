@@ -6,6 +6,8 @@ public enum LoginShellPath {
 
     public static let switchVariable = "UD_LOGIN_SHELL_PATH"
 
+    public static let readiness: @Sendable () async -> Void = { await ready() }
+
     static let sentinel = "/usr/bin/printf '\\0'; /usr/bin/env -0"
 
     private static let probe = Mutex<Task<Void, Never>?>(nil)

@@ -80,7 +80,7 @@ struct ProcessStdinTests {
 
     @Test("a Codex source whose process says nothing answers nothing", .timeLimit(.minutes(1)))
     func aSilentCodexProcessFailsAsASource() async {
-        let source = CodexQuotaSource(makeProcess: { _ in DeadProcess() })
+        let source = CodexQuotaSource(makeProcess: { _ in DeadProcess() }, loginShellReady: {})
 
         let payload = await source.read()
         #expect(payload == nil)

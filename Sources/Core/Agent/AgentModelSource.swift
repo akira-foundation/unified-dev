@@ -5,10 +5,12 @@ public struct AgentModelSource: Sendable {
     public let invalidate: @Sendable () async -> Void
     public let isInstalled: @Sendable () async -> Bool
 
+    public static let alwaysInstalled: @Sendable () async -> Bool = { true }
+
     public init(
         models: @escaping @Sendable () async throws -> [AgentModel],
         invalidate: @escaping @Sendable () async -> Void,
-        isInstalled: @escaping @Sendable () async -> Bool = { true }
+        isInstalled: @escaping @Sendable () async -> Bool = AgentModelSource.alwaysInstalled
     ) {
         self.models = models
         self.invalidate = invalidate

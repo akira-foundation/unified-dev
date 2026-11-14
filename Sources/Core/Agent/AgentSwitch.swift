@@ -108,10 +108,12 @@ public enum AgentSwitch {
         }
     }
 
+    public static let exitPollPause: @Sendable () async -> Void = { try? await Task.sleep(for: .milliseconds(25)) }
+
     public static func waitForExit(
         of runner: any SessionRunner,
         budget: Duration = AgentRunner.defaultShutdownBudget,
-        pause: @Sendable () async -> Void = { try? await Task.sleep(for: .milliseconds(25)) }
+        pause: @Sendable () async -> Void = AgentSwitch.exitPollPause
     ) async -> Bool {
         let deadline = ContinuousClock.now + budget
         while await !runner.hasStoppedWriting {

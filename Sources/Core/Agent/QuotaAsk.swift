@@ -111,6 +111,7 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
     private let clock: @Sendable () -> Date
     private let activity: ClaudeAccountActivity
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
+    private let loginShellReady: @Sendable () async -> Void
 
     public init(
         executable: String = AgentRunner.executable,
@@ -121,9 +122,11 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
         credentialPath: String? = nil,
         clock: @escaping @Sendable () -> Date = Date.init,
         activity: ClaudeAccountActivity = .shared,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = AgentRunner.spawn
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = AgentRunner.spawn,
+        loginShellReady: @escaping @Sendable () async -> Void = LoginShellPath.readiness
     ) {
         self.activity = activity
+        self.loginShellReady = loginShellReady
         self.executable = executable
         self.cwd = cwd
         self.environment = environment
@@ -138,7 +141,7 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
     public var holder: QuotaHolder { QuotaHolder(provider: Self.provider, home: account) }
 
     public func standing() async -> QuotaStanding {
-        await LoginShellPath.ready()
+        await loginShellReady()
         return QuotaStanding(
             isInstalled: Shell.which(executable) != nil,
             lastReportedAt: ClaudeUsageCache.fetchedAt(in: accountFile(), at: clock())
@@ -181,7 +184,7 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
     }
 
     private func ask() async -> Data? {
-        await LoginShellPath.ready()
+        await loginShellReady()
         return await activity.holding(account) { await askHoldingTheAccount() }.flatMap(\.self)
     }
 
@@ -222,30 +225,33 @@ public struct CodexQuotaSource: AgentQuotaSource {
     private let environment: [String: String]?
     private let account: AgentAccountHome?
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
+    private let loginShellReady: @Sendable () async -> Void
 
     public init(
         executable: String = CodexClient.executable,
         cwd: String = AgentScratchDirectory.current(),
         environment: [String: String]? = nil,
         account: AgentAccountHome? = nil,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = CodexClient.spawn
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = CodexClient.spawn,
+        loginShellReady: @escaping @Sendable () async -> Void = LoginShellPath.readiness
     ) {
         self.executable = executable
         self.cwd = cwd
         self.environment = environment
         self.account = account
         self.makeProcess = makeProcess
+        self.loginShellReady = loginShellReady
     }
 
     public var holder: QuotaHolder { QuotaHolder(provider: Self.provider, home: account) }
 
     public func standing() async -> QuotaStanding {
-        await LoginShellPath.ready()
+        await loginShellReady()
         return QuotaStanding(isInstalled: Shell.which(executable) != nil)
     }
 
     public func read() async -> Data? {
-        await LoginShellPath.ready()
+        await loginShellReady()
         let configuration = CodexClient.Configuration(
             executable: executable,
             cwd: cwd,

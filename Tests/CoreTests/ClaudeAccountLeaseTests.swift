@@ -20,7 +20,9 @@ struct ClaudeAccountLeaseTests {
         }
         switch starter {
         case .quota:
-            _ = await ClaudeCodeQuotaSource(environment: [:], account: account, activity: activity, makeProcess: factory).read()
+            _ = await ClaudeCodeQuotaSource(
+                environment: [:], account: account, activity: activity, makeProcess: factory, loginShellReady: {}
+            ).read()
         case .liveness:
             _ = await AgentAccountLiveness(environment: [:], activity: activity, makeProcess: factory).report(for: account)
         case .namer:
