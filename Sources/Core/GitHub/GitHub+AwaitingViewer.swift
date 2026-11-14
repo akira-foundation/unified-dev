@@ -1,17 +1,5 @@
 import Foundation
 
-public struct AssignedIssue: Sendable, Hashable, Identifiable {
-    public let number: Int
-    public let title: String
-
-    public var id: Int { number }
-
-    public init(number: Int, title: String) {
-        self.number = number
-        self.title = title
-    }
-}
-
 public struct PullRequestsAwaitingViewer: Sendable, Hashable {
     public let reviewRequested: [PullRequestListing]
     public let authored: [PullRequestListing]
@@ -39,11 +27,14 @@ extension GitHub {
     }
 
     public static func issuesAssignedToViewer(repoPath: String) async -> [AssignedIssue] {
+        let context = try? await Git.repositoryContext(in: repoPath)
+        let repository = repositorySpecifier(context?.baseRemoteURL).map { ["--repo", $0] } ?? []
         let arguments = [
             "issue", "list", "--state", "open", "--assignee", "@me",
             "--limit", String(awaitingViewerLimit), "--json", "number,title",
-        ]
-        guard let result = try? await run("gh", arguments, cwd: repoPath, timeout: .seconds(20)), result.ok else {
+        ] + repository
+        guard let result = try? await run("gh", arguments, cwd: repoPath, timeout: .seconds(20), repositoryContext: context),
+              result.ok else {
             return []
         }
         return decodeAssignedIssues(from: Data(result.stdout.utf8))
@@ -64,6 +55,6 @@ extension GitHub {
     private static func listedRequests(_ arguments: [String], repoPath: String) async -> [PullRequestListing] {
         guard let result = try? await run("gh", arguments, cwd: repoPath, timeout: .seconds(20)), result.ok,
               let requests = try? decodePullRequestListings(from: Data(result.stdout.utf8)) else { return [] }
-        return requests.filter(\.isOpen)
+        return WorkspaceCheckoutPlan.offered(requests, limit: awaitingViewerLimit)
     }
 }

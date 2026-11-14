@@ -15,11 +15,7 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
     }
 
     public var glyph: String {
-        switch self {
-        case .reviewRequested, .authored: "arrow.triangle.pull"
-        case .issue: "smallcircle.filled.circle"
-        case .branch: "arrow.triangle.branch"
-        }
+        StartingPointLabel.glyph(for: pick(defaultBranch: "").startingPoint)
     }
 
     public var title: String {
@@ -38,6 +34,14 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
         }
     }
 
+    public var spoken: String {
+        switch self {
+        case .reviewRequested(let request), .authored(let request): "Pull request #\(request.number), \(title)"
+        case .issue(let issue): "Issue #\(issue.number), \(title)"
+        case .branch(let branch): "Branch \(branch.name)"
+        }
+    }
+
     public func reason(now: Date) -> String {
         switch self {
         case .reviewRequested: "Review requested"
@@ -47,26 +51,14 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
         }
     }
 
-    public var spokenVerb: String {
-        switch self {
-        case .reviewRequested: "Review"
-        case .authored, .branch: "Open"
-        case .issue: "Start on"
-        }
-    }
-
     public func pick(defaultBranch: String) -> StartingPointSuggestionPick {
         switch self {
         case .reviewRequested(let request), .authored(let request):
-            StartingPointSuggestionPick(source: .pullRequest(.listed(request)), prompt: nil)
+            StartingPointSuggestionPick(startingPoint: .pullRequest(request))
         case .branch(let branch):
-            StartingPointSuggestionPick(source: .existingBranch(ExistingBranch(name: branch.name, isLocal: true)), prompt: nil)
+            StartingPointSuggestionPick(startingPoint: .existingBranch(ExistingBranch(name: branch.name, isLocal: true)))
         case .issue(let issue):
-            StartingPointSuggestionPick(
-                source: .newBranch(from: defaultBranch),
-                prompt: "Work on issue #\(issue.number): \(issue.title)",
-                issueNumber: issue.number
-            )
+            StartingPointSuggestionPick(startingPoint: .newBranch(from: defaultBranch), issue: issue)
         }
     }
 
@@ -89,34 +81,5 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
         case ..<48: return "Touched yesterday"
         default: return "Touched \(hours / 24) days ago"
         }
-    }
-}
-
-public struct StartingPointSuggestionPick: Sendable, Hashable {
-    public let source: WorkspaceSource
-    public let prompt: String?
-    let issueNumber: Int?
-
-    init(source: WorkspaceSource, prompt: String?, issueNumber: Int? = nil) {
-        self.source = source
-        self.prompt = prompt
-        self.issueNumber = issueNumber
-    }
-
-    public func prompt(into existing: String) -> String {
-        guard let prompt else { return existing }
-        if let issueNumber, Self.mentions(issueNumber, in: existing) { return existing }
-        return WorkspaceDraft.receiving(prompt, into: existing)
-    }
-
-    private static func mentions(_ number: Int, in text: String) -> Bool {
-        let mark = "#\(number)"
-        var remainder = text[...]
-        while let found = remainder.range(of: mark) {
-            let next = remainder[found.upperBound...].first
-            if next.map({ !$0.isNumber }) ?? true { return true }
-            remainder = remainder[found.upperBound...]
-        }
-        return false
     }
 }

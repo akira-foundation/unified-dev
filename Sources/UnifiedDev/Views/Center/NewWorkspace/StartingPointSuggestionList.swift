@@ -82,7 +82,7 @@ private struct StartingPointSuggestionRow: View {
         .buttonStyle(.plain)
         .rowBackground(isSelected: false, isHovered: isHovered)
         .onHover { isHovered = $0 }
-        .accessibilityLabel("\(suggestion.spokenVerb) \([suggestion.reference, suggestion.title].compactMap { $0 }.joined(separator: " "))")
+        .accessibilityLabel(suggestion.spoken)
         .accessibilityValue(isChosen ? "\(reason), chosen" : reason)
     }
 }

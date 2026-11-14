@@ -1,43 +1,30 @@
 import Foundation
 import Synchronization
 
-public struct StartingPointReading: Sendable, Hashable {
-    public let pullRequests: PullRequestsAwaitingViewer
-    public let issues: [AssignedIssue]
-    public let branches: [RecentBranch]
-    public let readAt: Date
-
-    public init(
-        pullRequests: PullRequestsAwaitingViewer = PullRequestsAwaitingViewer(),
-        issues: [AssignedIssue] = [],
-        branches: [RecentBranch] = [],
-        readAt: Date
-    ) {
-        self.pullRequests = pullRequests
-        self.issues = issues
-        self.branches = branches
-        self.readAt = readAt
-    }
-}
-
 public enum StartingPointSuggestions {
     public static let limit = 4
     static let branchWindow: TimeInterval = 14 * 24 * 3600
     static let freshness: TimeInterval = 120
 
-    private static let readings = Mutex<[String: StartingPointReading]>([:])
+    private struct CacheKey: Hashable {
+        let repoPath: String
+        let asksGitHub: Bool
+    }
+
+    private static let readings = Mutex<[CacheKey: StartingPointReading]>([:])
 
     public static func choose(
         _ reading: StartingPointReading,
         defaultBranch: String,
         holders: [String: BranchHolder],
+        openPullRequests: [PullRequestListing] = [],
         now: Date,
         limit: Int = limit
     ) -> [StartingPointSuggestion] {
         let review = reading.pullRequests.reviewRequested
         let reviewNumbers = Set(review.map(\.number))
         let authored = reading.pullRequests.authored.filter { !reviewNumbers.contains($0.number) }
-        let heads = Set((review + authored).filter { !$0.isCrossRepository }.map(\.headRefName))
+        let heads = WorkspaceCheckoutPlan.heads(of: review + authored + openPullRequests)
         let branches = reading.branches.filter { branch in
             branch.name != defaultBranch
                 && holders[branch.name] == nil
@@ -68,27 +55,33 @@ public enum StartingPointSuggestions {
         return groups.indices.flatMap { groups[$0].prefix(taken[$0]) }
     }
 
-    public static func cached(repoPath: String) -> StartingPointReading? {
-        readings.withLock { $0[repoPath] }
+    public static func fresh(repoPath: String, asksGitHub: Bool, now: Date = Date()) -> StartingPointReading? {
+        guard let cached = cached(repoPath: repoPath, asksGitHub: asksGitHub), isFresh(cached, now: now) else {
+            return nil
+        }
+        return cached
     }
 
-    public static func isFresh(_ reading: StartingPointReading, now: Date) -> Bool {
+    static func cached(repoPath: String, asksGitHub: Bool) -> StartingPointReading? {
+        readings.withLock { $0[CacheKey(repoPath: repoPath, asksGitHub: asksGitHub)] }
+    }
+
+    static func isFresh(_ reading: StartingPointReading, now: Date) -> Bool {
         now.timeIntervalSince(reading.readAt) < freshness
     }
 
-    public static func load(repoPath: String, asksGitHub: Bool, now: Date = Date()) async -> StartingPointReading {
-        if let cached = cached(repoPath: repoPath), isFresh(cached, now: now) { return cached }
+    public static func load(repoPath: String, asksGitHub: Bool, now: Date = Date()) async -> StartingPointReading? {
+        if let reading = fresh(repoPath: repoPath, asksGitHub: asksGitHub, now: now) { return reading }
         let reading = await read(repoPath: repoPath, asksGitHub: asksGitHub, now: now)
-        remember(reading, for: repoPath)
+        guard !Task.isCancelled else { return nil }
+        readings.withLock { $0[CacheKey(repoPath: repoPath, asksGitHub: asksGitHub)] = reading }
         return reading
     }
 
-    static func remember(_ reading: StartingPointReading, for repoPath: String) {
-        readings.withLock { $0[repoPath] = reading }
-    }
-
     static func forget(repoPath: String) {
-        _ = readings.withLock { $0.removeValue(forKey: repoPath) }
+        readings.withLock { cache in
+            for key in cache.keys where key.repoPath == repoPath { cache.removeValue(forKey: key) }
+        }
     }
 
     static func read(repoPath: String, asksGitHub: Bool, now: Date) async -> StartingPointReading {
