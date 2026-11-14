@@ -543,7 +543,7 @@ public enum AgentKind: String, Sendable, Codable, CaseIterable, Identifiable {
         switch self {
         case .claudeCode: ["auth", "login"]
         case .codex, .grok, .cursor: ["login"]
-        case .antigravity: ["acp", "--login"]
+        case .antigravity: []
         case .openCode: ["auth", "login"]
         }
     }

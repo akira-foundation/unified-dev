@@ -107,6 +107,38 @@ struct AntigravityTranslationTests {
         #expect(ended.usage.outputTokens == 1)
     }
 
+    @Test("a measured completed command ends as a successful tool result with its output")
+    func completedCommandSucceeds() throws {
+        var translation = translation()
+        _ = translation.translate(.sessionReady(ACPSession(id: "s")))
+        _ = translation.translate(.update(try update(AntigravityWire.commandCall)))
+        let events = translation.translate(.update(try update(AntigravityWire.commandCompleted)))
+        guard case .toolResult(let result) = events.last else {
+            Issue.record("expected a tool result")
+            return
+        }
+        #expect(!result.isError)
+        #expect(result.text.contains("probe"))
+    }
+
+    @Test("a cancelled turn ends without an error and keeps its usage")
+    func cancelledTurn() throws {
+        var translation = translation()
+        _ = translation.translate(.sessionReady(ACPSession(id: "s")))
+        guard case .response(let id, let result, _) = try #require(ACPFrame.decode(line: AntigravityWire.cancelledResult)) else {
+            Issue.record("expected a response")
+            return
+        }
+        let events = translation.translate(.promptCompleted(ACPPromptResult(
+            requestID: id, sessionID: "s", stopReason: result["stopReason"]?.stringValue ?? "", raw: result
+        )))
+        guard case .result(let ended) = events.last else {
+            Issue.record("expected a result")
+            return
+        }
+        #expect(ended.usage.outputTokens == 43)
+    }
+
     @Test("a denied write ends as a failed tool result")
     func deniedWriteFails() throws {
         var translation = translation()

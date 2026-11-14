@@ -171,6 +171,7 @@ it. No quota request was found. Usage per turn is the `session/prompt` reply abo
 
 ## Signing in
 
-`agy acp --login` is documented as "Log in with Google interactively, then exit". It was not run,
-because the owner's account was already signed in. Running `agy` with no arguments signs in on
-first use, which is how the owner did it.
+Running `agy` with no arguments signs in on first use, which is how the owner did it, and is what
+the signed out message of `agy models` asks for. It is the login command Unified Dev opens.
+`agy acp --login` is documented as "Log in with Google interactively, then exit", and was not run,
+because the account was already signed in.

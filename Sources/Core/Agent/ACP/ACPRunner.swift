@@ -18,6 +18,7 @@ public actor ACPRunner: SessionRunner {
     private var acpSessionID: String?
     private var connectionGeneration: UInt64 = 0
     private var permissionConnectionID = UUID()
+    private var launchedAlwaysApproving = false
 
     private let grants: SessionGrants
     private var orchestrates = false
@@ -230,8 +231,9 @@ public actor ACPRunner: SessionRunner {
     }
 
     private func connected() async throws -> ACPClient {
+        let alwaysApproves = permissionMode == .bypassPermissions
         if let client {
-            if client.isProcessAlive, await client.isClosed == false {
+            if client.isProcessAlive, await client.isClosed == false, launchedAlwaysApproving == alwaysApproves {
                 return client
             }
             await dropConnection()
@@ -249,10 +251,11 @@ public actor ACPRunner: SessionRunner {
             environment: gitHub.applied(to: Shell.environment()),
             model: wireModel,
             effort: session.effort,
-            alwaysApprove: permissionMode == .bypassPermissions,
+            alwaysApprove: alwaysApproves,
             asksEveryCall: orchestrates
         ))
         self.client = client
+        launchedAlwaysApproving = alwaysApproves
         permissionConnectionID = UUID()
         connection.attach(client)
         let events = client.events
@@ -328,7 +331,9 @@ public actor ACPRunner: SessionRunner {
             try await applyConfigOption(on: client, sessionID: sessionID, configID: effortOption, value: session.effort)
         }
         if let mode = dialect.mode(for: permissionMode, asksEveryCall: orchestrates) {
-            try await applyConfigOption(on: client, sessionID: sessionID, configID: "mode", value: mode)
+            try await applyConfigOption(
+                on: client, sessionID: sessionID, configID: "mode", value: mode, isRequired: orchestrates
+            )
         }
     }
 
@@ -336,17 +341,18 @@ public actor ACPRunner: SessionRunner {
         on client: ACPClient,
         sessionID: String,
         configID: String,
-        value: String
+        value: String,
+        isRequired: Bool = false
     ) async throws {
         do {
             try await client.setConfigOption(sessionID: sessionID, configID: configID, value: value)
         } catch let error as ACPClientError {
             switch error {
             case .connectionClosed, .notInitialized: throw error
-            case .timedOut, .unexpectedResult: return
+            case .timedOut, .unexpectedResult: if isRequired { throw error }
             }
         } catch {
-            return
+            if isRequired { throw error }
         }
     }
 

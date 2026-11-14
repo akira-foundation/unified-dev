@@ -53,7 +53,16 @@ struct AntigravityDialectTests {
         #expect(dialect.mode(for: .auto, asksEveryCall: false) == "auto")
         #expect(dialect.mode(for: .plan, asksEveryCall: false) == "plan")
         #expect(dialect.mode(for: .bypassPermissions, asksEveryCall: true) == "default")
+        #expect(dialect.mode(for: .bypassPermissions, asksEveryCall: false) == "auto")
         #expect(ACPDialect.grok.mode(for: .plan, asksEveryCall: false) == nil)
+    }
+
+    @Test("each ACP agent is spoken to in its own dialect, and no other agent has one")
+    func dialectPerAgent() {
+        #expect(ACPDialect.speaking(.antigravity) == .antigravity)
+        #expect(ACPDialect.speaking(.grok) == .grok)
+        #expect(ACPDialect.speaking(.claudeCode) == nil)
+        #expect(ACPDialect.speaking(.codex) == nil)
     }
 
     @Test("session/new carries no Grok _meta and set_config_option sends a plain string")
@@ -96,6 +105,23 @@ struct AntigravityModelListTests {
         #expect(AgentCatalog.antigravityDetails(reading: reading, version: "1.5.9").isEmpty)
     }
 
+    @Test("a progress line before the list is not taken for a model")
+    func skipsTheFetchingLine() {
+        let models = AntigravityModelList.parse("Fetching available models...\n" + AntigravityWire.modelsStdout)
+        #expect(models.first?.id == "gemini-3.8-flash-high")
+        #expect(models.count == 6)
+    }
+
+    @Test("an agy models that fails for another reason is not reported as signed out")
+    func failureIsNotSignedOut() {
+        let reading = AntigravityModelList.read(ShellResult(status: 1, stdout: "", stderr: "Error: network unreachable\n"))
+        #expect(reading == .failed("Error: network unreachable"))
+        let details = AgentCatalog.antigravityDetails(reading: reading, version: "1.5.9")
+        #expect(!details.isEmpty)
+        #expect(details.contains { $0.label == "Session" })
+        #expect(!AgentCatalog.antigravityDetails(reading: nil, version: nil).isEmpty)
+    }
+
     @Test("a model list proves a sign in")
     func signedIn() {
         let reading = AntigravityModelList.read(ShellResult(status: 0, stdout: AntigravityWire.modelsStdout, stderr: ""))
@@ -110,6 +136,17 @@ struct AntigravityModelListTests {
         #expect(ModelIdentifier.resolve("claude-sonnet-4-6", models: models).kind == .claudeCode)
         #expect(ModelIdentifier.resolve("gemini-3.8-flash-high", models: models).kind == .antigravity)
         #expect(ModelIdentifier.resolve("antigravity:claude-sonnet-4-6", models: models).kind == .antigravity)
+    }
+
+    @Test("picking one of Antigravity's Claude models keeps an Antigravity chat on Antigravity")
+    func claudeModelStaysOnTheRunningBackend() {
+        let models: [AgentKind: [AgentModel]] = [.antigravity: AntigravityModelList.parse(AntigravityWire.modelsStdout)]
+        #expect(DefaultBackend.kind(ofModel: "claude-sonnet-4-6", running: .antigravity, models: models) == .antigravity)
+        #expect(DefaultBackend.kind(ofModel: "claude-sonnet-4-6", running: .codex, models: models) == .claudeCode)
+        #expect(DefaultBackend.kind(ofModel: "claude:claude-sonnet-4-6", running: .antigravity, models: models) == .claudeCode)
+        let app = AppDefaults()
+        let resolved = DefaultBackend.resolve(model: "claude-opus-4-6-thinking", effort: "high", app: app, running: .antigravity, models: models)
+        #expect(resolved.kind == .antigravity)
     }
 
     @Test("Antigravity is offered wherever an agent is chosen")

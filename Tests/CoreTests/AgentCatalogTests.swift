@@ -72,7 +72,7 @@ struct AgentCatalogTests {
         #expect(AgentKind.claudeCode.loginCommand == "claude auth login")
         #expect(AgentKind.codex.loginCommand == "codex login")
         #expect(AgentKind.grok.loginCommand == "grok login")
-        #expect(AgentKind.antigravity.loginCommand == "agy acp --login")
+        #expect(AgentKind.antigravity.loginCommand == "agy")
         #expect(AgentKind.codex.configPath.hasSuffix("/.codex/config.toml"))
         #expect(AgentKind.claudeCode.configPath.hasSuffix("/.claude/settings.json"))
         #expect(AgentKind.grok.configPath.hasSuffix("/.grok/config.toml"))

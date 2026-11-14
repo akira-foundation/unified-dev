@@ -66,3 +66,74 @@ struct AntigravityRunnerTests {
         runner.terminateNow()
     }
 }
+
+private func promptResultBox() throws -> ProcessBox {
+    let box = ProcessBox()
+    box.reply(to: "initialize", with: .object([:]))
+    box.reply(to: "session/new", with: try #require(JSONValue.parse(Data(AntigravityWire.sessionNew.utf8)))["result"] ?? .null)
+    box.reply(to: "session/set_config_option", with: .object([:]))
+    box.reply(to: "session/prompt", with: try #require(JSONValue.parse(Data(AntigravityWire.promptResult.utf8)))["result"] ?? .null)
+    return box
+}
+
+private func makeAntigravityRunner(_ store: Store, _ session: Session, _ box: ProcessBox) async throws -> ACPRunner {
+    ACPRunner(
+        dialect: .antigravity,
+        workspacePath: "/tmp/w",
+        session: session,
+        store: store,
+        segmentID: try await activeSegmentID(store, session),
+        makeClient: { ACPClient(configuration: $0, makeProcess: box.factory) }
+    )
+}
+
+@Suite(.scratchDirectory)
+struct AntigravityRunnerSafetyTests {
+    @Test("a chat that becomes an orchestrator is relaunched without skipping Antigravity's prompts")
+    func orchestratorDropsTheBypassLaunch() async throws {
+        let store = try makeTestStore("antigravity-bypass-relaunch")
+        let session = try await makeSession(store, permissionMode: .bypassPermissions)
+        let box = try promptResultBox()
+        let runner = try await makeAntigravityRunner(store, session, box)
+        defer { runner.terminateNow() }
+
+        try await runner.send("first")
+        await waitUntil("the first turn to finish", within: .seconds(2)) {
+            box.process.sentMethods.contains("session/prompt")
+        }
+        try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await runner.send("second")
+
+        await waitUntil("a second launch", within: .seconds(2)) { box.processes.count == 2 }
+        #expect(box.processes.first?.launch.arguments.contains("--dangerously-skip-permissions") == true)
+        #expect(box.processes.last?.launch.arguments.contains("--dangerously-skip-permissions") == false)
+    }
+
+    @Test("an orchestrator whose mode cannot be set does not send its prompt")
+    func orchestratorModeFailureStopsTheTurn() async throws {
+        let store = try makeTestStore("antigravity-orchestrator-mode")
+        let session = try await makeSession(store, permissionMode: .acceptEdits)
+        try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        let box = try promptResultBox()
+        box.fail("session/set_config_option", code: -32602, message: "refused")
+        let runner = try await makeAntigravityRunner(store, session, box)
+        defer { runner.terminateNow() }
+
+        await #expect(throws: (any Error).self) { try await runner.send("plan") }
+        #expect(!box.process.sentMethods.contains("session/prompt"))
+    }
+
+    @Test("a mode that cannot be set outside an orchestrator does not stop the turn")
+    func modeFailureIsToleratedOtherwise() async throws {
+        let store = try makeTestStore("antigravity-mode-tolerated")
+        let session = try await makeSession(store, permissionMode: .acceptEdits)
+        let box = try promptResultBox()
+        box.fail("session/set_config_option", code: -32602, message: "refused")
+        let runner = try await makeAntigravityRunner(store, session, box)
+        defer { runner.terminateNow() }
+
+        try await runner.send("hello")
+        await waitUntil("the prompt sent", within: .seconds(2)) { box.process.sentMethods.contains("session/prompt") }
+        #expect(box.process.sentMethods.contains("session/prompt"))
+    }
+}

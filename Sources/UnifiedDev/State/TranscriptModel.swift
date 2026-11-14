@@ -1707,8 +1707,9 @@ final class TranscriptModel {
                 gitHub: gitHub
             )
         case .grok, .antigravity:
+            guard let dialect = ACPDialect.speaking(session.agentKind) else { fallthrough }
             return ACPRunner(
-                dialect: session.agentKind == .antigravity ? .antigravity : .grok,
+                dialect: dialect,
                 workspacePath: workspacePath,
                 session: session,
                 store: store,

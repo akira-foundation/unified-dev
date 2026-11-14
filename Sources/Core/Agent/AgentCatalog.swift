@@ -205,6 +205,7 @@ public actor AgentCatalog {
             let result = try? await Shell.run(
                 executablePath,
                 AntigravityModelList.arguments,
+                cwd: AgentScratchDirectory.current(),
                 env: ACPDialect.antigravity.quietEnvironment,
                 timeout: AntigravityModelList.timeout
             )
@@ -411,12 +412,15 @@ public actor AgentCatalog {
     }
 
     public static func antigravityDetails(reading: AntigravityModelList.Reading?, version: String?) -> [AgentDetail] {
-        guard case .models = reading else { return [] }
-        return [
+        if reading == .signedOut { return [] }
+        var details = [
             AgentDetail(label: "Version", value: version ?? unknown),
             AgentDetail(label: "Provider", value: "Google"),
             AgentDetail(label: "Login method", value: "Google sign in"),
         ]
+        if case .models = reading { return details }
+        details.append(AgentDetail(label: "Session", value: "Could not be checked, `agy models` did not answer"))
+        return details
     }
 
     static func grokLoginMethod(_ authMode: String?) -> String {

@@ -27,6 +27,10 @@ public struct ACPDialect: Sendable, Hashable {
         setsMode: false
     )
 
+    public static func speaking(_ kind: AgentKind) -> ACPDialect? {
+        [grok, antigravity].first { $0.kind == kind }
+    }
+
     public static let antigravity = ACPDialect(
         kind: .antigravity,
         subcommand: ["acp"],

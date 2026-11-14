@@ -25,7 +25,7 @@ public struct DefaultBackend: Equatable, Sendable {
         } else if model == app.model {
             kind = app.backend
         } else {
-            kind = identity.kind ?? running
+            kind = offers(identity.model, on: running, models: models) ? running : identity.kind ?? running
         }
         return DefaultBackend(
             kind: kind,
@@ -44,7 +44,15 @@ public struct DefaultBackend: Equatable, Sendable {
         running: AgentKind,
         models: [AgentKind: [AgentModel]] = [:]
     ) -> AgentKind {
-        ModelIdentifier.resolve(model, models: models).kind ?? running
+        let identity = ModelIdentifier.resolve(model, models: models)
+        guard !identity.namesBackend, offers(identity.model, on: running, models: models) else {
+            return identity.kind ?? running
+        }
+        return running
+    }
+
+    private static func offers(_ model: String, on kind: AgentKind, models: [AgentKind: [AgentModel]]) -> Bool {
+        models[kind]?.contains { $0.id == model } == true
     }
 
     public static func effort(

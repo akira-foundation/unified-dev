@@ -104,6 +104,7 @@ public struct ACPToolCall: Sendable, Hashable {
         let locations = json["locations"]?.arrayValue ?? []
         let path = json["rawInput"]?["path"]?.stringValue
             ?? json["rawInput"]?["file_path"]?.stringValue
+            ?? json["rawInput"]?["Path"]?.stringValue
             ?? locations.first?["path"]?.stringValue
             ?? ""
         return ACPToolCall(
