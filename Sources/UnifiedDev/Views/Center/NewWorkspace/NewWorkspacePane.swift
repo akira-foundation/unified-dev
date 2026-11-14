@@ -64,7 +64,19 @@ struct NewWorkspacePane: View {
             }
             .disabled(app.drafts.isCreating(repoID))
 
+            let suggested = suggestions(for: repo)
+            if !suggested.isEmpty {
+                StartingPointSuggestionList(
+                    suggestions: suggested,
+                    point: draft.startingPoint,
+                    onPick: { pickSuggestion($0, in: repo) }
+                )
+            }
+
             Spacer(minLength: 0)
+            if !suggested.isEmpty {
+                Spacer(minLength: 0)
+            }
 
             if let problem = app.drafts.failure(for: repoID) ?? pickProblem
                 ?? draft.startingPoint.checkout.flatMap(WorkspaceCheckoutPlan.warning(for:)) {
@@ -72,23 +84,19 @@ struct NewWorkspacePane: View {
             }
 
             NewWorkspaceComposer(repo: repo, draft: draft)
-
-            if let catalogue, let reading, readingRequest(repo) != nil, !app.drafts.isCreating(repoID) {
-                let suggestions = StartingPointSuggestions.choose(
-                    reading, defaultBranch: repo.defaultBranch, holders: catalogue.holders,
-                    openPullRequests: pullRequests.requests, now: Date()
-                )
-                if !suggestions.isEmpty {
-                    StartingPointSuggestionList(
-                        suggestions: suggestions,
-                        point: draft.startingPoint,
-                        onPick: { pickSuggestion($0, in: repo) }
-                    )
-                }
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.bottom, ComposerLayout.bottomInset)
+    }
+
+    private func suggestions(for repo: Repo) -> [StartingPointSuggestion] {
+        guard let catalogue, let reading, readingRequest(repo) != nil, !app.drafts.isCreating(repoID) else {
+            return []
+        }
+        return StartingPointSuggestions.choose(
+            reading, defaultBranch: repo.defaultBranch, holders: catalogue.holders,
+            openPullRequests: pullRequests.requests, now: Date()
+        )
     }
 
     private var isOriginAskReady: Bool {
