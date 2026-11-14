@@ -23,10 +23,13 @@
 #
 #   UD_CODESIGN_IDENTITY   a Developer ID Application identity, in a
 #                             keychain that is unlocked and on the search list.
-#                             An Apple Development identity is refused: that
-#                             one only signs for the machine it was made on,
-#                             and Apple will not notarise anything signed with
-#                             it.
+#                             Its SHA-1 fingerprint is the safer value, the
+#                             forty hex characters `security find-identity -v
+#                             -p codesigning` prints before the quoted name.
+#                             The name works too, accents included. An Apple
+#                             Development identity is refused: that one only
+#                             signs for the machine it was made on, and Apple
+#                             will not notarise anything signed with it.
 #
 #   a notarisation credential, one of three, tried in this order:
 #
@@ -90,7 +93,15 @@ if [ -z "$IDENTITY" ] || [[ "$IDENTITY" == Apple\ Development* ]]; then
   echo "Available now:" >&2
   security find-identity -v -p codesigning | sed 's/^/  /' >&2
   echo >&2
-  echo 'export UD_CODESIGN_IDENTITY="Developer ID Application: Name (TEAMID)"' >&2
+  echo 'export UD_CODESIGN_IDENTITY=<the forty hex characters before "Developer ID Application">' >&2
+  exit 1
+fi
+
+source "${0:A:h}/codesign-identity.sh"
+ud_codesign_utf8
+IDENTITIES="$(ud_codesign_identities)"
+if ! ud_codesign_identity_known "$IDENTITY" "$IDENTITIES"; then
+  ud_codesign_identity_report "$IDENTITY" "$IDENTITIES" >&2
   exit 1
 fi
 
