@@ -73,6 +73,7 @@ struct UnifiedDevApp: App {
         if ReplyQuoteProbe.isRequested { ReplyQuoteProbe.schedule() }
         #if DEBUG
         if SelectionReplyProbe.isRequested { SelectionReplyProbe.schedule() }
+        if StartingPointSuggestionProbe.isRequested { StartingPointSuggestionProbe.schedule() }
         #endif
         if WelcomeRestartProbe.isRequested { WelcomeRestartProbe.schedule() }
 

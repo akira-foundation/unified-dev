@@ -8,6 +8,7 @@ struct NewWorkspacePane: View {
 
     @State private var catalogue: WorkspaceSourceCatalogue?
     @State private var pullRequests = PullRequestLoad.loading
+    @State private var reading: StartingPointReading?
     @State private var pickProblem: String?
     @State private var isLookingUp = false
     @State private var isChoosingStart = false
@@ -69,6 +70,19 @@ struct NewWorkspacePane: View {
             }
 
             NewWorkspaceComposer(repo: repo, draft: draft)
+
+            if let catalogue, let reading, !app.drafts.isCreating(repoID) {
+                let suggestions = StartingPointSuggestions.choose(
+                    reading, defaultBranch: repo.defaultBranch, holders: catalogue.holders, now: Date()
+                )
+                if !suggestions.isEmpty {
+                    StartingPointSuggestionList(
+                        suggestions: suggestions,
+                        point: draft.startingPoint,
+                        onPick: { pickSuggestion($0, in: repo) }
+                    )
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.bottom, ComposerLayout.bottomInset)
@@ -101,13 +115,19 @@ struct NewWorkspacePane: View {
         catalogue = nil
         pullRequests = .loading
         pickProblem = nil
+        reading = StartingPointSuggestions.cached(repoPath: repo.path)
         await app.prepareDraftControls(for: repo)
         let listed = await WorkspaceSourceCatalogue.load(repo: repo, workspaces: app.workspaces)
         guard !Task.isCancelled else { return }
         catalogue = listed
+        async let suggested = StartingPointSuggestions.load(
+            repoPath: repo.path, asksGitHub: listed.offersPullRequests
+        )
         let requests = await PullRequestLoad.read(repoPath: repo.path, offered: listed.offersPullRequests)
         guard !Task.isCancelled else { return }
         pullRequests = requests
+        reading = await suggested
+        guard !Task.isCancelled else { return }
         catalogue = listed.with(pullRequests: requests.requests)
         guard await WorkspaceStartContext.fetchBranchList(repoPath: repo.path) else { return }
         let current = await app.refreshDefaultBranch(of: repo)
@@ -124,6 +144,13 @@ struct NewWorkspacePane: View {
             source, holders: catalogue.holders, taken: catalogue.localBranches,
             repoID: repoID, workspaces: app.workspaces
         ))
+    }
+
+    private func pickSuggestion(_ suggestion: StartingPointSuggestion, in repo: Repo) {
+        let chosen = suggestion.pick(defaultBranch: repo.defaultBranch)
+        pick(chosen.source)
+        guard chosen.prompt != nil else { return }
+        app.editDraft(repoID) { $0.prompt = chosen.prompt(into: $0.prompt) }
     }
 
     private func apply(_ pick: StartingPointPick) {

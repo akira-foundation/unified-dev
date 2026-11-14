@@ -1,0 +1,20 @@
+{
+  "welcome": false,
+  "projects": [
+    {
+      "name": "lantern",
+      "files": {
+        "README.md": "# Lantern\n\nA scratch project for the starting points suggested below the new workspace composer.\n"
+      },
+      "commits": ["Light the wick", "Trim the glass"],
+      "branches": ["feat/shade", "fix/smoky-glass", "spike/brass-handle"],
+      "workspaces": [
+        { "name": "Handle", "branch": "handle" }
+      ]
+    },
+    {
+      "name": "beacon",
+      "commits": ["Raise the mast"]
+    }
+  ]
+}
