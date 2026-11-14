@@ -48,13 +48,16 @@ final class CodeBlockRunStore {
 
     func answer(_ request: PendingRun, confirmed: Bool) {
         if pending == request { pending = nil }
-        guard let command = request.question.answer(confirmed: confirmed) else { return }
-        let key = Key(session: request.session, command: command)
-        guard let model = request.model, canRun(in: request.session, of: model) else {
-            runs[key] = .failed("the chat no longer accepts messages")
+        let accepts = request.model.map { canRun(in: request.session, of: $0) } ?? false
+        switch request.question.answer(confirmed: confirmed, chatAccepts: accepts) {
+        case .nothing:
             return
+        case let .refused(reason):
+            runs[Key(session: request.session, command: request.question.command)] = .failed(reason)
+        case let .run(command, folder):
+            guard let model = request.model else { return }
+            start(command, in: request.session, of: model, folder: folder)
         }
-        start(command, in: request.session, of: model, folder: request.question.folder)
     }
 
     private func start(_ command: String, in session: SessionID, of model: WorkspaceModel, folder: String) {

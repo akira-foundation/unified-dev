@@ -10,6 +10,12 @@ public enum CodeBlockLaunch: Sendable, Equatable {
     }
 }
 
+public enum CodeBlockAnswer: Sendable, Equatable {
+    case run(command: String, folder: String)
+    case nothing
+    case refused(String)
+}
+
 public struct CodeBlockConfirmation: Sendable, Equatable {
     public let command: String
     public let folder: String
@@ -17,32 +23,24 @@ public struct CodeBlockConfirmation: Sendable, Equatable {
     public static let title = "Run this command?"
     public static let confirmLabel = "Run"
     public static let cancelLabel = "Cancel"
+    static let closedChat = "the chat closed or stopped accepting messages while it waited"
 
     public var message: String {
-        Self.visible(command) + "\n\nIt runs in \(folder). It is not on the list of commands that only read, so it may change files."
+        let hidden = CodeBlockVisibleText.hiddenCount(in: command) + CodeBlockVisibleText.hiddenCount(in: folder)
+        let warning = "It is not on the list of commands that only read, so it may change files."
+        let lines = [
+            CodeBlockVisibleText.shown(command),
+            "",
+            "It runs in \(CodeBlockVisibleText.shown(folder)). \(warning)",
+        ]
+        guard hidden > 0 else { return lines.joined(separator: "\n") }
+        let noun = hidden == 1 ? "character" : "characters"
+        return (lines + ["", "It holds \(hidden) invisible \(noun), shown above as [U+code]."]).joined(separator: "\n")
     }
 
-    public func answer(confirmed: Bool) -> String? {
-        confirmed ? command : nil
-    }
-
-    static func visible(_ text: String) -> String {
-        var shown = ""
-        for scalar in text.unicodeScalars {
-            guard hides(scalar) else {
-                shown.unicodeScalars.append(scalar)
-                continue
-            }
-            shown += "\\u{" + String(scalar.value, radix: 16, uppercase: true) + "}"
-        }
-        return shown
-    }
-
-    private static func hides(_ scalar: Unicode.Scalar) -> Bool {
-        guard scalar != "\n", scalar != "\t", scalar != " " else { return false }
-        switch scalar.properties.generalCategory {
-        case .control, .format, .spaceSeparator, .lineSeparator, .paragraphSeparator: return true
-        default: return false
-        }
+    public func answer(confirmed: Bool, chatAccepts: Bool) -> CodeBlockAnswer {
+        guard confirmed else { return .nothing }
+        guard chatAccepts else { return .refused(Self.closedChat) }
+        return .run(command: command, folder: folder)
     }
 }

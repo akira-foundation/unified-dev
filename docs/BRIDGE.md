@@ -1586,8 +1586,10 @@ What happens to the rest depends on the agent:
 The same judge decides the Run button on a code block, which only the owner presses. In an
 orchestrator a command on the list runs at once, and any other command first opens an alert showing
 the whole command, continuation lines included, the folder it runs in and that it may change files;
-it runs only when the owner confirms, and cancelling runs nothing. `CodeBlockLaunch.of` takes that
-decision. Outside an orchestrator the button runs what the reply showed, as it always has.
+it runs only when the owner confirms, and cancelling runs nothing. A character that would not show
+or would reorder the text, such as a bidi override or a zero width space, is spelt out as `[U+code]`
+in the alert, which then says how many it holds; what runs is the command as written.
+`CodeBlockLaunch.of` takes that decision and `CodeBlockConfirmation.answer` the one after it. Outside an orchestrator the button runs what the reply showed, as it always has.
 
 ### Running commands without asking
 

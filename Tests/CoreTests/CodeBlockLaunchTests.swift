@@ -31,26 +31,25 @@ struct CodeBlockLaunchTests {
         #expect(question.message.hasPrefix(command + "\n\n"))
         #expect(question.message.contains("It runs in \(folder)."))
         #expect(question.message.contains("may change files"))
+        #expect(!question.message.contains("invisible"))
     }
 
-    @Test("a character that hides or reorders text is spelt out in the question, and runs as written")
-    func hiddenCharacters() {
-        let command = "echo safe \u{202E}fdsa\u{200B} > x\u{00A0}y\ttab"
-        let question = CodeBlockConfirmation(command: command, folder: folder)
-        #expect(question.message.hasPrefix("echo safe \\u{202E}fdsa\\u{200B} > x\\u{A0}y\ttab\n\n"))
-        #expect(question.answer(confirmed: true) == command)
-    }
-
-    @Test("confirming runs exactly the command shown")
+    @Test("confirming runs exactly the command shown, in the folder shown")
     func confirming() {
         let question = CodeBlockConfirmation(command: "touch a\ntouch b", folder: folder)
-        #expect(question.answer(confirmed: true) == "touch a\ntouch b")
+        #expect(question.answer(confirmed: true, chatAccepts: true) == .run(command: "touch a\ntouch b", folder: folder))
     }
 
-    @Test("cancelling runs nothing")
-    func cancelling() {
+    @Test("cancelling runs nothing", arguments: [true, false])
+    func cancelling(chatAccepts: Bool) {
         let question = CodeBlockConfirmation(command: "rm -rf Sources", folder: folder)
-        #expect(question.answer(confirmed: false) == nil)
+        #expect(question.answer(confirmed: false, chatAccepts: chatAccepts) == .nothing)
+    }
+
+    @Test("a chat that stopped accepting while the question waited refuses the run")
+    func closedChat() {
+        let question = CodeBlockConfirmation(command: "rm -rf Sources", folder: folder)
+        #expect(question.answer(confirmed: true, chatAccepts: false) == .refused(CodeBlockConfirmation.closedChat))
     }
 
     @Test("an ordinary workspace runs whatever the reply showed", arguments: ["rm -rf Sources", "git log -1"])
