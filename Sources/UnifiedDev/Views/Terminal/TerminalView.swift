@@ -192,15 +192,30 @@ final class AppTerminalView: LocalProcessTerminalView {
         applyAppearanceColors()
     }
 
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        applyAppearanceColors()
+    }
+
     private var ghostty: GhosttyTheme? {
         usesGhosttyTheme ? TerminalGhostty.theme(for: effectiveAppearance) : nil
     }
 
+    private var installedColours: TerminalColourChoice?
+
     func applyAppearanceColors() {
-        if let ghostty {
-            applyGhosttyColors(ghostty)
+        let choice = TerminalColourChoice(
+            appearance: effectiveAppearance.name.rawValue,
+            matchedAppearance: effectiveAppearance.bestMatch(from: [.aqua, .darkAqua])?.rawValue,
+            ghostty: ghostty
+        )
+        guard choice.replaces(installedColours) else { return }
+        installedColours = choice
+        if let theme = choice.ghostty {
+            applyGhosttyColors(theme)
         } else {
-            applyAppColors()
+            applyAppColors(dark: choice.isDark)
         }
         needsDisplay = true
     }
@@ -223,59 +238,20 @@ final class AppTerminalView: LocalProcessTerminalView {
         }
     }
 
-    private func applyAppColors() {
-        installColors(ansiColors.map(swiftTermColor))
+    private func applyAppColors(dark: Bool) {
+        installColors(TerminalPalette.colours(dark: dark).map(SwiftTerm.Color.init(rgb:)))
         nativeForegroundColor = resolved(Palette.textPrimary).withAlphaComponent(1)
         nativeBackgroundColor = .clear
         caretColor = .textInsertionPointColor
         selectedTextBackgroundColor = .selectedTextBackgroundColor
     }
 
-    private var ansiColors: [SwiftUI.Color] {
-        [
-            Self.black,
-            Palette.negative,
-            Self.green,
-            Palette.warning,
-            Self.ansiBlue,
-            Color(nsColor: .systemPurple),
-            Color(nsColor: .systemTeal),
-            Self.white,
-            Self.brightBlack,
-            Palette.negative,
-            Self.green,
-            Palette.warning,
-            Self.ansiBlue,
-            Color(nsColor: .systemPurple),
-            Color(nsColor: .systemTeal),
-            Self.brightWhite,
-        ]
-    }
-
-    private static let green = Palette.dynamic(light: 0x2E7D32, dark: 0x6FCF7B)
-    private static let ansiBlue = Palette.dynamic(light: 0x50008F, dark: 0xBB66FF)
-
-    private static let black = Palette.dynamic(light: 0x000000, dark: 0x1C1C1E)
-    private static let brightBlack = Palette.dynamic(light: 0x4D4D4D, dark: 0x636366)
-    private static let white = Palette.dynamic(light: 0x8E8E93, dark: 0xAEAEB2)
-    private static let brightWhite = Palette.dynamic(light: 0xB0B0B5, dark: 0xFFFFFF)
-
     private func resolved(_ color: SwiftUI.Color) -> NSColor {
         var native = NSColor(color)
         effectiveAppearance.performAsCurrentDrawingAppearance {
-            native = NSColor(color)
+            native = NSColor(color).usingColorSpace(.sRGB) ?? native
         }
         return native
-    }
-
-    private func swiftTermColor(_ color: SwiftUI.Color) -> SwiftTerm.Color {
-        let resolved = resolved(color)
-        let native = resolved.usingColorSpace(NSColorSpace.deviceRGB) ?? resolved
-        return SwiftTerm.Color(
-            red8: UInt16(clamping: Int((native.redComponent * 255).rounded())),
-            green8: UInt16(clamping: Int((native.greenComponent * 255).rounded())),
-            blue8: UInt16(clamping: Int((native.blueComponent * 255).rounded()))
-        )
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
@@ -377,6 +353,7 @@ final class TerminalHostView: NSView {
         view.autoresizingMask = [.width, .height]
         addSubview(view)
         terminal = view
+        view.applyAppearanceColors()
         needsLayout = true
     }
 
