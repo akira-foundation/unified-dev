@@ -268,6 +268,6 @@ struct GrokQuotaTests {
 
     @Test("the setup sentence names every agent whose limits the panel shows")
     func setupSentenceNamesGrok() {
-        #expect(MenuBarPanelContent.setupSentence == "Sign in to Claude Code, Codex or Grok and their limits show here.")
+        #expect(MenuBarPanelContent.setupSentence == "Sign in to Claude Code, Codex, Grok or Antigravity and their limits show here.")
     }
 }

@@ -381,13 +381,13 @@ struct UsageLayoutTests {
     @Test("a provider dropped on another lands on the side the drag came from")
     func providerOrder() {
         var layout = UsageLayout()
-        #expect(layout.orderedProviders() == [.claudeCode, .codex, .grok])
+        #expect(layout.orderedProviders() == [.claudeCode, .codex, .grok, .antigravity])
 
         layout.moveProvider(.claudeCode, toward: .codex)
-        #expect(layout.orderedProviders() == [.codex, .claudeCode, .grok])
+        #expect(layout.orderedProviders() == [.codex, .claudeCode, .grok, .antigravity])
 
         layout.moveProvider(.claudeCode, toward: .codex)
-        #expect(layout.orderedProviders() == [.claudeCode, .codex, .grok])
+        #expect(layout.orderedProviders() == [.claudeCode, .codex, .grok, .antigravity])
 
         let metrics = UsageCatalogue.metrics(quotas: [
             quota(.claudeCode, .named("five_hour"), .fraction(0.3), resetsIn: fiveHours / 2),

@@ -1,0 +1,20 @@
+{
+  "welcome": false,
+  "projects": [
+    {
+      "name": "harbour",
+      "files": { "src/pier.txt": "wood\n" },
+      "commits": ["Lay the pier"],
+      "workspaces": [
+        { "name": "Lighthouse", "branch": "lighthouse" }
+      ]
+    }
+  ],
+  "quotas": [
+    { "provider": "claudeCode", "window": "seven_day", "used": 0.10, "resetsInMinutes": 5760 },
+    { "provider": "codex", "window": "secondary", "hours": 168, "used": 0.01, "resetsInMinutes": 5040 },
+    { "provider": "grok", "window": "weekly", "label": "Weekly", "hours": 168, "used": 0.53, "resetsInMinutes": 905 },
+    { "provider": "antigravity", "window": "gemini-weekly", "label": "Gemini", "hours": 168, "used": 0.04, "resetsInMinutes": 9877 },
+    { "provider": "antigravity", "window": "3p-weekly", "label": "Claude", "hours": 168, "used": 0, "resetsInMinutes": 10080 }
+  ]
+}

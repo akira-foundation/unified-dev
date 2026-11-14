@@ -153,6 +153,10 @@ Login command: `agy`, with no arguments, which is what the CLI's own signed out 
 and no narrower variable moves it, so a second directory cannot hold a second account. See
 `ANTIGRAVITY.md`.
 
+The usage panel and the menu bar show two weekly limits, Gemini and Claude (the group Claude shares with GPT-OSS), read from
+`agy -p /usage --output-format json`, which runs no turn. The mark is the silhouette of the
+official icon at antigravity.google/favicon.svg, without its colour fill.
+
 ## Cursor and OpenCode
 
 Not installed here, so nothing about their auth files is verified. Detect the binary and show the

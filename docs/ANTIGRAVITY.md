@@ -167,7 +167,32 @@ anything under `~/.gemini`. Accounts per profile need a variable that moves less
 `HOME`; `--app-data-dir` refuses an absolute path, and none was found.
 
 The session reports a tier name, `_meta.antigravity.tier.name`, and nothing about what is left of
-it. No quota request was found. Usage per turn is the `session/prompt` reply above.
+it. Usage per turn is the `session/prompt` reply above.
+
+What is left is asked of the `/usage` command in print mode, which runs no turn and spends nothing:
+
+    agy -p /usage --output-format json --print-timeout 20s
+
+The reply has `num_turns` 0, zero tokens, and the panel the interactive CLI draws as "Models &
+Quota" under `command`:
+
+    {"conversation_id":"","status":"SUCCESS","num_turns":0, ...,
+     "command":{"name":"usage","data":{"groups":[
+       {"name":"Gemini Models","buckets":[{"id":"gemini-weekly","window":"weekly",
+        "remaining_fraction":0.962332010269165,"reset_time":"2026-11-21T18:38:24Z"}]},
+       {"name":"Claude and GPT models","buckets":[{"id":"3p-weekly","window":"weekly",
+        "remaining_fraction":1,"reset_time":"2026-11-21T22:01:57Z"}]}]}}}
+
+Models in a group share one weekly limit, consumed in proportion to the cost of the tokens.
+`AntigravityQuotaSource` asks this every time the panel asks the other agents, and
+`AntigravityQuotaAdapter` reads one window per bucket, labelled by the first name in its group
+("Gemini", "Claude") so it fits the panel's label column, with the fraction
+used as one minus `remaining_fraction`. A reply that is not the `usage` command, or that ran a
+turn, stops the asking for as long as the app runs, so a CLI that one day sends `/usage` to the
+model as a prompt cannot spend the owner's quota every five minutes.
+
+The quota sits behind Google's `v1internal:retrieveUserQuotaSummary`, called with the CLI's own
+OAuth token. Unified Dev does not call it, because that would mean reading the credentials.
 
 ## Signing in
 
