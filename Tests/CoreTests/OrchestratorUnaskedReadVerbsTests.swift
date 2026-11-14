@@ -102,13 +102,11 @@ struct OrchestratorUnaskedReadVerbsTests {
         "gh pr status",
         "gh pr diff 1",
         "gh pr checks 1",
-        "gh pr checks 1 --watch",
         "gh issue view 1",
         "gh issue list",
         "gh issue status",
         "gh run view 1 --log",
         "gh run list --branch x",
-        "gh run watch 1",
         "gh repo view o/r",
         "gh repo list o",
         "gh release view v1",
@@ -186,5 +184,23 @@ struct OrchestratorUnaskedReadVerbsTests {
     ])
     func ghBranchChangeRefused(_ command: String) {
         #expect(OrchestratorUnaskedJudge.verdict(command) == .refused)
+    }
+
+    @Test("a gh command that waits on what it follows stays with the owner", arguments: [
+        "gh run watch 1", "gh pr checks 1 --watch", "gh pr checks 1 --interval 5", "gh pr checks 1 --watch=true",
+    ])
+    func ghWaitingAsks(_ command: String) {
+        #expect(OrchestratorUnaskedJudge.verdict(command) == .asks)
+    }
+
+    @Test("every gh read the read list answers is a read here too", arguments: [
+        "gh pr view 1", "gh pr list", "gh pr diff 1", "gh pr checks 1", "gh pr status", "gh issue view 1",
+        "gh issue list", "gh issue status", "gh run view 1", "gh run list", "gh release view v1", "gh release list",
+        "gh workflow view test.yml", "gh workflow list",
+    ])
+    func readListGhVerbsPass(_ command: String) {
+        let words = command.split(separator: " ").map(String.init)
+        #expect(OrchestratorReadList.contains(words))
+        #expect(OrchestratorUnaskedJudge.verdict(command) == .passes)
     }
 }

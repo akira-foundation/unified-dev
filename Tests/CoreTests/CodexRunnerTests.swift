@@ -537,6 +537,7 @@ private func eventually(
         let store = try makeTestStore("codex-runner-orchestrator-read")
         let (session, _) = try await makeCodexSession(store, permissionMode: .bypassPermissions)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -567,6 +568,7 @@ private func eventually(
         let store = try makeTestStore("codex-runner-orchestrator-unasked")
         let (session, _) = try await makeCodexSession(store, permissionMode: .bypassPermissions)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -574,8 +576,8 @@ private func eventually(
         @Sendable func decided(_ id: Int) -> String? {
             box.process.sentFrame { $0["id"]?.intValue == id && $0["result"] != nil }?["result"]?["decision"]?.stringValue
         }
-        let compound = "make build && echo a"
-        let wrapped = "/bin/zsh -lc 'make build && echo a'"
+        let compound = "rg x && echo a"
+        let wrapped = "/bin/zsh -lc 'rg x && echo a'"
 
         box.process.emit(commandStarted("off", compound))
         box.process.emit(commandApproval(71, "off", command: compound))
@@ -601,7 +603,7 @@ private func eventually(
         #expect(decided(74) == CodexApprovalDecision.decline.rawValue)
 
         box.process.emit(commandStarted("other", compound))
-        box.process.emit(commandApproval(75, "other", command: "make build && echo b"))
+        box.process.emit(commandApproval(75, "other", command: "rg x && echo b"))
         await eventually("the mismatched request to wait") {
             ((try? await store.pendingPermissionAsks(sessionID: session.id)) ?? []).count == 2
         }

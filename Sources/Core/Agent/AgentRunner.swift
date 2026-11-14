@@ -184,7 +184,10 @@ public actor AgentRunner {
         if let outputStyle, !OutputStyle.isDefault(outputStyle) {
             object["outputStyle"] = outputStyle.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if orchestrates { object["permissions"] = OrchestratorToolGuard.claudePermissions }
+        if orchestrates {
+            object["permissions"] = OrchestratorToolGuard.claudePermissions
+            object["env"] = OrchestratorToolGuard.claudeEnvironment
+        }
         if !orchestrates, guardsCrossing { object["permissions"] = BridgeToolApproval.claudeCrossingPermissions }
         guard !object.isEmpty,
               let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else { return nil }

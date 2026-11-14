@@ -28,6 +28,8 @@ public enum OrchestratorToolGuard {
 
     public static let claudePermissions: [String: [String]] = ["ask": ["Bash", "mcp__*"]]
 
+    public static let claudeEnvironment = ["CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR": "1"]
+
     public static let claudeDisallowedTools: [String] =
         ["Edit", "Write", "MultiEdit", "NotebookEdit"] + OrchestratorShellJudge.gitVerbs.map { "Bash(git \($0):*)" }
 
@@ -55,11 +57,13 @@ public enum OrchestratorToolGuard {
     static func answersItself(toolName: String, input: JSONValue, worktree: String, runsUnasked: Bool = false) -> Bool {
         guard shellTools.contains(toolName), let command = input["command"]?.stringValue else { return false }
         if input["cmd"].map({ names($0, command) }) ?? true, directoryKeys.allSatisfy({ runs(in: input[$0], worktree: worktree) }),
-           OrchestratorShellJudge.reads(command) {
+           OrchestratorShellJudge.reads(command), OrchestratorWorktreeReach.verdict(command, worktree: worktree) == .passes {
             return true
         }
-        guard runsUnasked, holdsOnlyTheCommand(input, command: command) else { return false }
+        guard runsUnasked, holdsOnlyTheCommand(input, command: command),
+              directoryKeys.allSatisfy({ runs(in: input[$0], worktree: worktree) }) else { return false }
         return OrchestratorUnaskedJudge.verdict(command) == .passes
+            && OrchestratorWorktreeReach.verdict(command, worktree: worktree) == .passes
     }
 
     private static func holdsOnlyTheCommand(_ input: JSONValue, command: String) -> Bool {
@@ -76,7 +80,7 @@ public enum OrchestratorToolGuard {
     private static func runs(in directory: JSONValue?, worktree: String) -> Bool {
         guard let directory else { return true }
         guard let path = directory.stringValue else { return false }
-        return URL(fileURLWithPath: path).standardized.path == URL(fileURLWithPath: worktree).standardized.path
+        return WorktreePathResolver(worktree: path).root == WorktreePathResolver(worktree: worktree).root
     }
 
     public static func terminalRefusal(workspaceID: WorkspaceID, store: Store) async -> String? {

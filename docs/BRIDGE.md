@@ -310,7 +310,7 @@ chat may leave its profile to talk, and answers exactly as an unknown tool other
 `tools/call`, through `BridgeToolHandling.isServed`. An orchestrator's list is always fenced.
 
 **The switch.** One per profile, in Profile Settings, under the key `ProfileBridgeSwitch.key(profile:)`,
-off by default and read on every call. It is held to the rule of the orchestrator's unasked switch: it lives
+off by default and read on every call. It is held to the rule of who may write the orchestrator's unasked switch: it lives
 in the app's `settings` table, only its settings section writes it (and a seeded preview), and
 `OrchestratorUnaskedReachTests` reads it back after calling every bridge tool in every role.
 
@@ -1589,7 +1589,8 @@ command on the list, through `CodeBlockCommand.mayRun`, and the copy button stay
 ### Running commands without asking
 
 A project's settings carry a switch, **Run commands without asking**, in the Workspaces pane. It is
-off by default, and off changes nothing above. It belongs to one project: another project's
+on by default: a project with nothing stored counts as on, and a value the owner saved, on or off, is
+kept as saved. `OrchestratorUnaskedCommands.parse` takes that decision. Off changes nothing above. It belongs to one project: another project's
 orchestrator does not inherit it, and a workspace that is not the orchestrator is not affected.
 
 On, a shell command that would have stopped for the owner is judged by `OrchestratorUnaskedJudge`,
@@ -1599,8 +1600,8 @@ substitution, a here document, `eval`, `sh -c` and programs known to run other p
 | Answer | What gets it |
 | --- | --- |
 | Refused | Anywhere in the command: a git verb in `OrchestratorShellJudge.gitVerbs`, `gh pr merge`, `gh pr checkout`, a redirection to a file, a program on the list of those that write files, or one whose flag says it writes or edits in place |
-| Left for the owner | The judge cannot read it, or the program is on `OrchestratorUnaskedPrograms.leftWithTheOwner`: a command name or git verb only known at run time, a script on standard input or inline, an environment variable set for a command, git flags that bring in other configuration, a git verb it does not know, a `gh` command off its short list, `gh` deleting or setting something, unterminated quoting, an ask with a field it does not know, or nesting and work beyond a fixed limit |
-| Unified Dev allows it, once | Everything else |
+| Unified Dev allows it, once | Every program in the command is on `OrchestratorUnaskedPrograms.runWithoutAsking`, or is `git`, `gh`, `find`, `sed` or `awk` used only to read, and nothing in it is refused or left for the owner |
+| Left for the owner | Everything else: any program off that list, builds, test runs, scripts in the worktree, interpreters, `curl` and every other network tool among them, a runner that does more than wrap (`ssh`, `sudo`, `npx`, `watch`, `tmux` and the like) whatever it runs, a command the judge cannot read, a command name or git verb only known at run time, a script on standard input or inline, an environment variable set for a command, git flags that bring in other configuration, a git verb it does not know, a `gh` command off its short list, `gh` deleting or setting something, a `gh` read that waits on what it follows (`gh run watch`, `--watch`, `--interval`), unterminated quoting, an ask with a field it does not know, or nesting and work beyond a fixed limit |
 
 The refusal outranks the other two, so one refused clause refuses the whole command. Tools other
 than the shell are untouched: file edits and terminals stay refused and another server's MCP tool
@@ -1610,14 +1611,55 @@ still asks. The orchestrator still does not implement, and the refusal says so t
 but a construct it misreads can pass, so its refusals are a net rather than a wall, and they are not
 what makes the switch safe to turn on.
 
-**A program off those lists passes, because the owner asked for this to mean everything else.** The
-judge reads words and runs nothing, so what a program does once it is running is beyond it. A script
-or a build in the worktree can write files, or commit and push, and no list names every way to do
-that. The limits on paths and directories that hold the read list do not hold here, so a command
-can read outside the worktree and send what it read over the network. That is the cost of turning
-the switch on, along with the one the settings footer names: text planted in a file or an issue the
-orchestrator reads can run commands the owner does not see first. Each one still leaves its tool
-row in the transcript. The Run button on a code block is not affected.
+**The list is closed.** A program passes only when Unified Dev names it, and it names programs that
+read: listing and reading files, searching and filtering text, paths, the date and the machine's own name.
+`git` and `gh` pass only for their reads, by the verbs and flags above, and the `gh` verbs they share with
+the read list are one table, `OrchestratorReadList.ghVerbs`, with `gh repo view`, `gh repo list` and
+`gh label list` added here, since the judge checks the host they name. A listed name passes only bare or
+in one of the system's own directories, `/bin`, `/usr/bin`, `/sbin`, `/usr/sbin`, `/usr/local/bin` and
+`/opt/homebrew/bin`, so `./git` or `tools/cat` committed to the project asks. git asks when it is pointed
+at another repository: `git -C`, a command that also changes directory, `find -execdir git`, a shell
+call whose working directory is not the worktree, and `git ls-remote` with an address rather than a
+remote's name, since another repository's own configuration can run programs and an address can
+name any host. `sed` passes only with scripts that print, delete or substitute with `/`, and `awk`
+asks when it loads an extension or runs a file. `tail -f` asks, as `gh run watch` does, because it
+holds the call until what it follows ends.
+
+A wrapper that only changes how a program runs, `env`, `time`, `nice`, `timeout`, `nohup`, `command`,
+`builtin`, `stdbuf`, `xargs` without a replacement string, `noglob` and `nocorrect`, is judged by the
+program it runs. `OrchestratorUnaskedWrappers` knows each one's options and which of them take a value,
+so a value is never taken for the program, and an option it does not know asks: `env -P`, `env -C` and
+`time -o` among them. A listed program whose arguments make it write a file, `uniq` with an output
+operand, `tree -o`, `tree -R` with `-H`, `file -C`, and `tar` told to delete or join archives, is refused,
+and one told to run another program or reach a host, `sort --compress-program`, `rg --pre`,
+`rg --hostname-bin`, `tar -F`, `tar --info-script` and an archive named with a host, asks. `xargs` adds
+arguments from what it reads, so it passes only in front of a listed program outside
+`OrchestratorUnaskedPrograms.steeredByTheirArguments`. Everything else asks rather
+than being refused, so nothing that worked before is blocked: it comes back to the owner once.
+
+**Paths stay in the worktree.** A command that passes the judge passes only if
+`OrchestratorWorktreeReach` also finds that every path it can name stays inside the orchestrator's
+worktree, and that limit holds for the read list above as well, switch on or off. It reads every
+argument, the value after `=`, `@` or `:` in one, the words of a nested shell and of a command
+substitution, and the target of each change of directory, and resolves each one on disk with
+`WorktreePathResolver` before deciding, so a link inside the worktree is judged by where it really
+leads and `~` by the home it names. The search pattern of `grep` and `rg`, the script of `sed` and
+the endpoint of `gh api` are not paths and are left out, and only where the words before them leave
+no doubt which word that is. A change of directory passes only with one operand that names an existing
+directory inside the worktree explicitly, from `/`, `./` or `../`, so that no search path the shell
+keeps can send it elsewhere, and only when no link below that directory leads out. The orchestrator's
+Claude is launched with `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` set, so each command starts from the
+worktree again; Codex and Grok name the directory of every command, and it has to be the worktree.
+Anything whose path is only known at run time asks: an expansion handed to a program that reads files,
+a glob that matches a link out, a program fed its arguments by another, a list of files to check read
+from a file, and the flags that make `find`, `grep`, `rg`, `tree`, `ls`, `du` and `diff` follow links
+as they walk. Outside the worktree, or in doubt, it asks rather than refusing.
+
+The judge reads words and runs nothing, and a `gh` read or `git fetch` reaches GitHub, or the host a
+remote names, with what it is given. That is the cost of the switch being on, along with the one
+the settings footer names: text planted in a file or an issue the orchestrator reads can choose which of
+those reads run, and the owner does not see them first. Each one still leaves its tool row in the
+transcript. The Run button on a code block is not affected.
 
 **The setting is read on every ask.** `SessionGrants` reads it from the store each time it judges a
 command, so turning it off applies to the next ask, in a chat already running, with no restart.
@@ -1637,7 +1679,7 @@ nowhere in `Sources/Core/Bridge`, in `AppModel` or in a file that serves a tool.
 calls every bridge tool's handler, in every role it is served to, with every field set to one of six values
 naming the switch or its owner, then with only the fields it requires and with every field, read from their
 names and filled with the quick prompt and suggestion ids that exist, and reads the switch back from the store
-after each call. It then cuts, sets up, archives, restores and opens a workspace with settings files planted in
+after each call, starting from an off the owner saved, so that it is still off. It then cuts, sets up, archives, restores and opens a workspace with settings files planted in
 the project, which is where those paths read them, and loads the worktree's planted files through
 `SettingsLoader` directly, reading the switch back after each step. What it does not reach: the app's own
 closures behind the tools `AppModel.bridgeToolbox()` adds, which the suite replaces with stubs, so for those the

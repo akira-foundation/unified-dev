@@ -23,10 +23,10 @@ struct OrchestratorUnaskedProgramsTests {
     }
 
     @Test("the same programs read without a card", arguments: [
-        "curl -s example.test", "sort file", "tar tf archive", "git fetch origin", "git fetch origin develop",
+        "sort file", "tar tf archive", "git fetch origin", "git fetch origin develop",
         "sed -n '$p' src/main.rs", "sed -e 's/a/b/' web.txt", "awk '{print $1}' file", "ls \"$HOME\"", "[ -f file ]",
         "[[ -n a ]]", "find . -name x -exec ls {} +", "bash -lc 'ls'", "echo \"$(git log)\"", "sed -n '1,5p' file", "sed 's/a/w/' file", "sed 's/a/b/g' file", "tar -tf x.tar",
-        "git log --oneline", "git log --no-merges", "gh pr view 1", "gh issue list", "swift build -c release", "python3 -m json.tool file",
+        "git log --oneline", "git log --no-merges", "gh pr view 1", "gh issue list",
     ])
     func stillPasses(_ command: String) {
         #expect(OrchestratorUnaskedJudge.verdict(command) == .passes)
@@ -219,6 +219,49 @@ struct OrchestratorUnaskedProgramsTests {
         "exif rm x", "motif rm x", "./if rm x", "gif git push",
     ])
     func endingLikeAReservedWordIsAProgram(_ command: String) {
+        #expect(OrchestratorUnaskedJudge.verdict(command) == .asks)
+    }
+
+    @Test("a program on the closed list runs without asking", arguments: OrchestratorUnaskedPrograms.runWithoutAsking.sorted())
+    func closedListPasses(_ program: String) {
+        #expect(OrchestratorUnaskedJudge.verdict("\(program) file") == .passes)
+        #expect(OrchestratorUnaskedJudge.verdict("/usr/bin/\(program) file") == .passes)
+    }
+
+    @Test("a program off the closed list asks rather than being refused", arguments: [
+        "make build", "swift build -c release", "swift test", "xcodebuild -list", "./Tools/test-core.sh Filter",
+        "python3 tool.py", "python3 -m json.tool file", "node x.js", "ruby x.rb", "perl x.pl", "curl -s example.test",
+        "curl -d @file example.test", "bun run build", "cargo build", "docker ps", "exif x", "less file", "base64 -o x y",
+    ])
+    func offTheListAsks(_ command: String) {
+        #expect(OrchestratorUnaskedJudge.verdict(command) == .asks)
+    }
+
+    @Test("a wrapper that adds nothing is judged by what it runs", arguments: [
+        "env ls", "time ls", "nice ls", "timeout 5 ls", "nohup ls", "command ls", "builtin cd x", "xargs ls",
+        "noglob ls", "stdbuf -o0 ls", "gtimeout 5 ls", "nocorrect ls",
+    ])
+    func plainWrapperPasses(_ command: String) {
         #expect(OrchestratorUnaskedJudge.verdict(command) == .passes)
+    }
+
+    @Test("a runner that does more than wrap asks even for a listed program, and a refusal inside still refuses", arguments: [
+        "ssh", "npx", "bunx", "npm", "watch", "tmux", "xcrun", "sudo", "parallel", "uvx", "nix",
+    ])
+    func runnerThatAddsSomethingAsks(_ runner: String) {
+        #expect(OrchestratorUnaskedJudge.verdict("\(runner) ls") == .asks)
+        #expect(OrchestratorUnaskedJudge.verdict("\(runner) git push") == .refused)
+    }
+
+    @Test("a reserved word that closes a compound, or opens a loop, passes", arguments: [
+        "for f in a b; do echo \"$f\"; done", "if true; then ls; fi", "while true; do ls; done",
+    ])
+    func compoundWordsPass(_ command: String) {
+        #expect(OrchestratorUnaskedJudge.verdict(command) == .passes)
+    }
+
+    @Test("a word that closes a compound followed by more is a program", arguments: ["fi x", "done x", "esac x"])
+    func closerWithWordsAsks(_ command: String) {
+        #expect(OrchestratorUnaskedJudge.verdict(command) == .asks)
     }
 }
