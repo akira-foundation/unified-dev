@@ -14,7 +14,7 @@ public extension ComposerControls {
         case .codex:
             if let codexSpeed { return codexSpeed.supportsFast ? .available : .unavailable }
             return codexSpeedFailed ? .unavailable : .loading
-        case .grok, .cursor, .openCode:
+        case .grok, .antigravity, .cursor, .openCode:
             return .unavailable
         }
     }

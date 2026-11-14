@@ -68,7 +68,7 @@ public struct ComposerControls: Equatable, Sendable {
     public var availablePermissionModes: [PermissionMode] {
         switch agentKind {
         case .codex: PermissionMode.allCases.filter { $0 != .plan }
-        case .claudeCode, .grok, .cursor, .openCode: PermissionMode.allCases.filter { $0 != .autoReview }
+        case .claudeCode, .grok, .antigravity, .cursor, .openCode: PermissionMode.allCases.filter { $0 != .autoReview }
         }
     }
 

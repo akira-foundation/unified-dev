@@ -141,7 +141,7 @@ struct GrokQuotaTests {
 
         #expect(await reading.value == nil)
         #expect(watchdogs.asked == [.milliseconds(200), .milliseconds(200)])
-        #expect(GrokQuotaSource.timeout < GrokClient.requestTimeout)
+        #expect(GrokQuotaSource.timeout < ACPClient.requestTimeout)
     }
 
     @Test("a Grok that never finishes the handshake is given up on too", .timeLimit(.minutes(1)))
@@ -268,6 +268,6 @@ struct GrokQuotaTests {
 
     @Test("the setup sentence names every agent whose limits the panel shows")
     func setupSentenceNamesGrok() {
-        #expect(MenuBarPanelContent.setupSentence == "Sign in to Claude Code, Codex or Grok and their limits show here.")
+        #expect(MenuBarPanelContent.setupSentence == "Sign in to Claude Code, Codex, Grok or Antigravity and their limits show here.")
     }
 }

@@ -24,15 +24,16 @@ private func makeGrokSession(
 private func makeRunner(
     store: Store, session: Session, box: ProcessBox,
     gitHub: GitHubLogin = .thisMac, seen: SeenEnvironment? = nil
-) async throws -> GrokRunner {
-    GrokRunner(
+) async throws -> ACPRunner {
+    ACPRunner(
+        dialect: .grok,
         workspacePath: "/tmp/w",
         session: session,
         store: store, segmentID: try await activeSegmentID(store, session),
         gitHub: gitHub,
         makeClient: { configuration in
             seen?.value.withLock { $0 = configuration.environment }
-            return GrokClient(configuration: configuration, makeProcess: box.factory)
+            return ACPClient(configuration: configuration, makeProcess: box.factory)
         }
     )
 }
@@ -279,7 +280,7 @@ struct GrokRunnerTests {
         runner.terminateNow()
     }
 
-    @Test("makeRunner picks GrokRunner for a Grok session")
+    @Test("makeRunner picks ACPRunner for a Grok session")
     func makeRunnerPicksGrok() {
         let session = Session(
             workspaceID: WorkspaceID("w"),

@@ -227,7 +227,7 @@ extension AppModel {
         let inheritedAgent = controls.agentKind
         let agent = order.agent
             ?? order.model.map {
-                DefaultBackend.kind(ofModel: $0, running: inheritedAgent, models: [:])
+                ComposerModelCatalog.shared.backend(ofModel: $0, current: inheritedAgent)
             }
             ?? inheritedAgent
         controls.agentKind = agent

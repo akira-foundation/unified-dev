@@ -5,6 +5,7 @@ public extension PermissionMode {
         switch kind {
         case .codex: codexLabel
         case .grok: grokLabel
+        case .antigravity: antigravityLabel
         case .claudeCode, .cursor, .openCode: claudeCodeLabel
         }
     }
@@ -13,6 +14,7 @@ public extension PermissionMode {
         switch kind {
         case .codex: codexSummary
         case .grok: grokSummary
+        case .antigravity: antigravitySummary
         case .claudeCode, .cursor, .openCode: claudeCodeSummary
         }
     }
@@ -88,6 +90,24 @@ public extension PermissionMode {
         case .acceptEdits: "File edits run without a prompt. Other calls still ask."
         case .bypassPermissions: "No further prompts. Everything runs."
         case .plan: "Research and propose changes without making them."
+        }
+    }
+
+    private var antigravityLabel: String {
+        switch self {
+        case .auto, .autoReview: "Auto"
+        case .acceptEdits: "Accept edits"
+        case .bypassPermissions: "Skip permissions"
+        case .plan: "Plan"
+        }
+    }
+
+    private var antigravitySummary: String {
+        switch self {
+        case .auto, .autoReview: "Edits and safe commands run. Irreversible actions still ask."
+        case .acceptEdits: "File edits in the workspace run without a prompt. Commands still ask."
+        case .bypassPermissions: "No further prompts. Everything runs."
+        case .plan: "Plan carefully before making any change."
         }
     }
 }

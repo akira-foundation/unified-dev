@@ -2,21 +2,23 @@ import Foundation
 import Synchronization
 import os
 
-public actor GrokRunner: SessionRunner {
-    public nonisolated let agentKind = AgentKind.grok
+public actor ACPRunner: SessionRunner {
+    public nonisolated let dialect: ACPDialect
+    public nonisolated var agentKind: AgentKind { dialect.kind }
     public nonisolated let workspacePath: String
     public nonisolated let sessionID: SessionID
 
     private let store: Store
-    private let makeClient: @Sendable (GrokClient.Configuration) -> GrokClient
+    private let makeClient: @Sendable (ACPClient.Configuration) -> ACPClient
 
     private var session: Session
-    private var client: GrokClient?
+    private var client: ACPClient?
     private var pumpTask: Task<Void, Never>?
-    private var translation: GrokTranslation
-    private var grokSessionID: String?
+    private var translation: ACPTranslation
+    private var acpSessionID: String?
     private var connectionGeneration: UInt64 = 0
     private var permissionConnectionID = UUID()
+    private var launchedAlwaysApproving = false
 
     private let grants: SessionGrants
     private var orchestrates = false
@@ -25,7 +27,7 @@ public actor GrokRunner: SessionRunner {
     private var lastContextWindow: Int?
     private var wireModel: String { ModelIdentifier.resolve(session.model).model }
 
-    private var approvals: [String: GrokPermissionRequest] = [:]
+    private var approvals: [String: ACPPermissionRequest] = [:]
 
     private let connection = LiveConnection()
     private var droppingConnections = 0
@@ -41,6 +43,7 @@ public actor GrokRunner: SessionRunner {
     private let gitHub: GitHubLogin
 
     public init(
+        dialect: ACPDialect,
         workspacePath: String,
         session: Session,
         store: Store,
@@ -48,8 +51,9 @@ public actor GrokRunner: SessionRunner {
         bridge: BridgeAttachment? = nil,
         account: AgentAccountHome? = nil,
         gitHub: GitHubLogin = .thisMac,
-        makeClient: @escaping @Sendable (GrokClient.Configuration) -> GrokClient = GrokRunner.spawn
+        makeClient: @escaping @Sendable (ACPClient.Configuration) -> ACPClient = ACPRunner.spawn
     ) {
+        self.dialect = dialect
         self.workspacePath = workspacePath
         self.sessionID = session.id
         self.session = session
@@ -60,15 +64,16 @@ public actor GrokRunner: SessionRunner {
         self.segment = RunnerSegment(sessionID: session.id, store: store, id: segmentID)
         self.makeClient = makeClient
         self.grants = SessionGrants(store: store, workspaceID: session.workspaceID)
-        self.translation = GrokTranslation(context: GrokTranslation.Context(
+        self.translation = ACPTranslation(context: ACPTranslation.Context(
+            agentKind: dialect.kind,
             model: ModelIdentifier.resolve(session.model).model,
             cwd: workspacePath,
             permissionMode: session.permissionMode.cliValue
         ))
     }
 
-    public static let spawn: @Sendable (GrokClient.Configuration) -> GrokClient = { configuration in
-        GrokClient(configuration: configuration)
+    public static let spawn: @Sendable (ACPClient.Configuration) -> ACPClient = { configuration in
+        ACPClient(configuration: configuration)
     }
 
     public nonisolated var events: AsyncStream<AgentEvent> { sink.stream() }
@@ -129,9 +134,9 @@ public actor GrokRunner: SessionRunner {
         orchestrates = await grants.isOrchestrator()
         let client = try await connected()
         try handle.check(generation)
-        let grokSessionID = try await openSession(on: client)
+        let acpSessionID = try await openSession(on: client)
         try handle.check(generation)
-        try await applyComposerSettings(on: client, sessionID: grokSessionID)
+        try await applyComposerSettings(on: client, sessionID: acpSessionID)
         try handle.check(generation)
 
         await segment.confirmWhatIsOwed()
@@ -152,10 +157,10 @@ public actor GrokRunner: SessionRunner {
         )
         announcesRole = false
         segment.promptSent(asSteer: false, carriedDelta: prompt != sidePrompt)
-        let promptID = try await client.beginPrompt(sessionID: grokSessionID, text: spoken)
+        let promptID = try await client.beginPrompt(sessionID: acpSessionID, text: spoken)
         if let deliveryID { try await store.acceptDelivery(id: deliveryID, providerTurnID: promptID.turnID) }
         guard handle.begin(turnID: promptID.turnID, generation: generation) else {
-            await client.cancel(sessionID: grokSessionID)
+            await client.cancel(sessionID: acpSessionID)
             throw CancellationError()
         }
 
@@ -178,8 +183,8 @@ public actor GrokRunner: SessionRunner {
         }
         if handle.generation == stopped.generation, handle.wasCancelled,
            session.apply(.cancelled).moves { await save(session) }
-        if handle.generation == stopped.generation, handle.wasCancelled, let grokSessionID {
-            await client?.cancel(sessionID: grokSessionID)
+        if handle.generation == stopped.generation, handle.wasCancelled, let acpSessionID {
+            await client?.cancel(sessionID: acpSessionID)
         }
     }
 
@@ -209,10 +214,10 @@ public actor GrokRunner: SessionRunner {
         defer { droppingConnections -= 1 }
         connectionGeneration += 1
         let closing = client
-        let sessionToClose = grokSessionID
+        let sessionToClose = acpSessionID
         let pump = pumpTask
         client = nil
-        grokSessionID = nil
+        acpSessionID = nil
         pumpTask?.cancel()
         pumpTask = nil
         handle.end()
@@ -225,18 +230,20 @@ public actor GrokRunner: SessionRunner {
         await pump?.value
     }
 
-    private func connected() async throws -> GrokClient {
+    private func connected() async throws -> ACPClient {
+        let alwaysApproves = permissionMode == .bypassPermissions
         if let client {
-            if client.isProcessAlive, await client.isClosed == false {
+            if client.isProcessAlive, await client.isClosed == false, launchedAlwaysApproving == alwaysApproves {
                 return client
             }
             await dropConnection()
         }
 
         await LoginShellPath.ready()
-        let stored = try? await store.setting(AgentCatalog.executablePathSettingKey(.grok))
-        let client = makeClient(GrokClient.Configuration(
-            executable: AgentCatalog.executable(for: .grok, override: stored),
+        let stored = try? await store.setting(AgentCatalog.executablePathSettingKey(dialect.kind))
+        let client = makeClient(ACPClient.Configuration(
+            dialect: dialect,
+            executable: AgentCatalog.executable(for: dialect.kind, override: stored),
             cwd: workspacePath,
             account: account,
             clientName: "Unified Dev",
@@ -244,10 +251,11 @@ public actor GrokRunner: SessionRunner {
             environment: gitHub.applied(to: Shell.environment()),
             model: wireModel,
             effort: session.effort,
-            alwaysApprove: permissionMode == .bypassPermissions,
+            alwaysApprove: alwaysApproves,
             asksEveryCall: orchestrates
         ))
         self.client = client
+        launchedAlwaysApproving = alwaysApproves
         permissionConnectionID = UUID()
         connection.attach(client)
         let events = client.events
@@ -261,13 +269,13 @@ public actor GrokRunner: SessionRunner {
         return client
     }
 
-    private func openSession(on client: GrokClient) async throws -> String {
-        if let grokSessionID { return grokSessionID }
+    private func openSession(on client: ACPClient) async throws -> String {
+        if let acpSessionID { return acpSessionID }
 
         announcesRole = true
-        let servers = BridgeRegistration.grokServers(bridge)
+        let servers = BridgeRegistration.acpServers(bridge)
         let stored = session.agentSessionID ?? ""
-        let opened: GrokSession
+        let opened: ACPSession
         if stored.isEmpty {
             opened = try await client.newSession(
                 cwd: workspacePath,
@@ -294,7 +302,7 @@ public actor GrokRunner: SessionRunner {
             try await segment.restartHistory()
         }
 
-        grokSessionID = opened.id
+        acpSessionID = opened.id
         translation.context.permissionMode = permissionMode.cliValue
         for event in translation.translate(.sessionReady(opened)) {
             await emit(event)
@@ -313,48 +321,49 @@ public actor GrokRunner: SessionRunner {
         OrchestratorToolGuard.permissionMode(session.permissionMode, orchestrates: orchestrates)
     }
 
-    private func applyComposerSettings(on client: GrokClient, sessionID: String) async throws {
+    private func applyComposerSettings(on client: ACPClient, sessionID: String) async throws {
         let model = wireModel
         if !model.isEmpty {
             try await applyConfigOption(on: client, sessionID: sessionID, configID: "model", value: model)
             translation.context.model = model
         }
-        if !session.effort.isEmpty {
+        if let effortOption = dialect.effortOption, !session.effort.isEmpty {
+            try await applyConfigOption(on: client, sessionID: sessionID, configID: effortOption, value: session.effort)
+        }
+        if let mode = dialect.mode(for: permissionMode, asksEveryCall: orchestrates) {
             try await applyConfigOption(
-                on: client,
-                sessionID: sessionID,
-                configID: "reasoning_effort",
-                value: session.effort
+                on: client, sessionID: sessionID, configID: "mode", value: mode, isRequired: orchestrates
             )
         }
     }
 
     private func applyConfigOption(
-        on client: GrokClient,
+        on client: ACPClient,
         sessionID: String,
         configID: String,
-        value: String
+        value: String,
+        isRequired: Bool = false
     ) async throws {
         do {
             try await client.setConfigOption(sessionID: sessionID, configID: configID, value: value)
-        } catch let error as GrokClientError {
+        } catch let error as ACPClientError {
             switch error {
             case .connectionClosed, .notInitialized: throw error
-            case .timedOut, .unexpectedResult: return
+            case .timedOut, .unexpectedResult: if isRequired { throw error }
             }
         } catch {
-            return
+            if isRequired { throw error }
         }
     }
 
-    private func handle(_ event: GrokEvent, from generation: UInt64) async {
+    private func handle(_ event: ACPEvent, from generation: UInt64) async {
         guard generation == connectionGeneration else { return }
 
         if case .closed = event, handle.wasCancelled || trouble.hasStopped { return }
 
         if case .permission(let request) = event {
             if handle.wasCancelled {
-                await client?.answer(request.id, with: GrokPermission.cancelledResult)
+                await client?.answer(request.id, with: ACPPermission.cancelledResult)
                 return
             }
             await ask(request)
@@ -416,8 +425,8 @@ public actor GrokRunner: SessionRunner {
         sink.yield(event, messageSeq: storedMessage?.seq)
     }
 
-    private func ask(_ request: GrokPermissionRequest) async {
-        let ask = GrokPermission.ask(for: request, connectionID: permissionConnectionID)
+    private func ask(_ request: ACPPermissionRequest) async {
+        let ask = ACPPermission.ask(for: request, kind: dialect.kind, connectionID: permissionConnectionID)
         if await grants.answersItself(toolName: ask.toolName, input: ask.input) {
             await persist(kind: .system, payload: ask.raw)
             await write(answerTo: ask, decision: .allow(scope: .once), request: request)
@@ -458,7 +467,7 @@ public actor GrokRunner: SessionRunner {
     private func filePendingAsks() async {
         for ask in pending.drain() {
             if let request = approvals[ask.requestID] {
-                await client?.answer(request.id, with: GrokPermission.cancelledResult)
+                await client?.answer(request.id, with: ACPPermission.cancelledResult)
             }
             await close(ask, as: PermissionAskOutcome.stopped, note: "")
         }
@@ -468,13 +477,13 @@ public actor GrokRunner: SessionRunner {
     private func write(
         answerTo ask: PermissionAsk,
         decision: PermissionDecision,
-        request: GrokPermissionRequest?
+        request: ACPPermissionRequest?
     ) async {
         if let request {
-            if let optionID = GrokPermission.optionID(for: decision, in: request) {
-                await client?.answer(request.id, with: GrokPermission.selectedResult(optionID: optionID))
+            if let optionID = ACPPermission.optionID(for: decision, in: request) {
+                await client?.answer(request.id, with: ACPPermission.selectedResult(optionID: optionID))
             } else {
-                await client?.answer(request.id, with: GrokPermission.cancelledResult)
+                await client?.answer(request.id, with: ACPPermission.cancelledResult)
             }
         }
         approvals[ask.requestID] = nil
@@ -569,16 +578,16 @@ public actor GrokRunner: SessionRunner {
 
     private static let log = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "io.akira.unifieddev",
-        category: "grok-runner"
+        category: "acp-runner"
     )
 }
 
 private final class LiveConnection: Sendable {
-    private let client = Mutex<GrokClient?>(nil)
+    private let client = Mutex<ACPClient?>(nil)
 
-    var current: GrokClient? { client.withLock { $0 } }
+    var current: ACPClient? { client.withLock { $0 } }
 
-    func attach(_ client: GrokClient) {
+    func attach(_ client: ACPClient) {
         self.client.withLock { $0 = client }
     }
 }

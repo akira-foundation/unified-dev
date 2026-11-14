@@ -260,7 +260,7 @@ struct ConversationHandoffTests {
     }
 
     private func grokClosing(_ subtype: String, isError: Bool) -> Message {
-        closingRow(GrokTranslation.resultLine(
+        closingRow(ACPTranslation.resultLine(
             subtype: subtype, isError: isError, summary: "", durationMS: 0,
             usage: AgentUsage(), model: "grok", sessionID: "session"
         ))

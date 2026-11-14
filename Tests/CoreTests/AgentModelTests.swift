@@ -6,7 +6,7 @@ import Testing
         id: "shared", displayName: "Shared model", isDefault: true, hidden: true,
         supportedEfforts: [.init(id: "low"), .init(id: "xhigh")], defaultEffort: "low"
     )
-    private let grok = GrokModel(
+    private let grok = ACPModel(
         id: "grok-test", displayName: "Grok Test", isDefault: true,
         supportedEfforts: [.init(id: "medium"), .init(id: "xhigh")], defaultEffort: "medium"
     )

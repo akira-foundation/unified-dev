@@ -1706,8 +1706,10 @@ final class TranscriptModel {
                 account: account,
                 gitHub: gitHub
             )
-        case .grok:
-            return GrokRunner(
+        case .grok, .antigravity:
+            guard let dialect = ACPDialect.speaking(session.agentKind) else { fallthrough }
+            return ACPRunner(
+                dialect: dialect,
                 workspacePath: workspacePath,
                 session: session,
                 store: store,

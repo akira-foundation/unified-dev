@@ -12,6 +12,7 @@ public enum AgentQuotaAdapters {
         ClaudeCodeUsageAdapter.self,
         CodexQuotaAdapter.self,
         GrokQuotaAdapter.self,
+        AntigravityQuotaAdapter.self,
     ]
 
     public static func quotas(fromRateLimitEvent data: Data, at now: Date = Date()) -> [AgentQuota] {

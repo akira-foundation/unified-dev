@@ -119,6 +119,9 @@ struct AgentAccountEnvironmentTests {
             #expect(AgentAccountEnvironment.isStripped(prefix + "_SOMETHING_NOBODY_HAS_SHIPPED_YET"))
         }
         #expect(!AgentAccountEnvironment.isStripped("PATH"))
+        #expect(AgentAccountEnvironment.isStripped("GEMINI_API_KEY"))
+        #expect(AgentAccountEnvironment.isStripped("GOOGLE_API_KEY"))
+        #expect(!AgentAccountEnvironment.isStripped("GOOGLE_APPLICATION_CREDENTIALS"))
     }
 
     @Test(

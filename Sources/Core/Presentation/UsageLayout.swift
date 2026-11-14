@@ -251,7 +251,7 @@ public struct UsageLayout: Codable, Sendable, Hashable {
 extension AgentKind {
     public var publishesUsage: Bool {
         switch self {
-        case .claudeCode, .codex, .grok: true
+        case .claudeCode, .codex, .grok, .antigravity: true
         case .cursor, .openCode: false
         }
     }

@@ -28,19 +28,20 @@ struct AgentLaunchAccountCatalogueTests {
 
     @Test func aGrokRunnerBuildsItsClientForTheAccount() async throws {
         let (store, made) = try await LaunchAccountFixture.session(kind: .grok)
-        let seen = Mutex<GrokClient.Configuration?>(nil)
-        let runner = GrokRunner(
+        let seen = Mutex<ACPClient.Configuration?>(nil)
+        let runner = ACPRunner(
+            dialect: .grok,
             workspacePath: "/tmp/w", session: made, store: store, segmentID: try await activeSegmentID(store, made), account: workGrok,
             makeClient: { configuration in
                 seen.withLock { $0 = configuration }
-                return GrokClient(configuration: configuration, makeProcess: { _ in SilentProcess() })
+                return ACPClient(configuration: configuration, makeProcess: { _ in SilentProcess() })
             }
         )
         try? await runner.send("hello")
         runner.terminateNow()
         let configuration = try #require(seen.withLock { $0 })
         #expect(configuration.account == workGrok)
-        #expect(GrokClient.launch(configuration).environment["GROK_HOME"] == workGrok.directory.path)
+        #expect(ACPClient.launch(configuration).environment["GROK_HOME"] == workGrok.directory.path)
     }
 
     @Test func theCodexModelCatalogueListsUnderTheAccount() async {
@@ -64,10 +65,10 @@ struct AgentLaunchAccountCatalogueTests {
     }
 
     @Test func theGrokModelCatalogueListsUnderTheAccount() async {
-        let seen = Mutex<GrokClient.Configuration?>(nil)
+        let seen = Mutex<ACPClient.Configuration?>(nil)
         let catalogue = GrokModelCatalog.live(account: workGrok, makeClient: { configuration in
             seen.withLock { $0 = configuration }
-            return GrokClient(configuration: configuration, makeProcess: { _ in SilentProcess() })
+            return ACPClient(configuration: configuration, makeProcess: { _ in SilentProcess() })
         })
         _ = try? await catalogue.models()
         #expect(seen.withLock { $0 }?.account == workGrok)

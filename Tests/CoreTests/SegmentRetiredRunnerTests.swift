@@ -96,9 +96,10 @@ struct SegmentRetiredRunnerTests: HandoffTurnRunnerFixture {
     func grokLateResult() async throws {
         let stage = try await stage(try makeTestStore("retired-grok"), agent: .grok, model: "grok-4.6")
         let box = grokBox()
-        let runner = GrokRunner(
+        let runner = ACPRunner(
+            dialect: .grok,
             workspacePath: "/tmp/w", session: stage.session, store: stage.store, segmentID: stage.retired,
-            makeClient: { GrokClient(configuration: $0, makeProcess: box.factory) }
+            makeClient: { ACPClient(configuration: $0, makeProcess: box.factory) }
         )
         defer { runner.terminateNow() }
         try await runner.send("before the switch")
@@ -174,9 +175,10 @@ struct SegmentRetiredRunnerTests: HandoffTurnRunnerFixture {
         let stage = try await stage(try makeTestStore("late-grok"), agent: .grok, model: "grok-4.6")
         try await switched(stage, to: .claudeCode)
         let box = grokBox()
-        let runner = GrokRunner(
+        let runner = ACPRunner(
+            dialect: .grok,
             workspacePath: "/tmp/w", session: stage.session, store: stage.store, segmentID: stage.retired,
-            makeClient: { GrokClient(configuration: $0, makeProcess: box.factory) }
+            makeClient: { ACPClient(configuration: $0, makeProcess: box.factory) }
         )
 
         await #expect(throws: ProviderIdleError.self) { try await runner.send("too late") }

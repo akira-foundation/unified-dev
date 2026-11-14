@@ -493,6 +493,7 @@ public enum AgentKind: String, Sendable, Codable, CaseIterable, Identifiable {
     case claudeCode
     case codex
     case grok
+    case antigravity
     case cursor
     case openCode
 
@@ -503,6 +504,7 @@ public enum AgentKind: String, Sendable, Codable, CaseIterable, Identifiable {
         case .claudeCode: "Claude Code"
         case .codex: "Codex"
         case .grok: "Grok"
+        case .antigravity: "Antigravity"
         case .cursor: "Cursor"
         case .openCode: "OpenCode"
         }
@@ -515,6 +517,7 @@ public enum AgentKind: String, Sendable, Codable, CaseIterable, Identifiable {
         case .claudeCode: "claude"
         case .codex: "codex"
         case .grok: "grok"
+        case .antigravity: "agy"
         case .cursor: "cursor-agent"
         case .openCode: "opencode"
         }
@@ -526,6 +529,7 @@ public enum AgentKind: String, Sendable, Codable, CaseIterable, Identifiable {
         case .claudeCode: return "\(home)/.claude/settings.json"
         case .codex: return "\(home)/.codex/config.toml"
         case .grok: return "\(home)/.grok/config.toml"
+        case .antigravity: return "\(home)/.gemini/config"
         case .cursor: return "\(home)/.cursor"
         case .openCode: return "\(home)/.opencode"
         }
@@ -539,13 +543,14 @@ public enum AgentKind: String, Sendable, Codable, CaseIterable, Identifiable {
         switch self {
         case .claudeCode: ["auth", "login"]
         case .codex, .grok, .cursor: ["login"]
+        case .antigravity: []
         case .openCode: ["auth", "login"]
         }
     }
 
     public var canRunWorkspaces: Bool {
         switch self {
-        case .claudeCode, .codex, .grok: true
+        case .claudeCode, .codex, .grok, .antigravity: true
         case .cursor, .openCode: false
         }
     }
@@ -553,14 +558,14 @@ public enum AgentKind: String, Sendable, Codable, CaseIterable, Identifiable {
     public var announcesModelEfforts: Bool {
         switch self {
         case .codex, .grok: true
-        case .claudeCode, .cursor, .openCode: false
+        case .claudeCode, .antigravity, .cursor, .openCode: false
         }
     }
 
     public var acceptsMidTurnMessage: Bool {
         switch self {
         case .claudeCode, .codex: true
-        case .grok, .cursor, .openCode: false
+        case .grok, .antigravity, .cursor, .openCode: false
         }
     }
 

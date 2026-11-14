@@ -22,6 +22,7 @@ public enum SystemReadings {
         case .claudeCode: "claude"
         case .codex: "codex"
         case .grok: "grok"
+        case .antigravity: "antigravity"
         case .cursor: "cursor"
         case .openCode: "opencode"
         }

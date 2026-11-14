@@ -70,7 +70,7 @@ public enum TranscriptSources {
             TranscriptSource(
                 provider: provider, home: home, root: home.appending(path: "sessions"), namePrefix: "rollout-"
             )
-        case .grok, .cursor, .openCode:
+        case .grok, .antigravity, .cursor, .openCode:
             nil
         }
     }

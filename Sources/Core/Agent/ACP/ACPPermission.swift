@@ -1,16 +1,18 @@
 import Foundation
 
-public enum GrokPermission {
-    public static func requestID(_ id: GrokRequestID, sessionID: String, connectionID: UUID) -> String {
-        "grok:\(connectionID.uuidString):\(sessionID):\(id.jsonLiteral)"
+public enum ACPPermission {
+    public static func requestID(_ id: ACPRequestID, sessionID: String, connectionID: UUID, kind: AgentKind) -> String {
+        "\(kind.rawValue):\(connectionID.uuidString):\(sessionID):\(id.jsonLiteral)"
     }
 
-    public static func ask(for request: GrokPermissionRequest, connectionID: UUID = UUID()) -> PermissionAsk {
-        let name = GrokTranslation.toolName(for: request.toolCall)
-        let input = GrokTranslation.input(for: request.toolCall)
+    public static func ask(
+        for request: ACPPermissionRequest, kind: AgentKind, connectionID: UUID = UUID()
+    ) -> PermissionAsk {
+        let name = ACPTranslation.toolName(for: request.toolCall, kind: kind)
+        let input = ACPTranslation.input(for: request.toolCall)
         let allowsAlways = request.options.contains { $0.kind == "allow_always" }
         let ask = PermissionAsk(
-            requestID: requestID(request.id, sessionID: request.sessionID, connectionID: connectionID),
+            requestID: requestID(request.id, sessionID: request.sessionID, connectionID: connectionID, kind: kind),
             toolName: name,
             displayName: request.toolCall.title,
             toolUseID: request.toolCall.id,
@@ -29,14 +31,14 @@ public enum GrokPermission {
             suppressesAlwaysAllow: !allowsAlways,
             raw: Data()
         )
-        return ask.with(raw: envelope(for: ask))
+        return ask.with(raw: envelope(for: ask, kind: kind))
     }
 
-    public static func envelope(for ask: PermissionAsk) -> Data {
+    public static func envelope(for ask: PermissionAsk, kind: AgentKind) -> Data {
         let json = JSONValue.object(omittingNil: [
             "type": .string("control_request"),
             "request_id": .string(ask.requestID),
-            "agent_kind": .string(AgentKind.grok.rawValue),
+            "agent_kind": .string(kind.rawValue),
             "request": .object(omittingNil: [
                 "subtype": .string("can_use_tool"),
                 "tool_name": .string(ask.toolName),
@@ -65,7 +67,7 @@ public enum GrokPermission {
         return Data(json.compactJSON.utf8)
     }
 
-    public static func optionID(for decision: PermissionDecision, in request: GrokPermissionRequest) -> String? {
+    public static func optionID(for decision: PermissionDecision, in request: ACPPermissionRequest) -> String? {
         let wanted: [String]
         switch decision {
         case .allow(.once), .answer, .approvePlan:
@@ -96,8 +98,8 @@ public enum GrokPermission {
         "outcome": .object(["outcome": .string("cancelled")]),
     ])
 
-    private static func ruleContent(for call: GrokToolCall) -> String? {
-        let input = GrokTranslation.input(for: call)
+    private static func ruleContent(for call: ACPToolCall) -> String? {
+        let input = ACPTranslation.input(for: call)
         if let command = input["command"]?.stringValue, !command.isEmpty { return command }
         if !call.path.isEmpty { return call.path }
         return nil

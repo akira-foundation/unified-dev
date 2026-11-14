@@ -24,7 +24,7 @@ public enum TurnStopCause: Sendable, Equatable {
             guard let last = turn.first(where: { carriesOutput($0) || isResumeMark($0) || $0.kind == .result }),
                   !isResumeMark(last) else { return .other }
             return reportsCodexUsageLimit(last) ? .usageLimit : .other
-        case .grok, .cursor, .openCode:
+        case .grok, .antigravity, .cursor, .openCode:
             return .other
         }
     }

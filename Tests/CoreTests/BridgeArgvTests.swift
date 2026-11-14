@@ -56,8 +56,7 @@ struct BridgeArgvTests {
             token: "t",
             role: .workspace
         )
-        let launch = GrokClient.launch(GrokClient.Configuration(
-            cwd: "/tmp/w",
+        let launch = ACPClient.launch(ACPClient.Configuration(dialect: .grok, executable: "grok", cwd: "/tmp/w",
             environment: [:],
             model: "grok-4.6",
             effort: "high"
@@ -68,7 +67,7 @@ struct BridgeArgvTests {
         #expect(launch.arguments.contains("--model"))
         #expect(launch.arguments.contains("grok-4.6"))
         #expect(launch.environment["GROK_DISABLE_AUTOUPDATER"] == "1")
-        let servers = BridgeRegistration.grokServers(attachment)
+        let servers = BridgeRegistration.acpServers(attachment)
         #expect(servers.count == 1)
         #expect(servers[0]["name"]?.stringValue == BridgeRegistration.serverName)
         #expect(servers[0]["command"]?.stringValue == "/tmp/bridge")
@@ -76,6 +75,6 @@ struct BridgeArgvTests {
 
     @Test("no Grok attachment, no MCP servers")
     func grokArgvWithoutABridge() {
-        #expect(BridgeRegistration.grokServers(nil).isEmpty)
+        #expect(BridgeRegistration.acpServers(nil).isEmpty)
     }
 }

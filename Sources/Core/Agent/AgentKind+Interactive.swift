@@ -86,7 +86,7 @@ public extension AgentKind {
             if !effort.isEmpty {
                 arguments += ["-c", "model_reasoning_effort=\(Self.interactiveTOMLString(effort))"]
             }
-        case .cursor, .openCode, .grok:
+        case .cursor, .openCode, .grok, .antigravity:
             return nil
         }
         if !model.isEmpty {
@@ -137,7 +137,7 @@ public extension AgentKind {
                 $0.range(of: #"^\s*esc (?:to )?interrupt(?:\s*[·•].*)?\s*$"#,
                          options: [.regularExpression, .caseInsensitive]) != nil
             }
-        case .cursor, .openCode, .grok:
+        case .cursor, .openCode, .grok, .antigravity:
             return false
         }
     }

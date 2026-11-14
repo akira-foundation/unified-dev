@@ -1,13 +1,21 @@
 import Foundation
 
-public struct GrokTranslation: Sendable {
+public struct ACPTranslation: Sendable {
     public struct Context: Sendable, Hashable {
+        public var agentKind: AgentKind
         public var model: String
         public var cwd: String
         public var permissionMode: String
         public var version: String
 
-        public init(model: String = "", cwd: String = "", permissionMode: String = "", version: String = "") {
+        public init(
+            agentKind: AgentKind,
+            model: String = "",
+            cwd: String = "",
+            permissionMode: String = "",
+            version: String = ""
+        ) {
+            self.agentKind = agentKind
             self.model = model
             self.cwd = cwd
             self.permissionMode = permissionMode
@@ -21,51 +29,64 @@ public struct GrokTranslation: Sendable {
 
     private var text = ""
     private var thought = ""
-    private var tools: [String: GrokToolCall] = [:]
+    private var tools: [String: ACPToolCall] = [:]
     private var textMessageID = ""
     private var thoughtMessageID = ""
 
-    public init(context: Context = Context()) {
+    public init(context: Context) {
         self.context = context
     }
 
     public static let itemKey = "grokItem"
 
-    public static func isGrokCall(_ input: JSONValue) -> Bool {
+    public static func isACPCall(_ input: JSONValue) -> Bool {
         input[itemKey] != nil
     }
 
-    public static func toolName(for call: GrokToolCall) -> String {
+    public static func toolName(for call: ACPToolCall, kind: AgentKind) -> String {
         let raw = call.toolName.isEmpty ? call.title : call.toolName
         switch raw {
-        case "read_file", "Read": return "Read"
-        case "write_file", "Write": return "Write"
-        case "search_replace", "str_replace", "Edit": return "Edit"
-        case "run_terminal_cmd", "bash", "shell", "Bash": return "Bash"
-        case "grep", "Grep": return "Grep"
+        case "read_file", "view_file", "Read": return "Read"
+        case "write_file", "write_to_file", "Write": return "Write"
+        case "search_replace", "str_replace", "edit_file", "Edit": return "Edit"
+        case "run_terminal_cmd", "run_command", "bash", "shell", "Bash": return "Bash"
+        case "grep", "grep_search", "Grep": return "Grep"
         case "glob_file_search", "glob", "Glob": return "Glob"
         case "list_dir": return "Glob"
-        case "web_search", "WebSearch": return "WebSearch"
-        case "web_fetch", "WebFetch": return "WebFetch"
+        case "web_search", "search_web", "WebSearch": return "WebSearch"
+        case "web_fetch", "read_url_content", "WebFetch": return "WebFetch"
         case "todo_write", "TodoWrite": return "TodoWrite"
         case "spawn_subagent", "Agent", "Task": return "Task"
         default:
             if raw.hasPrefix("mcp__") { return raw }
-            return raw.isEmpty ? "Grok.\(call.kind.isEmpty ? "tool" : call.kind)" : raw
+            if kind == .antigravity, let named = mcpName(raw) { return named }
+            return raw.isEmpty ? "\(kind.label).\(call.kind.isEmpty ? "tool" : call.kind)" : raw
         }
     }
 
-    public static func input(for call: GrokToolCall) -> JSONValue {
+    static func mcpName(_ raw: String) -> String? {
+        guard raw.hasPrefix("mcp_") else { return nil }
+        let rest = raw.dropFirst(4)
+        guard let split = rest.firstIndex(of: "_") else { return nil }
+        let server = rest[..<split]
+        let tool = rest[rest.index(after: split)...]
+        guard !server.isEmpty, !tool.isEmpty else { return nil }
+        return "mcp__\(server)__\(tool)"
+    }
+
+    private static let inputAliases: [(String, String)] = [
+        ("path", "file_path"), ("Path", "file_path"),
+        ("cmd", "command"), ("CommandLine", "command"), ("Cwd", "cwd"),
+        ("Content", "content"), ("Target", "old_string"), ("Replacement", "new_string"),
+    ]
+
+    public static func input(for call: ACPToolCall) -> JSONValue {
         var members = call.rawInput.objectValue ?? [:]
-        if members["file_path"] == nil {
-            if let path = members["path"] {
-                members["file_path"] = path
-            } else if !call.path.isEmpty {
-                members["file_path"] = .string(call.path)
-            }
+        for (alias, name) in inputAliases where members[name] == nil {
+            if let value = members[alias] { members[name] = value }
         }
-        if members["command"] == nil, let command = members["cmd"] {
-            members["command"] = command
+        if members["file_path"] == nil, !call.path.isEmpty {
+            members["file_path"] = .string(call.path)
         }
         if members["query"] == nil, let query = members["search_term"] ?? members["pattern"] {
             members["query"] = query
@@ -74,7 +95,7 @@ public struct GrokTranslation: Sendable {
         return .object(members)
     }
 
-    public mutating func translate(_ event: GrokEvent) -> [AgentEvent] {
+    public mutating func translate(_ event: ACPEvent) -> [AgentEvent] {
         switch event {
         case .sessionReady(let session):
             sessionID = session.id
@@ -86,7 +107,7 @@ public struct GrokTranslation: Sendable {
                 cwd: context.cwd,
                 model: context.model,
                 permissionMode: context.permissionMode,
-                agentKind: .grok,
+                agentKind: context.agentKind,
                 version: context.version,
                 raw: Self.initLine(sessionID: session.id, context: context)
             ))]
@@ -97,6 +118,7 @@ public struct GrokTranslation: Sendable {
 
         case .promptCompleted(let result):
             if !result.sessionID.isEmpty { sessionID = result.sessionID }
+            usage.adopt(turnUsage: result.raw["usage"])
             var events = flushOpenBlocks()
             events.append(.result(self.result(for: result)))
             tools.removeAll()
@@ -104,7 +126,7 @@ public struct GrokTranslation: Sendable {
 
         case .closed(let reason):
             return finishInterruptedTurn()
-                + [.error(AgentError(message: reason, raw: Self.errorLine(message: reason)))]
+                + [.error(AgentError(message: reason, raw: Self.errorLine(message: reason, kind: context.agentKind)))]
 
         case .permission, .unknown:
             return []
@@ -117,7 +139,7 @@ public struct GrokTranslation: Sendable {
         return events
     }
 
-    private mutating func updateEvents(_ update: GrokSessionUpdate) -> [AgentEvent] {
+    private mutating func updateEvents(_ update: ACPSessionUpdate) -> [AgentEvent] {
         switch update.kind {
         case .text(let chunk):
             guard !chunk.isEmpty else { return [] }
@@ -138,7 +160,7 @@ public struct GrokTranslation: Sendable {
             tools[call.id] = merged(call, onto: tools[call.id])
             let stored = tools[call.id] ?? call
             let input = Self.input(for: stored)
-            let name = Self.toolName(for: stored)
+            let name = Self.toolName(for: stored, kind: context.agentKind)
             let block = JSONValue.object([
                 "type": .string("tool_use"),
                 "id": .string(stored.id),
@@ -228,7 +250,7 @@ public struct GrokTranslation: Sendable {
         ))]
     }
 
-    private func toolResult(for call: GrokToolCall) -> [AgentEvent] {
+    private func toolResult(for call: ACPToolCall) -> [AgentEvent] {
         let text = call.contentText.isEmpty
             ? (call.rawOutput.stringValue ?? call.rawOutput.prettyPrinted)
             : call.contentText
@@ -249,9 +271,9 @@ public struct GrokTranslation: Sendable {
         ))]
     }
 
-    private func merged(_ incoming: GrokToolCall, onto existing: GrokToolCall?) -> GrokToolCall {
+    private func merged(_ incoming: ACPToolCall, onto existing: ACPToolCall?) -> ACPToolCall {
         guard let existing else { return incoming }
-        return GrokToolCall(
+        return ACPToolCall(
             id: incoming.id.isEmpty ? existing.id : incoming.id,
             title: incoming.title.isEmpty ? existing.title : incoming.title,
             kind: incoming.kind.isEmpty ? existing.kind : incoming.kind,
@@ -265,7 +287,7 @@ public struct GrokTranslation: Sendable {
         )
     }
 
-    private func result(for prompt: GrokPromptResult) -> AgentResult {
+    private func result(for prompt: ACPPromptResult) -> AgentResult {
         let summary = prompt.isError ? prompt.raw["message"]?.stringValue ?? "" : ""
         let subtype = prompt.wasCancelled ? "error_during_execution"
             : prompt.isError ? prompt.stopReason
@@ -375,14 +397,14 @@ public struct GrokTranslation: Sendable {
             "cwd": .string(context.cwd),
             "model": .string(context.model),
             "permissionMode": .string(context.permissionMode),
-            "agent_kind": .string(AgentKind.grok.rawValue),
+            "agent_kind": .string(context.agentKind.rawValue),
         ]))
     }
 
-    static func errorLine(message: String) -> Data {
+    static func errorLine(message: String, kind: AgentKind) -> Data {
         line(.object([
             "type": .string("error"),
-            "subtype": .string("grok"),
+            "subtype": .string(kind.rawValue),
             "stderr": .string(message),
         ]))
     }
@@ -399,5 +421,16 @@ public struct GrokTranslation: Sendable {
 
     static func line(_ json: JSONValue) -> Data {
         Data(json.compactJSON.utf8)
+    }
+}
+
+private extension AgentUsage {
+    mutating func adopt(turnUsage json: JSONValue?) {
+        guard let json, let input = json["inputTokens"]?.intValue else { return }
+        inputTokens = input
+        outputTokens = json["outputTokens"]?.intValue ?? outputTokens
+        cacheReadTokens = json["cachedReadTokens"]?.intValue ?? cacheReadTokens
+        cacheCreationTokens = json["cachedWriteTokens"]?.intValue ?? cacheCreationTokens
+        thinkingTokens = json["thoughtTokens"]?.intValue ?? thinkingTokens
     }
 }

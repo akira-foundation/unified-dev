@@ -36,7 +36,7 @@ public enum OrchestratorToolGuard {
     private static let keysBesideACommand: Set<String> = [
         "command", "description", "explanation", "timeout", "run_in_background", "is_background",
         "dangerouslyDisableSandbox", "cwd", "workdir", "working_directory", "directory", "file_path", "path",
-        CodexTranslation.itemKey, GrokTranslation.itemKey,
+        CodexTranslation.itemKey, ACPTranslation.itemKey,
     ]
 
     public static func refusal(toolName: String, input: JSONValue, runsUnasked: Bool = false) -> String? {

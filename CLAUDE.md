@@ -9,8 +9,8 @@ worktree on disk, which is why so much of what follows is about not destroying o
 
 Longer documents, pointed at rather than repeated here: `README.md` for what the app is,
 `RELEASING.md` for signing and notarising, `docs/CODEX.md` for the Codex app-server
-protocol as measured, `docs/GROK.md` for Grok's ACP over stdio, `docs/BITBUCKET.md` for the Bitbucket CLI and how a pull request there is read, `docs/PROTOCOL.md` for Claude Code's stream-json,
-`docs/AGENTS-INTEGRATION.md` for how the five CLIs are detected, `docs/PREVIEW-APPS.md` for the
+protocol as measured, `docs/GROK.md` for Grok's ACP over stdio, `docs/ANTIGRAVITY.md` for Antigravity's, and why it is not Gemini CLI, `docs/BITBUCKET.md` for the Bitbucket CLI and how a pull request there is read, `docs/PROTOCOL.md` for Claude Code's stream-json,
+`docs/AGENTS-INTEGRATION.md` for how the six CLIs are detected, `docs/PREVIEW-APPS.md` for the
 preview app every worktree can build and the scenario it is seeded with, `docs/CHAT-SEGMENTS.md` for how one chat
 is run by several agents in turn and what the agent that comes in is told, `docs/BRIDGE.md` for the MCP
 bridge an agent calls back in through and which callers may call what, `docs/PROFILES.md` for the groups of projects the window shows one at a time, `docs/PLAN.md` for what was

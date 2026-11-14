@@ -11,7 +11,7 @@ public enum WorkspaceStartMode: String, Sendable {
         switch agent {
         case .claudeCode: return .claudeCLI
         case .codex: return .codexCLI
-        case .cursor, .openCode, .grok: return .chat
+        case .cursor, .openCode, .grok, .antigravity: return .chat
         }
     }
 

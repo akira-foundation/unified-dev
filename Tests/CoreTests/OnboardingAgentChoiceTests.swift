@@ -6,13 +6,15 @@ struct OnboardingAgentChoiceTests {
     private func report(
         claude: SetupOutcome = .ready(detail: nil),
         codex: SetupOutcome = .ready(detail: nil),
-        grok: SetupOutcome = .missing
+        grok: SetupOutcome = .missing,
+        antigravity: SetupOutcome = .missing
     ) -> SetupReport {
         SetupReport(checks: [
             SetupCheck(tool: .git, outcome: .ready(detail: nil)),
             SetupCheck(tool: .claudeCode, outcome: claude),
             SetupCheck(tool: .codex, outcome: codex),
             SetupCheck(tool: .grok, outcome: grok),
+            SetupCheck(tool: .antigravity, outcome: antigravity),
             SetupCheck(tool: .gitHub, outcome: .ready(detail: nil)),
         ])
     }
@@ -37,6 +39,7 @@ struct OnboardingAgentChoiceTests {
             in: report(codex: .needsSignIn(detail: nil)), hasCompletedOnboarding: false
         ))
         #expect(OnboardingAgentChoice.candidates(in: report(grok: .ready(detail: nil))) == [.claudeCode, .codex, .grok])
+        #expect(OnboardingAgentChoice.candidates(in: report(antigravity: .ready(detail: nil))) == [.claudeCode, .codex, .antigravity])
     }
 
     @Test("Somebody who has been through this already is not asked again")

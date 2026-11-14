@@ -22,14 +22,14 @@ public struct GrokQuotaSource: AgentQuotaSource {
     private let loginShellReady: @Sendable () async -> Void
 
     public init(
-        executable: String = GrokClient.executable,
+        executable: String = AgentKind.grok.executableName,
         cwd: String = AgentScratchDirectory.current(),
         environment: [String: String]? = nil,
         account: AgentAccountHome? = nil,
         timeout: Duration = GrokQuotaSource.timeout,
         bundleIdentifier: String? = Bundle.main.bundleIdentifier,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = GrokClient.spawn,
-        watchdogSleep: @escaping @Sendable (Duration) async throws -> Void = GrokClient.taskSleep,
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = ACPClient.spawn,
+        watchdogSleep: @escaping @Sendable (Duration) async throws -> Void = ACPClient.taskSleep,
         loginShellReady: @escaping @Sendable () async -> Void = LoginShellPath.readiness
     ) {
         self.executable = executable
@@ -53,13 +53,14 @@ public struct GrokQuotaSource: AgentQuotaSource {
 
     public func read() async -> Data? {
         await loginShellReady()
-        let configuration = GrokClient.Configuration(
+        let configuration = ACPClient.Configuration(
+            dialect: .grok,
             executable: executable,
             cwd: cwd,
             account: account,
             environment: environment ?? Shell.environment()
         )
-        let client = GrokClient(configuration: configuration, makeProcess: makeProcess, watchdogSleep: watchdogSleep)
+        let client = ACPClient(configuration: configuration, makeProcess: makeProcess, watchdogSleep: watchdogSleep)
         defer { Task { await client.stop() } }
         do {
             try await client.start(timeout: timeout)
@@ -69,7 +70,7 @@ public struct GrokQuotaSource: AgentQuotaSource {
         do {
             let result = try await client.send(Self.method, params: .object([:]), timeout: timeout)
             return try JSONEncoder().encode(result)
-        } catch let refusal as GrokRPCError where refusal.code == Self.methodNotFound {
+        } catch let refusal as ACPRPCError where refusal.code == Self.methodNotFound {
             return Self.reportsNothing
         } catch {
             return nil

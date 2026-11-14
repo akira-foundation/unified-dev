@@ -36,6 +36,14 @@ extension AgentAccountProbe {
             compactQuota(.claudeCode, .lasting(week, key: "seven_day"), 0.03, resetsIn: 6 * 86_400 + 82_800),
             compactQuota(.codex, .lasting(2_592_000, key: "primary"), 0.11, resetsIn: 19 * 86_400 + 46_800),
             compactQuota(.grok, .lasting(week, key: "weekly"), 0.53, resetsIn: 3 * 86_400 + 50_400),
+            compactQuota(
+                .antigravity, QuotaWindow(key: "gemini-weekly", label: "Gemini", duration: week), 0.04,
+                resetsIn: 6 * 86_400 + 74_220
+            ),
+            compactQuota(
+                .antigravity, QuotaWindow(key: "3p-weekly", label: "Claude", duration: week), 0,
+                resetsIn: 6 * 86_400 + 85_200
+            ),
         ] + claudeModels.map { claudeModel($0.0, $0.1) }
     }
 
@@ -74,7 +82,7 @@ extension AgentAccountProbe {
             hold: .whileAgentsRun,
             now: compactNow
         ))
-        let height: CGFloat = expanded ? 640 : 560
+        let height: CGFloat = expanded ? 760 : 680
         return Scene(
             name: "compact-\(name)",
             size: CGSize(width: MenuBarPanelPlacement.width, height: height),

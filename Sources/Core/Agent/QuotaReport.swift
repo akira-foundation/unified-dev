@@ -6,6 +6,7 @@ public enum AgentQuotaSources {
             ClaudeCodeQuotaSource(account: accounts[.claudeCode]),
             CodexQuotaSource(account: accounts[.codex]),
             GrokQuotaSource(account: accounts[.grok]),
+            AntigravityQuotaSource(account: accounts[.antigravity]),
         ]
     }
 

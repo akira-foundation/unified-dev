@@ -99,9 +99,9 @@ extension HandoffTurnRunnerFixture {
         box.process.emit(#"{"method":"item/completed","params":{"threadId":"\#(handoffThreadID)","turnId":"\#(handoffTurnID)","item":{"id":"text","type":"agentMessage","text":"working"}}}"#)
     }
 
-    func grokRunner(_ store: Store, _ session: Session, _ box: ProcessBox) async throws -> GrokRunner {
-        GrokRunner(workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session), makeClient: { configuration in
-            GrokClient(configuration: configuration, makeProcess: box.factory)
+    func grokRunner(_ store: Store, _ session: Session, _ box: ProcessBox) async throws -> ACPRunner {
+        ACPRunner(dialect: .grok, workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session), makeClient: { configuration in
+            ACPClient(configuration: configuration, makeProcess: box.factory)
         })
     }
 

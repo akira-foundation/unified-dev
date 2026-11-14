@@ -39,9 +39,9 @@ private func recoveryBox() -> ProcessBox {
     return box
 }
 
-private func recoveryRunner(_ store: Store, _ session: Session, _ box: ProcessBox) async throws -> GrokRunner {
-    GrokRunner(workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session), makeClient: { config in
-        GrokClient(configuration: config, makeProcess: box.factory)
+private func recoveryRunner(_ store: Store, _ session: Session, _ box: ProcessBox) async throws -> ACPRunner {
+    ACPRunner(dialect: .grok, workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session), makeClient: { config in
+        ACPClient(configuration: config, makeProcess: box.factory)
     })
 }
 
@@ -49,27 +49,27 @@ private func recoveryText(_ process: ScriptedCodexProcess, _ text: String) {
     let params = JSONValue.object(["sessionId": .string("s"), "update": .object([
         "sessionUpdate": .string("agent_message_chunk"), "content": .object(["type": .string("text"), "text": .string(text)])
     ])])
-    process.emit(GrokOutgoing.notification(method: "session/update", params: params))
+    process.emit(ACPOutgoing.notification(method: "session/update", params: params))
 }
 
 private func recoveryComplete(_ process: ScriptedCodexProcess, _ id: JSONValue) {
     process.emit("{\"id\":\(id.compactJSON),\"result\":{\"stopReason\":\"end_turn\"}}")
 }
 
-private func recoveryPermission(_ callID: String) -> GrokPermissionRequest {
-    GrokPermissionRequest(id: .number(1), sessionID: "s", toolCall: GrokToolCall.decode(.object([
+private func recoveryPermission(_ callID: String) -> ACPPermissionRequest {
+    ACPPermissionRequest(id: .number(1), sessionID: "s", toolCall: ACPToolCall.decode(.object([
         "toolCallId": .string(callID), "toolName": .string("run_terminal_cmd"),
         "rawInput": .object(["command": .string("ls")])
     ]), isUpdate: false), options: [
-        GrokPermissionOption(id: "once", name: "Allow once", kind: "allow_once"),
-        GrokPermissionOption(id: "always", name: "Always", kind: "allow_always")
+        ACPPermissionOption(id: "once", name: "Allow once", kind: "allow_once"),
+        ACPPermissionOption(id: "always", name: "Always", kind: "allow_always")
     ], raw: Data())
 }
 
 @Suite(.scratchDirectory)
 struct GrokRecoveryTests {
     @Test func persistentApprovalSurvivesStorage() throws {
-        let ask = GrokPermission.ask(for: recoveryPermission("a"))
+        let ask = ACPPermission.ask(for: recoveryPermission("a"), kind: .grok)
         #expect(ask.canWiden)
         let stored = try #require(PermissionAsk.decode(payload: ask.raw))
         #expect(stored.canWiden)
@@ -78,10 +78,10 @@ struct GrokRecoveryTests {
     @Test func resumedPermissionDoesNotInheritPreviousDecision() async throws {
         let store = try makeTestStore("recovery-permission-id")
         let session = try await recoverySession(store)
-        let first = GrokPermission.ask(for: recoveryPermission("first"))
+        let first = ACPPermission.ask(for: recoveryPermission("first"), kind: .grok)
         try await store.appendPermissionAsk(sessionID: session.id, ask: first)
         try await store.resolvePermissionAsk(id: first.requestID, decision: "allow")
-        let next = GrokPermission.ask(for: recoveryPermission("second"))
+        let next = ACPPermission.ask(for: recoveryPermission("second"), kind: .grok)
         try await store.appendPermissionAsk(sessionID: session.id, ask: next)
         let pending = try await store.pendingPermissionAsks(sessionID: session.id)
         #expect(pending.count == 1)

@@ -5,6 +5,7 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
     case claudeCode
     case codex
     case grok
+    case antigravity
     case gitHub
     case bitbucket
 
@@ -15,6 +16,7 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
         case .claudeCode: .claudeCode
         case .codex: .codex
         case .grok: .grok
+        case .antigravity: .antigravity
         case .git, .gitHub, .bitbucket: nil
         }
     }
@@ -25,6 +27,7 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
         case .claudeCode: "Claude Code"
         case .codex: "Codex"
         case .grok: "Grok"
+        case .antigravity: "Antigravity"
         case .gitHub: "GitHub CLI"
         case .bitbucket: "Bitbucket CLI"
         }
@@ -34,7 +37,7 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
         switch self {
         case .gitHub: "the GitHub CLI"
         case .bitbucket: "the Bitbucket CLI"
-        case .git, .claudeCode, .codex, .grok: title
+        case .git, .claudeCode, .codex, .grok, .antigravity: title
         }
     }
 
@@ -48,6 +51,8 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
             "OpenAI's agent. Unified Dev can drive a workspace with it instead of Claude Code."
         case .grok:
             "xAI's agent. Unified Dev can drive a workspace with it instead of Claude Code or Codex."
+        case .antigravity:
+            "Google's agent, with Gemini and other models. Unified Dev can drive a workspace with it too."
         case .gitHub:
             "Pull requests, checks and merges. Everything else in Unified Dev works without it."
         case .bitbucket:
@@ -58,7 +63,7 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
     public var executableName: String {
         switch self {
         case .git: "git"
-        case .claudeCode, .codex, .grok: agentKind?.executableName ?? rawValue
+        case .claudeCode, .codex, .grok, .antigravity: agentKind?.executableName ?? rawValue
         case .gitHub: "gh"
         case .bitbucket: Bitbucket.executable
         }
@@ -66,7 +71,7 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
 
     public var isOptional: Bool { self == .bitbucket }
 
-    public static let displayOrder: [SetupTool] = [.git, .claudeCode, .codex, .grok, .gitHub, .bitbucket]
+    public static let displayOrder: [SetupTool] = [.git, .claudeCode, .codex, .grok, .antigravity, .gitHub, .bitbucket]
 }
 
 public enum SetupOutcome: Sendable, Hashable {
@@ -179,7 +184,7 @@ public struct SetupReport: Sendable, Hashable {
         switch tool {
         case .git:
             return .problem
-        case .claudeCode, .codex, .grok:
+        case .claudeCode, .codex, .grok, .antigravity:
             if hasRunnableAgent || agentsAreStillChecking { return .note }
             return .problem
         case .gitHub, .bitbucket:

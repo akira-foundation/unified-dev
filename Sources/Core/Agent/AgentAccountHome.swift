@@ -56,7 +56,7 @@ public struct AgentAccountHome: Sendable, Hashable {
         switch provider {
         case .claudeCode:
             claudeIdentityDirectory.appending(path: ".claude.json")
-        case .codex, .grok, .cursor, .openCode:
+        case .codex, .grok, .antigravity, .cursor, .openCode:
             directory.appending(path: "auth.json")
         }
     }
@@ -69,7 +69,7 @@ public struct AgentAccountHome: Sendable, Hashable {
     public var credentialPath: URL {
         switch provider {
         case .claudeCode: directory.appending(path: ".credentials.json")
-        case .codex, .grok, .cursor, .openCode: directory.appending(path: "auth.json")
+        case .codex, .grok, .antigravity, .cursor, .openCode: directory.appending(path: "auth.json")
         }
     }
 
@@ -78,7 +78,7 @@ public struct AgentAccountHome: Sendable, Hashable {
         case .claudeCode: ".claude"
         case .codex: ".codex"
         case .grok: ".grok"
-        case .cursor, .openCode: nil
+        case .antigravity, .cursor, .openCode: nil
         }
     }
 }

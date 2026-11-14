@@ -41,8 +41,8 @@ struct ModelAndEffortPickers: View {
         Binding(get: { model }, set: { id in MainActor.assumeIsolated { choose(id) } })
     }
 
-    private func choose(_ id: String) {
-        let kind = catalog.backend(ofModel: id, current: backend)
+    private func choose(_ tag: String) {
+        let (kind, id) = catalog.choice(tag, current: backend)
         model = id
         backend = kind
         effort = catalog.resolvedEffort(effort, for: kind, model: id)
