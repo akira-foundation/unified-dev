@@ -1,7 +1,7 @@
 import Foundation
 
 public extension GitHub {
-    private static var summaryFields: String {
+    internal static var summaryFields: String {
         [
             "number", "title", "author", "headRefName", "baseRefName",
             "isDraft", "state", "isCrossRepository", "headRepositoryOwner",

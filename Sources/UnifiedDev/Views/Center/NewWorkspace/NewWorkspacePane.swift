@@ -8,6 +8,8 @@ struct NewWorkspacePane: View {
 
     @State private var catalogue: WorkspaceSourceCatalogue?
     @State private var pullRequests = PullRequestLoad.loading
+    @State private var reading: StartingPointReading?
+    @State private var loadedRepoID: RepoID?
     @State private var pickProblem: String?
     @State private var isLookingUp = false
     @State private var isChoosingStart = false
@@ -18,6 +20,7 @@ struct NewWorkspacePane: View {
         if let repo, let draft = app.drafts.draft(for: repoID) {
             column(repo: repo, draft: draft)
                 .task(id: repoID) { await load(repo) }
+                .task(id: readingRequest(repo)) { await loadSuggestions(readingRequest(repo)) }
                 .task(id: prefetch(repo: repo, draft: draft)) {
                     await WorkspaceStartContext.prefetch(prefetch(repo: repo, draft: draft))
                 }
@@ -50,7 +53,7 @@ struct NewWorkspacePane: View {
                     pullRequests: pullRequests,
                     leadingBase: leadingBase(in: repo),
                     isPresented: $isChoosingStart,
-                    onPick: pick
+                    onPick: { pick($0) }
                 )
                 if app.asksForOrchestrator(in: repoID) {
                     NewWorkspaceOrchestratorChip(isOn: Binding(
@@ -61,7 +64,19 @@ struct NewWorkspacePane: View {
             }
             .disabled(app.drafts.isCreating(repoID))
 
+            let suggested = suggestions(for: repo)
+            if !suggested.isEmpty, !app.drafts.isCreating(repoID) {
+                StartingPointSuggestionList(
+                    suggestions: suggested,
+                    point: draft.startingPoint,
+                    onPick: { pickSuggestion($0, in: repo) }
+                )
+            }
+
             Spacer(minLength: 0)
+            if !suggested.isEmpty {
+                Spacer(minLength: 0)
+            }
 
             if let problem = app.drafts.failure(for: repoID) ?? pickProblem
                 ?? draft.startingPoint.checkout.flatMap(WorkspaceCheckoutPlan.warning(for:)) {
@@ -72,6 +87,16 @@ struct NewWorkspacePane: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.bottom, ComposerLayout.bottomInset)
+    }
+
+    private func suggestions(for repo: Repo) -> [StartingPointSuggestion] {
+        guard let catalogue, let reading, readingRequest(repo) != nil else {
+            return []
+        }
+        return StartingPointSuggestions.choose(
+            reading, defaultBranch: repo.defaultBranch, holders: catalogue.holders,
+            openPullRequests: pullRequests.requests, now: Date()
+        )
     }
 
     private var isOriginAskReady: Bool {
@@ -97,7 +122,25 @@ struct NewWorkspacePane: View {
         )
     }
 
+    private func readingRequest(_ repo: Repo) -> StartingPointReadingRequest? {
+        guard loadedRepoID == repo.id else { return nil }
+        return StartingPointReadingRequest(
+            repoPath: repo.path, offersPullRequests: catalogue?.offersPullRequests, pullRequests: pullRequests
+        )
+    }
+
+    private func loadSuggestions(_ request: StartingPointReadingRequest?) async {
+        guard let request else {
+            reading = nil
+            return
+        }
+        let loaded = await StartingPointReader.load(request)
+        guard !Task.isCancelled else { return }
+        reading = loaded
+    }
+
     private func load(_ repo: Repo) async {
+        loadedRepoID = nil
         catalogue = nil
         pullRequests = .loading
         pickProblem = nil
@@ -108,6 +151,7 @@ struct NewWorkspacePane: View {
         let requests = await PullRequestLoad.read(repoPath: repo.path, offered: listed.offersPullRequests)
         guard !Task.isCancelled else { return }
         pullRequests = requests
+        loadedRepoID = repo.id
         catalogue = listed.with(pullRequests: requests.requests)
         guard await WorkspaceStartContext.fetchBranchList(repoPath: repo.path) else { return }
         let current = await app.refreshDefaultBranch(of: repo)
@@ -117,13 +161,22 @@ struct NewWorkspacePane: View {
         catalogue = fetched.with(pullRequests: requests.requests)
     }
 
-    private func pick(_ source: WorkspaceSource) {
-        guard let catalogue else { return }
+    @discardableResult
+    private func pick(_ source: WorkspaceSource) -> StartingPointPick? {
+        guard let catalogue else { return nil }
         pickProblem = nil
-        apply(StartingPointPick.decide(
+        let decision = StartingPointPick.decide(
             source, holders: catalogue.holders, taken: catalogue.localBranches,
             repoID: repoID, workspaces: app.workspaces
-        ))
+        )
+        apply(decision)
+        return decision
+    }
+
+    private func pickSuggestion(_ suggestion: StartingPointSuggestion, in repo: Repo) {
+        let chosen = suggestion.pick(defaultBranch: repo.defaultBranch)
+        guard let decision = pick(chosen.source), chosen.addsToPrompt else { return }
+        app.editDraft(repoID) { $0.prompt = chosen.prompt(into: $0.prompt, after: decision) }
     }
 
     private func apply(_ pick: StartingPointPick) {
