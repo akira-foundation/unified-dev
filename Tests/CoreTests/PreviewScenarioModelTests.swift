@@ -29,6 +29,15 @@ struct PreviewScenarioModelTests {
         #expect(scenario.modelPins.first?.kind == .codex)
     }
 
+    @Test("every model a shipped scenario pins resolves to a backend without a catalogue")
+    func everyPinNamesItsBackend() throws {
+        for (name, scenario) in try shipped() {
+            for pin in scenario.modelPins {
+                #expect(pin.kind != nil, "\(name): \(pin.project) pins \(pin.model)")
+            }
+        }
+    }
+
     @Test("every Codex model a shipped scenario pins is the one model the scenarios agree on")
     func everyCodexPinIsTheSame() throws {
         var codexPins = 0

@@ -13,7 +13,7 @@ struct LoginCommandTests {
     @Test("runs of spaces, tabs and edges add no empty arguments")
     func ignoresExtraSpace() {
         #expect(
-            LoginCommand(parsing: "  codex \t login   --device-auth ")
+            LoginCommand(parsing: "  codex \t login \n  --device-auth ")
                 == LoginCommand(executable: "codex", arguments: ["login", "--device-auth"])
         )
     }
@@ -28,5 +28,6 @@ struct LoginCommandTests {
     @Test("the label is the command as one line")
     func label() {
         #expect(LoginCommand(executable: "brew", arguments: ["install", "gh"]).label == "brew install gh")
+        #expect(LoginCommand(executable: "claude").label == "claude")
     }
 }

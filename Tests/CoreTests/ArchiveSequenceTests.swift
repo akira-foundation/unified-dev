@@ -77,6 +77,32 @@ struct ArchiveSequenceTests {
         #expect(asked.refusal != nil)
     }
 
+    @Test("unsaved canvas work, or a branch about to be deleted with work only on it, keeps the question up")
+    func hazardsKeepAsking() {
+        let canvas = played(.checked(WorkspaceSafetyReport()), hazards: ArchiveHazards(canvasLosses: ["Plan"]))
+        let unpushed = WorkspaceSafetyReport(unpushedCommits: 2)
+        let deleting = played(.checked(unpushed), hazards: ArchiveHazards(isDeletingBranch: true))
+        let keeping = played(.checked(unpushed))
+
+        #expect(canvas.refusal != nil)
+        #expect(deleting.refusal != nil)
+        #expect(keeping.refusal == nil)
+    }
+
+    @Test("a check that could not run keeps what was asked for on the question it shows")
+    func couldNotCheckKeepsTheAsk() {
+        let hazards = ArchiveHazards(isAgentMidTurn: true, isDeletingBranch: true)
+        let step = ArchiveSequence.afterChecking(
+            .couldNotCheck(problem: "git is not answering."), workspace: workspace, deleteBranch: true,
+            hazards: hazards, alwaysConfirm: false, allowsConfirmation: true
+        )
+
+        #expect(step.updates == [.replace(ArchiveRequest(
+            workspace: workspace, report: WorkspaceSafetyReport(), deleteBranch: true,
+            problem: "git is not answering.", hazards: hazards
+        ))])
+    }
+
     @Test("a workspace that changed while it was being archived is offered again, and refused")
     func failedHalfway() {
         let stopped = [Subagent(id: SubagentID("build"), description: "swift build", taskType: "local_bash")]
@@ -90,18 +116,29 @@ struct ArchiveSequenceTests {
 
         #expect(question.updates == [.offer(request)])
         #expect(question.refusal == request.refusal)
+
+        let silent = ArchiveSequence.changedWhileArchiving(
+            workspace, fresh: dirty, deleteBranch: false, hazards: ArchiveHazards(),
+            stoppedCommands: stopped, allowsConfirmation: false
+        )
+        #expect(silent.updates.isEmpty)
+        #expect(silent.refusal == request.refusal)
     }
 
     @Test("a canvas loss that appeared after the answer is offered before anything is removed")
     func canvasLossAfterTheAnswer() {
+        let stopped = [Subagent(id: SubagentID("build"), description: "swift build", taskType: "local_bash")]
         let before = ArchiveSequence.beforeArchiving(
-            workspace, report: nil, deleteBranch: nil, hazards: ArchiveHazards(),
-            canvasLosses: ["the unsaved canvas Plan"], alreadyStopped: [], allowsConfirmation: true
+            workspace, report: dirty, deleteBranch: false, hazards: ArchiveHazards(),
+            canvasLosses: ["the unsaved canvas Plan"], alreadyStopped: stopped, allowsConfirmation: true
+        )
+        let request = ArchiveRequest(
+            workspace: workspace, report: dirty, deleteBranch: false,
+            hazards: ArchiveHazards(canvasLosses: ["the unsaved canvas Plan"]), stoppedCommands: stopped
         )
 
-        #expect(before.updates.count == 1)
-        #expect(before.updates.first?.request?.hazards.canvasLosses == ["the unsaved canvas Plan"])
-        #expect(before.refusal != nil)
+        #expect(before.updates == [.offer(request)])
+        #expect(before.refusal == request.refusal)
 
         let acknowledged = ArchiveSequence.beforeArchiving(
             workspace, report: nil, deleteBranch: nil,

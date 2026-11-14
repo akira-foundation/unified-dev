@@ -24,6 +24,16 @@ struct PreviewScenarioIgnoredTests {
         #expect(notice.tone == .warning)
     }
 
+    @Test("a preview whose projects cannot be named still reads as a sentence")
+    func noNames() {
+        let notice = PreviewScenarioIgnored.notice(scenarioPath: "/a.json", projects: [])
+        #expect(notice.message.contains("already holds projects."))
+        #expect(
+            PreviewScenarioError.alreadySeeded(projects: ["quay", "slipway"]).description
+                == "This preview already holds quay and slipway, so the scenario was not applied again."
+        )
+    }
+
     @Test("projects are listed as a sentence would")
     func lists() {
         #expect(PreviewScenarioIgnored.listed(["slipway"]) == "slipway")

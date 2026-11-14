@@ -403,7 +403,8 @@ echo "==> Views do not run subprocesses"
 # started from a view, whatever the line says.
 #
 # A view that needs one of these gets a helper type beside it, which is what
-# FileRevert, FileIndex and TerminalPersistence are. Those live under Views/ and
+# FileRevert, FileIndex and TerminalPersistence are, with TerminalView and
+# LoginTerminal where a terminal's process starts. Those live under Views/ and
 # are the allowed list; they are not views, they are what a view calls instead of
 # reaching for a process itself.
 subprocess_allowed_files=(

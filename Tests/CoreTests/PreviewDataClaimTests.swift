@@ -24,6 +24,15 @@ struct PreviewDataClaimTests {
         #expect(refusal?.contains("`make preview-clean`") == true)
     }
 
+    @Test("the record is the identity.env dev-build.sh writes, read by its app_name line alone")
+    func readsTheRecordTheScriptWrites() throws {
+        let second = try identity(branch: "fix/135-menu")
+
+        #expect(PreviewDataClaim.record(in: "/r") == "/r/identity.env")
+        #expect(PreviewDataClaim.refusal(for: second, recorded: "app_name=\n", databaseExists: true) == nil)
+        #expect(PreviewDataClaim.refusal(for: second, recorded: "old_app_name=UD #1\n", databaseExists: true) == nil)
+    }
+
     @Test("the same preview built again keeps its data")
     func samePreviewKeepsItsData() throws {
         let preview = try identity(branch: "fix/123-setup")
