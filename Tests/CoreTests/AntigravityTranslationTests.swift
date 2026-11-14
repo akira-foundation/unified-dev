@@ -64,6 +64,16 @@ struct AntigravityTranslationTests {
         #expect(ACPTranslation.mcpName("mcp_unifieddev-workspace-bridge_workspace_say")
             == "mcp__unifieddev-workspace-bridge__workspace_say")
         #expect(ACPTranslation.mcpName("mcp_nothing") == nil)
+        #expect(ACPTranslation.toolName(for: measured, kind: .grok) == "mcp_probe-bridge_ping")
+    }
+
+    @Test("a capitalised working directory is read where the orchestrator guard looks for one")
+    func capitalisedCwdIsAliased() {
+        let call = ACPToolCall.decode(.object([
+            "toolCallId": .string("c"), "name": .string("run_command"),
+            "rawInput": .object(["CommandLine": .string("ls"), "Cwd": .string("/etc")]),
+        ]), isUpdate: false)
+        #expect(ACPTranslation.input(for: call)["cwd"]?.stringValue == "/etc")
     }
 
     @Test("an unnamed tool falls back to the agent's own label, so Grok keeps its stored names")

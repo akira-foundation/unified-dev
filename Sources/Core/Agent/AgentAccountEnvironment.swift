@@ -1,7 +1,9 @@
 import Foundation
 
 public enum AgentAccountEnvironment {
-    public static let strippedPrefixes = ["ANTHROPIC", "CLAUDE", "CODEX", "GROK", "OPENAI", "XAI"]
+    public static let strippedPrefixes = [
+        "ANTHROPIC", "CLAUDE", "CODEX", "GEMINI", "GOOGLE_API_KEY", "GOOGLE_GENAI", "GROK", "OPENAI", "XAI",
+    ]
 
     public static let directoryVariables: Set<String> = Set(
         AgentKind.allCases.compactMap(directoryVariable(for:))

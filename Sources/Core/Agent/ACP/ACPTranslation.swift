@@ -59,7 +59,7 @@ public struct ACPTranslation: Sendable {
         case "spawn_subagent", "Agent", "Task": return "Task"
         default:
             if raw.hasPrefix("mcp__") { return raw }
-            if let named = mcpName(raw) { return named }
+            if kind == .antigravity, let named = mcpName(raw) { return named }
             return raw.isEmpty ? "\(kind.label).\(call.kind.isEmpty ? "tool" : call.kind)" : raw
         }
     }
@@ -76,7 +76,7 @@ public struct ACPTranslation: Sendable {
 
     private static let inputAliases: [(String, String)] = [
         ("path", "file_path"), ("Path", "file_path"),
-        ("cmd", "command"), ("CommandLine", "command"),
+        ("cmd", "command"), ("CommandLine", "command"), ("Cwd", "cwd"),
         ("Content", "content"), ("Target", "old_string"), ("Replacement", "new_string"),
     ]
 

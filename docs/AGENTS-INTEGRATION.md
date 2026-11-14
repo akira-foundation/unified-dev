@@ -145,7 +145,8 @@ Login command: `grok login`.
 Nothing under `~/.gemini` is read. Whether the CLI is signed in is asked of it instead: `agy models`
 prints the model list and exits 0 when it is, and exits 1 with "Please sign in to view available
 models" on stderr when it is not. `AntigravityModelList.read` makes that one decision, and the
-same command is the model list the composer offers, so the account card and the models agree. The
+same command, read by the same function, is the model list the composer offers. They are two
+separate runs, so a network failure can reach one and not the other. The
 card says "Google sign in" and names no account, because nothing the CLI prints names one.
 
 Login command: `agy`, with no arguments, which is what the CLI's own signed out message asks for. Only the default account is offered: the login follows `HOME`

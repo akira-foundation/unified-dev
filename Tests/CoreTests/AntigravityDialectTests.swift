@@ -63,6 +63,9 @@ struct AntigravityDialectTests {
         #expect(ACPDialect.speaking(.grok) == .grok)
         #expect(ACPDialect.speaking(.claudeCode) == nil)
         #expect(ACPDialect.speaking(.codex) == nil)
+        for kind in AgentKind.runnable where kind != .claudeCode && kind != .codex {
+            #expect(ACPDialect.speaking(kind) != nil, "\(kind) runs over ACP and needs a dialect")
+        }
     }
 
     @Test("session/new carries no Grok _meta and set_config_option sends a plain string")

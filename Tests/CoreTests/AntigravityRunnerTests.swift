@@ -101,12 +101,17 @@ struct AntigravityRunnerSafetyTests {
         await waitUntil("the first turn to finish", within: .seconds(2)) {
             box.process.sentMethods.contains("session/prompt")
         }
-        try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        let workspaceID = try #require(session.workspaceID)
+        await waitUntil("the chat to become the orchestrator", within: .seconds(2)) {
+            (try? await store.setOrchestrator(true, workspaceID: workspaceID)) != nil
+        }
         try await runner.send("second")
 
         await waitUntil("a second launch", within: .seconds(2)) { box.processes.count == 2 }
         #expect(box.processes.first?.launch.arguments.contains("--dangerously-skip-permissions") == true)
         #expect(box.processes.last?.launch.arguments.contains("--dangerously-skip-permissions") == false)
+        await waitUntil("the orchestrator's mode", within: .seconds(2)) { configOptions(in: box)["mode"] == .string("default") }
+        #expect(configOptions(in: box)["mode"] == .string("default"))
     }
 
     @Test("an orchestrator whose mode cannot be set does not send its prompt")
