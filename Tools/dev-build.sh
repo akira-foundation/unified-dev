@@ -330,6 +330,11 @@ fi
 
 if (( PREVIEW )); then
   ud_refuse_unless_preview "$PWD"
+  if ! claim="$("$(cd "$WORK" && swift build -c "$CONFIG" --show-bin-path)/preview" claim \
+    --worktree "$PWD" --branch "$BRANCH" --label "$LABEL" 2>&1)"; then
+    print -ru2 -- "==> $claim"
+    exit 1
+  fi
   DEST="${UD_PREVIEW[app_path]}"
   ud_refuse_if_own_host "$DEST" "${UD_PREVIEW[database]}"
   /usr/bin/python3 Tools/preview-plist.py "$BUILT/Contents/Info.plist" "$IDENTITY_FILE"

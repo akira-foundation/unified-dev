@@ -9,6 +9,7 @@ public enum PreviewCommand {
 
     public static let usage = """
         usage: preview identity --worktree <path> [--branch <name>] [--label <text>]
+               preview claim --worktree <path> [--branch <name>] [--label <text>]
                preview check <scenario.json>
         """
 
@@ -17,12 +18,34 @@ public enum PreviewCommand {
         let rest = Array(arguments.dropFirst())
         switch command {
         case "identity": return identity(rest)
+        case "claim": return claim(rest)
         case "check": return check(rest)
         default: return failure(usage)
         }
     }
 
     static func identity(_ arguments: [String]) -> Result {
+        resolving(arguments) { identity in
+            let lines = identity.fields.map { "\($0.key)=\($0.value)" }
+            return Result(status: 0, output: lines.joined(separator: "\n") + "\n", error: "")
+        }
+    }
+
+    static func claim(_ arguments: [String]) -> Result {
+        resolving(arguments) { identity in
+            let recorded = try? String(
+                contentsOfFile: PreviewDataClaim.record(in: identity.root), encoding: .utf8
+            )
+            let refusal = PreviewDataClaim.refusal(
+                for: identity,
+                recorded: recorded,
+                databaseExists: FileManager.default.fileExists(atPath: identity.databasePath)
+            )
+            return refusal.map(failure) ?? Result(status: 0, output: "", error: "")
+        }
+    }
+
+    private static func resolving(_ arguments: [String], _ body: (PreviewIdentity) -> Result) -> Result {
         var options: [String: String] = [:]
         var index = 0
         while index < arguments.count {
@@ -38,8 +61,7 @@ public enum PreviewCommand {
             let identity = try PreviewIdentity(
                 worktree: worktree, branch: options["--branch"], label: options["--label"]
             )
-            let lines = identity.fields.map { "\($0.key)=\($0.value)" }
-            return Result(status: 0, output: lines.joined(separator: "\n") + "\n", error: "")
+            return body(identity)
         } catch {
             return failure(String(describing: error))
         }
