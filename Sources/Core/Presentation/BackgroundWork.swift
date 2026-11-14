@@ -32,7 +32,7 @@ public enum BackgroundWork {
         let rest = titles.count - named.count
         let names = rest > 0
             ? named.joined(separator: ", ") + " and \(rest) more"
-            : list(named)
+            : ProseList.joined(named)
         return (counted, names)
     }
 
@@ -45,9 +45,4 @@ public enum BackgroundWork {
     }
 
     private static func plural(_ noun: String) -> String { noun + "s" }
-
-    private static func list(_ items: [String]) -> String {
-        guard items.count > 1, let last = items.last else { return items.first ?? "" }
-        return items.dropLast().joined(separator: ", ") + " and " + last
-    }
 }

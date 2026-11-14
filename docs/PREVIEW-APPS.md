@@ -214,7 +214,8 @@ It refuses, and creates nothing, when:
   `.git` in any case, a branch git would refuse, `main` as a workspace branch, a branch nested under
   another (`ui` and `ui/panel`), or a name used twice;
 - the preview already holds a project. A scenario seeds an empty preview once; launching again
-  with the same argument leaves the state the tester has made since. `make preview-clean` starts
+  leaves the state the tester has made since, and a notice that stays until it is dismissed names
+  the scenario that was not applied and the projects that are there. `make preview-clean` starts
   over.
 
 A failure part way through, a push refused for instance, leaves what was made so far and says so

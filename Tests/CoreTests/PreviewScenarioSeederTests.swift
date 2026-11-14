@@ -101,7 +101,7 @@ struct PreviewScenarioSeederTests {
     func seedsOnce() async throws {
         let (seeder, _) = try makeSeeder()
         _ = try await seeder.seed(scenario)
-        await #expect(throws: PreviewScenarioError.alreadySeeded) { try await seeder.seed(scenario) }
+        await #expect(throws: PreviewScenarioError.alreadySeeded(projects: ["harbour", "quay"])) { try await seeder.seed(scenario) }
         #expect(try await seeder.manager.store.repos().count == 2)
     }
 

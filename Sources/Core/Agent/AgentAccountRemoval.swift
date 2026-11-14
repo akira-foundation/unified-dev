@@ -66,7 +66,7 @@ public enum AgentAccountRemoval {
         let names = projects.sorted()
         guard !names.isEmpty else { return " Anything that used this account goes back to the default account." }
         let verb = names.count > 1 ? "go" : "goes"
-        return " \(ProfileAccountNotice.list(names)) \(verb) back to the default account of the profile."
+        return " \(ProseList.joined(names)) \(verb) back to the default account of the profile."
     }
 
     public static func warningForUnfinishedSignIn(named title: String, provider: AgentKind) -> Warning {
