@@ -398,14 +398,21 @@ echo "==> Views do not run subprocesses"
 # Git.title, Git.countLines, Shell.which, Shell.environment) are synchronous and
 # fall out for free without having to be listed.
 #
+# A terminal starts its process synchronously, so `TerminalLaunch(` and
+# `startProcess(` are named too: a login terminal opened from a view is a process
+# started from a view, whatever the line says.
+#
 # A view that needs one of these gets a helper type beside it, which is what
-# FileRevert, FileIndex and TerminalPersistence are. Those live under Views/ and
+# FileRevert, FileIndex and TerminalPersistence are, with TerminalView and
+# LoginTerminal where a terminal's process starts. Those live under Views/ and
 # are the allowed list; they are not views, they are what a view calls instead of
 # reaching for a process itself.
 subprocess_allowed_files=(
   'Sources/UnifiedDev/Views/Inspector/FileRevert.swift'        # a helper type, not a view
   'Sources/UnifiedDev/Views/Center/Panes/FileIndex.swift'      # a helper type, not a view
   'Sources/UnifiedDev/Views/Terminal/TerminalPersistence.swift' # a helper type, not a view
+  'Sources/UnifiedDev/Views/Terminal/TerminalView.swift'       # the terminal that runs the process
+  'Sources/UnifiedDev/Views/Terminal/LoginTerminal.swift'      # the login session a view hands a parsed command
 )
 while IFS= read -r hit; do
   [ -n "$hit" ] || continue
@@ -419,7 +426,7 @@ while IFS= read -r hit; do
     report "$file runs a subprocess from the view layer. Put it on a store, a model or a helper type beside the view (FileRevert and FileIndex are the shape), or add it to the list in $0. A decision taken inside a View is a decision nothing can test, and a body that shells out is a body that runs it again on every redraw."
   fi
 done <<EOF
-$(git grep --untracked -n -I -E 'await (Git|Shell)\.' -- 'Sources/UnifiedDev/Views/*' || true)
+$(git grep --untracked -n -I -E 'await (Git|Shell)\.|TerminalLaunch\(|startProcess\(' -- 'Sources/UnifiedDev/Views/*' || true)
 EOF
 
 echo "==> a worktree is removed through the guard that protects an orchestrator"

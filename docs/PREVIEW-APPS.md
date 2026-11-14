@@ -34,6 +34,11 @@ separate with it. Preferences, saved window state, notifications and WebKit data
 bundle id. `.build/preview/identity.env` records the identity the bundle was given, which is what
 `make preview-clean` reads back.
 
+The Dock name comes from the branch and the data from the worktree, so a worktree taken over for
+another issue would build `UD #135` over the database `UD #123` seeded. `make preview` refuses
+that: when the database exists and `identity.env` names another app, `preview claim` stops the
+build, names both and points at `make preview-clean`.
+
 With no issue number in the branch the Dock name falls back to `UD <slug>`. A label is cut to forty
 characters, so the workspace name still shows in the title. `--label` works for the dev copy too,
 and goes through the same rule.
@@ -214,7 +219,8 @@ It refuses, and creates nothing, when:
   `.git` in any case, a branch git would refuse, `main` as a workspace branch, a branch nested under
   another (`ui` and `ui/panel`), or a name used twice;
 - the preview already holds a project. A scenario seeds an empty preview once; launching again
-  with the same argument leaves the state the tester has made since. `make preview-clean` starts
+  leaves the state the tester has made since, and a notice that stays until it is dismissed names
+  the scenario that was not applied and the projects that are there. `make preview-clean` starts
   over.
 
 A failure part way through, a push refused for instance, leaves what was made so far and says so

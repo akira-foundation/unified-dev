@@ -179,11 +179,9 @@ struct WelcomeView: View {
         for fix: SetupFix,
         onExit: @escaping @MainActor () -> Void
     ) -> LoginTerminalSession? {
-        let parts = (fix.command ?? "").split(separator: " ").map(String.init)
-        guard let executable = parts.first else { return nil }
+        guard let command = LoginCommand(parsing: fix.command) else { return nil }
         return LoginTerminalSession(
-            executable: executable,
-            arguments: Array(parts.dropFirst()),
+            command: command,
             directory: AgentScratchDirectory.current(),
             account: nil,
             onExit: { _ in Task { @MainActor in onExit() } }

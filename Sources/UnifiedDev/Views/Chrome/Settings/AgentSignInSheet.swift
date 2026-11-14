@@ -139,8 +139,7 @@ struct AgentSignInSheet: View {
         failure = nil
         onExit(nil)
         session = LoginTerminalSession(
-            executable: request.executable,
-            arguments: request.kind.loginArguments,
+            command: LoginCommand(executable: request.executable, arguments: request.kind.loginArguments),
             directory: request.directory,
             account: request.account,
             onExit: { result in

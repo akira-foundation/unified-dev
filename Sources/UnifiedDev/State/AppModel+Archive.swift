@@ -93,18 +93,21 @@ extension AppModel {
             )
         )
 
-        if allowsConfirmation {
-            updateArchiveConfirmation(
-                .offer(.checking(workspace: workspace, hazards: hazards)),
-                present: presentConfirmation
-            )
-        }
+        play(
+            ArchiveSequence.opening(workspace, hazards: hazards, allowsConfirmation: allowsConfirmation),
+            present: presentConfirmation
+        )
 
-        let report: WorkspaceSafetyReport
+        let check: ArchiveCheck
+        var report = WorkspaceSafetyReport()
         do {
             report = try await manager.safetyReport(
                 workspace: workspace, repo: repo, mergedPullRequestHead: hazards.mergedPullRequestHead
             )
+            hazards.isAgentMidTurn = isAgentMidTurn(workspace)
+            await flushCanvasDocuments(of: [workspace.id])
+            hazards.canvasLosses = canvasArchiveQuestion(of: [workspace.id])?.losses ?? []
+            check = .checked(report)
         } catch {
             let trouble = await WorkspaceTrouble.archiving(
                 error,
@@ -113,40 +116,17 @@ extension AppModel {
                 baseBranch: workspace.baseBranch
             )
             hazards.isAgentMidTurn = isAgentMidTurn(workspace)
-            let request = ArchiveRequest(
-                workspace: workspace,
-                report: WorkspaceSafetyReport(),
-                deleteBranch: deleteBranch,
-                problem: "Unified Dev could not check this workspace for unsaved work. \(trouble.sentence)",
-                hazards: hazards
+            check = .couldNotCheck(
+                problem: "Unified Dev could not check this workspace for unsaved work. \(trouble.sentence)"
             )
-            if allowsConfirmation {
-                updateArchiveConfirmation(.replace(request), present: presentConfirmation)
-            }
-            return .refused(request.refusal)
         }
 
-        hazards.isAgentMidTurn = isAgentMidTurn(workspace)
-        await flushCanvasDocuments(of: [workspace.id])
-        hazards.canvasLosses = canvasArchiveQuestion(of: [workspace.id])?.losses ?? []
-        let isSafe = report.isSafeToDiscard(
-            deletingBranch: hazards.isDeletingBranch,
-            isPullRequestMerged: hazards.isPullRequestMerged
+        let step = ArchiveSequence.afterChecking(
+            check, workspace: workspace, deleteBranch: deleteBranch, hazards: hazards,
+            alwaysConfirm: alwaysConfirm, allowsConfirmation: allowsConfirmation
         )
-
-        guard isSafe, !hazards.isAgentMidTurn, hazards.canvasLosses.isEmpty, !alwaysConfirm else {
-            let request = ArchiveRequest(
-                workspace: workspace, report: report, deleteBranch: deleteBranch, hazards: hazards
-            )
-            if allowsConfirmation {
-                updateArchiveConfirmation(.replace(request), present: presentConfirmation)
-            }
-            return .refused(request.refusal)
-        }
-
-        if allowsConfirmation {
-            updateArchiveConfirmation(.withdraw(workspace.id), present: presentConfirmation)
-        }
+        play(step.updates, present: presentConfirmation)
+        if let refusal = step.refusal { return .refused(refusal) }
 
         return await performArchive(
             workspace,
@@ -276,6 +256,15 @@ extension AppModel {
         pendingArchive = nil
     }
 
+    private func play(
+        _ updates: [ArchiveConfirmationFlow.Update],
+        present: ((ArchiveConfirmationFlow.Update) -> Void)?
+    ) {
+        for update in updates {
+            updateArchiveConfirmation(update, present: present)
+        }
+    }
+
     private func updateArchiveConfirmation(
         _ update: ArchiveConfirmationFlow.Update,
         present: ((ArchiveConfirmationFlow.Update) -> Void)?
@@ -310,19 +299,13 @@ extension AppModel {
         }
 
         await flushCanvasDocuments(of: [workspace.id])
-        let canvasLosses = canvasArchiveQuestion(of: [workspace.id])?.losses ?? []
-        if CanvasArchiveQuestion.asks(canvasLosses, acknowledged: hazards.canvasLosses) {
-            var unacknowledged = hazards
-            unacknowledged.canvasLosses = canvasLosses
-            let request = ArchiveRequest(
-                workspace: workspace, report: report ?? WorkspaceSafetyReport(), deleteBranch: deleteBranch,
-                hazards: unacknowledged, stoppedCommands: alreadyStopped
-            )
-            if allowsConfirmation {
-                updateArchiveConfirmation(.offer(request), present: presentConfirmation)
-            }
-            return .refused(request.refusal)
-        }
+        let before = ArchiveSequence.beforeArchiving(
+            workspace, report: report, deleteBranch: deleteBranch, hazards: hazards,
+            canvasLosses: canvasArchiveQuestion(of: [workspace.id])?.losses ?? [],
+            alreadyStopped: alreadyStopped, allowsConfirmation: allowsConfirmation
+        )
+        play(before.updates, present: presentConfirmation)
+        if let refusal = before.refusal { return .refused(refusal) }
 
         guard hideFromSidebar(workspace.id) else {
             return .refused("This workspace is already being archived. Check workspace_list shortly.")
@@ -381,16 +364,12 @@ extension AppModel {
                 Log.archive.notice(
                     "\(workspace.name, privacy: .public) changed between the check and the archive, so it is being asked about again"
                 )
-                let request = ArchiveRequest(
-                    workspace: workspace, report: fresh, deleteBranch: deleteBranch, hazards: hazards,
-                    stoppedCommands: stoppedCommands
+                let changed = ArchiveSequence.changedWhileArchiving(
+                    workspace, fresh: fresh, deleteBranch: deleteBranch, hazards: hazards,
+                    stoppedCommands: stoppedCommands, allowsConfirmation: allowsConfirmation
                 )
-                if allowsConfirmation {
-                    updateArchiveConfirmation(
-                        .offer(request), present: departure == nil ? presentConfirmation : nil
-                    )
-                }
-                return .refused(request.refusal)
+                play(changed.updates, present: departure == nil ? presentConfirmation : nil)
+                return .refused(changed.refusal)
             default:
                 Log.archive.error(
                     "could not archive \(workspace.name, privacy: .public): \(error.readableMessage, privacy: .public)"

@@ -332,7 +332,7 @@ public enum PreviewScenarioError: Error, CustomStringConvertible, Equatable {
     case invalid([String])
     case notAPreview
     case noTranscriptHome
-    case alreadySeeded
+    case alreadySeeded(projects: [String])
 
     public var description: String {
         switch self {
@@ -343,7 +343,8 @@ public enum PreviewScenarioError: Error, CustomStringConvertible, Equatable {
         case .noTranscriptHome:
             "The scenario seeds transcripts, and this copy has nowhere of its own to put them, "
                 + "so nothing was created."
-        case .alreadySeeded: "This preview already holds projects, so the scenario was not applied again."
+        case .alreadySeeded(let projects):
+            "This preview already holds \(PreviewScenarioIgnored.listed(projects)), so the scenario was not applied again."
         }
     }
 }

@@ -241,7 +241,11 @@ final class AppModel {
                 Log.permissions.info("closed \(abandoned, privacy: .public) questions left by the last launch")
             }
             try await store.recoverInterruptedSetups()
-            if let trouble = await PreviewScenarioLaunch.seed(with: manager) { alert = trouble }
+            switch await PreviewScenarioLaunch.seed(with: manager) {
+            case .alert(let trouble): alert = trouble
+            case .notice(let ignored): notice = ignored
+            case nil: break
+            }
             Log.launchStep("scenario seeded")
             await CenterTabStore.shared.adoptTerminalTabs(from: store)
             _ = WorkspaceTabsStore.shared

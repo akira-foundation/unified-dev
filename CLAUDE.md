@@ -276,12 +276,14 @@ a model or a helper type beside the view (`FileRevert`, `FileIndex`, `TerminalPe
 `WorkspaceModel` over in `State/`), never from a `body` or a button action. `make lint` holds this
 one too, by looking for `await Git.` and `await Shell.` under `Sources/UnifiedDev/Views/`: the subprocess
 calls are all async and the pure helpers on the same types are not, so the test costs no exception
-list of its own. The three of those that live under `Views/` are named in the allow-list because
-they are what a view calls **instead** of reaching for a process itself; `WorkspaceModel` is outside
-that path, so the rule never sees it and needs no entry. `CreateWorkspaceView` was the last
-exception, calling `Git.branches` from its own `.task`; that loading and both branch decisions it
-fed are `WorkspaceStartContext` in the core now, tested, so its entry came off and the allow-list
-in `Tools/house-rules.sh` is back to the three helper types it was meant to hold.
+list of its own. A terminal is the one process that starts synchronously, so the rule also names
+`TerminalLaunch(` and `startProcess(`; a login terminal is handed a `LoginCommand` the core already
+parsed, and `LoginTerminal` and `TerminalView` are where the process is actually started. The five
+of those that live under `Views/` are named in the allow-list because they are what a view calls
+**instead** of reaching for a process itself; `WorkspaceModel` is outside that path, so the rule
+never sees it and needs no entry. `CreateWorkspaceView` was the last exception, calling
+`Git.branches` from its own `.task`; that loading and both branch decisions it fed are
+`WorkspaceStartContext` in the core now, tested, so its entry came off.
 
 ## Where a file goes
 

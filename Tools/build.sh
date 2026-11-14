@@ -364,6 +364,8 @@ emit_app_intents_metadata
 # The pre-rename spelling is still read, so a shell profile or CI job that exports
 # BATON_CODESIGN_IDENTITY keeps producing a signed build rather than silently dropping to ad-hoc.
 SIGN_IDENTITY="${UD_CODESIGN_IDENTITY:-${BATON_CODESIGN_IDENTITY:--}}"
+source "${0:A:h}/release/codesign-identity.sh"
+ud_codesign_utf8
 codesign --force --deep --sign "$SIGN_IDENTITY" "$APP" >/dev/null 2>&1 || true
 if [[ "$SIGN_IDENTITY" == "-" ]]; then
   echo "==> ad-hoc signed: App Intents will be listed in Shortcuts but will not run."

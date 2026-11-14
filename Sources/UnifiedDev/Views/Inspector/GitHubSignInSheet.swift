@@ -236,8 +236,7 @@ struct GitHubSignInSheet: View {
         }
 
         guard let session = LoginTerminalSession(
-            executable: executable,
-            arguments: arguments,
+            command: LoginCommand(executable: executable, arguments: arguments),
             directory: request.directory,
             account: nil,
             gitHub: request.login,

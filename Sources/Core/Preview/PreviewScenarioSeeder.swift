@@ -44,7 +44,8 @@ public struct PreviewScenarioSeeder: Sendable {
     public func seed(_ scenario: PreviewScenario, at now: Date = Date()) async throws -> Outcome {
         let problems = scenario.problems
         guard problems.isEmpty else { throw PreviewScenarioError.invalid(problems) }
-        guard try await manager.store.repos().isEmpty else { throw PreviewScenarioError.alreadySeeded }
+        let existing = try await manager.store.repos()
+        guard existing.isEmpty else { throw PreviewScenarioError.alreadySeeded(projects: existing.map(\.name).sorted()) }
         try await makeLooseFolders(scenario)
 
         var outcome = Outcome(projects: 0, workspaces: 0, chats: 0, quotas: 0)

@@ -1,7 +1,7 @@
 import Foundation
 
 public enum ArchiveConfirmationFlow {
-    public enum Update: Sendable {
+    public enum Update: Sendable, Equatable {
         case offer(ArchiveRequest)
         case replace(ArchiveRequest)
         case withdraw(WorkspaceID)
