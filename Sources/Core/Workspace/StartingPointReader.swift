@@ -42,9 +42,9 @@ public enum StartingPointReader {
         async let issues = GitHub.issuesAssignedToViewer(repoPath: repoPath)
         let (readRequests, readIssues, readBranches) = await (requests, issues, branches)
         let reading = StartingPointReading(
-            pullRequests: readRequests ?? PullRequestsAwaitingViewer(), issues: readIssues ?? [], branches: readBranches
+            pullRequests: readRequests.found, issues: readIssues ?? [], branches: readBranches
         )
-        guard readRequests != nil, readIssues != nil else { throw PartialReading(reading: reading) }
+        guard readRequests.isWhole, readIssues != nil else { throw PartialReading(reading: reading) }
         return reading
     }
 }

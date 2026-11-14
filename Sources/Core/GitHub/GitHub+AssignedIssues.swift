@@ -1,14 +1,16 @@
 import Foundation
 
 extension GitHub {
+    static let issuesDisabled = "has disabled issues"
+
     public static func issuesAssignedToViewer(repoPath: String) async -> [AssignedIssue]? {
         let arguments = [
             "issue", "list", "--state", "open", "--assignee", "@me",
-            "--limit", String(awaitingViewerLimit), "--json", "number,title",
+            "--limit", String(viewerListLimit), "--json", "number,title",
         ]
-        guard let result = try? await run("gh", arguments, cwd: repoPath, timeout: .seconds(20)), result.ok,
-              let issues = decodeAssignedIssues(from: Data(result.stdout.utf8)) else { return nil }
-        return issues
+        guard let result = try? await run("gh", arguments, cwd: repoPath, timeout: .seconds(20)) else { return nil }
+        guard result.ok else { return result.stderr.contains(issuesDisabled) ? [] : nil }
+        return decodeAssignedIssues(from: Data(result.stdout.utf8))
     }
 
     static func decodeAssignedIssues(from data: Data) -> [AssignedIssue]? {

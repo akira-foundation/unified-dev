@@ -20,7 +20,12 @@ public struct StartingPointSuggestionPick: Sendable, Hashable {
             : "\(Self.issueLead)\(issue.number), \"\(issue.title)\"."
     }
 
-    public func prompt(into existing: String) -> String {
+    public func prompt(into existing: String, after decision: StartingPointPick) -> String {
+        guard decision == .use(startingPoint) else { return existing }
+        return prompt(into: existing)
+    }
+
+    func prompt(into existing: String) -> String {
         guard let prompt, let issue else { return existing }
         let typed = Self.withoutIssueLines(existing)
         if Self.mentions(issue.number, in: typed) { return typed }
@@ -39,7 +44,7 @@ public struct StartingPointSuggestionPick: Sendable, Hashable {
             }
             lines.remove(at: index)
             let following = index < lines.count && isBlank(lines[index]) ? index : nil
-            let preceding = index > 0 && isBlank(lines[index - 1]) ? index - 1 : nil
+            let preceding = index == lines.count && index > 0 && isBlank(lines[index - 1]) ? index - 1 : nil
             guard let blank = following ?? preceding else { continue }
             lines.remove(at: blank)
             index = min(index, blank)

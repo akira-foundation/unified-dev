@@ -53,7 +53,7 @@ struct NewWorkspacePane: View {
                     pullRequests: pullRequests,
                     leadingBase: leadingBase(in: repo),
                     isPresented: $isChoosingStart,
-                    onPick: pick
+                    onPick: { pick($0) }
                 )
                 if app.asksForOrchestrator(in: repoID) {
                     NewWorkspaceOrchestratorChip(isOn: Binding(
@@ -153,20 +153,22 @@ struct NewWorkspacePane: View {
         catalogue = fetched.with(pullRequests: requests.requests)
     }
 
-    private func pick(_ source: WorkspaceSource) {
-        guard let catalogue else { return }
+    @discardableResult
+    private func pick(_ source: WorkspaceSource) -> StartingPointPick? {
+        guard let catalogue else { return nil }
         pickProblem = nil
-        apply(StartingPointPick.decide(
+        let decision = StartingPointPick.decide(
             source, holders: catalogue.holders, taken: catalogue.localBranches,
             repoID: repoID, workspaces: app.workspaces
-        ))
+        )
+        apply(decision)
+        return decision
     }
 
     private func pickSuggestion(_ suggestion: StartingPointSuggestion, in repo: Repo) {
         let chosen = suggestion.pick(defaultBranch: repo.defaultBranch)
-        pick(chosen.source)
-        guard chosen.addsToPrompt else { return }
-        app.editDraft(repoID) { $0.prompt = chosen.prompt(into: $0.prompt) }
+        guard let decision = pick(chosen.source), chosen.addsToPrompt else { return }
+        app.editDraft(repoID) { $0.prompt = chosen.prompt(into: $0.prompt, after: decision) }
     }
 
     private func apply(_ pick: StartingPointPick) {

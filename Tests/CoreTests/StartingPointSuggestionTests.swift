@@ -160,6 +160,19 @@ struct StartingPointSuggestionTests {
         #expect(other.prompt(into: "Typed\r\n\r\nWork on issue #34, \"Old\".\r") == "Typed\n\n" + replacement)
         #expect(other.prompt(into: "Please Work on issue #12.") == "Please Work on issue #12.\n\n" + replacement)
         #expect(StartingPointSuggestionPick.withoutIssueLines("  keep\n\n\n\nthis  ") == "  keep\n\n\n\nthis  ")
+        #expect(StartingPointSuggestionPick.withoutIssueLines("A\n\nWork on issue #34.\nB") == "A\n\nB")
+        #expect(StartingPointSuggestionPick.withoutIssueLines("A\n\nWork on issue #34.\n\nB") == "A\n\nB")
+        #expect(StartingPointSuggestionPick.withoutIssueLines("A\n\nWork on issue #34.") == "A")
+        #expect(StartingPointSuggestionPick.withoutIssueLines("A\n\nWork on issue #1.\nWork on issue #2.") == "A")
+    }
+
+    @Test("an issue's line is added only when the pick is used as the starting point")
+    func issuePromptFollowsTheDecision() {
+        let pick = StartingPointSuggestion.issue(AssignedIssue(number: 34, title: "")).pick(defaultBranch: "main")
+        #expect(pick.prompt(into: "Typed", after: .use(.newBranch(from: "main"))) == "Typed\n\nWork on issue #34.")
+        #expect(pick.prompt(into: "Typed", after: .use(.newBranch(from: "develop"))) == "Typed")
+        #expect(pick.prompt(into: "Typed", after: .goTo(WorkspaceID("w1"))) == "Typed")
+        #expect(pick.prompt(into: "Typed", after: .refuse("Taken")) == "Typed")
     }
 
     @Test("the line an issue adds is always a line that a later pick knows to replace")
@@ -218,7 +231,9 @@ struct StartingPointSuggestionTests {
         #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "Fix")).reference == "#8")
         #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 1)).reference == nil)
         #expect(StartingPointSuggestion.authored(request(9)).spoken == "pull request #9, Request 9")
+        #expect(StartingPointSuggestion.reviewRequested(untitled).spoken == "pull request #9, spike")
         #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "Fix")).spoken == "issue #8, Fix")
+        #expect(StartingPointSuggestion.issue(AssignedIssue(number: 8, title: "")).spoken == "issue #8")
         #expect(StartingPointSuggestion.branch(branch("a", hoursAgo: 1)).spoken == "existing branch a")
     }
 

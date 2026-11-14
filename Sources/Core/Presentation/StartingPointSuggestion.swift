@@ -35,10 +35,11 @@ public enum StartingPointSuggestion: Sendable, Hashable, Identifiable {
     }
 
     public var spoken: String {
-        guard case .issue(let issue) = self else {
-            return StartingPointLabel.spoken(for: pick(defaultBranch: "").startingPoint, remote: nil)
+        switch self {
+        case .reviewRequested(let request), .authored(let request): "pull request #\(request.number), \(title)"
+        case .issue(let issue): issue.title.isEmpty ? "issue #\(issue.number)" : "issue #\(issue.number), \(issue.title)"
+        case .branch: StartingPointLabel.spoken(for: pick(defaultBranch: "").startingPoint, remote: nil)
         }
-        return "issue #\(issue.number), \(title)"
     }
 
     public func reason(now: Date) -> String {
