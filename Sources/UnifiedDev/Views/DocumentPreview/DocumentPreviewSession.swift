@@ -18,6 +18,7 @@ final class DocumentPreviewSession {
     private var watch: Task<Void, Never>?
     private var loading: Task<Void, Never>?
     private var hasNetworkRules = false
+    private let hasFeaturesOff: Bool
 
     private static var positions: [String: CGPoint] = [:]
 
@@ -33,6 +34,7 @@ final class DocumentPreviewSession {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(schemes, forURLScheme: DocumentPreview.scheme)
         configuration.websiteDataStore = .nonPersistent()
+        hasFeaturesOff = DocumentPreview.turnOffFeatures(in: configuration.preferences)
         let controller = configuration.userContentController
         controller.add(scroll, contentWorld: .defaultClient, name: DocumentPreviewScrollListener.name)
         controller.addUserScript(WKUserScript(
@@ -69,7 +71,7 @@ final class DocumentPreviewSession {
         loading = Task { [weak self] in
             let rules = await DocumentPreviewNetworkRules.list()
             guard let self, !Task.isCancelled else { return }
-            guard let rules else {
+            guard let rules, self.hasFeaturesOff else {
                 self.fingerprint = nil
                 return
             }
