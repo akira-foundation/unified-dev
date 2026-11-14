@@ -16,7 +16,7 @@ ud_codesign_identity_known() {
   if [[ "$wanted" =~ '^[0-9A-Fa-f]{40}$' ]]; then
     print -r -- "$listing" | grep -qiF " ${wanted} "
   else
-    print -r -- "$listing" | grep -qF "\"${wanted}\""
+    print -r -- "$listing" | sed -n 's/^[^"]*"\(.*\)"[^"]*$/\1/p' | grep -qF -- "$wanted"
   fi
 }
 

@@ -22,6 +22,14 @@ listing='  1) 0123456789ABCDEF0123456789ABCDEF01234567 "Developer ID Application
 ud_codesign_identity_known "$name" "$listing" || fail "the name was not found in a listing that holds it"
 ud_codesign_identity_known 0123456789abcdef0123456789abcdef01234567 "$listing" || fail "the fingerprint was not found"
 ud_codesign_identity_known 'Developer ID Application: Zoe Goncalves (ZZZZZZZZZZ)' "$listing" && fail "a name without the accents matched"
+ud_codesign_identity_known 'Developer ID Application: Zoë Gonçalves' "$listing" || fail "part of the name, which codesign accepts, was refused"
+ud_codesign_identity_known 'Apple Development' "$listing" && fail "a name the keychain does not hold matched"
+ud_codesign_identity_known 'valid identities' "$listing" && fail "a word from the listing's footer matched as a name"
+ud_codesign_identity_known '0123456789ABCDEF' "$listing" && fail "part of a fingerprint matched as a name"
+
+first_sign="$(grep -n 'codesign "\${SIGN_ARGS' Tools/release/package-app.sh | head -1 | cut -d: -f1)"
+utf8="$(grep -n '^ud_codesign_utf8$' Tools/release/package-app.sh | head -1 | cut -d: -f1)"
+[[ -n "$utf8" && -n "$first_sign" && "$utf8" -lt "$first_sign" ]] || fail "package-app.sh signs before it asks for UTF-8"
 ud_codesign_identity_known 1111111111111111111111111111111111111111 "$listing" && fail "an unknown fingerprint matched"
 
 report="$(ud_codesign_identity_report 'Developer ID Application: Zo√´ Gon√ßalves (ZZZZZZZZZZ)' "$listing")"
