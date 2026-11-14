@@ -28,7 +28,17 @@
           { "label": "Account", "value": "demo@unifieddev.invalid" }
         ]
       },
-      { "agent": "grok", "state": "installed", "version": "0.1.0" }
+      { "agent": "grok", "state": "installed", "version": "0.1.0" },
+      {
+        "agent": "antigravity",
+        "state": "connected",
+        "version": "1.5.9",
+        "details": [
+          { "label": "Version", "value": "1.5.9" },
+          { "label": "Provider", "value": "Google" },
+          { "label": "Login method", "value": "Google sign in" }
+        ]
+      }
     ]
   }
 }
