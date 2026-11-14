@@ -250,8 +250,8 @@ struct ComposerFooterView: View {
         catalog.efforts(for: controls.agentKind, model: controls.model, offeringAgentDefault: true)
     }
 
-    private func selectModel(_ id: String) {
-        let backend = catalog.backend(ofModel: id, current: controls.agentKind)
+    private func selectModel(_ tag: String) {
+        let (backend, id) = catalog.choice(tag, current: controls.agentKind)
         edit {
             $0.model = id
             $0.agentKind = backend
