@@ -67,7 +67,7 @@ enum WelcomeLayoutProbe {
         }
 
         let session = LoginTerminalSession(
-            executable: "git", arguments: ["--version"],
+            command: LoginCommand(executable: "git", arguments: ["--version"]),
             directory: NSTemporaryDirectory(), account: nil, onExit: { _ in }
         )
         check(session != nil, "the probe could not open a login terminal")

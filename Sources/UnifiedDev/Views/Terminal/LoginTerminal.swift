@@ -14,22 +14,21 @@ final class LoginTerminalSession {
     private var hasStarted = false
 
     init?(
-        executable: String,
-        arguments: [String],
+        command: LoginCommand,
         directory: String,
         account: AgentAccountHome?,
         gitHub: GitHubLogin = .thisMac,
         onExit: @escaping @MainActor (TerminalExit) -> Void
     ) {
-        guard let path = Shell.which(executable) else { return nil }
+        guard let path = Shell.which(command.executable) else { return nil }
 
         let variables = AgentAccountEnvironment.login(for: account, inheriting: gitHub.signInEnvironment(from: Shell.environment()))
 
-        label = ([executable] + arguments).joined(separator: " ")
+        label = command.label
         launch = TerminalLaunch(
             executable: path,
-            execName: executable,
-            arguments: arguments,
+            execName: command.executable,
+            arguments: command.arguments,
             environment: variables.map { "\($0.key)=\($0.value)" }.sorted(),
             directory: FileManager.default.fileExists(atPath: directory)
                 ? directory
