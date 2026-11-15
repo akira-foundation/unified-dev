@@ -25,7 +25,7 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
 
     public init(
         read: @escaping Reading = WorkspaceMergeTool.ask,
-        host: @escaping Hosting = { await Forge.kind(forDirectory: $0.path) },
+        host: @escaping Hosting = WorkspaceMergeTool.hostOf,
         merge: @escaping WorkspaceMergeRequesting
     ) {
         self.read = read
@@ -273,6 +273,8 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
 
         return held == .none ? nil : held
     }
+
+    public static let hostOf: Hosting = { workspace in await Forge.kind(forDirectory: workspace.path) }
 
     public static let ask: Reading = { workspace in
         if await Forge.kind(forDirectory: workspace.path) == .bitbucket { return await askBitbucket(workspace) }
