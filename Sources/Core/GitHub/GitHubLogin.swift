@@ -34,9 +34,19 @@ public enum GitHubLogin: Sendable, Hashable {
         return result
     }
 
+    public var bitbucket: BitbucketLogin { BitbucketLogin(gitHub: self) }
+
+    public var everyVariable: [String: String] {
+        variables.merging(bitbucket.variables) { gitHub, _ in gitHub }
+    }
+
     public func applied(to environment: [String: String]) -> [String: String] {
         guard directory != nil else { return environment }
         return signInEnvironment(from: environment).merging(variables.filter { !$0.value.isEmpty }) { _, login in login }
+    }
+
+    public func everySignIn(appliedTo environment: [String: String]) -> [String: String] {
+        BitbucketSignIn.environment(applied(to: environment), login: bitbucket)
     }
 
     public func signInEnvironment(from environment: [String: String]) -> [String: String] {

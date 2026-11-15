@@ -18,11 +18,15 @@ final class LoginTerminalSession {
         directory: String,
         account: AgentAccountHome?,
         gitHub: GitHubLogin = .thisMac,
+        bitbucket: BitbucketLogin = .thisMac,
         onExit: @escaping @MainActor (TerminalExit) -> Void
     ) {
         guard let path = Shell.which(command.executable) else { return nil }
 
-        let variables = AgentAccountEnvironment.login(for: account, inheriting: gitHub.signInEnvironment(from: Shell.environment()))
+        let inherited = gitHub.signInEnvironment(from: Shell.environment())
+        let variables = AgentAccountEnvironment.login(
+            for: account, inheriting: bitbucket.isOwn ? BitbucketSignIn.environment(inherited, login: bitbucket) : inherited
+        )
 
         label = command.label
         launch = TerminalLaunch(

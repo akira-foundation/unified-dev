@@ -208,7 +208,7 @@ public actor AgentRunner {
             ),
             cwd: workspacePath,
             environment: AgentAccountEnvironment.apply(
-                account, to: gitHub.applied(to: inheritedEnvironment ?? Shell.environment())
+                account, to: gitHub.everySignIn(appliedTo: inheritedEnvironment ?? Shell.environment())
             )
         )
     }
