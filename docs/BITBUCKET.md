@@ -194,10 +194,14 @@ that step's log and no other. A step's state becomes a check's:
 
 Only `COMPLETED` with `FAILED` and `SUCCESSFUL` were seen on `atlassian/aui`; the rest is the
 vocabulary Bitbucket documents. A step in any other state, steps bkt cannot read, a list of more
-than one page, and a pipeline link naming another repository all keep the pipeline as one row, as
-before. Five pipelines at most are expanded per read, and a finished pipeline's steps are kept
-against the time it finished, so a refresh asks for them again only while it runs or once it is
-run again.
+than one page, a pipeline link naming another repository, and a finished pipeline with a step still
+waiting, which is what a manual step left untriggered looks like, all keep the pipeline as one row,
+as before. A repository renamed on Bitbucket while the remote keeps the old name has its results
+links refused the same way, until the remote is updated.
+
+Five pipelines at most are expanded per read, so a read of one workspace costs up to five bkt calls
+more than before, and a finished pipeline's steps are kept against the time it finished, so a
+refresh asks for them again only while it runs or once it is run again.
 
 A results link is compared with the workspace's repository before anything is read from it: its
 first two path segments are the workspace and the repository, and a commit status pointing at
@@ -257,10 +261,12 @@ the words, by the pull request's host.
   request whose source repository Bitbucket does not name is treated as a fork, and gets none.
   bkt fetches `<source>:<local>` without a `+`, so a local branch of that name already ahead of
   the server would be refused. When that branch exists and the pull request is not from a fork, bkt
-  is not run: the app fetches `+refs/heads/<source>:refs/remotes/origin/<source>` and compares. A
+  is not run: the app fetches `+refs/heads/<source>:refs/remotes/<remote>/<source>` from the
+  checkout's base remote, `origin` unless the repository says otherwise, and compares. A
   local branch at or ahead of the server is checked out as it stands, one behind it is fast
   forwarded with `git merge --ff-only`, and one that has moved apart is refused with nothing
-  changed, and the new worktree is removed. A fork's pull request over an existing local branch
+  changed, and the new worktree is removed. Either way the branch tracks that remote. The fetch is
+  git's own, so it signs in with the git credentials of this Mac, as bkt's fetch does. A fork's pull request over an existing local branch
   still goes through bkt, and still fails the same way.
 - **The checks tab** asks bkt whether it is signed in, not gh, and names Bitbucket and bkt when it
   cannot read. Merge, Mark ready and Create pull request ask bkt the same thing before sending
@@ -274,7 +280,9 @@ the words, by the pull request's host.
   `/pullrequests?q=state="OPEN" AND reviewers.uuid="<uuid>"` and the same with `author.uuid`, ten
   of each. Once `q` is given Bitbucket ignores the `state` parameter and answers declined pull
   requests too (measured on `atlassian/aui`), so the state goes inside the query. The viewer is
-  the `uuid` from `/user`, and anything that is not a uuid is never put in a query. Issues assigned
+  the `uuid` from `/user`, and anything that is not a uuid is never put in a query. A reviewer
+  stays named after approving, so a pull request the owner has already reviewed is still offered,
+  where GitHub's `review-requested:@me` drops it. Issues assigned
   to the owner are not offered, because Bitbucket's are in Jira (#635).
 - **The pull request auto fix** reads the viewer and the commit authors from
   `/pullrequests/{id}/commits`, by account `uuid` and with the newest commit as the head they
