@@ -71,6 +71,7 @@ struct BitbucketViewerTests {
         ("https://api.bitbucket.org/2.0/repositories/debtges/ledger/pullrequests/7/commits?pagelen=100", nil),
         ("https://api.bitbucket.org/2.0/repositories/debtges/ledger/pullrequests/7/commits?page=--context", nil),
         ("not a link", nil),
+        ("https://api.bitbucket.org/2.0/repositories/DebtGes/Ledger/pullrequests/7/commits?page=67Fg", "67Fg"),
     ])
     func nextCursor(next: String, cursor: String?) {
         #expect(Bitbucket.nextCommitPage(next, number: 7, in: Self.ledger) == cursor)

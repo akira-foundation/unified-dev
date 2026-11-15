@@ -33,7 +33,8 @@ extension Bitbucket {
         guard let next, let components = URLComponents(string: next),
               components.scheme == "https",
               components.host?.lowercased() == BitbucketAuthStatus.cloudHostKey,
-              components.percentEncodedPath == "/2.0\(path(of: repository))/pullrequests/\(number)/commits",
+              components.percentEncodedPath.lowercased()
+                == "/2.0\(path(of: repository))/pullrequests/\(number)/commits".lowercased(),
               let page = components.queryItems?.first(where: { $0.name == "page" })?.value,
               !page.isEmpty, !page.hasPrefix("-")
         else { return nil }

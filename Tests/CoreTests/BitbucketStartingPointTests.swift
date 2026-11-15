@@ -48,7 +48,10 @@ struct BitbucketStartingPointTests {
                 let ids = arguments[3].contains("reviewers.uuid") ? [12, 9] : [15]
                 return ShellResult(status: 0, stdout: Self.page(ids), stderr: "")
             }) {
-                try? await StartingPointReader.read(repoPath: TestScratch.unique("bitbucket-points"), asksGitHub: true)
+                await StartingPointReader.load(
+                    StartingPointReadingRequest(repoPath: TestScratch.unique("bitbucket-points"), asksGitHub: true),
+                    from: StartingPointReader.Readings()
+                )
             }
         }
         return (reading, await calls.seen)
@@ -65,11 +68,42 @@ struct BitbucketStartingPointTests {
         #expect(!seen.contains { $0.first == "issue" })
     }
 
-    @Test("without the viewer's uuid nothing is listed and the reading is not kept as whole")
+    @Test("without the viewer's uuid nothing is listed")
     func noViewer() async {
         let (reading, seen) = await read(user: #"{"nickname": "kid"}"#)
 
-        #expect(reading == nil)
+        #expect(reading?.pullRequests == PullRequestsAwaitingViewer())
         #expect(seen.map { $0[1] } == ["/user"])
+    }
+
+    @Test("one list refused keeps the other, and the reading is not kept as whole")
+    func halfRefused() async {
+        let readings = StartingPointReader.Readings()
+        let request = StartingPointReadingRequest(repoPath: TestScratch.unique("bitbucket-half"), asksGitHub: true)
+        let calls = Calls()
+        let ask: @Sendable () async -> StartingPointReading? = {
+            await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+                await Bitbucket.$commandOverride.withValue({ arguments, _ in
+                    if arguments.starts(with: ["auth", "status"]) {
+                        return ShellResult(status: 0, stdout: BitbucketPipelineLogTests.signedIn, stderr: "")
+                    }
+                    await calls.record(arguments)
+                    if arguments[1] == "/user" { return ShellResult(status: 0, stdout: #"{"uuid": "\#(Self.viewer)"}"#, stderr: "") }
+                    if arguments[3].contains("reviewers.uuid") {
+                        return ShellResult(status: 1, stdout: "", stderr: "Error: 429 Too Many Requests")
+                    }
+                    return ShellResult(status: 0, stdout: Self.page([15]), stderr: "")
+                }) {
+                    await StartingPointReader.load(request, from: readings)
+                }
+            }
+        }
+
+        let first = await ask()
+        _ = await ask()
+
+        #expect(first?.pullRequests.authored.map(\.number) == [15])
+        #expect(first?.pullRequests.reviewRequested.isEmpty == true)
+        #expect(await calls.seen.filter { $0[1] == "/user" }.count == 2)
     }
 }
