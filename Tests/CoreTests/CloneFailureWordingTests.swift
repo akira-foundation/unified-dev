@@ -27,6 +27,15 @@ struct CloneFailureWordingTests {
         and the repository exists.
         """
 
+    static let postQuantumWarning = """
+        Cloning into 'd'...
+        ** WARNING: connection is not using a post-quantum key exchange algorithm.
+        ** This session may be vulnerable to "store now, decrypt later" attacks.
+        ** The server may need to be upgraded. See https://openssh.com/pq.html
+        git@bitbucket.org: Permission denied (publickey).
+        fatal: Could not read from remote repository.
+        """
+
     static let refusedThroughTheHelper = """
         Cloning into 'x'...
         remote: You may not have access to this repository or it no longer exists in this workspace. \
@@ -43,6 +52,7 @@ struct CloneFailureWordingTests {
             (https, "fatal: could not read Username for 'https://bitbucket.org': terminal prompts disabled"),
             (sshRefused, "git@bitbucket.org: Permission denied (publickey)."),
             (unknownHost, "Host key verification failed."),
+            (postQuantumWarning, "git@bitbucket.org: Permission denied (publickey)."),
             (progressThenFailure, "error: RPC failed; curl 56 Recv failure"),
             (
                 refusedThroughTheHelper,
@@ -116,7 +126,7 @@ struct CloneFailureWordingTests {
         let failure = await RepositoryCloner.failure(cloning: "https://bitbucket.org/debtges/ledger.git", error)
 
         #expect(failure.message.hasPrefix("fatal: could not read Username"))
-        #expect(failure.advice?.contains("bitbucket.org") == true)
+        #expect(failure.advice?.contains("Sign in to Bitbucket") == true)
         #expect(failure.detail == Self.https)
         #expect(failure.hostOffer == nil)
         #expect(!failure.folderWasCreated)

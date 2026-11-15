@@ -41,5 +41,7 @@ enum BitbucketKeychainToken {
         }
     }
 
-    static let declined = QuietMarker(named: "unified-dev-bitbucket-keychain-declined", period: 60 * 60)
+    static func declined(in folder: URL = FileManager.default.temporaryDirectory) -> QuietMarker {
+        QuietMarker(named: "unified-dev-bitbucket-keychain-declined", period: 60 * 60, in: folder)
+    }
 }

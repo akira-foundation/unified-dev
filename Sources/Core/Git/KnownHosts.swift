@@ -3,10 +3,16 @@ import Foundation
 public struct SSHRemote: Sendable, Equatable {
     public var host: String
     public var port: Int?
+    public var alias: String?
 
-    public init(host: String, port: Int? = nil) {
-        self.host = host
+    public init(host: String, port: Int? = nil, alias: String? = nil) {
+        self.host = SSHRemote.bare(host)
         self.port = port
+        self.alias = alias
+    }
+
+    static func bare(_ host: String) -> String {
+        host.lowercased().hasSuffix(".") ? String(host.lowercased().dropLast()) : host.lowercased()
     }
 
     public init?(remote: String) {
@@ -36,8 +42,25 @@ public struct SSHRemote: Sendable, Equatable {
     }
 
     public var shown: String {
+        if let alias { return alias }
         guard let port, port != 22 else { return host }
         return "[\(host)]:\(port)"
+    }
+
+    var isBitbucket: Bool {
+        host == "bitbucket.org" || host.hasSuffix(".bitbucket.org")
+    }
+
+    func resolved(byConfig output: String) -> SSHRemote {
+        var settings: [String: String] = [:]
+        for line in GitFailureOutput.lines(of: output) {
+            let parts = line.split(separator: " ", maxSplits: 1).map(String.init)
+            if parts.count == 2, settings[parts[0]] == nil { settings[parts[0]] = parts[1] }
+        }
+        let hostName = settings["hostname"].flatMap { $0.isEmpty ? nil : $0 } ?? host
+        let resolvedPort = settings["port"].flatMap(Int.init) ?? port
+        let resolvedAlias = settings["hostkeyalias"].flatMap { $0.isEmpty || $0 == "none" ? nil : $0 } ?? alias
+        return SSHRemote(host: hostName, port: resolvedPort, alias: resolvedAlias)
     }
 }
 
@@ -74,33 +97,51 @@ public enum KnownHosts {
     ]
 
     public static func offer(for remote: SSHRemote, in file: URL = KnownHosts.file) async -> KnownHostOffer? {
+        var configured = ["-G"]
+        if let port = remote.port { configured += ["-p", String(port)] }
+        configured += ["--", remote.host]
+        let config = try? await Shell.run("ssh", configured, timeout: .seconds(10))
+        let target = config.map { $0.ok ? remote.resolved(byConfig: $0.stdout) : remote } ?? remote
+        return await offer(for: target, in: file, scan: scan)
+    }
+
+    static func offer(
+        for remote: SSHRemote, in file: URL, scan: (SSHRemote) async -> (lines: [String], fingerprints: [String])?
+    ) async -> KnownHostOffer? {
         let recorded = try? await Shell.run(
             "ssh-keygen", ["-F", remote.shown, "-f", file.path], timeout: .seconds(10)
         )
-        guard recorded?.ok != true else { return nil }
+        guard recorded?.ok != true, let scanned = await scan(remote) else { return nil }
+        return judged(remote: remote, lines: scanned.lines, fingerprints: scanned.fingerprints)
+    }
+
+    static func scan(_ remote: SSHRemote) async -> (lines: [String], fingerprints: [String])? {
         var arguments = ["-T", "5"]
         if let port = remote.port { arguments += ["-p", String(port)] }
         arguments += ["--", remote.host]
         guard let scanned = try? await Shell.run("ssh-keyscan", arguments, timeout: .seconds(15)) else {
             return nil
         }
-        let lines = keyLines(in: scanned.stdout)
+        let lines = keyLines(in: scanned.stdout).map { line in
+            ([remote.shown] + line.split(separator: " ").dropFirst().map(String.init)).joined(separator: " ")
+        }
         guard !lines.isEmpty,
               let listed = try? await Shell.run(
                   "ssh-keygen", ["-l", "-f", "-"], stdin: lines.joined(separator: "\n") + "\n", timeout: .seconds(10)
               ),
               listed.ok
         else { return nil }
-        return judged(host: remote.shown, lines: lines, fingerprints: fingerprints(in: listed.stdout))
+        return (lines, fingerprints(in: listed.stdout))
     }
 
-    static func judged(host: String, lines: [String], fingerprints: [String]) -> KnownHostOffer? {
+    static func judged(remote: SSHRemote, lines: [String], fingerprints: [String]) -> KnownHostOffer? {
         guard !fingerprints.isEmpty, fingerprints.count == lines.count else { return nil }
-        guard let expected = published[host] else {
-            return KnownHostOffer(host: host, lines: lines, fingerprints: fingerprints)
+        guard let expected = published[remote.host] else {
+            guard !remote.isBitbucket else { return nil }
+            return KnownHostOffer(host: remote.shown, lines: lines, fingerprints: fingerprints)
         }
         guard fingerprints.allSatisfy(expected.contains) else { return nil }
-        return KnownHostOffer(host: host, lines: lines, fingerprints: fingerprints, matchesPublished: true)
+        return KnownHostOffer(host: remote.shown, lines: lines, fingerprints: fingerprints, matchesPublished: true)
     }
 
     public static func trust(_ offer: KnownHostOffer, in file: URL = KnownHosts.file) throws {
@@ -109,21 +150,16 @@ public enum KnownHosts {
         if !manager.fileExists(atPath: folder.path) {
             try manager.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         }
-        let existing = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
-        let known = Set(GitFailureOutput.lines(of: existing))
+        let descriptor = open(file.path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0o600)
+        guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        defer { try? handle.close() }
+        let existing = (try? Data(contentsOf: file)) ?? Data()
+        let known = Set(GitFailureOutput.lines(of: String(decoding: existing, as: UTF8.self)))
         let added = offer.lines.filter { !known.contains($0) }
         guard !added.isEmpty else { return }
-        let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
-        let addition = Data((separator + added.joined(separator: "\n") + "\n").utf8)
-        guard manager.fileExists(atPath: file.path) else {
-            let written = manager.createFile(atPath: file.path, contents: addition, attributes: [.posixPermissions: 0o600])
-            if !written { throw CocoaError(.fileWriteUnknown) }
-            return
-        }
-        let handle = try FileHandle(forWritingTo: file)
-        defer { try? handle.close() }
-        try handle.seekToEnd()
-        try handle.write(contentsOf: addition)
+        let separator = existing.isEmpty || existing.last == UInt8(ascii: "\n") ? "" : "\n"
+        try handle.write(contentsOf: Data((separator + added.joined(separator: "\n") + "\n").utf8))
     }
 
     static func keyLines(in output: String) -> [String] {

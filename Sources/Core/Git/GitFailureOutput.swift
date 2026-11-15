@@ -2,7 +2,7 @@ import Foundation
 
 public enum GitFailureOutput {
     static let noisePrefixes = [
-        "Cloning into", "hint:", "Usage:", "Warning: Permanently added",
+        "Cloning into", "hint:", "** ", "Usage:", "Warning: Permanently added",
         "Please make sure you have the correct access rights", "and the repository exists.",
         "Receiving objects:", "Resolving deltas:", "Updating files:", "Checking out files:",
         "remote: Enumerating objects:", "remote: Counting objects:", "remote: Compressing objects:",

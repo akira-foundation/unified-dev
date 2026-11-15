@@ -10,6 +10,13 @@ private actor RenewedWorkspace {
 
 @Suite("The Bitbucket sign-in handed to git")
 struct BitbucketGitCredentialTests {
+    private let quiet: URL
+
+    init() throws {
+        quiet = URL(fileURLWithPath: TestScratch.unique("unifieddev-quiet"), isDirectory: true)
+        try FileManager.default.createDirectory(at: quiet, withIntermediateDirectories: true)
+    }
+
     private func secrets(holding sealed: String) throws -> URL {
         let folder = URL(fileURLWithPath: TestScratch.unique("unifieddev-bkt-secrets"), isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -58,7 +65,7 @@ struct BitbucketGitCredentialTests {
     @Test("git is answered with x-token-auth and the profile's token")
     func answersGit() async throws {
         let answer = await BitbucketCredentialHelper.answer(
-            action: "get", request: request, environment: try profile(holding: BitbucketTokenFixtures.oauth),
+            markers: quiet, action: "get", request: request, environment: try profile(holding: BitbucketTokenFixtures.oauth),
             refresh: { _, _ in Issue.record("a fresh token was renewed") }
         )
 
@@ -69,8 +76,8 @@ struct BitbucketGitCredentialTests {
     func ignoresStoreAndErase() async throws {
         let environment = try profile(holding: BitbucketTokenFixtures.oauth)
 
-        let stored = await BitbucketCredentialHelper.answer(action: "store", request: request, environment: environment)
-        let erased = await BitbucketCredentialHelper.answer(action: "erase", request: request, environment: environment)
+        let stored = await BitbucketCredentialHelper.answer(markers: quiet, action: "store", request: request, environment: environment)
+        let erased = await BitbucketCredentialHelper.answer(markers: quiet, action: "erase", request: request, environment: environment)
 
         #expect(stored.isEmpty)
         #expect(erased.isEmpty)
@@ -82,7 +89,7 @@ struct BitbucketGitCredentialTests {
     )
     func answersOnlyBitbucketOverHTTPS(request: String) async throws {
         let answer = await BitbucketCredentialHelper.answer(
-            action: "get", request: request, environment: try profile(holding: BitbucketTokenFixtures.oauth)
+            markers: quiet, action: "get", request: request, environment: try profile(holding: BitbucketTokenFixtures.oauth)
         )
 
         #expect(answer.isEmpty)
@@ -95,7 +102,7 @@ struct BitbucketGitCredentialTests {
         let renewed = RenewedWorkspace()
 
         let answer = await BitbucketCredentialHelper.answer(
-            action: "get", request: request, environment: environment,
+            markers: quiet, action: "get", request: request, environment: environment,
             refresh: { asked, _ in
                 await renewed.record(asked.workspace)
                 try? BitbucketTokenFixtures.oauth.write(
@@ -114,7 +121,7 @@ struct BitbucketGitCredentialTests {
         let environment = ["BKT_CONFIG_DIR": TestScratch.unique("unifieddev-bkt-config")]
 
         let answer = await BitbucketCredentialHelper.answer(
-            action: "get", request: request, environment: environment,
+            markers: quiet, action: "get", request: request, environment: environment,
             keychain: {
                 Issue.record("a profile of its own read this Mac's Keychain")
                 return .found("this-macs-token")
@@ -127,23 +134,54 @@ struct BitbucketGitCredentialTests {
     @Test("a profile that uses this Mac's sign-in is answered from the Keychain")
     func thisMacReadsTheKeychain() async {
         let answer = await BitbucketCredentialHelper.answer(
-            action: "get", request: request, environment: [:], keychain: { .found("plain-api-token") }
+            markers: quiet, action: "get", request: request, environment: [:], keychain: { .found("plain-api-token") }
         )
 
         #expect(answer == "username=x-token-auth\npassword=plain-api-token\n")
     }
 
-    @Test("a decline of the Keychain prompt keeps it quiet for an hour, then asks again")
-    func declineIsRemembered() throws {
-        let folder = URL(fileURLWithPath: TestScratch.unique("unifieddev-quiet"), isDirectory: true)
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let marker = QuietMarker(named: "declined", period: BitbucketKeychainToken.declined.period, in: folder)
-        #expect(!marker.isQuiet(at: Date()))
+    @Test("a declined Keychain prompt is not asked again for an hour, and the helper stands aside")
+    func declineIsRemembered() async {
+        let first = await BitbucketCredentialHelper.answer(
+            markers: quiet, action: "get", request: request, environment: [:], keychain: { .declined }
+        )
+        let second = await BitbucketCredentialHelper.answer(
+            markers: quiet, action: "get", request: request, environment: [:],
+            keychain: {
+                Issue.record("the Keychain was asked again after a decline")
+                return .found("this-macs-token")
+            }
+        )
+        let declined = BitbucketKeychainToken.declined(in: quiet)
+        let helper = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge", declined: declined) { true }
 
-        marker.remember()
+        #expect(first.isEmpty)
+        #expect(second.isEmpty)
+        #expect(helper["GIT_CONFIG_COUNT"] == nil)
+        #expect(!declined.isQuiet(at: Date().addingTimeInterval(2 * 60 * 60)))
+    }
 
-        #expect(marker.isQuiet(at: Date()))
-        #expect(!marker.isQuiet(at: Date().addingTimeInterval(2 * 60 * 60)))
+    @Test("the pause is written before bkt is asked, so a helper killed mid-renewal still pauses the next one")
+    func pauseBeforeRenewal() async throws {
+        let environment = try profile(holding: BitbucketTokenFixtures.expiredOAuth)
+        let paused = BitbucketCredentialHelper.renewalFailed(environment, in: quiet)
+        let seen = RenewedWorkspace()
+
+        _ = await BitbucketCredentialHelper.answer(
+            markers: quiet, action: "get", request: request, environment: environment,
+            refresh: { _, _ in await seen.record(paused.isQuiet(at: Date()) ? "paused" : "open") }
+        )
+
+        #expect(await seen.name == "paused")
+    }
+
+    @Test("an absurd inherited GIT_CONFIG_COUNT cannot overflow the count")
+    func inheritedCountIsBounded() {
+        let inherited = ["GIT_CONFIG_COUNT": String(Int.max)]
+
+        let helper = BitbucketCredentialHelper.gitEnvironment(shim: "/tmp/bridge", over: inherited)
+
+        #expect(helper["GIT_CONFIG_COUNT"] == String(BitbucketCredentialHelper.mostInheritedEntries + 6))
     }
 
     @Test("a renewal that fails is not tried again on every fetch for ten minutes")
@@ -154,8 +192,8 @@ struct BitbucketGitCredentialTests {
             await attempts.record((await attempts.name ?? "") + "x")
         }
 
-        _ = await BitbucketCredentialHelper.answer(action: "get", request: request, environment: environment, refresh: renew)
-        let second = await BitbucketCredentialHelper.answer(action: "get", request: request, environment: environment, refresh: renew)
+        _ = await BitbucketCredentialHelper.answer(markers: quiet, action: "get", request: request, environment: environment, refresh: renew)
+        let second = await BitbucketCredentialHelper.answer(markers: quiet, action: "get", request: request, environment: environment, refresh: renew)
 
         #expect(await attempts.name == "x")
         #expect(second == "username=x-token-auth\npassword=fixture-expired-token\n")
@@ -164,7 +202,7 @@ struct BitbucketGitCredentialTests {
     @Test("www.bitbucket.org is answered as bitbucket.org is")
     func answersWWW() async throws {
         let answer = await BitbucketCredentialHelper.answer(
-            action: "get", request: "protocol=https\nhost=www.bitbucket.org\npath=debtges/ledger.git\n",
+            markers: quiet, action: "get", request: "protocol=https\nhost=www.bitbucket.org\npath=debtges/ledger.git\n",
             environment: try profile(holding: BitbucketTokenFixtures.oauth)
         )
 
@@ -176,10 +214,10 @@ struct BitbucketGitCredentialTests {
         let signedOut = ["BKT_CONFIG_DIR": "/tmp/profile", "KEYRING_FILE_DIR": TestScratch.unique("unifieddev-empty")]
         let signedIn = try profile(holding: BitbucketTokenFixtures.oauth)
 
-        let without = BitbucketCredentialHelper.environment(over: signedOut, shim: "/tmp/bridge") { true }
-        let with = BitbucketCredentialHelper.environment(over: signedIn, shim: "/tmp/bridge") { false }
-        let thisMacWithout = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge") { false }
-        let thisMacWith = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge") { true }
+        let without = BitbucketCredentialHelper.environment(over: signedOut, shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { true }
+        let with = BitbucketCredentialHelper.environment(over: signedIn, shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { false }
+        let thisMacWithout = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { false }
+        let thisMacWith = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { true }
 
         #expect(without["GIT_CONFIG_COUNT"] == nil)
         #expect(with["GIT_CONFIG_COUNT"] == "6")

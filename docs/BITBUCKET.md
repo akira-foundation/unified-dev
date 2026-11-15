@@ -121,13 +121,14 @@ makes.
 A bkt sign-in is not a git credential: bkt has no credential helper, and its fetches use whatever
 git already has. So when the profile holds a bkt sign-in (its token file under `secrets/`, or the
 `bkt` item in the login Keychain, which is looked up by its attributes and never read for this),
-every git the app runs against a remote, every agent it starts, and every terminal and script of a
-workspace carries a helper scoped to `https://bitbucket.org` and `https://www.bitbucket.org`, in
+every git the app runs against a remote, every bkt it runs (whose `pr checkout` fetches through
+git), every agent it starts, and every terminal and script of a workspace carries a helper scoped to `https://bitbucket.org` and `https://www.bitbucket.org`, in
 `GIT_CONFIG_COUNT` and its `GIT_CONFIG_KEY_n` and `GIT_CONFIG_VALUE_n` pairs. Nothing is written to
 any git configuration file. For each of the two hosts the first entry empties the helper list, so
 the Keychain's own helper is neither asked nor told to store; the second is `bridge git-credential`,
 the shim beside the app; the third turns on `useHttpPath`, so the helper learns the workspace. A
-profile with no bkt sign-in gets none of it and keeps whatever credential git already had. Every
+profile with no bkt sign-in gets none of it and keeps whatever credential git already had, and so
+does a profile whose Keychain prompt was declined in the last hour. Every
 other host keeps the helpers this Mac already had.
 
 The shim answers `get` for those two hosts over https and nothing else, with the user
@@ -137,13 +138,15 @@ profile with a sign-in of its own has the file store, a JWE (`PBES2-HS256+A128KW
 opened with the profile's passphrase, which arrives in the environment as it does for bkt; any other
 profile reads the `bkt` item in the login Keychain, where macOS asks whether `bridge`, the shim
 inside Unified Dev, may read it, and Always Allow is what stops it asking. Cancel or Deny is
-remembered for an hour, so background fetches do not ask again and again.
+remembered for an hour, so background fetches do not ask again and again, and for that hour the
+helper is left out so git's own credentials are used instead.
 
 An OAuth token lasts two hours and bkt renews it only after a 401, so an expired token is renewed by
 running `bkt api /user` under the same profile, and read again. That command needs a bkt context;
 when the profile has none, the shim creates the one the app itself creates, `unifieddev`, for the
-workspace git asked about. A renewal that leaves the token expired is not tried again for ten
-minutes. Concurrent renewals are serialised by bkt's own refresh lock.
+workspace git asked about. A pause of ten minutes is written before bkt is asked and removed only
+when the token comes back fresh, so a renewal that fails, or a helper git killed on its own timeout,
+is not tried again on every fetch. Concurrent renewals are serialised by bkt's own refresh lock.
 
 `x-token-auth` is the user Atlassian documents for an OAuth access token, and one of the two fixed
 users it accepts for an API token. It was measured against bitbucket.org as far as it can be without
@@ -159,10 +162,12 @@ token, which is the same standing its `bkt` and its `gh` already have.
 
 When a clone fails, the sheet shows the line that names the cause rather than git's first line,
 which is always `Cloning into`, with every line behind Show details. A host missing from
-`known_hosts` makes ssh refuse at once, since git runs without a terminal; the sheet then shows the
-fingerprints `ssh-keyscan` and `ssh-keygen -l` read, and adds them to `~/.ssh/known_hosts` only when
-Trust and try again is pressed. For `bitbucket.org` and `ssh.bitbucket.org` the fingerprints must be
-the ones Bitbucket publishes, which are written into the app, or nothing is offered. A host already
+`known_hosts` makes ssh refuse at once, since git runs without a terminal. The host, port and
+`HostKeyAlias` ssh will really use are read with `ssh -G`, so a `~/.ssh/config` that moves a host
+is followed; the sheet then shows the fingerprints `ssh-keyscan` and `ssh-keygen -l` read there, and
+adds them to `~/.ssh/known_hosts` only when Trust and try again is pressed. For `bitbucket.org` and
+`ssh.bitbucket.org`, on any port, the fingerprints must be the ones Bitbucket publishes, which are
+written into the app, or nothing is offered; any other name under `bitbucket.org` is offered nothing. A host already
 in `known_hosts` is never offered: there the failure is a changed key, which the sheet names as such.
 
 ## Contexts
