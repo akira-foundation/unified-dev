@@ -150,6 +150,15 @@ by Unified Dev or by an agent, uses the profile's login only when git asks `gh` 
 those hold, whichever profile the project is in. The default branch prefix taken from the GitHub user name
 is read from this Mac's login.
 
+## Bitbucket
+
+A profile's Bitbucket sign-in follows its GitHub choice: a profile using Unified's GitHub login uses this
+Mac's `bkt` configuration and Keychain, and a profile with its own GitHub login has its own Bitbucket one,
+in `BitbucketLogins/<profile id>` beside `GitHubLogins/`. bkt keys its Keychain item by host alone, so the
+profile's token lives in bkt's encrypted file store in that folder instead. Profile Settings shows it in a
+Bitbucket section, with the browser and an API token as the two ways to sign in. `docs/BITBUCKET.md` has
+the variables and why.
+
 ## Moving a project
 
 Project menu, Move to Profile, in the sidebar and on Home. Only the project's row changes. Its

@@ -53,10 +53,50 @@ and never a token. `bkt auth status --json` lists the hosts with their kind, use
 token source and expiry, and no secret, which is why it is the only thing the app reads to decide
 whether somebody is signed in.
 
-The Keychain item is keyed by host alone, not by configuration directory, so two profiles cannot
-hold two different Bitbucket Cloud sign-ins by pointing `BKT_CONFIG_DIR` at two directories the
-way `GH_CONFIG_DIR` does for `gh`. Sign-in per profile has to carry the token itself, through
-`BKT_TOKEN`, from the profile's own Keychain item. That is the next piece of work, not this one.
+The Keychain item is keyed by host alone, not by configuration directory: the service is `bkt`
+and the account `host/api.bitbucket.org/token`, read from bkt's `internal/secret/store.go` at the
+0.38.1 tag. So two profiles cannot hold two Bitbucket Cloud sign-ins by pointing `BKT_CONFIG_DIR`
+at two directories the way `GH_CONFIG_DIR` does for `gh`.
+
+### Sign-in per profile
+
+bkt's secret store is 99designs/keyring, and it reads four variables of its own that no help page
+lists: `KEYRING_BACKEND` chooses the backend, `BKT_ALLOW_INSECURE_STORE=1` admits the encrypted
+file one, `KEYRING_FILE_DIR` names its folder and `BKT_KEYRING_PASSPHRASE` its key. A profile whose
+GitHub login is its own gets a Bitbucket sign-in of its own the same way, under
+`<Application Support>/BitbucketLogins/<profile>/`, beside `GitHubLogins/`:
+
+| Variable | Value |
+| --- | --- |
+| `BKT_CONFIG_DIR` | the profile's folder, so its hosts and contexts are its own |
+| `KEYRING_BACKEND` | `file` |
+| `BKT_ALLOW_INSECURE_STORE` | `1` |
+| `KEYRING_FILE_DIR` | `secrets/` inside the profile's folder |
+| `BKT_KEYRING_PASSPHRASE` | the contents of `passphrase` in the profile's folder |
+| `BKT_TOKEN`, `BKT_HOST`, `BKT_USERNAME`, `BKT_AUTH_METHOD`, `BKT_WORKSPACE` | emptied, so a token in the owner's shell never reaches the profile |
+
+The folder is `0700` and the passphrase, 32 random bytes written the first time the profile signs
+in, is `0600`. The token is encrypted at rest with it. That keeps it out of plain sight and out of a
+backup read on its own, and it does not keep it from a process running as the owner, which is the
+same standing `gh auth login --insecure-storage` has in the profile's `GH_CONFIG_DIR`. The
+initial profile, and every profile whose GitHub login is Unified's, keep this Mac's own bkt
+configuration and Keychain, and the app adds nothing to their environment.
+
+`BitbucketLogin` in `Sources/Core/Forge/` holds this; `GitHubLogin.everySignIn(appliedTo:)` is what
+every agent runner and `GitHubLogin.everyVariable` what a workspace's setup is started with, so an
+agent's `bkt pr merge` runs as the profile. Every `bkt` the app runs itself goes through
+`Bitbucket.run`, which resolves the directory's profile exactly as `gh` does.
+
+Profile Settings shows a Bitbucket section under the GitHub one. It reads `bkt auth status --json`
+under the profile's variables and shows the user and the method bkt reports (`oauth` is the browser
+sign-in, `basic` an API token, `bearer` an access token). A profile with its own sign-in offers two
+methods, each run in a terminal inside the sheet: `bkt auth login https://bitbucket.org --kind cloud
+--web --allow-insecure-store` for OAuth in the browser, and the same with `--web-token` for an
+Atlassian API token, where bkt itself asks for the email and the token. Unified Dev never has a field
+for either. App passwords are not offered: Atlassian stopped issuing them in favour of API tokens,
+and bkt asks for an API token where an app password once went. Repository and workspace access
+tokens are read by bkt only from `BKT_TOKEN`, so offering one would mean the app holding the token
+itself; that is left out.
 
 The welcome window's setup check lists the Bitbucket CLI after the GitHub CLI, for everybody and as
 optional: missing or signed out, it offers `brew install bitbucket-cli` and then
@@ -128,24 +168,69 @@ and the Bamboo builds. So the checks tab shows a pipeline as one check named by 
 The names of the steps inside it, which #534 asks for, come from
 `/pipelines/{build number}/steps/`, which answered without a credential (`Build and deploy`,
 `COMPLETED`, `FAILED`, with start and end) while the same path with the run's UUID answered
-`Bad request` until the braces were encoded. Reading the steps is not done yet.
+`Bad request` until the braces were encoded. The checks tab still shows a pipeline as one row.
+
+### A failed pipeline's log
+
+A Pipelines status links to `.../addon/pipelines/home#!/results/<build number>`, and newer runs to
+`.../pipelines/results/<build number>`, sometimes followed by `/steps/<step uuid>`.
+`BitbucketPipelineTarget.parse` reads the build number from either, and the step when it is named.
+Sending a failed build to the agent, from the checks tab, the bar's Ask to fix or the pull request
+auto fix, then reads the steps, keeps the failed ones (`state.result.name` `FAILED` or `ERROR`, or
+the one the link names), at most three, and asks for each with
+`bkt pipeline logs <build number> --step <uuid> --workspace <owner> --repo <name> --context <name>`.
+The log is plain text and goes through the same excerpt and the same attachment as a GitHub
+Actions log. A build reported by anything else, Bamboo or Snyk on `atlassian/aui`, has no log bkt
+can read, and the agent is told so.
+
+The log itself could not be measured: `/pipelines/{uuid}/steps/{uuid}/log` on the public
+`atlassian/aui` run 14542 answered `404` with `The value provided is not a valid uuid.` without a
+credential, whatever the braces. bkt sends `Accept: application/octet-stream` to the same path, so
+the text is taken as bkt prints it.
 
 ## Merging, opening, and the rest
 
-An open Bitbucket pull request shows its state and its builds, and its merge button stays
-disabled with "Unified Dev cannot merge a Bitbucket pull request yet. Merge it on Bitbucket.",
-because every merge the app asks of an agent is written for `gh`. A draft offers no "Mark ready"
-for the same reason. Still to do, each against a real repository:
+Every action is done by the workspace's agent, in its chat, exactly as on GitHub; the app chooses
+the words, by the pull request's host.
 
-- merging from the bar, with instructions written for `bkt pr merge <id> --strategy`
-  (`merge_commit`, `squash`, `fast_forward`) and `--close-source=false`;
-- opening a pull request with `bkt pr create --source --target --title --description`;
-- starting a workspace from a pull request with `bkt pr checkout <id>`, which adds a remote for a
-  fork on its own;
-- a failed build's log for Ask to fix, from `bkt pipeline logs` for Pipelines only;
-- sign-in per profile in Profile Settings, as above;
-- the starting points suggested under the new workspace header, which offer recent branches
-  alone on Bitbucket, with no pull request waiting on the owner and no issue assigned to them;
-- the readers that still ask `gh` whatever the host: the workspace list and merge tools of the
-  bridge, the pull request auto fix, and the check failure request. They find nothing on a
-  Bitbucket workspace, as they did before Bitbucket was read at all.
+- **Merge.** An open pull request offers Merge as on GitHub. The method becomes a strategy:
+  merge commit is `merge_commit`, squash is `squash`, rebase is `rebase_fast_forward`, which is
+  what a rebase merge does on GitHub. The prompt's `{{method_flag}}` reads
+  `--strategy <strategy>`, and the steps under it (`MergeInstructions.bitbucketCanonical` and
+  `bitbucketAppOnly`) ask for `bkt pr merge <number> --strategy <strategy> --close-source=false`,
+  read a refusal from `bkt pr view <number> --json` and `bkt pr checks <number>`, wait with
+  `bkt pr checks <number> --wait`, read a failed Pipelines step with `bkt pipeline logs`, and
+  delete the branch with git afterwards, as on GitHub. Bitbucket returns no mergeability, so a
+  conflict is found by the agent trying the merge locally. A state Bitbucket has not been seen to
+  send still holds the merge.
+- **Whose branch it is.** The project's own instructions are attached only when the branch is the
+  owner's: the viewer is `nickname` from `bkt api /user`, compared with the pull request's author,
+  and the head Bitbucket reports in twelve characters matches the full commit it begins
+  (`CommitHash.same`).
+- **Mark ready.** A draft offers Mark ready, sent with a Bitbucket default that asks for
+  `bkt pr ready <number>`, unless the owner edited that prompt.
+- **Create pull request.** `PullRequestInstructions.bitbucketTurn` asks for
+  `bkt pr create --source <branch> --target <base> --title --description`, or attaches
+  `.unifieddev/pr-instructions.md` when the project has one and the branch is the owner's.
+- **Start a workspace from a pull request.** The new workspace pane lists the open pull requests
+  from `/repositories/{workspace}/{repo}/pullrequests?state=OPEN`, and a number or a link is read
+  by number. The checkout is `bkt pr checkout <id> --branch <local> --workspace --repo --context`
+  in a fresh detached worktree; bkt fetches `<source>:<local>` and adds a remote for a fork on its
+  own. It sets no upstream, so for a branch of this repository the app sets
+  `branch.<local>.remote` to `origin` and `branch.<local>.merge` to the source branch.
+- **The checks tab** asks bkt whether it is signed in, not gh, and names Bitbucket and bkt when it
+  cannot read.
+- **The bridge.** `workspace_list` with `include_github` and `workspace_merge` read a Bitbucket
+  workspace's pull request through bkt.
+- **The pull request auto fix** reads the viewer and the commit authors from
+  `/pullrequests/{id}/commits` (one page of 100, an unlinked author counting as nobody's), and the
+  failed builds' logs as above.
+
+Still to do, in #631:
+
+- Bitbucket Data Center, which bkt covers and nothing here detects;
+- the starting points under the new workspace header, which still ask gh for pull requests
+  waiting on the owner and issues assigned to them, and so offer recent branches alone;
+- the steps of a pipeline as rows of their own in the checks tab;
+- repository and workspace access tokens per profile;
+- the bridge's refusals, which still name gh when bkt is missing or signed out.
