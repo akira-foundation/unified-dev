@@ -46,7 +46,7 @@ public struct WorkspaceListTool: BridgeToolHandling {
             GitHub nor Bitbucket is consulted at all: there is no pull request, no checks, and the status can never \
             say merged, closed, draft or anything about checks. A default call has not looked, so \
             do not report that a workspace has no pull request on the strength of one. Pass \
-            include_github to ask, which costs one gh call and one git call per workspace, or \
+            include_github to ask, which costs one git call per workspace and one gh call, or \
             several bkt calls for a repository on Bitbucket, and is slow on a long list.
 
             The diff counts and the states come from Unified Dev's database, which a running Unified Dev \
@@ -74,9 +74,9 @@ public struct WorkspaceListTool: BridgeToolHandling {
                 "include_github": .object([
                     "type": .string("boolean"),
                     "description": .string(
-                        "Include pull request and check state. Costs one gh call and one git call "
-                            + "per workspace, or several bkt calls on Bitbucket, so it is slow on a "
-                            + "long list. Off by default."
+                        "Include pull request and check state. Costs one git call per workspace and "
+                            + "one gh call, or several bkt calls on Bitbucket, so it is slow on a long "
+                            + "list. Off by default."
                     ),
                 ]),
             ]),
@@ -101,8 +101,8 @@ public struct WorkspaceListTool: BridgeToolHandling {
             let reached = choice.profiles
             if includeGitHub, case .every = choice {
                 return .failure(
-                    "include_github cannot be used with profile 'all', because it starts a gh or bkt and "
-                        + "a git process per workspace. Name one profile to ask the host about it."
+                    "include_github cannot be used with profile 'all', because it starts gh or bkt and "
+                        + "git processes for every workspace. Name one profile to ask the host about it."
                 )
             }
             let every = try await store.repos()
