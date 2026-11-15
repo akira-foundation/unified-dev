@@ -59,9 +59,10 @@ struct BitbucketReadingTests {
         #expect(reading.checks?.runs.count == 4)
 
         let seen = await calls.seen
-        #expect(seen.count == 3)
+        #expect(seen.count == 4)
         #expect(seen.dropFirst().allSatisfy { $0.suffix(2) == ["--context", "work"] })
         #expect(seen[2][1] == "/repositories/atlassian/aui/commit/ec3178d4d575/statuses")
+        #expect(seen[3][1] == "/repositories/atlassian/aui/pipelines/14542/steps/")
     }
 
     @Test("no Bitbucket Cloud sign-in reads as an authentication failure, with nothing else asked")

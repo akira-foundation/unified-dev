@@ -43,6 +43,14 @@ struct BitbucketPipelineStep: Decodable, Sendable, Hashable {
     let uuid: String?
     let name: String?
     let state: State?
+    var startedOn: String?
+    var completedOn: String?
+
+    enum CodingKeys: String, CodingKey {
+        case uuid, name, state
+        case startedOn = "started_on"
+        case completedOn = "completed_on"
+    }
 
     var hasFailed: Bool {
         ["FAILED", "ERROR"].contains(state?.result?.name?.uppercased() ?? "")
