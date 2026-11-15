@@ -74,11 +74,14 @@ GitHub login is its own gets a Bitbucket sign-in of its own the same way, under
 | `KEYRING_FILE_DIR` | `secrets/` inside the profile's folder |
 | `BKT_KEYRING_PASSPHRASE` | the contents of `passphrase` in the profile's folder |
 | `BKT_TOKEN`, `BKT_HOST`, `BKT_USERNAME`, `BKT_AUTH_METHOD`, `BKT_WORKSPACE` | emptied, so a token in the owner's shell never reaches the profile |
+| `KEYRING_FILE_PASSWORD`, `KEYRING_PASSWORD` | emptied, because bkt falls back to them for the file store's key |
 
-The folder is `0700` and the passphrase, 32 random bytes written the first time the profile signs
+The folder and its `secrets/` are `0700`, set again on every sign-in, and the passphrase, 32 random bytes written the first time the profile signs
 in, is `0600`. The token is encrypted at rest with it. That keeps it out of plain sight and out of a
 backup read on its own, and it does not keep it from a process running as the owner, which is the
-same standing `gh auth login --insecure-storage` has in the profile's `GH_CONFIG_DIR`. The
+same standing `gh auth login --insecure-storage` has in the profile's `GH_CONFIG_DIR`. An agent of the
+profile is started with the passphrase in its environment, because its own `bkt pr merge` has to
+open the store; anything that agent runs can read it, as it could read a `gh` token from that folder. The
 initial profile, and every profile whose GitHub login is Unified's, keep this Mac's own bkt
 configuration and Keychain, and the app adds nothing to their environment.
 
@@ -89,10 +92,11 @@ agent's `bkt pr merge` runs as the profile. Every `bkt` the app runs itself goes
 
 Profile Settings shows a Bitbucket section under the GitHub one. It reads `bkt auth status --json`
 under the profile's variables and shows the user and the method bkt reports (`oauth` is the browser
-sign-in, `basic` an API token, `bearer` an access token). A profile with its own sign-in offers two
-methods, each run in a terminal inside the sheet: `bkt auth login https://bitbucket.org --kind cloud
---web --allow-insecure-store` for OAuth in the browser, and the same with `--web-token` for an
-Atlassian API token, where bkt itself asks for the email and the token. Unified Dev never has a field
+sign-in, `basic` an API token, `bearer` an access token). Every profile offers two methods, each run
+in a terminal inside the sheet: `bkt auth login https://bitbucket.org --kind cloud --web` for OAuth
+in the browser, and the same with `--web-token` for an Atlassian API token, where bkt itself asks
+for the email and the token. A profile with its own sign-in adds `--allow-insecure-store` and its
+variables; one using this Mac's signs this Mac in, into the Keychain. Unified Dev never has a field
 for either. App passwords are not offered: Atlassian stopped issuing them in favour of API tokens,
 and bkt asks for an API token where an app password once went. Repository and workspace access
 tokens are read by bkt only from `BKT_TOKEN`, so offering one would mean the app holding the token
@@ -145,7 +149,7 @@ shared between the pull request bar and the checks tab, runs `bkt auth status --
 | `draft` | draft |
 | `source.branch.name`, `destination.branch.name` | branch, base branch |
 | `source.commit.hash` | head commit, abbreviated |
-| `author.nickname` | author |
+| `author.uuid`, else `author.account_id` | author, as the account that owns the branch |
 | source and destination `full_name` differ | from a fork |
 | a participant with `changes_requested`, or else one approved | `CHANGES_REQUESTED`, `APPROVED` |
 | `updated_on` of a merged or declined pull request | when it closed; Bitbucket records no `closed_on`, and `updated_on` also moves on a later comment |
@@ -204,8 +208,9 @@ the words, by the pull request's host.
   conflict is found by the agent trying the merge locally. A state Bitbucket has not been seen to
   send still holds the merge.
 - **Whose branch it is.** The project's own instructions are attached only when the branch is the
-  owner's: the viewer is `nickname` from `bkt api /user`, compared with the pull request's author,
-  and the head Bitbucket reports in twelve characters matches the full commit it begins
+  owner's: the viewer is the `uuid` from `bkt api /user`, compared with the pull request author's.
+  A nickname or a display name is never compared, because Bitbucket keeps neither unique and anybody
+  can choose one. The head Bitbucket reports in twelve characters matches the full commit it begins
   (`CommitHash.same`).
 - **Mark ready.** A draft offers Mark ready, sent with a Bitbucket default that asks for
   `bkt pr ready <number>`, unless the owner edited that prompt.
@@ -213,18 +218,25 @@ the words, by the pull request's host.
   `bkt pr create --source <branch> --target <base> --title --description`, or attaches
   `.unifieddev/pr-instructions.md` when the project has one and the branch is the owner's.
 - **Start a workspace from a pull request.** The new workspace pane lists the open pull requests
-  from `/repositories/{workspace}/{repo}/pullrequests?state=OPEN`, and a number or a link is read
-  by number. The checkout is `bkt pr checkout <id> --branch <local> --workspace --repo --context`
+  from `/repositories/{workspace}/{repo}/pullrequests?state=OPEN`, and a number, or a link ending in
+  `/pull-requests/<id>`, is read by number. A source branch git would read as an option is refused
+  before bkt runs. The checkout is `bkt pr checkout <id> --branch <local> --workspace --repo --context`
   in a fresh detached worktree; bkt fetches `<source>:<local>` and adds a remote for a fork on its
   own. It sets no upstream, so for a branch of this repository the app sets
-  `branch.<local>.remote` to `origin` and `branch.<local>.merge` to the source branch.
+  `branch.<local>.remote` to `origin` and `branch.<local>.merge` to the source branch. A pull
+  request whose source repository Bitbucket does not name is treated as a fork, and gets none.
+  bkt's fetch is fast-forward only, so a local branch of that name already ahead of the server
+  makes the checkout fail and the new worktree is removed, with nothing lost.
 - **The checks tab** asks bkt whether it is signed in, not gh, and names Bitbucket and bkt when it
-  cannot read.
+  cannot read. Merge, Mark ready and Create pull request ask bkt the same thing before sending
+  anything, and say where to sign in when it is not.
 - **The bridge.** `workspace_list` with `include_github` and `workspace_merge` read a Bitbucket
   workspace's pull request through bkt.
 - **The pull request auto fix** reads the viewer and the commit authors from
-  `/pullrequests/{id}/commits` (one page of 100, an unlinked author counting as nobody's), and the
-  failed builds' logs as above.
+  `/pullrequests/{id}/commits`, by account `uuid` and with the newest commit as the head they
+  describe. One page of 100 is read; a pull request with a second page is not vouched for, and an
+  unlinked author counts as nobody's. The failed builds' logs are read as above, and a step whose
+  log cannot be read is left out rather than losing the others.
 
 Still to do, in #631:
 
@@ -233,4 +245,7 @@ Still to do, in #631:
   waiting on the owner and issues assigned to them, and so offer recent branches alone;
 - the steps of a pipeline as rows of their own in the checks tab;
 - repository and workspace access tokens per profile;
-- the bridge's refusals, which still name gh when bkt is missing or signed out.
+- the bridge's refusals, which still name gh when bkt is missing or signed out;
+- a checkout over a local branch already ahead of the server, which gh fast-forwards and bkt refuses;
+- the auto fix on a pull request of more than 100 commits, which reads the second page rather than
+  leaving it alone.
