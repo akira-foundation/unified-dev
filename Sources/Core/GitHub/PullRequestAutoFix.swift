@@ -139,7 +139,7 @@ public enum PullRequestAutoFix {
 
         guard let reason = reason(pullRequest, localWork: situation.localWork) else { return .leave(.nothingToFix) }
         guard pullRequest.hasUnfinishedChecks == false else { return .leave(.checksUnfinished) }
-        guard let local = situation.localWork, !local.isAhead, situation.checkedOutHead == head else {
+        guard let local = situation.localWork, !local.isAhead, CommitHash.same(situation.checkedOutHead, head) else {
             return .leave(.localWork)
         }
         if let held = held(by: situation.chat) { return .leave(held) }
@@ -162,7 +162,7 @@ public enum PullRequestAutoFix {
               let author = situation.pullRequest.author,
               let viewer = situation.viewerLogin, !viewer.isEmpty,
               let commits = situation.commitAuthors, !commits.logins.isEmpty,
-              situation.pullRequest.headCommit.map({ $0 == commits.headCommit }) ?? true
+              situation.pullRequest.headCommit.map({ $0 == commits.headCommit || CommitHash.same($0, commits.headCommit) }) ?? true
         else { return false }
         return ([author] + commits.logins).allSatisfy { $0.caseInsensitiveCompare(viewer) == .orderedSame }
     }

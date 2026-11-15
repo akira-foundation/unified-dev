@@ -30,8 +30,7 @@ public enum InstructionAuthority: Sendable, Hashable {
               author.caseInsensitiveCompare(viewer) == .orderedSame,
               !pullRequest.branch.isEmpty,
               checkedOutBranch == pullRequest.branch,
-              let headCommit = pullRequest.headCommit, !headCommit.isEmpty,
-              checkedOutCommit == headCommit
+              CommitHash.same(pullRequest.headCommit, checkedOutCommit)
         else { return .appOnly }
         return .project
     }
@@ -79,6 +78,10 @@ public enum InstructionAuthority: Sendable, Hashable {
 
 public extension GitHub {
     static func viewerLogin(forPullRequestAt url: String, from directory: String? = nil) async -> String? {
+        if ForgeRepository.kind(ofRemote: url) == .bitbucket {
+            guard let directory else { return nil }
+            return await Bitbucket.viewer(in: directory)
+        }
         let login = await login(forDirectory: directory)
         guard let host = repositoryHost(url),
               let result = try? await $login.withValue(login, operation: {

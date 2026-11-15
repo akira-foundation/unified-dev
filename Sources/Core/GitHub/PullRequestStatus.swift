@@ -105,7 +105,7 @@ public extension PullRequest {
         return parts.joined(separator: ", ")
     }
 
-    static let bitbucketMergeHeld = "Unified Dev cannot merge a Bitbucket pull request yet. Merge it on Bitbucket."
+    static let unknownStateHeld = "Bitbucket reports a state Unified Dev does not know for this pull request."
 
     var forge: ForgeKind { ForgeRepository.kind(ofRemote: url) }
 
@@ -113,11 +113,10 @@ public extension PullRequest {
 
     var status: PullRequestStatus {
         let decided = hostNeutralStatus
-        guard forge == .bitbucket, !isMerged, !isClosed, !hasConflicts else { return decided }
+        guard forge == .bitbucket, !isOpen, !isMerged, !isClosed else { return decided }
         var held = decided
         held.canMerge = false
-        held.blockedReason = Self.bitbucketMergeHeld
-        if held.remedy == .markReadyForReview { held.remedy = .merge }
+        held.blockedReason = Self.unknownStateHeld
         return held
     }
 

@@ -260,13 +260,13 @@ public enum WorkspaceCheckoutResolver {
     }
 
     public static func resolve(_ text: String, repoPath: String) async -> WorkspaceCheckoutResolution {
-        let slug = await GitHub.repositorySlug(repoPath: repoPath)
+        let slug = await ForgePullRequests.repositorySlug(repoPath: repoPath)
         if let problem = problem(with: text, in: slug) { return .failure(problem) }
         guard let reference = WorkspaceCheckoutPlan.parseReference(text) else {
             return .failure("That is not a pull request number or URL.")
         }
         do {
-            let summary = try await GitHub.pullRequestSummary(
+            let summary = try await ForgePullRequests.pullRequestSummary(
                 number: reference.number, repoPath: repoPath
             )
             return .checkout(.pullRequest(summary))

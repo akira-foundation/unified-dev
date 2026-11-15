@@ -12,6 +12,7 @@ public struct MergePromptContext: Sendable, Hashable {
     public var branch: String
     public var baseBranch: String
     public var method: GitHub.MergeMethod
+    public var forge: ForgeKind
 
     public init(
         workspaceName: String,
@@ -19,7 +20,8 @@ public struct MergePromptContext: Sendable, Hashable {
         title: String,
         branch: String,
         baseBranch: String,
-        method: GitHub.MergeMethod
+        method: GitHub.MergeMethod,
+        forge: ForgeKind = .gitHub
     ) {
         self.workspaceName = workspaceName
         self.number = number
@@ -27,6 +29,7 @@ public struct MergePromptContext: Sendable, Hashable {
         self.branch = branch
         self.baseBranch = baseBranch
         self.method = method
+        self.forge = forge
     }
 
     public init(workspace: Workspace, pullRequest: PullRequest, method: GitHub.MergeMethod) {
@@ -36,7 +39,8 @@ public struct MergePromptContext: Sendable, Hashable {
             title: pullRequest.title,
             branch: pullRequest.branch,
             baseBranch: pullRequest.targetBranch(or: workspace.baseBranch),
-            method: method
+            method: method,
+            forge: pullRequest.forge
         )
     }
 
@@ -44,16 +48,20 @@ public struct MergePromptContext: Sendable, Hashable {
         [
             PromptRegistry.MergePullRequest.workspace: workspaceName,
             PromptRegistry.MergePullRequest.number: String(number),
-            PromptRegistry.MergePullRequest.title: title.isEmpty ? Self.noTitle : title,
-            PromptRegistry.MergePullRequest.branch: branch.isEmpty ? Self.noBranch : branch,
+            PromptRegistry.MergePullRequest.title: title.isEmpty ? missing(Self.noTitle) : title,
+            PromptRegistry.MergePullRequest.branch: branch.isEmpty ? missing(Self.noBranch) : branch,
             PromptRegistry.MergePullRequest.baseBranch: baseBranch,
             PromptRegistry.MergePullRequest.method: method.phrase,
-            PromptRegistry.MergePullRequest.methodFlag: method.flag,
+            PromptRegistry.MergePullRequest.methodFlag: method.flag(on: forge),
         ]
     }
 
     public func render(template: String) -> PromptRender {
         PromptTemplate.render(template, values: values)
+    }
+
+    private func missing(_ sentence: String) -> String {
+        forge == .gitHub ? sentence : sentence.replacingOccurrences(of: "(gh did", with: "(bkt did")
     }
 }
 
@@ -67,4 +75,19 @@ public extension GitHub.MergeMethod {
     }
 
     var flag: String { "--\(rawValue)" }
+
+    var bitbucketStrategy: String {
+        switch self {
+        case .merge: "merge_commit"
+        case .squash: "squash"
+        case .rebase: "rebase_fast_forward"
+        }
+    }
+
+    func flag(on forge: ForgeKind) -> String {
+        switch forge {
+        case .gitHub: flag
+        case .bitbucket: "--strategy \(bitbucketStrategy)"
+        }
+    }
 }

@@ -23,22 +23,27 @@ public enum PullRequestLoad: Sendable, Equatable {
         }
     }
 
-    public static func from(access: GitHubAccess, failure: String?, requests: [PullRequestListing]) -> Self {
-        switch access {
-        case .notInstalled: return .unavailable("Install the GitHub CLI to list pull requests")
-        case .signedOut: return .unavailable("Sign in with gh to list pull requests")
-        case .ready: return failure.map(PullRequestLoad.unavailable) ?? .listed(requests)
+    public static func from(
+        access: GitHubAccess, failure: String?, requests: [PullRequestListing], forge: ForgeKind = .gitHub
+    ) -> Self {
+        switch (access, forge) {
+        case (.notInstalled, .gitHub): return .unavailable("Install the GitHub CLI to list pull requests")
+        case (.signedOut, .gitHub): return .unavailable("Sign in with gh to list pull requests")
+        case (.notInstalled, .bitbucket): return .unavailable("Install the Bitbucket CLI to list pull requests")
+        case (.signedOut, .bitbucket): return .unavailable("Sign in with bkt to list pull requests")
+        case (.ready, _): return failure.map(PullRequestLoad.unavailable) ?? .listed(requests)
         }
     }
 
     public static func read(repoPath: String, offered: Bool) async -> Self {
         guard offered else { return .listed([]) }
-        let access = await GitHub.access(directory: repoPath)
-        guard access == .ready else { return from(access: access, failure: nil, requests: []) }
+        let forge = await Forge.kind(forDirectory: repoPath)
+        let access = await ForgePullRequests.access(directory: repoPath)
+        guard access == .ready else { return from(access: access, failure: nil, requests: [], forge: forge) }
         do {
-            return .listed(try await GitHub.openPullRequests(repoPath: repoPath))
+            return .listed(try await ForgePullRequests.openPullRequests(repoPath: repoPath))
         } catch {
-            return from(access: access, failure: error.readableMessage, requests: [])
+            return from(access: access, failure: error.readableMessage, requests: [], forge: forge)
         }
     }
 }

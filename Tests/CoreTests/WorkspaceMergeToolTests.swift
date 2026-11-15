@@ -31,7 +31,7 @@ struct WorkspaceMergeToolTests {
     func describesTheRounds() {
         let description = tool().tool.description
 
-        #expect(description.contains("If GitHub refuses for a conflict or a failed check, the agent fixes it, pushes to the pull request's branch and merges again, three times at most; any other refusal it reports."))
+        #expect(description.contains("If the host refuses for a conflict or a failed check, the agent fixes it, pushes to the pull request's branch and merges again, three times at most; any other refusal it reports."))
     }
 
     private func tool(

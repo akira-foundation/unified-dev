@@ -27,6 +27,10 @@ final class GitHubSignIn {
 
     func run(directory: String, action: @escaping @MainActor () -> Void) {
         Task {
+            if await Forge.kind(forDirectory: directory) == .bitbucket {
+                action()
+                return
+            }
             let login = await GitHub.login(forDirectory: directory)
             let state = await GitHubAvailability.shared.check(login: login)
             guard state != .ready else {

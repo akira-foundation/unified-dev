@@ -38,9 +38,10 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
 
             This does not merge anything. It composes the request Unified Dev's own Merge button \
             composes, with the project's merge instructions attached, and sends it into that \
-            workspace's chat as an ordinary message. The agent runs `gh pr merge` there, in front \
-            of the owner, under whatever permission mode they set. If GitHub refuses for a \
-            conflict or a failed check, the agent fixes it, pushes to the pull request's branch \
+            workspace's chat as an ordinary message. The agent runs `gh pr merge` there, or \
+            `bkt pr merge` for a repository on Bitbucket, in front of the owner, under whatever \
+            permission mode they set. If the host refuses for a conflict or a failed check, the \
+            agent fixes it, pushes to the pull request's branch \
             and merges again, three times at most; any other refusal it reports.
 
             So it returns once the turn has begun, and the merging happens inside that turn, after \
@@ -50,8 +51,9 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
 
             It refuses a pull request GitHub will not take, a worktree holding work GitHub has not \
             got, and a workspace whose agent is busy. When it refuses, do not run `gh pr merge` \
-            yourself and do not ask another agent to. Merging publishes to a server other people \
-            share, and Unified Dev only does it where the owner can watch it happen.
+            or `bkt pr merge` yourself and do not ask another agent to. Merging publishes to a \
+            server other people share, and Unified Dev only does it where the owner can watch it \
+            happen.
 
             Name the workspace by the id workspace_list reports, not by its name. It merges with the \
             method the project's Merge button shows unless you say otherwise.
@@ -265,6 +267,7 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
     }
 
     public static let ask: Reading = { workspace in
+        if await Forge.kind(forDirectory: workspace.path) == .bitbucket { return await askBitbucket(workspace) }
         do {
             guard let pullRequest = try await GitHub.pullRequest(
                 forBranch: workspace.branch, worktree: workspace.path
@@ -276,6 +279,20 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
             return .found(pullRequest, local: local)
         } catch {
             let access = await GitHub.access(directory: workspace.path)
+            return access == .ready ? .failed(plainly(error)) : .unavailable(access)
+        }
+    }
+
+    static func askBitbucket(_ workspace: Workspace) async -> WorkspacePullRequestReading {
+        do {
+            guard let pullRequest = try await Bitbucket.snapshot(for: workspace, maxAge: .zero)?.pullRequest else {
+                let access = await Bitbucket.access(directory: workspace.path)
+                return access == .ready ? .noPullRequest : .unavailable(access)
+            }
+            let local = try? await Git.localWork(worktree: workspace.path)
+            return .found(pullRequest, local: local)
+        } catch {
+            let access = await Bitbucket.access(directory: workspace.path)
             return access == .ready ? .failed(plainly(error)) : .unavailable(access)
         }
     }

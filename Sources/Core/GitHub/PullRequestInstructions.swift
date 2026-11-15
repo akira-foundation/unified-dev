@@ -6,8 +6,9 @@ public enum PullRequestInstructions {
     public static let scratchPath = "\(WorktreeScratch.generated)/pr-instructions.md"
 
     public static func turn(
-        _ text: String, in worktree: String, authority: InstructionAuthority
+        _ text: String, in worktree: String, authority: InstructionAuthority, forge: ForgeKind = .gitHub
     ) async -> String {
+        if forge == .bitbucket { return bitbucketTurn(text, in: worktree, authority: authority) }
         guard authority == .project else { return text + "\n\n" + appOnlyMarkdown }
         if let path = await ensure(in: worktree) { return asking(text, toFollow: path) }
         return text + "\n\n" + defaultMarkdown

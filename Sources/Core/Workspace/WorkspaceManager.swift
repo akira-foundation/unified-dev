@@ -225,8 +225,8 @@ public struct WorkspaceManager: Sendable {
             try await Git.addDetachedWorktree(repo: repo.path, path: worktreePath)
             do {
                 try await GitHub.$login.withValue(store.gitHubLogin(for: repo.profileID)) {
-                    try await GitHub.checkoutPullRequest(
-                        number: request.number, into: worktreePath, localBranch: branch
+                    try await ForgePullRequests.checkout(
+                        request, repoPath: repo.path, into: worktreePath, localBranch: branch
                     )
                 }
             } catch {
@@ -311,7 +311,7 @@ public struct WorkspaceManager: Sendable {
                 env["\(prefix)_\(key)"] = value
             }
         }
-        return env.merging(store.gitHubLogin(for: repo.profileID).variables) { _, login in login }
+        return env.merging(store.gitHubLogin(for: repo.profileID).everyVariable) { _, login in login }
     }
 
     public static let setupStoppedNote = "[unifieddev] Setup was stopped before it finished. "

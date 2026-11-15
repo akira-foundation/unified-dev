@@ -87,19 +87,21 @@ public enum ProjectInstructions {
     }
 
     public static func turn(
-        _ rendered: String, for subject: Subject, adding extra: Extra, authority: InstructionAuthority
+        _ rendered: String, for subject: Subject, adding extra: Extra, authority: InstructionAuthority,
+        forge: ForgeKind = .gitHub
     ) -> String {
         var parts = [rendered.trimmingCharacters(in: .whitespacesAndNewlines)]
-        if let canonical = canonical(for: subject, authority: authority) { parts.append(canonical) }
+        if let canonical = canonical(for: subject, authority: authority, forge: forge) { parts.append(canonical) }
         if let closing = sentence(for: subject, adding: extra) { parts.append(closing) }
         return parts.filter { !$0.isEmpty }.joined(separator: "\n\n")
     }
 
-    public static func canonical(for subject: Subject, authority: InstructionAuthority) -> String? {
-        switch subject {
-        case .merge: authority == .project ? MergeInstructions.canonical : MergeInstructions.appOnly
-        case .fixConflicts: nil
-        }
+    public static func canonical(
+        for subject: Subject, authority: InstructionAuthority, forge: ForgeKind = .gitHub
+    ) -> String? {
+        guard subject == .merge else { return nil }
+        if authority == .project { return MergeInstructions.canonical(for: forge) }
+        return MergeInstructions.appOnly(for: forge)
     }
 
     public static func sentence(for subject: Subject, adding extra: Extra) -> String? {

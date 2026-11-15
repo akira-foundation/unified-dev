@@ -49,8 +49,9 @@ extension WorkspaceModel {
         activeSessionID = session.id
         isExpectingPullRequest = true
         let authority = await instructionAuthority(for: pullRequest)
+        let forge = await Forge.kind(forDirectory: workspace.path)
         let text = await PullRequestInstructions.turn(
-            render.text, in: workspace.path, authority: authority
+            render.text, in: workspace.path, authority: authority, forge: forge
         )
         return await deliver(text, to: session)
     }
@@ -94,7 +95,7 @@ extension WorkspaceModel {
         }
 
         let render = PromptTemplate.render(
-            overrides.template(for: .markReadyForReview),
+            overrides.template(for: .markReadyForReview, forge: pullRequest.forge),
             values: [PromptRegistry.MarkReadyForReview.url: pullRequest.url]
         )
         activeSessionID = session.id
@@ -120,7 +121,7 @@ extension WorkspaceModel {
         let context = MergePromptContext(workspace: workspace, pullRequest: pullRequest, method: method)
         let render = context.render(template: overrides.template(for: .mergePullRequest))
 
-        let text = await turn(render.text, for: .merge, authority: authority)
+        let text = await turn(render.text, for: .merge, authority: authority, forge: pullRequest.forge)
         activeSessionID = session.id
         return await send(text, to: session, from: source)
     }
@@ -135,7 +136,8 @@ extension WorkspaceModel {
     }
 
     private func turn(
-        _ text: String, for subject: ProjectInstructions.Subject, authority: InstructionAuthority
+        _ text: String, for subject: ProjectInstructions.Subject, authority: InstructionAuthority,
+        forge: ForgeKind = .gitHub
     ) async -> String {
         await reloadSettings()
         let stated = ProjectInstructions.stated(subject, in: settings)
@@ -143,7 +145,7 @@ extension WorkspaceModel {
         let extra = await Task.detached(priority: .userInitiated) {
             ProjectInstructions.resolve(subject, in: path, stated: stated, authority: authority)
         }.value
-        return ProjectInstructions.turn(text, for: subject, adding: extra, authority: authority)
+        return ProjectInstructions.turn(text, for: subject, adding: extra, authority: authority, forge: forge)
     }
 
     func sendFixConflictsRequest(
@@ -173,15 +175,15 @@ extension WorkspaceModel {
 
         let asked = workspace
         let runs = await Task.detached(priority: .userInitiated) {
-            try? await GitHub.checks(for: asked)
+            try? await ForgePullRequests.checks(for: asked)
         }.value
         guard let runs else {
-            return "Unified Dev could not ask GitHub for the checks on #\(pullRequest.number)."
+            return "Unified Dev could not ask \(pullRequest.hostName) for the checks on #\(pullRequest.number)."
         }
 
         let failed = runs.filter { CheckState($0) == .failed }
         guard !failed.isEmpty else {
-            return "GitHub no longer reports a failed check on #\(pullRequest.number)."
+            return "\(pullRequest.hostName) no longer reports a failed check on #\(pullRequest.number)."
         }
         return await sendCheckFailureRequest(for: failed)
     }
@@ -204,8 +206,7 @@ extension WorkspaceModel {
 
         for run in carried {
             var excerpt: CheckFailureHandoff.Excerpt?
-            if let target = CheckFailureHandoff.logTarget(detailsURL: run.detailsURL),
-               let log = try? await GitHub.checkRunLog(target, worktree: workspace.path) {
+            if let log = await ForgePullRequests.failedLog(of: run, worktree: workspace.path) {
                 excerpt = CheckFailureHandoff.excerpt(log)
             }
             if let excerpt {
@@ -235,7 +236,8 @@ extension WorkspaceModel {
         return CheckFailureHandoff.request(
             CheckFailureHandoff.carrying(mentions, logPaths: paths),
             moreFailed: more,
-            number: number
+            number: number,
+            host: pullRequest?.forge ?? .gitHub
         )
     }
 
