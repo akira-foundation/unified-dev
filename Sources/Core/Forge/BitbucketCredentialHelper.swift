@@ -82,9 +82,20 @@ public enum BitbucketCredentialHelper {
     }
 
     static func namesCloudHost(_ config: String) -> Bool {
-        config.components(separatedBy: .newlines).contains { line in
-            line.hasPrefix(" ") && line.trimmingCharacters(in: .whitespaces) == BitbucketAuthStatus.cloudHostKey + ":"
+        var section = ""
+        for line in config.components(separatedBy: .newlines) {
+            let key = line.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? ""
+            let trimmed = key.trimmingCharacters(in: .whitespaces)
+            guard !trimmed.isEmpty else { continue }
+            guard line.hasPrefix(" ") || line.hasPrefix("\t") else {
+                section = trimmed
+                continue
+            }
+            let name = trimmed.hasSuffix(":") ? String(trimmed.dropLast()) : ""
+            let bare = name.trimmingCharacters(in: CharacterSet(charactersIn: "\"'")).lowercased()
+            if section.hasPrefix("hosts:"), bare == BitbucketAuthStatus.cloudHostKey { return true }
         }
+        return false
     }
 
     static func holdsSignIn(_ environment: [String: String], declined: QuietMarker, thisMacConfig: URL) -> Bool {
@@ -107,9 +118,32 @@ public enum BitbucketCredentialHelper {
         while let line = readLine(strippingNewline: true), !line.isEmpty {
             input += line + "\n"
         }
-        let reply = await answer(action: arguments.first ?? "", request: input, environment: environment)
+        let reply = await respond(action: arguments.first ?? "", request: input, environment: environment)
         FileHandle.standardOutput.write(Data(reply.utf8))
         return 0
+    }
+
+    static func respond(
+        action: String,
+        request: String,
+        environment: [String: String],
+        answer: (String, String, [String: String]) async -> String = bitbucket,
+        fallback: (String, [String: String]) async -> String = osxkeychain
+    ) async -> String {
+        let reply = await answer(action, request, environment)
+        guard reply.isEmpty, action == "get", Request(request).isBitbucket else { return reply }
+        return await fallback(request, environment)
+    }
+
+    static func bitbucket(_ action: String, request: String, environment: [String: String]) async -> String {
+        await answer(action: action, request: request, environment: environment)
+    }
+
+    static func osxkeychain(_ request: String, environment: [String: String]) async -> String {
+        let result = try? await Shell.run(
+            "git", ["credential-osxkeychain", "get"], env: environment, stdin: request + "\n", timeout: .seconds(60)
+        )
+        return result.map { $0.ok ? $0.stdout : "" } ?? ""
     }
 
     static func answer(

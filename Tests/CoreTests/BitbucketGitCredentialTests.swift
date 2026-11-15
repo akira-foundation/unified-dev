@@ -229,6 +229,48 @@ struct BitbucketGitCredentialTests {
         #expect(answer == "username=x-token-auth\npassword=fixture-expired-token\n")
     }
 
+    @Test("bkt's config counts a sign-in only for a host listed under hosts", arguments: [
+        (signedInConfig, true),
+        (contextOnlyConfig, false),
+        ("contexts:\n    api.bitbucket.org:\n        host: api.bitbucket.org\nhosts: {}\n", false),
+        ("hosts:\r\n    \"API.bitbucket.org\": # signed in\r\n        kind: cloud\r\n", true),
+        ("hosts:\n    bitbucket.example.com:\n        kind: dc\n", false),
+    ])
+    func readsTheHosts(config: String, signedIn: Bool) {
+        #expect(BitbucketCredentialHelper.namesCloudHost(config) == signedIn)
+    }
+
+    @Test("with no bkt token to give, git is answered by the Keychain helper the reset set aside")
+    func fallsBackToTheKeychainHelper() async {
+        let asked = RenewedWorkspace()
+        let empty = await BitbucketCredentialHelper.respond(
+            action: "get", request: request, environment: [:], answer: { _, _, _ in "" },
+            fallback: { _, _ in
+                await asked.record("osxkeychain")
+                return "username=me\npassword=app-password\n"
+            }
+        )
+        let ours = await BitbucketCredentialHelper.respond(
+            action: "get", request: request, environment: [:], answer: { _, _, _ in "username=x-token-auth\npassword=t\n" },
+            fallback: { _, _ in
+                Issue.record("the Keychain helper was asked although bkt answered")
+                return ""
+            }
+        )
+        let stored = await BitbucketCredentialHelper.respond(
+            action: "store", request: request, environment: [:], answer: { _, _, _ in "" },
+            fallback: { _, _ in
+                Issue.record("a store was forwarded")
+                return ""
+            }
+        )
+
+        #expect(empty == "username=me\npassword=app-password\n")
+        #expect(await asked.name == "osxkeychain")
+        #expect(ours == "username=x-token-auth\npassword=t\n")
+        #expect(stored.isEmpty)
+    }
+
     @Test("an absurd inherited GIT_CONFIG_COUNT cannot overflow the count")
     func inheritedCountIsBounded() {
         let inherited = ["GIT_CONFIG_COUNT": String(Int.max)]

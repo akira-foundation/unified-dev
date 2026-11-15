@@ -120,7 +120,7 @@ makes.
 
 A bkt sign-in is not a git credential: bkt has no credential helper, and its fetches use whatever
 git already has. So when the profile holds a bkt sign-in (its token file under `secrets/`, or, for a
-profile that uses this Mac's sign-in, `api.bitbucket.org` among the hosts of bkt's own
+profile that uses this Mac's sign-in, `api.bitbucket.org` under the `hosts:` of bkt's own
 `~/Library/Application Support/bkt/config.yml`, which holds no secret; the Keychain is not touched
 to decide this, because a locked Keychain with nobody to unlock it blocks the caller),
 every git the app runs against a remote, every bkt it runs (whose `pr checkout` fetches through
@@ -134,7 +134,9 @@ does a profile whose Keychain prompt was declined in the last hour. Every
 other host keeps the helpers this Mac already had.
 
 The shim answers `get` for those two hosts over https and nothing else, with the user
-`x-token-auth` and the token of the profile's sign-in, on its standard output to git. The token is
+`x-token-auth` and the token of the profile's sign-in, on its standard output to git. When it has
+no token to give, it hands the request to `git credential-osxkeychain get`, the helper the reset set
+aside, so an app password the Keychain already held for bitbucket.org still works. The token is
 never in the environment, on a command line or in a URL. It reads the token where bkt keeps it: a
 profile with a sign-in of its own has the file store, a JWE (`PBES2-HS256+A128KW`, `A256GCM`)
 opened with the profile's passphrase, which arrives in the environment as it does for bkt; any other
