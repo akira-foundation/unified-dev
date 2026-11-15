@@ -105,16 +105,7 @@ struct StartProjectSheet: View {
                 .task { await model.watchForSlowness(RepositoryCloner.patience) }
 
         case .failed(let fault):
-            inset {
-                Text(fault.title)
-                    .font(Typo.bodyEmphasis)
-                    .foregroundStyle(Palette.textPrimary)
-                Callout(
-                    text: fault.message,
-                    symbol: "exclamationmark.triangle.fill",
-                    tone: .negative
-                )
-            }
+            inset { StartProjectFailure(fault: fault) }
         }
     }
 

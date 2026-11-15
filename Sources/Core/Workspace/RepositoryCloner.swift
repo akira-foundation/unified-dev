@@ -11,10 +11,22 @@ public struct ClonedRepository: Sendable, Equatable {
 public struct CloneFailure: Error, Sendable, Equatable {
     public var message: String
     public var folderWasCreated: Bool
+    public var advice: String?
+    public var detail: String?
+    public var hostOffer: KnownHostOffer?
 
-    public init(message: String, folderWasCreated: Bool) {
+    public init(
+        message: String,
+        folderWasCreated: Bool,
+        advice: String? = nil,
+        detail: String? = nil,
+        hostOffer: KnownHostOffer? = nil
+    ) {
         self.message = message
         self.folderWasCreated = folderWasCreated
+        self.advice = advice
+        self.detail = detail
+        self.hostOffer = hostOffer
     }
 
     public var title: String { "Could not clone the repository" }
@@ -46,12 +58,28 @@ public enum RepositoryCloner {
             throw CloneFailure(message: failure.message, folderWasCreated: false)
         } catch {
             discard(destination, folderWasCreated: true)
-            throw CloneFailure(
-                message: RepositoryStarter.sentence(from: error),
-                folderWasCreated: false
-            )
+            throw await failure(cloning: remote, error)
         }
         return ClonedRepository(path: destination)
+    }
+
+    static func failure(cloning remote: String, _ error: Error) async -> CloneFailure {
+        let output = RepositoryStarter.output(of: error)
+        let kind = RemoteFailure.of(output)
+        let host = ForgeRepository.host(ofRemote: remote)
+        let isBitbucket = host.map { ForgeRepository.kind(ofHost: $0) == .bitbucket } ?? false
+        var offer: KnownHostOffer?
+        if kind == .unknownHostKey, let ssh = SSHRemote(remote: remote) {
+            offer = await KnownHosts.offer(for: ssh)
+        }
+        let detail = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        return CloneFailure(
+            message: RepositoryStarter.sentence(from: error),
+            folderWasCreated: false,
+            advice: kind.advice(host: host, isBitbucket: isBitbucket),
+            detail: detail.isEmpty ? nil : detail,
+            hostOffer: offer
+        )
     }
 
     public static func discard(_ destination: String, folderWasCreated: Bool) {
