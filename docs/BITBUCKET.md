@@ -254,10 +254,12 @@ the words, by the pull request's host.
   from `/repositories/{workspace}/{repo}/pullrequests?state=OPEN`, and a number, or a link ending in
   `/pull-requests/<id>`, is read by number; a GitHub link in a Bitbucket project, or the reverse, is
   refused even when the slug matches. A source branch git would read as an option is refused
-  before bkt runs. The checkout is `bkt pr checkout <id> --branch <local> --workspace --repo --context`
-  in a fresh detached worktree; bkt fetches `<source>:<local>` and adds a remote for a fork on its
-  own. It sets no upstream, so for a branch of this repository the app sets
-  `branch.<local>.remote` to `origin` and `branch.<local>.merge` to the source branch. A pull
+  before bkt runs. The checkout is
+  `bkt pr checkout <id> --branch <local> --remote <remote> --workspace --repo --context` in a fresh
+  detached worktree, where the remote is the checkout's base remote,
+  `origin` unless the repository says otherwise; bkt fetches `<source>:<local>` from it and adds a
+  remote for a fork on its own. It sets no upstream, so for a branch of this repository the app sets
+  `branch.<local>.remote` to that remote and `branch.<local>.merge` to the source branch. A pull
   request whose source repository Bitbucket does not name is treated as a fork, and gets none.
   bkt fetches `<source>:<local>` without a `+`, so a local branch of that name already ahead of
   the server would be refused. When that branch exists and the pull request is not from a fork, bkt

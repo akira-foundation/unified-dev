@@ -208,9 +208,34 @@ struct BitbucketLocalBranchTests {
         }
 
         #expect(await calls.seen == [
-            ["pr", "checkout", "7", "--branch", "feat/7", "--workspace", "debtges", "--repo", "ledger", "--context", "work"],
+            [
+                "pr", "checkout", "7", "--branch", "feat/7", "--remote", "origin",
+                "--workspace", "debtges", "--repo", "ledger", "--context", "work",
+            ],
         ])
         #expect(try await Shell.check("git", ["branch", "--show-current"], cwd: fixture.worktree).stdout
             .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+    }
+
+    @Test("bkt is told the base remote when it is not called origin, and the branch tracks it")
+    func bktUsesBaseRemote() async throws {
+        let fixture = try await Fixture.make("bitbucket-bkt-remote", remote: "bitbucket")
+        try await Fixture.git(["branch", "-q", "-D", "feat/7"], in: fixture.clone)
+        try await fixture.addWorktree()
+        let calls = Calls()
+        try await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+            try await Bitbucket.$commandOverride.withValue({ arguments, _ in
+                if arguments.starts(with: ["auth", "status"]) {
+                    return ShellResult(status: 0, stdout: BitbucketPipelineLogTests.signedIn, stderr: "")
+                }
+                await calls.record(arguments)
+                return ShellResult(status: 0, stdout: "", stderr: "")
+            }) {
+                try await Bitbucket.checkoutPullRequest(Self.request, into: fixture.worktree, localBranch: "feat/7")
+            }
+        }
+
+        #expect(await calls.seen.first?.contains("bitbucket") == true)
+        #expect(try await fixture.config("branch.feat/7.remote") == "bitbucket")
     }
 }

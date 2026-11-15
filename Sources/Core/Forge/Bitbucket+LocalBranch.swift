@@ -16,8 +16,6 @@ struct BitbucketLocalCheckout: Sendable, Equatable {
     let route: BitbucketCheckoutRoute
     let remote: String
 
-    static let bkt = BitbucketLocalCheckout(route: .bkt, remote: "origin")
-
     static func remote(named base: String?) -> String {
         guard let base, Git.isValidBranchName(base), !base.contains("/") else { return "origin" }
         return base
@@ -51,10 +49,10 @@ extension Bitbucket {
         for request: PullRequestListing, into worktree: String, localBranch: String
     ) async throws -> BitbucketLocalCheckout {
         let local = "refs/heads/\(localBranch)"
-        let found = try await Git.run(["rev-parse", "--verify", "--quiet", local], in: worktree)
-        guard found.ok, !request.isCrossRepository else { return .bkt }
         let base = try? await Git.repositoryContext(in: worktree).baseRemote
         var plan = BitbucketLocalCheckout(route: .bkt, remote: BitbucketLocalCheckout.remote(named: base))
+        let found = try await Git.run(["rev-parse", "--verify", "--quiet", local], in: worktree)
+        guard found.ok, !request.isCrossRepository else { return plan }
         let fetch = plan.fetchArguments(for: request)
         let fetched = try await Git.runAgainstRemote(fetch, in: worktree, timeout: .seconds(120))
         guard fetched.ok else { throw shellError(fetch, result: fetched) }
