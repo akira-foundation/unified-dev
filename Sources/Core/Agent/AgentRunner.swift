@@ -208,7 +208,9 @@ public actor AgentRunner {
             ),
             cwd: workspacePath,
             environment: AgentAccountEnvironment.apply(
-                account, to: gitHub.everySignIn(appliedTo: inheritedEnvironment ?? Shell.environment())
+                account, to: BitbucketCredentialHelper.environment(
+                    over: gitHub.everySignIn(appliedTo: inheritedEnvironment ?? Shell.environment())
+                )
             )
         )
     }

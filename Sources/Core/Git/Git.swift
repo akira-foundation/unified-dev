@@ -10,10 +10,16 @@ struct GitOutput: Sendable {
 
 public enum Git {
     static func runAgainstRemote(
-        _ arguments: [String], in directory: String, loginDirectory: String? = nil, timeout: Duration? = nil
+        _ arguments: [String],
+        in directory: String,
+        loginDirectory: String? = nil,
+        timeout: Duration? = nil
     ) async throws -> ShellResult {
         let login = await GitHub.login(forDirectory: loginDirectory ?? directory)
-        return try await run(arguments, in: directory, timeout: timeout, environment: login.variables)
+        let signedIn = login.variables.merging(login.bitbucket.variables) { gitHub, _ in gitHub }
+        let inherited = Shell.environment().merging(signedIn) { _, login in login }
+        let environment = BitbucketCredentialHelper.environment(over: inherited)
+        return try await run(arguments, in: directory, timeout: timeout, environment: environment)
     }
 
     @discardableResult
