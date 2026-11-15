@@ -66,11 +66,15 @@ struct WorkspaceCheckoutTests {
     func parsesURLs() {
         #expect(
             WorkspaceCheckoutPlan.parseReference("https://github.com/akira-io/laravel-backup/pull/1234")
-                == PullRequestReference(number: 1234, repository: "akira-io/laravel-backup")
+                == PullRequestReference(number: 1234, repository: "akira-io/laravel-backup", forge: .gitHub)
         )
         #expect(
             WorkspaceCheckoutPlan.parseReference("https://github.com/akira-io/ray/pull/7/files#r12345")
-                == PullRequestReference(number: 7, repository: "akira-io/ray")
+                == PullRequestReference(number: 7, repository: "akira-io/ray", forge: .gitHub)
+        )
+        #expect(
+            WorkspaceCheckoutPlan.parseReference("https://github.com/acme/pull-requests/pull/4")
+                == PullRequestReference(number: 4, repository: "acme/pull-requests", forge: .gitHub)
         )
     }
 

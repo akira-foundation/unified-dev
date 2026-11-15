@@ -219,7 +219,8 @@ the words, by the pull request's host.
   `.unifieddev/pr-instructions.md` when the project has one and the branch is the owner's.
 - **Start a workspace from a pull request.** The new workspace pane lists the open pull requests
   from `/repositories/{workspace}/{repo}/pullrequests?state=OPEN`, and a number, or a link ending in
-  `/pull-requests/<id>`, is read by number. A source branch git would read as an option is refused
+  `/pull-requests/<id>`, is read by number; a GitHub link in a Bitbucket project, or the reverse, is
+  refused even when the slug matches. A source branch git would read as an option is refused
   before bkt runs. The checkout is `bkt pr checkout <id> --branch <local> --workspace --repo --context`
   in a fresh detached worktree; bkt fetches `<source>:<local>` and adds a remote for a fork on its
   own. It sets no upstream, so for a branch of this repository the app sets
@@ -236,7 +237,7 @@ the words, by the pull request's host.
   `/pullrequests/{id}/commits`, by account `uuid` and with the newest commit as the head they
   describe. One page of 100 is read; a pull request with a second page is not vouched for, and an
   unlinked author counts as nobody's. The failed builds' logs are read as above, and a step whose
-  log cannot be read is left out rather than losing the others.
+  log cannot be read is left out rather than losing the others, and named under `== Not read ==`.
 
 Still to do, in #631:
 

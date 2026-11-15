@@ -10,13 +10,27 @@ struct BitbucketCheckoutTests {
     func linkIsRead() {
         #expect(
             WorkspaceCheckoutPlan.parseReference("https://bitbucket.org/debtges/ledger/pull-requests/7")
-                == PullRequestReference(number: 7, repository: "debtges/ledger")
+                == PullRequestReference(number: 7, repository: "debtges/ledger", forge: .bitbucket)
         )
         #expect(
             WorkspaceCheckoutPlan.parseReference("https://bitbucket.org/debtges/ledger/pull-requests/7/diff")
-                == PullRequestReference(number: 7, repository: "debtges/ledger")
+                == PullRequestReference(number: 7, repository: "debtges/ledger", forge: .bitbucket)
         )
         #expect(WorkspaceCheckoutPlan.parseReference("https://bitbucket.org/debtges/ledger/src/main") == nil)
+        #expect(WorkspaceCheckoutPlan.parseReference("https://bitbucket.org/acme/pull/pull-requests/3")?.number == 3)
+        #expect(WorkspaceCheckoutPlan.parseReference("https://bitbucket.evil.example/a/b/pull-requests/3") == nil)
+    }
+
+    @Test("a link from the other host is refused, even when the slug matches")
+    func otherHostIsRefused() {
+        let bitbucket = "https://bitbucket.org/acme/api/pull-requests/12"
+        let gitHub = "https://github.com/acme/api/pull/12"
+
+        #expect(WorkspaceCheckoutResolver.problem(with: bitbucket, in: "acme/api", on: .gitHub)
+            == "That is a Bitbucket pull request, and this project is on GitHub.")
+        #expect(WorkspaceCheckoutResolver.problem(with: gitHub, in: "acme/api", on: .bitbucket) != nil)
+        #expect(WorkspaceCheckoutResolver.problem(with: bitbucket, in: "acme/api", on: .bitbucket) == nil)
+        #expect(WorkspaceCheckoutResolver.problem(with: "12", in: "acme/api", on: .gitHub) == nil)
     }
 
     @Test("a Bitbucket pull request becomes the same listing a GitHub one does")

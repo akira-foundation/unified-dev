@@ -69,9 +69,12 @@ extension Bitbucket {
         ]
     }
 
-    static func joinedLog(_ logs: [(name: String, text: String)]) -> String {
-        guard logs.count > 1 else { return logs.first?.text ?? "" }
-        return logs.map { "== \($0.name) ==\n\($0.text)" }.joined(separator: "\n\n")
+    static func joinedLog(_ logs: [(name: String, text: String)], unread: [String] = []) -> String {
+        guard logs.count > 1 || !unread.isEmpty else { return logs.first?.text ?? "" }
+        let joined = logs.map { "== \($0.name) ==\n\($0.text)" }.joined(separator: "\n\n")
+        guard !unread.isEmpty else { return joined }
+        return joined + "\n\n== Not read ==\nBitbucket did not return the log of these failed steps: "
+            + unread.joined(separator: ", ") + "."
     }
 
     public static func pipelineLog(_ target: BitbucketPipelineTarget, worktree: String) async throws -> String {
@@ -83,6 +86,7 @@ extension Bitbucket {
         let chosen = BitbucketPipelineStep.failing(steps, named: target.step).prefix(stepsLogged)
 
         var logs: [(name: String, text: String)] = []
+        var unread: [String] = []
         var refusal: (any Error)?
         for step in chosen {
             guard let uuid = step.uuid.flatMap(BitbucketPipelineStep.canonicalUUID) else { continue }
@@ -90,12 +94,13 @@ extension Bitbucket {
             let result = try await run(arguments, directory: worktree, timeout: .seconds(90))
             guard result.ok else {
                 refusal = refusal ?? shellError(arguments, result: result)
+                unread.append(step.name ?? uuid)
                 continue
             }
             logs.append((step.name ?? uuid, result.stdout))
         }
         if logs.isEmpty, let refusal { throw refusal }
-        let log = joinedLog(logs)
+        let log = joinedLog(logs, unread: unread)
         guard !log.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitHubReadFailure(reason: .unavailable, message: "Bitbucket returned no log for that pipeline.")
         }

@@ -170,21 +170,26 @@ public enum WorkspaceCheckoutPlan {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        if let url = URL(string: trimmed), let host = url.host, host.contains("github") || host.contains("bitbucket") {
+        if let url = URL(string: trimmed), let host = url.host?.lowercased(), let forge = linkForge(host) {
             let parts = url.path.split(separator: "/").map(String.init)
-            guard let index = parts.firstIndex(where: { $0 == "pull" || $0 == "pulls" || $0 == "pull-requests" }),
-                  index >= 2,
+            let markers: Set<String> = forge == .bitbucket ? ["pull-requests"] : ["pull", "pulls"]
+            guard let index = parts.indices.dropFirst(2).first(where: { markers.contains(parts[$0]) }),
                   parts.count > index + 1,
                   let number = positiveNumber(parts[index + 1])
             else { return nil }
             return PullRequestReference(
-                number: number, repository: "\(parts[index - 2])/\(parts[index - 1])"
+                number: number, repository: "\(parts[index - 2])/\(parts[index - 1])", forge: forge
             )
         }
 
         let bare = trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed
         guard let number = positiveNumber(bare) else { return nil }
         return PullRequestReference(number: number, repository: nil)
+    }
+
+    private static func linkForge(_ host: String) -> ForgeKind? {
+        if ForgeRepository.kind(ofHost: host) == .bitbucket { return .bitbucket }
+        return host.contains("github") ? .gitHub : nil
     }
 
     private static func positiveNumber(_ text: String) -> Int? {
@@ -230,10 +235,12 @@ public enum WorkspaceCheckoutPlan {
 public struct PullRequestReference: Sendable, Hashable {
     public let number: Int
     public let repository: String?
+    public let forge: ForgeKind?
 
-    public init(number: Int, repository: String? = nil) {
+    public init(number: Int, repository: String? = nil, forge: ForgeKind? = nil) {
         self.number = number
         self.repository = repository
+        self.forge = forge
     }
 }
 
@@ -244,13 +251,16 @@ public enum WorkspaceCheckoutResolution: Sendable, Equatable {
 
 public enum WorkspaceCheckoutResolver {
     public static func problem(
-        with text: String, in repository: String?
+        with text: String, in repository: String?, on forge: ForgeKind? = nil
     ) -> String? {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return "Type a pull request number or paste its URL."
         }
         guard let reference = WorkspaceCheckoutPlan.parseReference(text) else {
             return "'\(text.trimmingCharacters(in: .whitespacesAndNewlines))' is not a pull request number or URL."
+        }
+        if let forge, let linked = reference.forge, linked != forge {
+            return "That is a \(linked.displayName) pull request, and this project is on \(forge.displayName)."
         }
         if let repository, let named = reference.repository,
            named.lowercased() != repository.lowercased() {
@@ -261,7 +271,8 @@ public enum WorkspaceCheckoutResolver {
 
     public static func resolve(_ text: String, repoPath: String) async -> WorkspaceCheckoutResolution {
         let slug = await ForgePullRequests.repositorySlug(repoPath: repoPath)
-        if let problem = problem(with: text, in: slug) { return .failure(problem) }
+        let forge = await Forge.kind(forDirectory: repoPath)
+        if let problem = problem(with: text, in: slug, on: forge) { return .failure(problem) }
         guard let reference = WorkspaceCheckoutPlan.parseReference(text) else {
             return .failure("That is not a pull request number or URL.")
         }

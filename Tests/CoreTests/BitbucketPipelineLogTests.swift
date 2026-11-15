@@ -144,7 +144,7 @@ struct BitbucketPipelineLogTests {
             }
         }
 
-        #expect(log == "1 failing\n")
+        #expect(log == "== Test ==\n1 failing\n\n\n== Not read ==\nBitbucket did not return the log of these failed steps: Lint.")
     }
 
     @Test("several failed steps are joined under their names")
