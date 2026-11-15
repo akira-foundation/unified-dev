@@ -274,7 +274,7 @@ struct WorkspaceListToolTests {
         #expect(child["created_by"]?["spawn_tool_use_id"]?.stringValue == "toolu_01")
     }
 
-    @Test("the default answer says GitHub was not asked")
+    @Test("the default answer says neither host was asked")
     func theDefaultSaysItDidNotLook() async throws {
         let store = try makeTestStore("list-nogithub")
         let repo = try await store.upsert(
@@ -286,7 +286,7 @@ struct WorkspaceListToolTests {
 
         let result = await WorkspaceListTool().call(request(), as: .owner, store: store)
 
-        #expect(result.text.contains("GitHub was not asked"))
+        #expect(result.text.contains("Neither GitHub nor Bitbucket was asked"))
         #expect(result.text.contains("include_github"))
         #expect(try named("w", in: result)["pull_request"] == nil)
     }
@@ -295,7 +295,7 @@ struct WorkspaceListToolTests {
     func theDescriptionSaysWhatItDoesNotInclude() {
         let description = WorkspaceListTool().tool.description
 
-        #expect(description.contains("GitHub is not consulted"))
+        #expect(description.contains("neither GitHub nor Bitbucket is consulted"))
         #expect(description.contains("do not report that a workspace has no pull request"))
         #expect(description.contains("slow on a long list"))
         #expect(description.contains("Read only"))

@@ -52,8 +52,11 @@ struct BitbucketCheckoutTests {
 
     @Test("bkt checks out into the named local branch, in the repository from the remote")
     func checkoutArguments() {
-        #expect(Bitbucket.checkoutArguments(number: 7, localBranch: "feat/7", in: Self.repository, context: "work") == [
-            "pr", "checkout", "7", "--branch", "feat/7", "--workspace", "debtges", "--repo", "ledger", "--context", "work",
+        #expect(Bitbucket.checkoutArguments(
+            number: 7, localBranch: "feat/7", in: Self.repository, context: "work", remote: "bitbucket"
+        ) == [
+            "pr", "checkout", "7", "--branch", "feat/7", "--remote", "bitbucket",
+            "--workspace", "debtges", "--repo", "ledger", "--context", "work",
         ])
         #expect(Bitbucket.openPullRequestsArguments(in: Self.repository, context: "work").contains("state=OPEN"))
     }
@@ -65,11 +68,11 @@ struct BitbucketCheckoutTests {
             number: 8, title: "", headRefName: "feat/8", baseRefName: "develop", isCrossRepository: true
         )
 
-        #expect(Bitbucket.trackingConfiguration(for: own, localBranch: "pr-7") == [
-            ["config", "branch.pr-7.remote", "origin"],
+        #expect(Bitbucket.trackingConfiguration(for: own, localBranch: "pr-7", remote: "bitbucket") == [
+            ["config", "branch.pr-7.remote", "bitbucket"],
             ["config", "branch.pr-7.merge", "refs/heads/feat/7"],
         ])
-        #expect(Bitbucket.trackingConfiguration(for: fork, localBranch: "pr-8").isEmpty)
+        #expect(Bitbucket.trackingConfiguration(for: fork, localBranch: "pr-8", remote: "origin").isEmpty)
     }
 
     @Test("a source branch git would read as an option is refused before bkt runs")
@@ -91,7 +94,7 @@ struct BitbucketCheckoutTests {
         let listing = try Bitbucket.decodePullRequest(json).listing
 
         #expect(listing.isCrossRepository)
-        #expect(Bitbucket.trackingConfiguration(for: listing, localBranch: "pr-7").isEmpty)
+        #expect(Bitbucket.trackingConfiguration(for: listing, localBranch: "pr-7", remote: "origin").isEmpty)
     }
 
     @Test("the open pull requests are read through bkt, and the slug comes from the remote")

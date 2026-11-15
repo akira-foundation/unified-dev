@@ -24,17 +24,56 @@ struct BitbucketPipelineLogTests {
     """
 
     @Test("the build number is read from the old and the new results link, with its step when named", arguments: [
-        ("https://bitbucket.org/atlassian/aui/addon/pipelines/home#!/results/14542", 14542, nil as String?),
-        ("https://bitbucket.org/debtges/ledger/pipelines/results/88", 88, nil),
+        ("https://bitbucket.org/atlassian/aui/addon/pipelines/home#!/results/14542", "atlassian/aui", 14542, nil as String?),
+        ("https://bitbucket.org/debtges/ledger/pipelines/results/88", "debtges/ledger", 88, nil),
         (
             "https://bitbucket.org/debtges/ledger/pipelines/results/88/steps/%7BADD0ED3C-CEC7-4412-85BE-D9CE5E667AFE%7D",
-            88, "{add0ed3c-cec7-4412-85be-d9ce5e667afe}"
+            "debtges/ledger", 88, "{add0ed3c-cec7-4412-85be-d9ce5e667afe}"
         ),
-        ("https://bitbucket.org/acme/results/addon/pipelines/home#!/results/7", 7, nil),
-        ("https://bitbucket.org/results/steps/pipelines/results/9", 9, nil),
+        ("https://bitbucket.org/acme/results/addon/pipelines/home#!/results/7", "acme/results", 7, nil),
+        ("https://bitbucket.org/results/steps/pipelines/results/9", "results/steps", 9, nil),
+        ("https://bitbucket.org/DebtGes/Ledger/pipelines/results/88", "debtges/ledger", 88, nil),
     ])
-    func parsesTarget(url: String, build: Int, step: String?) {
-        #expect(BitbucketPipelineTarget.parse(detailsURL: url) == BitbucketPipelineTarget(buildNumber: build, step: step))
+    func parsesTarget(url: String, repository: String, build: Int, step: String?) {
+        let expected = BitbucketPipelineTarget(repository: repository, buildNumber: build, step: step)
+        #expect(BitbucketPipelineTarget.parse(detailsURL: url) == expected)
+    }
+
+    @Test("a pipeline link belongs to the workspace's repository only when owner and name both match", arguments: [
+        ("debtges/ledger", true),
+        ("debtges/other", false),
+        ("someone/ledger", false),
+    ])
+    func belongsToRepository(linked: String, belongs: Bool) {
+        let checkout = ForgeRepository(kind: .bitbucket, host: "bitbucket.org", owner: "DebtGes", name: "ledger")
+        let gitHub = ForgeRepository(kind: .gitHub, host: "github.com", owner: "debtges", name: "ledger")
+        let target = BitbucketPipelineTarget(repository: linked, buildNumber: 88)
+
+        #expect(target.belongs(to: checkout) == belongs)
+        #expect(!target.belongs(to: gitHub))
+    }
+
+    @Test("a pipeline link pointing at another repository is refused before bkt reads a step")
+    func foreignPipelineIsNotRead() async {
+        let calls = Calls()
+        let log = await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+            await Bitbucket.$commandOverride.withValue({ arguments, _ in
+                await calls.record(arguments)
+                if arguments.starts(with: ["auth", "status"]) { return ShellResult(status: 0, stdout: Self.signedIn, stderr: "") }
+                return ShellResult(status: 0, stdout: Self.steps, stderr: "")
+            }) {
+                await ForgePullRequests.failedLog(
+                    of: CheckRun(
+                        name: "Pipeline #88", status: "COMPLETED",
+                        detailsURL: "https://bitbucket.org/elsewhere/ledger/pipelines/results/88"
+                    ),
+                    worktree: "/nowhere"
+                )
+            }
+        }
+
+        #expect(log == nil)
+        #expect(await calls.seen.allSatisfy { $0.starts(with: ["auth", "status"]) })
     }
 
     @Test("a link that is not a Pipelines run on Bitbucket has no log to read", arguments: [
@@ -80,7 +119,7 @@ struct BitbucketPipelineLogTests {
                 if arguments.first == "api" { return ShellResult(status: 0, stdout: Self.steps, stderr: "") }
                 return ShellResult(status: 0, stdout: "+ npm test\n1 failing\n", stderr: "")
             }) {
-                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(buildNumber: 88), worktree: "/nowhere")
+                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(repository: "debtges/ledger", buildNumber: 88), worktree: "/nowhere")
             }
         }
 
@@ -111,7 +150,7 @@ struct BitbucketPipelineLogTests {
                 if arguments.first == "api" { return ShellResult(status: 0, stdout: page, stderr: "") }
                 return ShellResult(status: 0, stdout: "failed\n", stderr: "")
             }) {
-                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(buildNumber: 88), worktree: "/nowhere")
+                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(repository: "debtges/ledger", buildNumber: 88), worktree: "/nowhere")
             }
         }
 
@@ -140,7 +179,7 @@ struct BitbucketPipelineLogTests {
                 }
                 return ShellResult(status: 0, stdout: "1 failing\n", stderr: "")
             }) {
-                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(buildNumber: 88), worktree: "/nowhere")
+                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(repository: "debtges/ledger", buildNumber: 88), worktree: "/nowhere")
             }
         }
 

@@ -46,6 +46,13 @@ struct BitbucketReadingTests {
                 let page = "{\"values\": [\(BitbucketPullRequestTests.pullRequestJSON())]}"
                 return ShellResult(status: 0, stdout: page, stderr: "")
             }
+            if arguments[1].hasSuffix("/steps/") {
+                let steps = BitbucketPipelineStepTests.page(
+                    BitbucketPipelineStepTests.step("Lint", "COMPLETED", "SUCCESSFUL", uuid: BitbucketPipelineStepTests.lint),
+                    BitbucketPipelineStepTests.step("Build and deploy", "COMPLETED", "FAILED", uuid: BitbucketPipelineStepTests.build)
+                )
+                return ShellResult(status: 0, stdout: steps, stderr: "")
+            }
             return ShellResult(status: 0, stdout: BitbucketPullRequestTests.statusesJSON, stderr: "")
         }, calls: calls)
 
@@ -56,12 +63,15 @@ struct BitbucketReadingTests {
         let pullRequest = try #require(found)
         #expect(pullRequest.number == 5486)
         #expect(pullRequest.checks == .failing)
-        #expect(reading.checks?.runs.count == 4)
+        #expect(reading.checks?.runs.count == 5)
+        #expect(reading.checks?.runs.filter { $0.workflowName == "Pipeline #14542 for BESECART-3480_aui" }.map(\.name)
+            == ["Lint", "Build and deploy"])
 
         let seen = await calls.seen
-        #expect(seen.count == 3)
+        #expect(seen.count == 4)
         #expect(seen.dropFirst().allSatisfy { $0.suffix(2) == ["--context", "work"] })
         #expect(seen[2][1] == "/repositories/atlassian/aui/commit/ec3178d4d575/statuses")
+        #expect(seen[3][1] == "/repositories/atlassian/aui/pipelines/14542/steps/")
     }
 
     @Test("no Bitbucket Cloud sign-in reads as an authentication failure, with nothing else asked")

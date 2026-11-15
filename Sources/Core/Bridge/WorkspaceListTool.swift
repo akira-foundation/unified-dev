@@ -42,12 +42,12 @@ public struct WorkspaceListTool: BridgeToolHandling {
             agent_running. If the two ever look as though they disagree, one of them is being \
             read as the other's number.
 
-            By default it reads Unified Dev's database and nothing else, and at that price GitHub is \
-            not consulted at all: there is no pull request, no checks, and the status can never \
+            By default it reads Unified Dev's database and nothing else, and at that price neither \
+            GitHub nor Bitbucket is consulted at all: there is no pull request, no checks, and the status can never \
             say merged, closed, draft or anything about checks. A default call has not looked, so \
             do not report that a workspace has no pull request on the strength of one. Pass \
-            include_github to ask, which costs one gh call and one git call per workspace and is \
-            slow on a long list.
+            include_github to ask, which costs one git call per workspace and one gh call, or \
+            several bkt calls for a repository on Bitbucket, and is slow on a long list.
 
             The diff counts and the states come from Unified Dev's database, which a running Unified Dev \
             refreshes every few seconds. With Unified Dev closed they are as old as the last time it \
@@ -74,8 +74,9 @@ public struct WorkspaceListTool: BridgeToolHandling {
                 "include_github": .object([
                     "type": .string("boolean"),
                     "description": .string(
-                        "Include pull request and check state. Costs one gh call and one git "
-                            + "call per workspace, so it is slow on a long list. Off by default."
+                        "Include pull request and check state. Costs one git call per workspace and "
+                            + "one gh call, or several bkt calls on Bitbucket, so it is slow on a long "
+                            + "list. Off by default."
                     ),
                 ]),
             ]),
@@ -100,8 +101,8 @@ public struct WorkspaceListTool: BridgeToolHandling {
             let reached = choice.profiles
             if includeGitHub, case .every = choice {
                 return .failure(
-                    "include_github cannot be used with profile 'all', because it starts a gh and a git "
-                        + "process per workspace. Name one profile to ask GitHub about it."
+                    "include_github cannot be used with profile 'all', because it starts gh or bkt and "
+                        + "git processes for every workspace. Name one profile to ask the host about it."
                 )
             }
             let every = try await store.repos()
@@ -191,11 +192,12 @@ public struct WorkspaceListTool: BridgeToolHandling {
 
         sentences.append(
             includeGitHub
-                ? "GitHub was asked about every workspace with a worktree still on disk. A "
-                    + "workspace with no pull_request has no pull request for its branch, or gh "
-                    + "is not installed or not signed in."
-                : "GitHub was not asked, so nothing here says anything about pull requests or "
-                    + "checks, and status cannot report either. Pass include_github to ask."
+                ? "GitHub, or Bitbucket for a repository hosted there, was asked about every "
+                    + "workspace with a worktree still on disk. A workspace with no pull_request "
+                    + "has no pull request for its branch, or gh, or bkt on Bitbucket, is not "
+                    + "installed or not signed in."
+                : "Neither GitHub nor Bitbucket was asked, so nothing here says anything about pull "
+                    + "requests or checks, and status cannot report either. Pass include_github to ask."
         )
 
         return sentences.joined(separator: " ")

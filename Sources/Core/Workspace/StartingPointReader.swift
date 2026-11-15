@@ -35,8 +35,12 @@ public enum StartingPointReader {
 
     static func read(repoPath: String, asksGitHub: Bool) async throws -> StartingPointReading {
         async let branches = Git.recentBranches(of: repoPath)
-        guard asksGitHub, await Forge.kind(forDirectory: repoPath) == .gitHub else {
-            return StartingPointReading(branches: await branches)
+        guard asksGitHub else { return StartingPointReading(branches: await branches) }
+        guard await Forge.kind(forDirectory: repoPath) == .gitHub else {
+            let (readRequests, readBranches) = await (Bitbucket.pullRequestsAwaitingViewer(repoPath: repoPath), branches)
+            let reading = StartingPointReading(pullRequests: readRequests.found, branches: readBranches)
+            guard readRequests.isWhole else { throw PartialReading(reading: reading) }
+            return reading
         }
         async let requests = GitHub.pullRequestsAwaitingViewer(repoPath: repoPath)
         async let issues = GitHub.issuesAssignedToViewer(repoPath: repoPath)

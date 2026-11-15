@@ -28,18 +28,20 @@ public extension Bitbucket {
     }
 
     internal static func checkoutArguments(
-        number: Int, localBranch: String, in repository: ForgeRepository, context: String
+        number: Int, localBranch: String, in repository: ForgeRepository, context: String, remote: String = "origin"
     ) -> [String] {
         [
-            "pr", "checkout", String(number), "--branch", localBranch,
+            "pr", "checkout", String(number), "--branch", localBranch, "--remote", remote,
             "--workspace", repository.owner, "--repo", repository.name, "--context", context,
         ]
     }
 
-    internal static func trackingConfiguration(for request: PullRequestListing, localBranch: String) -> [[String]] {
+    internal static func trackingConfiguration(
+        for request: PullRequestListing, localBranch: String, remote: String
+    ) -> [[String]] {
         guard !request.isCrossRepository, Git.isValidBranchName(request.headRefName) else { return [] }
         return [
-            ["config", "branch.\(localBranch).remote", "origin"],
+            ["config", "branch.\(localBranch).remote", remote],
             ["config", "branch.\(localBranch).merge", "refs/heads/\(request.headRefName)"],
         ]
     }
@@ -74,8 +76,18 @@ public extension Bitbucket {
 
     static func checkoutPullRequest(_ request: PullRequestListing, into worktree: String, localBranch: String) async throws {
         if let refusal = checkoutRefusal(for: request, localBranch: localBranch) { throw GitHubError(refusal) }
+        let plan = try await localCheckout(for: request, into: worktree, localBranch: localBranch)
+        guard plan.route == .bkt else {
+            try await checkOutLocal(plan, for: request, into: worktree, localBranch: localBranch)
+            for setting in trackingConfiguration(for: request, localBranch: localBranch, remote: plan.remote) {
+                _ = try? await Git.run(setting, in: worktree)
+            }
+            return
+        }
         let (repository, context) = try await connection(in: worktree)
-        let arguments = checkoutArguments(number: request.number, localBranch: localBranch, in: repository, context: context)
+        let arguments = checkoutArguments(
+            number: request.number, localBranch: localBranch, in: repository, context: context, remote: plan.remote
+        )
         let result = try await run(arguments, directory: worktree, timeout: .seconds(120))
         guard result.ok else {
             throw GitHubError(
@@ -85,7 +97,7 @@ public extension Bitbucket {
                         .suffix(400)
             )
         }
-        for setting in trackingConfiguration(for: request, localBranch: localBranch) {
+        for setting in trackingConfiguration(for: request, localBranch: localBranch, remote: plan.remote) {
             _ = try? await Git.run(setting, in: worktree)
         }
     }

@@ -46,9 +46,13 @@ public enum Bitbucket {
             guard let payload = try await pullRequest(
                 of: workspace, onBranch: head, in: repository, ownRepositories: own, context: context
             ) else { return nil }
-            let runs = try await statuses(
+            let statuses = try await statuses(
                 of: payload.source?.commit?.hash, in: repository, context: context, directory: workspace.path
             )
+            var runs = statuses
+            if let statuses {
+                runs = await withPipelineSteps(statuses, in: repository, context: context, directory: workspace.path)
+            }
             return PullRequestSnapshot(pullRequest: payload.pullRequest(runs: runs), runs: runs ?? [])
         }
     }

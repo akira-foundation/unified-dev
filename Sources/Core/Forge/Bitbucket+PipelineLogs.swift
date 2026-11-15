@@ -1,20 +1,27 @@
 import Foundation
 
 public struct BitbucketPipelineTarget: Sendable, Hashable {
+    public let repository: String
     public let buildNumber: Int
     public let step: String?
 
-    public init(buildNumber: Int, step: String? = nil) {
+    public init(repository: String, buildNumber: Int, step: String? = nil) {
+        self.repository = repository.lowercased()
         self.buildNumber = buildNumber
         self.step = step
+    }
+
+    public func belongs(to checkout: ForgeRepository) -> Bool {
+        checkout.kind == .bitbucket && checkout.fullName == repository
     }
 
     public static func parse(detailsURL: String?) -> BitbucketPipelineTarget? {
         guard let detailsURL, let url = URL(string: detailsURL),
               let host = url.host?.lowercased(), ForgeRepository.kind(ofHost: host) == .bitbucket
         else { return nil }
-        let parts = (url.path.split(separator: "/").dropFirst(2) + (url.fragment ?? "").split(separator: "/"))
-            .map(String.init)
+        let path = url.path.split(separator: "/").map(String.init)
+        guard path.count >= 2 else { return nil }
+        let parts = Array(path.dropFirst(2)) + (url.fragment ?? "").split(separator: "/").map(String.init)
         guard let results = parts.firstIndex(of: "results"), results + 1 < parts.count,
               let number = Int(parts[results + 1]), number > 0
         else { return nil }
@@ -22,7 +29,7 @@ public struct BitbucketPipelineTarget: Sendable, Hashable {
         if let steps = parts.firstIndex(of: "steps"), steps + 1 < parts.count {
             step = BitbucketPipelineStep.canonicalUUID(parts[steps + 1].removingPercentEncoding ?? parts[steps + 1])
         }
-        return BitbucketPipelineTarget(buildNumber: number, step: step)
+        return BitbucketPipelineTarget(repository: "\(path[0])/\(path[1])", buildNumber: number, step: step)
     }
 }
 
@@ -36,10 +43,16 @@ struct BitbucketPipelineStep: Decodable, Sendable, Hashable {
     let uuid: String?
     let name: String?
     let state: State?
+    var startedOn: String?
+    var completedOn: String?
 
-    var hasFailed: Bool {
-        ["FAILED", "ERROR"].contains(state?.result?.name?.uppercased() ?? "")
+    enum CodingKeys: String, CodingKey {
+        case uuid, name, state
+        case startedOn = "started_on"
+        case completedOn = "completed_on"
     }
+
+    var hasFailed: Bool { conclusion?.conclusion == "FAILURE" }
 
     static func canonicalUUID(_ value: String) -> String? {
         let bare = value.trimmingCharacters(in: CharacterSet(charactersIn: "{} "))
@@ -79,6 +92,12 @@ extension Bitbucket {
 
     public static func pipelineLog(_ target: BitbucketPipelineTarget, worktree: String) async throws -> String {
         let (repository, context) = try await connection(in: worktree)
+        guard target.belongs(to: repository) else {
+            throw GitHubReadFailure(
+                reason: .unavailable,
+                message: "That pipeline belongs to \(target.repository), not to \(repository.fullName), so its log was not read."
+            )
+        }
         let listing = stepsArguments(build: target.buildNumber, in: repository, context: context)
         let listed = try await run(listing, directory: worktree)
         guard listed.ok else { throw shellError(listing, result: listed) }

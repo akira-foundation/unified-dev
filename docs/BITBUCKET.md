@@ -16,8 +16,14 @@ host at all, is GitHub, which is exactly what the app assumed before there was a
 five minutes, so a repository moved to another host is noticed without a remote being read on
 every poll. Nothing is typed by hand.
 
-Bitbucket Data Center is not detected. Its hosts are the company's own, so the host alone says
-nothing, and no repository of one was available to measure.
+Bitbucket Data Center is not detected, and #633 holds why. Its hosts are the company's own, so
+the host alone says nothing: bkt itself treats every host other than `bitbucket.org` as Data Center
+(`internal/remote/remote.go`), and on the public `bitbucket.software.geant.org` (Bitbucket 9.4.26)
+the clone links are `https://<host>/scm/<project>/<repo>.git` and
+`ssh://git@<host>:7999/<project>/<repo>.git`. The source the app could discover is the hosts
+`bkt auth status --json` reports with `kind: "dc"`. What stops it is the readers: anonymously that
+instance lists repositories and commits, answers every pull request list with an empty page and
+refuses build statuses, so no Data Center pull request or build was ever seen.
 
 ## The command line tool
 
@@ -100,7 +106,8 @@ variables; one using this Mac's signs this Mac in, into the Keychain. Unified De
 for either. App passwords are not offered: Atlassian stopped issuing them in favour of API tokens,
 and bkt asks for an API token where an app password once went. Repository and workspace access
 tokens are read by bkt only from `BKT_TOKEN`, so offering one would mean the app holding the token
-itself; that is left out.
+itself; that is left out, and #634 holds what was measured, starting with `bkt auth status --json`
+listing no host at all under `BKT_TOKEN`.
 
 The welcome window's setup check lists the Bitbucket CLI after the GitHub CLI, for everybody and as
 optional: missing or signed out, it offers `brew install bitbucket-cli` and then
@@ -168,11 +175,37 @@ every one counts as required.
 `atlassian/aui` the source commit of run 14542 carried `FAILED`, key `-1211181337`,
 name `Pipeline #14542 for BESECART-3480_aui`, url
 `https://bitbucket.org/atlassian/aui/addon/pipelines/home#!/results/14542`, beside a Snyk status
-and the Bamboo builds. So the checks tab shows a pipeline as one check named by run and branch.
-The names of the steps inside it, which #534 asks for, come from
-`/pipelines/{build number}/steps/`, which answered without a credential (`Build and deploy`,
-`COMPLETED`, `FAILED`, with start and end) while the same path with the run's UUID answered
-`Bad request` until the braces were encoded. The checks tab still shows a pipeline as one row.
+and the Bamboo builds. The steps inside it come from `/pipelines/{build number}/steps/`, which answered without a
+credential (`Build and deploy`, `COMPLETED`, `FAILED`, with `started_on` and `completed_on`) while
+the same path with the run's UUID answered `Bad request` until the braces were encoded.
+
+So the checks tab shows a pipeline as its steps, each a row of its own grouped under the pipeline's
+name and linked to `/pipelines/results/<build>/steps/<uuid>`, which is why Ask to fix on a step reads
+that step's log and no other. A step's state becomes a check's:
+
+| Step `state.name` | `state.result.name` | Check |
+| --- | --- | --- |
+| `PENDING`, `READY` | | queued |
+| `IN_PROGRESS` | | running |
+| `COMPLETED` | `SUCCESSFUL` | passed |
+| `COMPLETED` | `FAILED`, `ERROR` | failed |
+| `COMPLETED` | `STOPPED` | cancelled |
+| `COMPLETED` | `NOT_RUN`, `SKIPPED` | skipped |
+
+Only `COMPLETED` with `FAILED` and `SUCCESSFUL` were seen on `atlassian/aui`; the rest is the
+vocabulary Bitbucket documents. A step in any other state, steps bkt cannot read, a list of more
+than one page, a pipeline link naming another repository, and a finished pipeline with a step still
+waiting, which is what a manual step left untriggered looks like, all keep the pipeline as one row,
+as before. A repository renamed on Bitbucket while the remote keeps the old name has its results
+links refused the same way, until the remote is updated.
+
+Five pipelines at most are expanded per read, so a read of one workspace costs up to five bkt calls
+more than before, and a finished pipeline's steps are kept against the time it finished, so a
+refresh asks for them again only while it runs or once it is run again.
+
+A results link is compared with the workspace's repository before anything is read from it: its
+first two path segments are the workspace and the repository, and a commit status pointing at
+another repository's results is shown and never has its build number read from this one.
 
 ### A failed pipeline's log
 
@@ -221,32 +254,49 @@ the words, by the pull request's host.
   from `/repositories/{workspace}/{repo}/pullrequests?state=OPEN`, and a number, or a link ending in
   `/pull-requests/<id>`, is read by number; a GitHub link in a Bitbucket project, or the reverse, is
   refused even when the slug matches. A source branch git would read as an option is refused
-  before bkt runs. The checkout is `bkt pr checkout <id> --branch <local> --workspace --repo --context`
-  in a fresh detached worktree; bkt fetches `<source>:<local>` and adds a remote for a fork on its
-  own. It sets no upstream, so for a branch of this repository the app sets
-  `branch.<local>.remote` to `origin` and `branch.<local>.merge` to the source branch. A pull
+  before bkt runs. The checkout is
+  `bkt pr checkout <id> --branch <local> --remote <remote> --workspace --repo --context` in a fresh
+  detached worktree, where the remote is the checkout's base remote,
+  `origin` unless the repository says otherwise; bkt fetches `<source>:<local>` from it and adds a
+  remote for a fork on its own. It sets no upstream, so for a branch of this repository the app sets
+  `branch.<local>.remote` to that remote and `branch.<local>.merge` to the source branch. A pull
   request whose source repository Bitbucket does not name is treated as a fork, and gets none.
-  bkt's fetch is fast-forward only, so a local branch of that name already ahead of the server
-  makes the checkout fail and the new worktree is removed, with nothing lost.
+  bkt fetches `<source>:<local>` without a `+`, so a local branch of that name already ahead of
+  the server would be refused. When that branch exists and the pull request is not from a fork, bkt
+  is not run: the app fetches `+refs/heads/<source>:refs/remotes/<remote>/<source>` from the
+  checkout's base remote, `origin` unless the repository says otherwise, and compares. A
+  local branch at or ahead of the server is checked out as it stands, one behind it is fast
+  forwarded with `git merge --ff-only`, and one that has moved apart is refused with nothing
+  changed, and the new worktree is removed. Either way the branch tracks that remote. The fetch is
+  git's own, so it signs in with the git credentials of this Mac, as bkt's fetch does. A fork's pull request over an existing local branch
+  still goes through bkt, and still fails the same way.
 - **The checks tab** asks bkt whether it is signed in, not gh, and names Bitbucket and bkt when it
   cannot read. Merge, Mark ready and Create pull request ask bkt the same thing before sending
   anything, and say where to sign in when it is not.
 - **The bridge.** `workspace_list` with `include_github` and `workspace_merge` read a Bitbucket
-  workspace's pull request through bkt.
+  workspace's pull request through bkt, and a refusal names `bkt` and Bitbucket where it would
+  name `gh` and GitHub: missing, signed out, silent, no pull request, a state the host will not
+  take, and work the host has not got.
+- **Starting points.** Under the new workspace header a Bitbucket project offers the open pull
+  requests naming the viewer as a reviewer and as the author, from
+  `/pullrequests?q=state="OPEN" AND reviewers.uuid="<uuid>"` and the same with `author.uuid`, ten
+  of each. Once `q` is given Bitbucket ignores the `state` parameter and answers declined pull
+  requests too (measured on `atlassian/aui`), so the state goes inside the query. The viewer is
+  the `uuid` from `/user`, and anything that is not a uuid is never put in a query. A reviewer
+  stays named after approving, so a pull request the owner has already reviewed is still offered,
+  where GitHub's `review-requested:@me` drops it. Issues assigned
+  to the owner are not offered, because Bitbucket's are in Jira (#635).
 - **The pull request auto fix** reads the viewer and the commit authors from
   `/pullrequests/{id}/commits`, by account `uuid` and with the newest commit as the head they
-  describe. One page of 100 is read; a pull request with a second page is not vouched for, and an
-  unlinked author counts as nobody's. The failed builds' logs are read as above, and a step whose
-  log cannot be read is left out rather than losing the others, and named under `== Not read ==`.
+  describe. Pages of 100 are followed through `next`, whose `page` is an opaque cursor
+  (`page=67Fg` on `atlassian/aui` #5486), taken only from a link to the same pull request's commits
+  on `api.bitbucket.org` and passed back with `--param page=<cursor>`. Ten pages at most are read;
+  a pull request longer than that is not vouched for, and an unlinked author counts as nobody's.
+  The failed builds' logs are read as above, and a step whose log cannot be read is left out
+  rather than losing the others, and named under `== Not read ==`.
 
-Still to do, in #631:
+Still to do:
 
-- Bitbucket Data Center, which bkt covers and nothing here detects;
-- the starting points under the new workspace header, which still ask gh for pull requests
-  waiting on the owner and issues assigned to them, and so offer recent branches alone;
-- the steps of a pipeline as rows of their own in the checks tab;
-- repository and workspace access tokens per profile;
-- the bridge's refusals, which still name gh when bkt is missing or signed out;
-- a checkout over a local branch already ahead of the server, which gh fast-forwards and bkt refuses;
-- the auto fix on a pull request of more than 100 commits, which reads the second page rather than
-  leaving it alone.
+- Bitbucket Data Center, which bkt covers and nothing here detects (#633);
+- repository and workspace access tokens per profile (#634);
+- Jira issues assigned to the owner as starting points (#635).
