@@ -74,6 +74,14 @@ public extension Bitbucket {
 
     static func checkoutPullRequest(_ request: PullRequestListing, into worktree: String, localBranch: String) async throws {
         if let refusal = checkoutRefusal(for: request, localBranch: localBranch) { throw GitHubError(refusal) }
+        let route = try await checkoutRoute(for: request, into: worktree, localBranch: localBranch)
+        guard route == .bkt else {
+            try await checkOutLocal(route, for: request, into: worktree, localBranch: localBranch)
+            for setting in trackingConfiguration(for: request, localBranch: localBranch) {
+                _ = try? await Git.run(setting, in: worktree)
+            }
+            return
+        }
         let (repository, context) = try await connection(in: worktree)
         let arguments = checkoutArguments(number: request.number, localBranch: localBranch, in: repository, context: context)
         let result = try await run(arguments, directory: worktree, timeout: .seconds(120))
