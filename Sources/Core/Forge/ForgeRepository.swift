@@ -11,6 +11,13 @@ public enum ForgeKind: String, Sendable, Hashable, CaseIterable {
         }
     }
 
+    public var cli: String {
+        switch self {
+        case .gitHub: "gh"
+        case .bitbucket: Bitbucket.executable
+        }
+    }
+
     public var checkNoun: String {
         switch self {
         case .gitHub: "check"

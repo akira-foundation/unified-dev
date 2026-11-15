@@ -46,8 +46,8 @@ public struct WorkspaceListTool: BridgeToolHandling {
             not consulted at all: there is no pull request, no checks, and the status can never \
             say merged, closed, draft or anything about checks. A default call has not looked, so \
             do not report that a workspace has no pull request on the strength of one. Pass \
-            include_github to ask, which costs one gh call and one git call per workspace and is \
-            slow on a long list.
+            include_github to ask, which costs one gh call, or one bkt call for a repository on \
+            Bitbucket, and one git call per workspace and is slow on a long list.
 
             The diff counts and the states come from Unified Dev's database, which a running Unified Dev \
             refreshes every few seconds. With Unified Dev closed they are as old as the last time it \
@@ -74,8 +74,9 @@ public struct WorkspaceListTool: BridgeToolHandling {
                 "include_github": .object([
                     "type": .string("boolean"),
                     "description": .string(
-                        "Include pull request and check state. Costs one gh call and one git "
-                            + "call per workspace, so it is slow on a long list. Off by default."
+                        "Include pull request and check state. Costs one gh call, or one bkt call "
+                            + "on Bitbucket, and one git call per workspace, so it is slow on a long "
+                            + "list. Off by default."
                     ),
                 ]),
             ]),
@@ -191,9 +192,10 @@ public struct WorkspaceListTool: BridgeToolHandling {
 
         sentences.append(
             includeGitHub
-                ? "GitHub was asked about every workspace with a worktree still on disk. A "
-                    + "workspace with no pull_request has no pull request for its branch, or gh "
-                    + "is not installed or not signed in."
+                ? "GitHub, or Bitbucket for a repository hosted there, was asked about every "
+                    + "workspace with a worktree still on disk. A workspace with no pull_request "
+                    + "has no pull request for its branch, or gh, or bkt on Bitbucket, is not "
+                    + "installed or not signed in."
                 : "GitHub was not asked, so nothing here says anything about pull requests or "
                     + "checks, and status cannot report either. Pass include_github to ask."
         )
