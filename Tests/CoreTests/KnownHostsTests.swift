@@ -116,6 +116,10 @@ struct KnownHostsTests {
         #expect(KnownHosts.judged(remote: SSHRemote(host: "bitbucket.org", port: 2222), lines: lines, fingerprints: forged) == nil)
         #expect(KnownHosts.judged(remote: SSHRemote(host: "bitbucket.org."), lines: lines, fingerprints: forged) == nil)
         #expect(KnownHosts.judged(remote: SSHRemote(host: "altssh.bitbucket.org", port: 443), lines: lines, fingerprints: genuine) == nil)
+        let fronted = SSHRemote(host: "203.0.113.5", alias: "bitbucket.org")
+        #expect(KnownHosts.judged(remote: fronted, lines: lines, fingerprints: forged) == nil)
+        #expect(KnownHosts.judged(remote: fronted, lines: lines, fingerprints: genuine)?.matchesPublished == true)
+        #expect(KnownHosts.judged(remote: SSHRemote(host: "203.0.113.5", alias: "git.bitbucket.org"), lines: lines, fingerprints: genuine) == nil)
         #expect(
             KnownHosts.judged(remote: SSHRemote(host: "bitbucket.org", port: 2222), lines: lines, fingerprints: genuine)?
                 .host == "[bitbucket.org]:2222"
@@ -129,8 +133,10 @@ struct KnownHostsTests {
         let aliased = "hostname git.internal\nport 22\nhostkeyalias gitbox\n"
 
         #expect(remote.resolved(byConfig: moved) == SSHRemote(host: "altssh.bitbucket.org", port: 443))
-        #expect(remote.resolved(byConfig: moved).shown == "[altssh.bitbucket.org]:443")
-        #expect(remote.resolved(byConfig: aliased).shown == "gitbox")
+        #expect(remote.resolved(byConfig: moved)?.shown == "[altssh.bitbucket.org]:443")
+        #expect(remote.resolved(byConfig: aliased)?.shown == "gitbox")
+        #expect(remote.resolved(byConfig: "hostname git.internal\nproxyjump bastion\n") == nil)
+        #expect(remote.resolved(byConfig: "proxycommand nc %h %p\n") == nil)
         #expect(remote.resolved(byConfig: "") == remote)
     }
 

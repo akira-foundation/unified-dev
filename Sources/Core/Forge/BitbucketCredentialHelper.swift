@@ -5,6 +5,7 @@ public enum BitbucketCredentialHelper {
     public static let command = "git-credential"
     static let hosts = ["bitbucket.org", "www.bitbucket.org"]
     static let renewalPause: TimeInterval = 10 * 60
+    static let renewalLongest: TimeInterval = 70
     static let mostInheritedEntries = 1_000
 
     struct Request: Equatable {
@@ -113,15 +114,20 @@ public enum BitbucketCredentialHelper {
         guard let found = stored(environment: environment, now: now, declined: declined, keychain: keychain) else { return "" }
         guard found.isStale(at: now) else { return found.answer }
         let paused = renewalFailed(environment, in: markers)
-        guard !paused.isQuiet(at: now) else { return found.answer }
-        paused.remember()
+        let age = paused.age(at: now)
+        guard age.map({ $0 < renewalLongest || $0 >= renewalPause }) ?? true else { return found.answer }
+        if age.map({ $0 >= renewalLongest }) ?? true { paused.remember(at: now) }
         if let refresh {
             await refresh(request, environment)
         } else {
             await renew(for: request, environment: environment)
         }
         let renewed = stored(environment: environment, now: now, declined: declined, keychain: keychain) ?? found
-        if !renewed.isStale(at: now) { paused.forget() }
+        if renewed.isStale(at: now) {
+            paused.remember(at: now.addingTimeInterval(-renewalLongest))
+        } else {
+            paused.forget()
+        }
         return renewed.answer
     }
 

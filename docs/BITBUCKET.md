@@ -146,7 +146,9 @@ running `bkt api /user` under the same profile, and read again. That command nee
 when the profile has none, the shim creates the one the app itself creates, `unifieddev`, for the
 workspace git asked about. A pause of ten minutes is written before bkt is asked and removed only
 when the token comes back fresh, so a renewal that fails, or a helper git killed on its own timeout,
-is not tried again on every fetch. Concurrent renewals are serialised by bkt's own refresh lock.
+is not tried again on every fetch. For the first seventy seconds, the longest a renewal can take, a
+second fetch renews as well rather than being handed the expired token, and bkt's refresh lock
+serialises the two. Concurrent renewals are serialised by bkt's own refresh lock.
 
 `x-token-auth` is the user Atlassian documents for an OAuth access token, and one of the two fixed
 users it accepts for an API token. It was measured against bitbucket.org as far as it can be without
@@ -164,9 +166,10 @@ When a clone fails, the sheet shows the line that names the cause rather than gi
 which is always `Cloning into`, with every line behind Show details. A host missing from
 `known_hosts` makes ssh refuse at once, since git runs without a terminal. The host, port and
 `HostKeyAlias` ssh will really use are read with `ssh -G`, so a `~/.ssh/config` that moves a host
-is followed; the sheet then shows the fingerprints `ssh-keyscan` and `ssh-keygen -l` read there, and
+is followed, and a host reached through `ProxyJump` or `ProxyCommand` is offered nothing, because a
+scan from this Mac would not reach the machine ssh does; the sheet then shows the fingerprints `ssh-keyscan` and `ssh-keygen -l` read there, and
 adds them to `~/.ssh/known_hosts` only when Trust and try again is pressed. For `bitbucket.org` and
-`ssh.bitbucket.org`, on any port, the fingerprints must be the ones Bitbucket publishes, which are
+`ssh.bitbucket.org`, on any port and whether named as the host or as its `HostKeyAlias`, the fingerprints must be the ones Bitbucket publishes, which are
 written into the app, or nothing is offered; any other name under `bitbucket.org` is offered nothing. A host already
 in `known_hosts` is never offered: there the failure is a changed key, which the sheet names as such.
 

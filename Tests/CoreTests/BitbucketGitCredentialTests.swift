@@ -175,6 +175,34 @@ struct BitbucketGitCredentialTests {
         #expect(await seen.name == "paused")
     }
 
+    @Test("a fetch that arrives while another renewal is under way renews too, behind bkt's own lock")
+    func concurrentFetchRenewsToo() async throws {
+        let environment = try profile(holding: BitbucketTokenFixtures.expiredOAuth)
+        BitbucketCredentialHelper.renewalFailed(environment, in: quiet).remember()
+        let seen = RenewedWorkspace()
+
+        _ = await BitbucketCredentialHelper.answer(
+            markers: quiet, action: "get", request: request, environment: environment,
+            refresh: { asked, _ in await seen.record(asked.workspace) }
+        )
+
+        #expect(await seen.name == "debtges")
+    }
+
+    @Test("a renewal that has been under way longer than a renewal can take pauses the rest of the ten minutes")
+    func staleRenewalPauses() async throws {
+        let environment = try profile(holding: BitbucketTokenFixtures.expiredOAuth)
+        let now = Date()
+        BitbucketCredentialHelper.renewalFailed(environment, in: quiet).remember(at: now.addingTimeInterval(-120))
+
+        let answer = await BitbucketCredentialHelper.answer(
+            markers: quiet, action: "get", request: request, environment: environment, now: now,
+            refresh: { _, _ in Issue.record("a paused renewal was tried again") }
+        )
+
+        #expect(answer == "username=x-token-auth\npassword=fixture-expired-token\n")
+    }
+
     @Test("an absurd inherited GIT_CONFIG_COUNT cannot overflow the count")
     func inheritedCountIsBounded() {
         let inherited = ["GIT_CONFIG_COUNT": String(Int.max)]

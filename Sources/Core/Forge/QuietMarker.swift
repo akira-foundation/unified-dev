@@ -9,15 +9,21 @@ struct QuietMarker: Sendable, Equatable {
         self.period = period
     }
 
-    func isQuiet(at now: Date) -> Bool {
+    func age(at now: Date) -> TimeInterval? {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
               let written = attributes[.modificationDate] as? Date
-        else { return false }
-        return now.timeIntervalSince(written) < period
+        else { return nil }
+        return now.timeIntervalSince(written)
     }
 
-    func remember() {
+    func isQuiet(at now: Date) -> Bool {
+        age(at: now).map { $0 < period } ?? false
+    }
+
+    func remember(at moment: Date? = nil) {
         FileManager.default.createFile(atPath: file.path, contents: Data(), attributes: [.posixPermissions: 0o600])
+        guard let moment else { return }
+        try? FileManager.default.setAttributes([.modificationDate: moment], ofItemAtPath: file.path)
     }
 
     func forget() {

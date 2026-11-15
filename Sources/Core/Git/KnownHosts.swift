@@ -47,16 +47,21 @@ public struct SSHRemote: Sendable, Equatable {
         return "[\(host)]:\(port)"
     }
 
-    var isBitbucket: Bool {
-        host == "bitbucket.org" || host.hasSuffix(".bitbucket.org")
+    var names: [String] {
+        [host] + (alias.map { [SSHRemote.bare($0)] } ?? [])
     }
 
-    func resolved(byConfig output: String) -> SSHRemote {
+    var isBitbucket: Bool {
+        names.contains { $0 == "bitbucket.org" || $0.hasSuffix(".bitbucket.org") }
+    }
+
+    func resolved(byConfig output: String) -> SSHRemote? {
         var settings: [String: String] = [:]
         for line in GitFailureOutput.lines(of: output) {
             let parts = line.split(separator: " ", maxSplits: 1).map(String.init)
             if parts.count == 2, settings[parts[0]] == nil { settings[parts[0]] = parts[1] }
         }
+        guard settings["proxyjump"] == nil, settings["proxycommand"] == nil else { return nil }
         let hostName = settings["hostname"].flatMap { $0.isEmpty ? nil : $0 } ?? host
         let resolvedPort = settings["port"].flatMap(Int.init) ?? port
         let resolvedAlias = settings["hostkeyalias"].flatMap { $0.isEmpty || $0 == "none" ? nil : $0 } ?? alias
@@ -101,7 +106,8 @@ public enum KnownHosts {
         if let port = remote.port { configured += ["-p", String(port)] }
         configured += ["--", remote.host]
         let config = try? await Shell.run("ssh", configured, timeout: .seconds(10))
-        let target = config.map { $0.ok ? remote.resolved(byConfig: $0.stdout) : remote } ?? remote
+        guard let config, config.ok else { return await offer(for: remote, in: file, scan: scan) }
+        guard let target = remote.resolved(byConfig: config.stdout) else { return nil }
         return await offer(for: target, in: file, scan: scan)
     }
 
@@ -136,7 +142,7 @@ public enum KnownHosts {
 
     static func judged(remote: SSHRemote, lines: [String], fingerprints: [String]) -> KnownHostOffer? {
         guard !fingerprints.isEmpty, fingerprints.count == lines.count else { return nil }
-        guard let expected = published[remote.host] else {
+        guard let expected = remote.names.lazy.compactMap({ published[$0] }).first else {
             guard !remote.isBitbucket else { return nil }
             return KnownHostOffer(host: remote.shown, lines: lines, fingerprints: fingerprints)
         }
