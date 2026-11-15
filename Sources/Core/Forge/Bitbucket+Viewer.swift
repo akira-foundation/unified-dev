@@ -19,28 +19,54 @@ extension Bitbucket {
         return user.identity
     }
 
-    static func commitAuthorsArguments(number: Int, in repository: ForgeRepository, context: String) -> [String] {
-        [
-            "api", "\(path(of: repository))/pullrequests/\(number)/commits",
-            "--param", "pagelen=100", "--context", context,
-        ]
+    static let commitPagesRead = 10
+
+    static func commitAuthorsArguments(
+        number: Int, in repository: ForgeRepository, context: String, page: String? = nil
+    ) -> [String] {
+        ["api", "\(path(of: repository))/pullrequests/\(number)/commits", "--param", "pagelen=100"]
+            + (page.map { ["--param", "page=\($0)"] } ?? [])
+            + ["--context", context]
     }
 
-    static func decodeCommitAuthors(_ output: String) -> PullRequestAutoFix.CommitAuthors? {
-        guard let page = try? decode(BitbucketPage<BitbucketCommitPayload>.self, from: output),
-              page.next == nil,
-              let head = page.values.first?.hash, !head.isEmpty
+    static func nextCommitPage(_ next: String?, number: Int, in repository: ForgeRepository) -> String? {
+        guard let next, let components = URLComponents(string: next),
+              components.scheme == "https",
+              components.host?.lowercased() == BitbucketAuthStatus.cloudHostKey,
+              components.percentEncodedPath == "/2.0\(path(of: repository))/pullrequests/\(number)/commits",
+              let page = components.queryItems?.first(where: { $0.name == "page" })?.value,
+              !page.isEmpty, !page.hasPrefix("-")
         else { return nil }
-        let identities = page.values.map { $0.author?.user?.identity ?? "" }
+        return page
+    }
+
+    static func decodeCommitPage(_ output: String) -> BitbucketPage<BitbucketCommitPayload>? {
+        try? decode(BitbucketPage<BitbucketCommitPayload>.self, from: output)
+    }
+
+    static func commitAuthors(from pages: [BitbucketPage<BitbucketCommitPayload>]) -> PullRequestAutoFix.CommitAuthors? {
+        guard let last = pages.last, last.next == nil,
+              let head = pages.first?.values.first?.hash, !head.isEmpty
+        else { return nil }
+        let identities = pages.flatMap(\.values).map { $0.author?.user?.identity ?? "" }
         return PullRequestAutoFix.CommitAuthors(headCommit: head, logins: Set(identities))
     }
 
     static func commitAuthors(of pullRequest: PullRequest, in directory: String) async -> PullRequestAutoFix.CommitAuthors? {
         guard let (repository, context) = try? await connection(in: directory) else { return nil }
-        let arguments = commitAuthorsArguments(number: pullRequest.number, in: repository, context: context)
-        guard let result = try? await run(arguments, directory: directory, timeout: .seconds(30)), result.ok
-        else { return nil }
-        return decodeCommitAuthors(result.stdout)
+        var pages: [BitbucketPage<BitbucketCommitPayload>] = []
+        var cursor: String?
+        while pages.count < commitPagesRead {
+            let arguments = commitAuthorsArguments(number: pullRequest.number, in: repository, context: context, page: cursor)
+            guard let result = try? await run(arguments, directory: directory, timeout: .seconds(30)), result.ok,
+                  let page = decodeCommitPage(result.stdout)
+            else { return nil }
+            pages.append(page)
+            guard page.next != nil else { return commitAuthors(from: pages) }
+            guard let following = nextCommitPage(page.next, number: pullRequest.number, in: repository) else { return nil }
+            cursor = following
+        }
+        return nil
     }
 }
 
