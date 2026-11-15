@@ -5,17 +5,13 @@ import Testing
 @Suite("Starting a Bitbucket workspace over a local branch of the same name")
 struct BitbucketLocalBranchTests {
     @Test("the route follows where the local branch stands against the server's", arguments: [
-        (false, false, false, false, BitbucketCheckoutRoute.bkt),
-        (true, true, true, true, .bkt),
-        (true, false, true, true, .keepLocal),
-        (true, false, true, false, .keepLocal),
-        (true, false, false, true, .fastForward),
-        (true, false, false, false, .diverged),
+        (true, true, BitbucketCheckoutRoute.keepLocal),
+        (true, false, .keepLocal),
+        (false, true, .fastForward),
+        (false, false, .diverged),
     ])
-    func route(localExists: Bool, isFork: Bool, localHasServer: Bool, serverHasLocal: Bool, expected: BitbucketCheckoutRoute) {
-        #expect(BitbucketCheckoutRoute.choose(
-            localExists: localExists, isFork: isFork, localHasServer: localHasServer, serverHasLocal: serverHasLocal
-        ) == expected)
+    func route(localHasServer: Bool, serverHasLocal: Bool, expected: BitbucketCheckoutRoute) {
+        #expect(BitbucketCheckoutRoute.choose(localHasServer: localHasServer, serverHasLocal: serverHasLocal) == expected)
     }
 
     private actor Calls {
@@ -25,23 +21,35 @@ struct BitbucketLocalBranchTests {
 
     private static let request = PullRequestListing(number: 7, title: "Ledger", headRefName: "feat/7", baseRefName: "main")
 
-    @Test("the server's branch is fetched into its remote tracking ref, and a fast forward merges only that")
+    @Test("the base remote's branch is fetched into its tracking ref, and a fast forward merges only that")
     func arguments() {
-        #expect(Bitbucket.serverFetchArguments(for: Self.request) == [
-            "fetch", "origin", "+refs/heads/feat/7:refs/remotes/origin/feat/7",
+        let plan = BitbucketLocalCheckout(route: .fastForward, remote: "bitbucket")
+
+        #expect(plan.fetchArguments(for: Self.request) == [
+            "fetch", "bitbucket", "+refs/heads/feat/7:refs/remotes/bitbucket/feat/7",
         ])
-        #expect(Bitbucket.localCheckoutArguments(.keepLocal, for: Self.request, localBranch: "feat/7") == [
-            ["checkout", "feat/7", "--"],
+        #expect(plan.checkoutArguments(for: Self.request, localBranch: "feat/7") == [
+            ["checkout", "feat/7", "--"], ["merge", "--ff-only", "refs/remotes/bitbucket/feat/7"],
         ])
-        #expect(Bitbucket.localCheckoutArguments(.fastForward, for: Self.request, localBranch: "feat/7") == [
-            ["checkout", "feat/7", "--"], ["merge", "--ff-only", "refs/remotes/origin/feat/7"],
-        ])
-        #expect(Bitbucket.localCheckoutArguments(.diverged, for: Self.request, localBranch: "feat/7").isEmpty)
+        #expect(BitbucketLocalCheckout(route: .keepLocal, remote: "origin").checkoutArguments(
+            for: Self.request, localBranch: "feat/7"
+        ) == [["checkout", "feat/7", "--"]])
+        #expect(BitbucketLocalCheckout(route: .diverged, remote: "origin").checkoutArguments(
+            for: Self.request, localBranch: "feat/7"
+        ).isEmpty)
+    }
+
+    @Test("a remote name git could read as an option is never fetched from", arguments: [
+        ("upstream", "upstream"), ("-x", "origin"), (nil as String?, "origin"), ("", "origin"),
+    ])
+    func remoteName(base: String?, used: String) {
+        #expect(BitbucketLocalCheckout.remote(named: base) == used)
     }
 
     private struct Fixture {
         let clone: String
         let worktree: String
+        let remote: String
 
         static func git(_ arguments: [String], in directory: String) async throws {
             try await Shell.check(
@@ -51,26 +59,26 @@ struct BitbucketLocalBranchTests {
             )
         }
 
-        static func make(_ label: String) async throws -> Fixture {
+        static func make(_ label: String, remote: String = "origin") async throws -> Fixture {
             let root = TestScratch.unique(label)
             let server = root + "/server.git"
             let clone = root + "/clone"
             try FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)
             try await Shell.check("git", ["init", "-q", "--bare", "-b", "main", server], cwd: root)
-            try await Shell.check("git", ["clone", "-q", server, clone], cwd: root)
+            try await Shell.check("git", ["clone", "-q", "-o", remote, server, clone], cwd: root)
             try await git(["commit", "-q", "--allow-empty", "-m", "base"], in: clone)
-            try await git(["push", "-q", "origin", "HEAD:main"], in: clone)
+            try await git(["push", "-q", remote, "HEAD:main"], in: clone)
             try await git(["checkout", "-q", "-b", "feat/7"], in: clone)
             try await git(["commit", "-q", "--allow-empty", "-m", "shared"], in: clone)
-            try await git(["push", "-q", "origin", "feat/7"], in: clone)
+            try await git(["push", "-q", remote, "feat/7"], in: clone)
             try await git(["checkout", "-q", "main"], in: clone)
-            return Fixture(clone: clone, worktree: root + "/worktree")
+            return Fixture(clone: clone, worktree: root + "/worktree", remote: remote)
         }
 
         func commitOnServer(_ message: String) async throws {
-            try await Self.git(["checkout", "-q", "--detach", "origin/feat/7"], in: clone)
+            try await Self.git(["checkout", "-q", "--detach", "\(remote)/feat/7"], in: clone)
             try await Self.git(["commit", "-q", "--allow-empty", "-m", message], in: clone)
-            try await Self.git(["push", "-q", "-f", "origin", "HEAD:refs/heads/feat/7"], in: clone)
+            try await Self.git(["push", "-q", "-f", remote, "HEAD:refs/heads/feat/7"], in: clone)
             try await Self.git(["checkout", "-q", "main"], in: clone)
         }
 
@@ -82,6 +90,11 @@ struct BitbucketLocalBranchTests {
 
         func addWorktree() async throws {
             try await Self.git(["worktree", "add", "-q", "--detach", worktree, "main"], in: clone)
+        }
+
+        func config(_ key: String) async throws -> String {
+            try await Shell.check("git", ["config", "--get", key], cwd: worktree).stdout
+                .trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         func subject(of reference: String) async throws -> String {
@@ -110,6 +123,45 @@ struct BitbucketLocalBranchTests {
         #expect(try await fixture.subject(of: "HEAD") == "local only")
         #expect(try await Shell.check("git", ["branch", "--show-current"], cwd: fixture.worktree).stdout
             .trimmingCharacters(in: .whitespacesAndNewlines) == "feat/7")
+        #expect(try await fixture.config("branch.feat/7.remote") == "origin")
+        #expect(try await fixture.config("branch.feat/7.merge") == "refs/heads/feat/7")
+    }
+
+    @Test("a repository whose remote is not called origin is fetched from that remote and tracks it")
+    func baseRemoteIsUsed() async throws {
+        let fixture = try await Fixture.make("bitbucket-named-remote", remote: "bitbucket")
+        try await fixture.commitOnServer("from the server")
+        try await fixture.addWorktree()
+
+        try await checkOut(in: fixture)
+
+        #expect(try await fixture.subject(of: "HEAD") == "from the server")
+        #expect(try await fixture.config("branch.feat/7.remote") == "bitbucket")
+    }
+
+    @Test("a fork's pull request over a local branch of the same name is left to bkt")
+    func forkGoesToBkt() async throws {
+        let fixture = try await Fixture.make("bitbucket-fork-local")
+        try await fixture.commitLocally("local only")
+        try await fixture.addWorktree()
+        let fork = PullRequestListing(
+            number: 7, title: "Ledger", headRefName: "feat/7", baseRefName: "main",
+            isCrossRepository: true, headRepositoryOwner: "someone"
+        )
+        let calls = Calls()
+        try await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+            try await Bitbucket.$commandOverride.withValue({ arguments, _ in
+                if arguments.starts(with: ["auth", "status"]) {
+                    return ShellResult(status: 0, stdout: BitbucketPipelineLogTests.signedIn, stderr: "")
+                }
+                await calls.record(arguments)
+                return ShellResult(status: 0, stdout: "", stderr: "")
+            }) {
+                try await Bitbucket.checkoutPullRequest(fork, into: fixture.worktree, localBranch: "feat/7")
+            }
+        }
+
+        #expect(await calls.seen.map { Array($0.prefix(2)) } == [["pr", "checkout"]])
     }
 
     @Test("a local branch behind the server is fast forwarded to it")

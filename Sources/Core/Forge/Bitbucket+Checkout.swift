@@ -36,10 +36,12 @@ public extension Bitbucket {
         ]
     }
 
-    internal static func trackingConfiguration(for request: PullRequestListing, localBranch: String) -> [[String]] {
+    internal static func trackingConfiguration(
+        for request: PullRequestListing, localBranch: String, remote: String = "origin"
+    ) -> [[String]] {
         guard !request.isCrossRepository, Git.isValidBranchName(request.headRefName) else { return [] }
         return [
-            ["config", "branch.\(localBranch).remote", "origin"],
+            ["config", "branch.\(localBranch).remote", remote],
             ["config", "branch.\(localBranch).merge", "refs/heads/\(request.headRefName)"],
         ]
     }
@@ -74,10 +76,10 @@ public extension Bitbucket {
 
     static func checkoutPullRequest(_ request: PullRequestListing, into worktree: String, localBranch: String) async throws {
         if let refusal = checkoutRefusal(for: request, localBranch: localBranch) { throw GitHubError(refusal) }
-        let route = try await checkoutRoute(for: request, into: worktree, localBranch: localBranch)
-        guard route == .bkt else {
-            try await checkOutLocal(route, for: request, into: worktree, localBranch: localBranch)
-            for setting in trackingConfiguration(for: request, localBranch: localBranch) {
+        let plan = try await localCheckout(for: request, into: worktree, localBranch: localBranch)
+        guard plan.route == .bkt else {
+            try await checkOutLocal(plan, for: request, into: worktree, localBranch: localBranch)
+            for setting in trackingConfiguration(for: request, localBranch: localBranch, remote: plan.remote) {
                 _ = try? await Git.run(setting, in: worktree)
             }
             return
