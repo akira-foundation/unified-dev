@@ -119,8 +119,10 @@ makes.
 ### git over https
 
 A bkt sign-in is not a git credential: bkt has no credential helper, and its fetches use whatever
-git already has. So when the profile holds a bkt sign-in (its token file under `secrets/`, or the
-`bkt` item in the login Keychain, which is looked up by its attributes and never read for this),
+git already has. So when the profile holds a bkt sign-in (its token file under `secrets/`, or, for a
+profile that uses this Mac's sign-in, `api.bitbucket.org` among the hosts of bkt's own
+`~/Library/Application Support/bkt/config.yml`, which holds no secret; the Keychain is not touched
+to decide this, because a locked Keychain with nobody to unlock it blocks the caller),
 every git the app runs against a remote, every bkt it runs (whose `pr checkout` fetches through
 git), every agent it starts, and every terminal and script of a workspace carries a helper scoped to `https://bitbucket.org` and `https://www.bitbucket.org`, in
 `GIT_CONFIG_COUNT` and its `GIT_CONFIG_KEY_n` and `GIT_CONFIG_VALUE_n` pairs. Nothing is written to

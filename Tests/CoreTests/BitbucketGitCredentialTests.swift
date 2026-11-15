@@ -34,6 +34,30 @@ struct BitbucketGitCredentialTests {
         ]
     }
 
+    private func config(_ text: String) throws -> URL {
+        let file = quiet.appending(path: "config-\(UUID().uuidString).yml")
+        try text.write(to: file, atomically: true, encoding: .utf8)
+        return file
+    }
+
+    private static let signedInConfig = """
+        active_context: unifieddev
+        contexts:
+            unifieddev:
+                host: api.bitbucket.org
+                workspace: debtges
+        hosts:
+            api.bitbucket.org:
+                kind: cloud
+        """
+
+    private static let contextOnlyConfig = """
+        contexts:
+            unifieddev:
+                host: api.bitbucket.org
+        hosts: {}
+        """
+
     private let request = "protocol=https\nhost=bitbucket.org\npath=debtges/ledger.git\n"
 
     @Test("an OAuth sign-in written by bkt's own store opens to its access token")
@@ -141,7 +165,7 @@ struct BitbucketGitCredentialTests {
     }
 
     @Test("a declined Keychain prompt is not asked again for an hour, and the helper stands aside")
-    func declineIsRemembered() async {
+    func declineIsRemembered() async throws {
         let first = await BitbucketCredentialHelper.answer(
             markers: quiet, action: "get", request: request, environment: [:], keychain: { .declined }
         )
@@ -153,7 +177,9 @@ struct BitbucketGitCredentialTests {
             }
         )
         let declined = BitbucketKeychainToken.declined(in: quiet)
-        let helper = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge", declined: declined) { true }
+        let helper = BitbucketCredentialHelper.environment(
+            over: [:], shim: "/tmp/bridge", declined: declined, thisMacConfig: try config(Self.signedInConfig)
+        )
 
         #expect(first.isEmpty)
         #expect(second.isEmpty)
@@ -242,14 +268,23 @@ struct BitbucketGitCredentialTests {
         let signedOut = ["BKT_CONFIG_DIR": "/tmp/profile", "KEYRING_FILE_DIR": TestScratch.unique("unifieddev-empty")]
         let signedIn = try profile(holding: BitbucketTokenFixtures.oauth)
 
-        let without = BitbucketCredentialHelper.environment(over: signedOut, shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { true }
-        let with = BitbucketCredentialHelper.environment(over: signedIn, shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { false }
-        let thisMacWithout = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { false }
-        let thisMacWith = BitbucketCredentialHelper.environment(over: [:], shim: "/tmp/bridge", declined: BitbucketKeychainToken.declined(in: quiet)) { true }
+        let declined = BitbucketKeychainToken.declined(in: quiet)
+        let signedInHere = try config(Self.signedInConfig)
+        let missing = quiet.appending(path: "absent.yml")
+        func helper(_ over: [String: String], _ thisMac: URL) -> [String: String] {
+            BitbucketCredentialHelper.environment(over: over, shim: "/tmp/bridge", declined: declined, thisMacConfig: thisMac)
+        }
+
+        let without = helper(signedOut, signedInHere)
+        let with = helper(signedIn, missing)
+        let thisMacWithout = helper([:], missing)
+        let thisMacContextOnly = helper([:], try config(Self.contextOnlyConfig))
+        let thisMacWith = helper([:], signedInHere)
 
         #expect(without["GIT_CONFIG_COUNT"] == nil)
         #expect(with["GIT_CONFIG_COUNT"] == "6")
         #expect(thisMacWithout["GIT_CONFIG_COUNT"] == nil)
+        #expect(thisMacContextOnly["GIT_CONFIG_COUNT"] == nil)
         #expect(thisMacWith["GIT_CONFIG_COUNT"] == "6")
     }
 }

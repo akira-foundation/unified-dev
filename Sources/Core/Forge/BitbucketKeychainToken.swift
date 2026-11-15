@@ -9,17 +9,6 @@ enum BitbucketKeychainToken {
         case declined
     }
 
-    static func exists() -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: BitbucketGitCredential.tokenKey,
-            kSecReturnAttributes as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        return SecItemCopyMatching(query as CFDictionary, nil) == errSecSuccess
-    }
-
     static func read() -> Reading {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

@@ -59,9 +59,9 @@ public enum BitbucketCredentialHelper {
         over inherited: [String: String],
         shim: String? = BridgeRegistration.shimPath(),
         declined: QuietMarker = BitbucketKeychainToken.declined(),
-        keychainHoldsSignIn: () -> Bool = BitbucketKeychainToken.exists
+        thisMacConfig: URL = BitbucketCredentialHelper.thisMacConfig
     ) -> [String: String] {
-        guard let shim, holdsSignIn(inherited, declined: declined, keychain: keychainHoldsSignIn) else { return inherited }
+        guard let shim, holdsSignIn(inherited, declined: declined, thisMacConfig: thisMacConfig) else { return inherited }
         return inherited.merging(gitEnvironment(shim: shim, over: inherited)) { _, helper in helper }
     }
 
@@ -75,7 +75,19 @@ public enum BitbucketCredentialHelper {
         return signedIn.merging(helper) { _, helper in helper }
     }
 
-    static func holdsSignIn(_ environment: [String: String], declined: QuietMarker, keychain: () -> Bool) -> Bool {
+    static var thisMacConfig: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appending(path: "Library/Application Support/bkt", directoryHint: .isDirectory)
+            .appending(path: "config.yml")
+    }
+
+    static func namesCloudHost(_ config: String) -> Bool {
+        config.components(separatedBy: .newlines).contains { line in
+            line.hasPrefix(" ") && line.trimmingCharacters(in: .whitespaces) == BitbucketAuthStatus.cloudHostKey + ":"
+        }
+    }
+
+    static func holdsSignIn(_ environment: [String: String], declined: QuietMarker, thisMacConfig: URL) -> Bool {
         if let folder = environment["KEYRING_FILE_DIR"], !folder.isEmpty {
             let file = URL(fileURLWithPath: folder).appending(path: BitbucketGitCredential.fileName(of: BitbucketGitCredential.tokenKey))
             return FileManager.default.fileExists(atPath: file.path)
@@ -83,7 +95,8 @@ public enum BitbucketCredentialHelper {
         guard environment[BitbucketLogin.configVariable]?.isEmpty ?? true,
               !declined.isQuiet(at: Date())
         else { return false }
-        return keychain()
+        guard let config = try? String(contentsOf: thisMacConfig, encoding: .utf8) else { return false }
+        return namesCloudHost(config)
     }
 
     public static func run(
