@@ -157,8 +157,9 @@ Mac's `bkt` configuration and Keychain, and a profile with its own GitHub login 
 in `BitbucketLogins/<profile id>` beside `GitHubLogins/`. bkt keys its Keychain item by host alone, so the
 profile's token lives in bkt's encrypted file store in that folder instead. Profile Settings shows it in a
 Bitbucket section, with the browser and an API token as the two ways to sign in, for this Mac's sign-in or
-the profile's own, whichever the profile uses. `docs/BITBUCKET.md` has
-the variables and why.
+the profile's own, whichever the profile uses. Repository and workspace access tokens are not
+offered, because bkt reads them only from `BKT_TOKEN` and a profile would have to hand its token to
+every agent in plain text (#634). `docs/BITBUCKET.md` has the variables and why.
 
 ## Moving a project
 
