@@ -52,9 +52,7 @@ struct BitbucketPipelineStep: Decodable, Sendable, Hashable {
         case completedOn = "completed_on"
     }
 
-    var hasFailed: Bool {
-        ["FAILED", "ERROR"].contains(state?.result?.name?.uppercased() ?? "")
-    }
+    var hasFailed: Bool { conclusion?.conclusion == "FAILURE" }
 
     static func canonicalUUID(_ value: String) -> String? {
         let bare = value.trimmingCharacters(in: CharacterSet(charactersIn: "{} "))

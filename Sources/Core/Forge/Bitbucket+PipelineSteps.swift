@@ -37,6 +37,7 @@ extension BitbucketPipelineStep {
     static func rows(_ steps: [Self], of pipeline: CheckRun, in target: BitbucketPipelineTarget) -> [CheckRun]? {
         let rows = steps.compactMap { $0.checkRun(in: target, pipeline: pipeline) }
         guard !rows.isEmpty, rows.count == steps.count else { return nil }
+        if pipeline.status == "COMPLETED", !steps.allSatisfy(\.isFinished) { return nil }
         return rows
     }
 }
@@ -53,7 +54,7 @@ actor BitbucketFinishedSteps {
     func steps(for key: Key?) -> [BitbucketPipelineStep]? { key.flatMap { kept[$0] } }
 
     func keep(_ steps: [BitbucketPipelineStep], for key: Key?) {
-        guard let key, !steps.isEmpty, steps.allSatisfy(\.isFinished) else { return }
+        guard let key else { return }
         if kept.count >= limit { kept.removeAll() }
         kept[key] = steps
     }
@@ -90,7 +91,10 @@ extension Bitbucket {
         let targets = pipelineTargets(of: runs, in: repository)
         var steps: [Int: [BitbucketPipelineStep]] = [:]
         for (index, target) in targets {
-            let finished = runs[index].completedAt.map { BitbucketFinishedSteps.Key(target: target, finishedAt: $0) }
+            let pipeline = runs[index]
+            let finished = pipeline.status == "COMPLETED"
+                ? pipeline.completedAt.map { BitbucketFinishedSteps.Key(target: target, finishedAt: $0) }
+                : nil
             steps[index] = await pipelineSteps(
                 of: target, finished: finished, in: repository, context: context, directory: directory
             )

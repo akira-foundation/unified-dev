@@ -40,15 +40,19 @@ struct BitbucketPipelineStepTests {
         ("COMPLETED", "ERROR", "COMPLETED", "FAILURE"),
         ("COMPLETED", "STOPPED", "COMPLETED", "CANCELLED"),
         ("COMPLETED", "NOT_RUN", "COMPLETED", "SKIPPED"),
+        ("COMPLETED", "SKIPPED", "COMPLETED", "SKIPPED"),
     ])
     func stateMapping(state: String, result: String?, status: String, conclusion: String?) throws {
         let steps = try Bitbucket.decode(
             BitbucketPage<BitbucketPipelineStep>.self, from: Self.page(Self.step("Lint", state, result, uuid: Self.lint))
         ).values
         let target = BitbucketPipelineTarget(repository: "debtges/ledger", buildNumber: 88)
-        let row = try #require(BitbucketPipelineStep.rows(steps, of: Self.pipeline(88), in: target)?.first)
+        let row = try #require(BitbucketPipelineStep.rows(steps, of: Self.pipeline(88, finished: false), in: target)?.first)
 
         #expect(row.status == status)
+        #expect(row.startedAt == BitbucketDates.parse("2025-06-10T06:17:37.581560549Z"))
+        #expect(row.completedAt == (status == "COMPLETED" ? BitbucketDates.parse("2025-06-10T06:24:31.664116878Z") : nil))
+        #expect(steps[0].hasFailed == (conclusion == "FAILURE"))
         #expect(row.conclusion == conclusion)
         #expect(row.workflowName == "Pipeline #88 for feat/7")
         #expect(row.name == "Lint")
@@ -63,6 +67,17 @@ struct BitbucketPipelineStepTests {
 
         #expect(BitbucketPipelineStep.rows(steps, of: Self.pipeline(88), in: target) == nil)
         #expect(BitbucketPipelineStep.rows([], of: Self.pipeline(88), in: target) == nil)
+    }
+
+    @Test("a finished pipeline with a step still waiting, a manual one, stays one finished row")
+    func finishedPipelineWithWaitingStep() throws {
+        let steps = try Bitbucket.decode(BitbucketPage<BitbucketPipelineStep>.self, from: Self.page(
+            Self.step("Build", "COMPLETED", "SUCCESSFUL", uuid: Self.lint), Self.step("Deploy", "PENDING", uuid: Self.build)
+        )).values
+        let target = BitbucketPipelineTarget(repository: "debtges/ledger", buildNumber: 88)
+
+        #expect(BitbucketPipelineStep.rows(steps, of: Self.pipeline(88), in: target) == nil)
+        #expect(BitbucketPipelineStep.rows(steps, of: Self.pipeline(88, finished: false), in: target)?.count == 2)
     }
 
     @Test("a step's row links to that step, so its log is the one read")
@@ -88,6 +103,13 @@ struct BitbucketPipelineStepTests {
         let targets = Bitbucket.pipelineTargets(of: runs, in: Self.ledger)
 
         #expect(targets == [0: BitbucketPipelineTarget(repository: "debtges/ledger", buildNumber: 88)])
+    }
+
+    @Test("no more than five pipelines are expanded in one read")
+    func fivePipelinesAtMost() {
+        let runs = (1...7).map { Self.pipeline(100 + $0) }
+
+        #expect(Bitbucket.pipelineTargets(of: runs, in: Self.ledger).keys.sorted() == [0, 1, 2, 3, 4])
     }
 
     @Test("a pipeline is replaced by its steps in place, and one whose steps were not read stays one row")
@@ -132,6 +154,17 @@ struct BitbucketPipelineStepTests {
             "/repositories/debtges/ledger/pipelines/7101/steps/",
             "/repositories/debtges/ledger/pipelines/7101/steps/",
         ])
+    }
+
+    @Test("a list of steps longer than one page leaves the pipeline as one row")
+    func pagedStepsKeepOneRow() async {
+        let paged = #"{"next": "https://api.bitbucket.org/2.0/x?page=2", "values": ["#
+            + Self.step("Build", "COMPLETED", "FAILED", uuid: Self.build) + "]}"
+        let runs = await Bitbucket.$commandOverride.withValue({ _, _ in ShellResult(status: 0, stdout: paged, stderr: "") }) {
+            await Bitbucket.withPipelineSteps([Self.pipeline(7300)], in: Self.ledger, context: "work", directory: "/nowhere")
+        }
+
+        #expect(runs == [Self.pipeline(7300)])
     }
 
     @Test("steps bkt cannot read leave the pipeline as one row")
