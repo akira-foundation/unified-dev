@@ -68,11 +68,17 @@ struct StartingPointReadingTests {
             "origin": "https://bitbucket.org/akira/lantern.git",
         ])
         let asked = AskedCommands()
-        let reading = try await GitHub.$commandOverride.withValue(Double.answering(asked)) {
-            try await StartingPointReader.read(repoPath: repo, asksGitHub: true)
+        let signedOut = ShellResult(status: 0, stdout: #"{"hosts": [], "contexts": []}"#, stderr: "")
+        let reading = await GitHub.$commandOverride.withValue(Double.answering(asked)) {
+            await Bitbucket.$commandOverride.withValue({ _, _ in signedOut }) {
+                await StartingPointReader.load(
+                    StartingPointReadingRequest(repoPath: repo, asksGitHub: true), from: StartingPointReader.Readings()
+                )
+            }
         }
         #expect(await asked.commands.isEmpty)
-        #expect(reading.branches.count == 3)
+        #expect(reading?.pullRequests == PullRequestsAwaitingViewer())
+        #expect(reading?.branches.count == 3)
     }
 
     @Test("gh refusing still shows the branches, and is asked again on the next visit")
