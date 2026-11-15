@@ -391,6 +391,51 @@ struct WorkspaceMergeToolTests {
         #expect(!body.contains(" gh "))
     }
 
+    @Test("on Bitbucket, a pull request the host will not take and work it has not got name Bitbucket")
+    func bitbucketBlockedAndLocalWork() async throws {
+        let store = try makeTestStore("merge-bitbucket-blocked")
+        let target = try await workspace(in: store)
+        let request = request(["workspace": .string(target.id.rawValue)])
+
+        let draft = await tool(reading: .found(Self.open(isDraft: true), local: nil), forge: .bitbucket)
+            .call(request, as: .owner, store: store)
+        let local = await tool(
+            reading: .found(Self.open(), local: LocalWork(modifiedFiles: 1)), forge: .bitbucket
+        ).call(request, as: .owner, store: store)
+
+        #expect(draft.text.contains("Bitbucket reports it as"))
+        #expect(draft.text.contains("skip a build"))
+        #expect(local.text.contains("work Bitbucket has not got"))
+        #expect(!draft.text.contains("GitHub") && !local.text.contains("GitHub"))
+    }
+
+    @Test("on Bitbucket the answer says the agent runs bkt pr merge and Bitbucket may refuse")
+    func bitbucketAnswer() async throws {
+        let store = try makeTestStore("merge-bitbucket-answer")
+        let target = try await workspace(in: store)
+
+        let result = await tool(forge: .bitbucket).call(
+            request(["workspace": .string(target.id.rawValue)]), as: .owner, store: store
+        )
+
+        let note = try answer(result)["note"]?.stringValue ?? ""
+        #expect(note.contains("`bkt pr merge`"))
+        #expect(note.contains("Bitbucket is allowed to refuse"))
+        #expect(!note.contains("gh pr merge"))
+    }
+
+    @Test("the default host is read from the workspace's base remote")
+    func defaultHost() async throws {
+        let store = try makeTestStore("merge-default-host")
+        let target = try await workspace(in: store)
+
+        let host = await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+            await WorkspaceMergeTool.hostOf(target)
+        }
+
+        #expect(host == .bitbucket)
+    }
+
     @Test("bkt missing is named as bkt, and bkt signed out as not signed in to Bitbucket")
     func bitbucketAccessWording() {
         let missing = WorkspaceMergeTrouble.forgeUnavailable(.notInstalled, on: .bitbucket).sentence

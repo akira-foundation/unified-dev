@@ -49,12 +49,12 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
             and merges again, three times at most; any other refusal it reports.
 
             So it returns once the turn has begun, and the merging happens inside that turn, after \
-            this call is over. Nothing has landed on GitHub when this answers, and the merge may \
-            still not happen. Do not report a pull request as merged on the strength of this call. \
+            this call is over. Nothing has landed on GitHub or Bitbucket when this answers, and the \
+            merge may still not happen. Do not report a pull request as merged on the strength of this call. \
             Call workspace_list with include_github afterwards and read the state.
 
-            It refuses a pull request GitHub will not take, a worktree holding work GitHub has not \
-            got, and a workspace whose agent is busy. When it refuses, do not run `gh pr merge` \
+            It refuses a pull request its host will not take, a worktree holding work the host has \
+            not got, and a workspace whose agent is busy. When it refuses, do not run `gh pr merge` \
             or `bkt pr merge` yourself and do not ask another agent to. Merging publishes to a \
             server other people share, and Unified Dev only does it where the owner can watch it \
             happen.
@@ -197,6 +197,7 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
             return .json(answer(
                 workspace: workspace,
                 pullRequest: pullRequest,
+                forge: forge,
                 method: method,
                 chat: chat
             ))
@@ -206,6 +207,7 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
     private func answer(
         workspace: Workspace,
         pullRequest: PullRequest,
+        forge: ForgeKind,
         method: GitHub.MergeMethod,
         chat: String
     ) -> JSONValue {
@@ -219,14 +221,13 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
             "base_branch": .string(pullRequest.targetBranch(or: workspace.baseBranch)),
             "method": .string(method.phrase),
             "note": .string(note(
-                workspace: workspace, pullRequest: pullRequest, chat: chat
+                workspace: workspace, pullRequest: pullRequest, forge: forge, chat: chat
             )),
         ])
     }
 
-    private func note(workspace: Workspace, pullRequest: PullRequest, chat: String) -> String {
-        let forge = pullRequest.forge
-        return """
+    private func note(workspace: Workspace, pullRequest: PullRequest, forge: ForgeKind, chat: String) -> String {
+        """
         Nothing is merged. A turn has begun in '\(workspace.name)', in the chat '\(chat)': its \
         agent has been asked to merge #\(pullRequest.number) and it runs `\(forge.cli) pr merge` itself, \
         where the owner can watch it and answer anything it asks. Unified Dev does not wait for that \
