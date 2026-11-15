@@ -357,6 +357,7 @@ id_type_allowed_lines=(
 id_type_allowed_properties=(
   'Sources/Core/Agent/Delivery.swift:providerTurnID'             # the provider's accepted turn, used for recovery
   'Sources/Core/Transcript/TurnCheckpoint.swift:providerTurnID' # the same provider turn correlated with a snapshot
+  'Sources/Core/Forge/BitbucketPullRequestPayload.swift:accountID' # an Atlassian account id, read from Bitbucket's API
   'Sources/Core/Transcript/TurnCheckpoint.swift:providerThreadID' # the provider's thread that held the turn being rewound
   'Sources/Core/Agent/PlanArtefact.swift:sourceID'               # the provider's plan item or tool-use token
   'Sources/Core/Presentation/AgentQuestionDigest.swift:answerID'  # the same opaque question answer id, carried for the closed line

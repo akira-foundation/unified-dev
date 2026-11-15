@@ -56,7 +56,7 @@ struct BitbucketPullRequestTests {
         #expect(pullRequest.branch == "issue/10.2.x/upmerge")
         #expect(pullRequest.baseBranch == "release/10.2.x")
         #expect(pullRequest.headCommit == "ec3178d4d575")
-        #expect(pullRequest.author == "dc-core-bot")
+        #expect(pullRequest.author == "{9196eaf9-6f9d-404f-a451-5bc9bb347ca9}")
         #expect(pullRequest.isFromFork == false)
         #expect(pullRequest.closedAt == nil)
         #expect(pullRequest.checks == PullRequest.Checks.none)
@@ -154,7 +154,7 @@ struct BitbucketPullRequestTests {
         #expect(try Bitbucket.decodePullRequest(json).pullRequest(runs: []).url.hasPrefix("https://bitbucket.org/"))
     }
 
-    @Test("a pull request with no page link still names Bitbucket, so its merge stays held")
+    @Test("a pull request with no page link still names Bitbucket, so its merge goes through bkt")
     func missingLinkStaysBitbucket() throws {
         let json = Self.pullRequestJSON().replacingOccurrences(
             of: #""links": {"html": {"href": "https://bitbucket.org/atlassian/aui/pull-requests/5486"}},"#, with: ""
@@ -162,7 +162,7 @@ struct BitbucketPullRequestTests {
         let pullRequest = try Bitbucket.decodePullRequest(json).pullRequest(runs: [])
 
         #expect(pullRequest.url == "https://bitbucket.org/atlassian/aui/pull-requests/5486")
-        #expect(!pullRequest.status.canMerge)
+        #expect(pullRequest.forge == .bitbucket)
     }
 
     @Test("a branch name reused after its pull request merged does not bring that pull request back")
@@ -188,15 +188,15 @@ struct BitbucketPullRequestTests {
         #expect(arguments.suffix(2) == ["--context", "work"])
     }
 
-    @Test("an open Bitbucket pull request is never offered to the GitHub merge")
-    func mergeHeld() throws {
+    @Test("an open Bitbucket pull request is offered to the merge, and a draft to Mark ready")
+    func mergeOffered() throws {
         let pullRequest = try Bitbucket.decodePullRequest(Self.pullRequestJSON()).pullRequest(runs: [])
         let draft = try Bitbucket.decodePullRequest(Self.pullRequestJSON(draft: true)).pullRequest(runs: [])
 
-        #expect(!pullRequest.status.canMerge)
-        #expect(pullRequest.status.blockedReason == PullRequest.bitbucketMergeHeld)
+        #expect(pullRequest.status.canMerge)
+        #expect(pullRequest.status.blockedReason == nil)
         #expect(pullRequest.status.text == "Ready to merge")
-        #expect(draft.status.remedy == .merge)
+        #expect(draft.status.remedy == .markReadyForReview)
         #expect(!draft.status.canMerge)
         #expect(pullRequest.hostName == "Bitbucket")
     }
@@ -207,6 +207,7 @@ struct BitbucketPullRequestTests {
 
         #expect(pullRequest.state == "UNKNOWN")
         #expect(!pullRequest.status.canMerge)
+        #expect(pullRequest.status.blockedReason == PullRequest.unknownStateHeld)
     }
 
     @Test("a GitHub pull request still merges as it did")

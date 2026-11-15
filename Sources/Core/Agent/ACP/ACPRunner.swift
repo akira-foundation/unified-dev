@@ -248,7 +248,7 @@ public actor ACPRunner: SessionRunner {
             account: account,
             clientName: "Unified Dev",
             clientVersion: Self.clientVersion,
-            environment: gitHub.applied(to: Shell.environment()),
+            environment: gitHub.everySignIn(appliedTo: Shell.environment()),
             model: wireModel,
             effort: session.effort,
             alwaysApprove: alwaysApproves,

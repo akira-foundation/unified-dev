@@ -332,7 +332,7 @@ public struct WorkspaceListTool: BridgeToolHandling {
 
     private func pullRequest(for workspace: Workspace, store: Store) async -> PullRequest? {
         guard FileManager.default.fileExists(atPath: workspace.path) else { return nil }
-        let found = try? await GitHub.pullRequest(for: workspace, maxAge: .seconds(60))
+        let found = try? await ForgePullRequests.pullRequest(for: workspace, maxAge: .seconds(60))
         await PullRequestNumber.record(found, for: workspace, in: store)
         return found
     }

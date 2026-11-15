@@ -38,7 +38,7 @@ extension WorkspaceModel {
     ) async -> String? {
         let asked = workspace
         let read = await Task.detached(priority: .utility) {
-            try? await GitHub.headAndChecks(for: asked)
+            try? await ForgePullRequests.headAndChecks(for: asked)
         }.value
         guard let read, read.head == attempt.headCommit else { return nil }
         let failed = read.runs.filter { CheckState($0) == .failed }

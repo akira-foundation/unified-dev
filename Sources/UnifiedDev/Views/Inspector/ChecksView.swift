@@ -10,6 +10,7 @@ struct ChecksView: View {
     @State private var checksUnavailable = false
     @State private var hovered: String?
     @State private var github: GitHubAvailability.State = .unknown
+    @State private var forge: ForgeKind = .gitHub
     @State private var reload = 0
     @State private var sender = CheckFailureSender()
 
@@ -114,30 +115,27 @@ struct ChecksView: View {
     private var emptyContent: some View {
         switch emptyReason {
         case .cannotAsk:
-            EmptyStateView(
-                glyph: "questionmark.circle",
-                title: github == .notInstalled ? "The GitHub CLI is not installed" : "GitHub is not connected",
-                message: github == .notInstalled
-                    ? "Checks come from GitHub through the gh command, and it is not on this Mac."
-                    : "Checks come from GitHub through the gh command, and it is signed out.",
-                actionTitle: github == .notInstalled ? "Install the GitHub CLI" : "Connect GitHub",
-                action: { GitHubSignIn.shared.run(directory: model.workspace.path) { reload += 1 } }
-            )
+            if let actionTitle = wording.cannotAskAction(access: access) {
+                EmptyStateView(
+                    glyph: "questionmark.circle",
+                    title: wording.cannotAskTitle(access: access),
+                    message: wording.cannotAskMessage(access: access),
+                    actionTitle: actionTitle,
+                    action: { GitHubSignIn.shared.run(directory: model.workspace.path) { reload += 1 } }
+                )
+            } else {
+                EmptyStateView(
+                    glyph: "questionmark.circle",
+                    title: wording.cannotAskTitle(access: access),
+                    message: wording.cannotAskMessage(access: access)
+                )
+            }
         case .unreadable:
-            EmptyStateView(
-                glyph: "lock",
-                title: "Checks unavailable",
-                message: "GitHub did not let this token read check runs. A fine-grained personal "
-                    + "access token cannot be given that permission, so their results are unknown."
-            )
+            EmptyStateView(glyph: "lock", title: "Checks unavailable", message: wording.unreadable)
         case .none:
-            EmptyStateView(
-                glyph: "checkmark.seal",
-                title: "No checks",
-                message: "GitHub has not reported a check run for this branch."
-            )
+            EmptyStateView(glyph: "checkmark.seal", title: "No checks", message: wording.none)
         case .loading:
-            LoadingView("Asking GitHub")
+            LoadingView(wording.loading)
         }
     }
 
@@ -160,7 +158,7 @@ struct ChecksView: View {
     }
 
     private func summaryText(_ rollup: String) -> String {
-        if !github.isUsable { return github == .notInstalled ? "No GitHub CLI" : "GitHub not connected" }
+        if !github.isUsable { return wording.summary(access: access) }
         return runs.isEmpty && !hasLoaded ? "Loading checks" : rollup
     }
 
@@ -172,6 +170,10 @@ struct ChecksView: View {
         case .none, .unavailable: Palette.textTertiary
         }
     }
+
+    private var wording: ChecksWording { ChecksWording(forge: forge) }
+
+    private var access: GitHubAccess { github == .notInstalled ? .notInstalled : .signedOut }
 
     private func send(_ run: CheckRun) {
         Task {
@@ -190,8 +192,11 @@ struct ChecksView: View {
 
     private func poll() async {
         let reader = PullRequestReader.checksTab
+        forge = await Forge.kind(forDirectory: model.workspace.path)
         while !Task.isCancelled {
-            let state = await GitHubAvailability.shared.check(directory: model.workspace.path)
+            let state: GitHubAvailability.State = forge == .bitbucket
+                ? GitHubAvailability.State(await Bitbucket.access(directory: model.workspace.path))
+                : await GitHubAvailability.shared.check(directory: model.workspace.path)
             github = state
 
             if state == .ready {

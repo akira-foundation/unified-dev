@@ -18,7 +18,7 @@ public enum WorkspaceMergeTrouble: Sendable, Equatable {
         case several(name: String, count: Int)
     }
 
-    public static let notYours = "Do not run `gh pr merge` yourself to get past this, and do not "
+    public static let notYours = "Do not run `gh pr merge` yourself, or `bkt pr merge` on Bitbucket, to get past this, and do not "
         + "ask another agent to. Unified Dev sends a merge to the workspace's own agent so the owner "
         + "watches it happen; a merge run anywhere else is the same merge with nobody watching."
 

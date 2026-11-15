@@ -11,7 +11,7 @@ extension AppModel {
         guard await PullRequestAutoFixSetting.isOn(repoID: workspace.repoID, in: store),
               let known = try? await store.pullRequestFixLedger(workspaceID: id, number: seen.number),
               PullRequestAutoFix.isWorthReading(seen, ledger: known),
-              let facts = await GitHub.pullRequestAutoFixFacts(for: workspace),
+              let facts = await ForgePullRequests.autoFixFacts(for: workspace),
               let ledger = try? await store.pullRequestFixLedger(workspaceID: id, number: facts.pullRequest.number),
               let current = workspaces.first(where: { $0.id == id })
         else { return }

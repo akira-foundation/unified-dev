@@ -2,6 +2,7 @@ import Foundation
 
 struct BitbucketPage<Value: Decodable>: Decodable {
     let values: [Value]
+    var next: String?
 }
 
 struct BitbucketPullRequestPayload: Decodable {
@@ -23,10 +24,13 @@ struct BitbucketPullRequestPayload: Decodable {
         let nickname: String?
         let username: String?
         let displayName: String?
+        var uuid: String?
+        var accountID: String?
 
         enum CodingKeys: String, CodingKey {
-            case nickname, username
+            case nickname, username, uuid
             case displayName = "display_name"
+            case accountID = "account_id"
         }
     }
 
@@ -105,7 +109,7 @@ struct BitbucketPullRequestPayload: Decodable {
             baseBranch: destination?.branch?.name ?? "",
             closedAt: closed ? BitbucketDates.parse(updatedOn) : nil,
             headCommit: source?.commit?.hash,
-            author: author.flatMap { $0.nickname ?? $0.username ?? $0.displayName },
+            author: author?.identity,
             isFromFork: isFromFork,
             hasUnfinishedChecks: read.map { _ in runs.contains { CheckState($0) == .running || CheckState($0) == .queued } },
             hasFixableCheckFailure: read.map { _ in runs.contains { CheckState($0) == .failed } }

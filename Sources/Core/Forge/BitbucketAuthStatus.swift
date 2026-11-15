@@ -4,6 +4,13 @@ struct BitbucketAuthStatus: Decodable, Sendable {
     struct Host: Decodable, Sendable {
         let key: String
         let kind: String?
+        let username: String?
+        let authMethod: String?
+
+        enum CodingKeys: String, CodingKey {
+            case key, kind, username
+            case authMethod = "auth_method"
+        }
     }
 
     struct Context: Decodable, Sendable {
@@ -34,8 +41,10 @@ struct BitbucketAuthStatus: Decodable, Sendable {
         try? JSONDecoder().decode(BitbucketAuthStatus.self, from: Data(output.utf8))
     }
 
-    var isSignedInToCloud: Bool {
-        hosts.contains { $0.key.caseInsensitiveCompare(Self.cloudHostKey) == .orderedSame }
+    var isSignedInToCloud: Bool { cloudHost != nil }
+
+    var cloudHost: Host? {
+        hosts.first { $0.key.caseInsensitiveCompare(Self.cloudHostKey) == .orderedSame }
     }
 
     var cloudContext: String? {

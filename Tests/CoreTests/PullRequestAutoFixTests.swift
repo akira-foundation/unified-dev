@@ -63,6 +63,23 @@ struct PullRequestAutoFixTests {
         #expect(PullRequestAutoFix.decide(situation()) == .send(attempt(.checks)))
     }
 
+    @Test("a Bitbucket head abbreviated to twelve characters matches the full commit checked out and in the commits")
+    func abbreviatedHeadSends() {
+        let full = "ec3178d4d575a1b2c3d4e5f60718293a4b5c6d7e"
+        let decision = PullRequestAutoFix.decide(situation(
+            pullRequest: pullRequest(headCommit: "ec3178d4d575"),
+            checkedOutHead: full,
+            commitAuthors: PullRequestAutoFix.CommitAuthors(headCommit: full, logins: ["owner"])
+        ))
+
+        #expect(decision == .send(attempt(.checks, head: "ec3178d4d575")))
+        #expect(PullRequestAutoFix.decide(situation(
+            pullRequest: pullRequest(headCommit: "ec3178d4d576"),
+            checkedOutHead: full,
+            commitAuthors: PullRequestAutoFix.CommitAuthors(headCommit: full, logins: ["owner"])
+        )) != .send(attempt(.checks, head: "ec3178d4d576")))
+    }
+
     @Test("a conflict goes under its own reason")
     func conflictSends() {
         let conflicted = pullRequest(mergeable: "CONFLICTING", checks: .passing)

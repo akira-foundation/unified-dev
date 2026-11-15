@@ -192,14 +192,14 @@ public enum Bitbucket {
             .map { String($0.dropFirst("Error: ".count)) }
     }
 
-    private static func path(of repository: ForgeRepository) -> String {
+    static func path(of repository: ForgeRepository) -> String {
         let allowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
         let owner = repository.owner.addingPercentEncoding(withAllowedCharacters: allowed) ?? repository.owner
         let name = repository.name.addingPercentEncoding(withAllowedCharacters: allowed) ?? repository.name
         return "/repositories/\(owner)/\(name)"
     }
 
-    private static func decode<Value: Decodable>(_ type: Value.Type, from output: String) throws -> Value {
+    static func decode<Value: Decodable>(_ type: Value.Type, from output: String) throws -> Value {
         do {
             return try JSONDecoder().decode(type, from: Data(output.utf8))
         } catch {
@@ -207,12 +207,23 @@ public enum Bitbucket {
         }
     }
 
-    private static func run(_ arguments: [String], directory: String) async throws -> ShellResult {
+    static func run(
+        _ arguments: [String], directory: String, timeout: Duration = .seconds(20), login chosen: BitbucketLogin? = nil
+    ) async throws -> ShellResult {
         if let commandOverride { return try await commandOverride(arguments, directory) }
-        return try await Shell.run(executable, arguments, cwd: directory, timeout: .seconds(20))
+        let login: BitbucketLogin
+        if let chosen { login = chosen } else { login = await GitHub.login(forDirectory: directory).bitbucket }
+        return try await Shell.run(executable, arguments, cwd: directory, env: login.variables, timeout: timeout)
     }
 
-    private static func shellError(_ arguments: [String], result: ShellResult) -> ShellError {
+    static func connection(in directory: String) async throws -> (repository: ForgeRepository, context: String) {
+        guard let repository = await Forge.repository(forDirectory: directory), repository.kind == .bitbucket else {
+            throw GitHubReadFailure(reason: .unavailable, message: "This checkout has no Bitbucket remote.")
+        }
+        return (repository, try await session(in: directory, for: repository))
+    }
+
+    static func shellError(_ arguments: [String], result: ShellResult) -> ShellError {
         ShellError(
             command: "\(executable) " + arguments.joined(separator: " "),
             status: result.status,

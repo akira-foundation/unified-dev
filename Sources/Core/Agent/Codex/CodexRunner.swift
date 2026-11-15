@@ -320,7 +320,7 @@ public actor CodexRunner: SessionRunner {
             account: account,
             clientName: "Unified Dev",
             clientVersion: Self.clientVersion,
-            environment: gitHub.applied(to: Shell.environment()),
+            environment: gitHub.everySignIn(appliedTo: Shell.environment()),
             bridge: bridge,
             contextWindow: contextWindow
         ))

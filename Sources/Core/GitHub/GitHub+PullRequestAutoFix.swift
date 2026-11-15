@@ -7,6 +7,27 @@ public struct PullRequestAutoFixFacts: Sendable {
     public let checkedOutHead: String?
     public let viewerLogin: String?
     public let commitAuthors: PullRequestAutoFix.CommitAuthors?
+
+    static func gather(
+        _ pullRequest: PullRequest,
+        in path: String,
+        viewer: @Sendable () async -> String?,
+        authors: @Sendable () async -> PullRequestAutoFix.CommitAuthors?
+    ) async -> PullRequestAutoFixFacts {
+        async let localWork = try? Git.localWork(worktree: path)
+        async let branch = try? Git.currentBranch(of: path)
+        async let head = try? Git.run(["rev-parse", "HEAD"], in: path)
+        async let viewerLogin = viewer()
+        async let commitAuthors = authors()
+        return await PullRequestAutoFixFacts(
+            pullRequest: pullRequest,
+            localWork: localWork,
+            checkedOutBranch: branch,
+            checkedOutHead: head.flatMap { $0.ok ? $0.trimmed : nil },
+            viewerLogin: viewerLogin,
+            commitAuthors: commitAuthors
+        )
+    }
 }
 
 private struct CommitAuthorsPayload: Decodable {
@@ -43,18 +64,10 @@ public extension GitHub {
     static func pullRequestAutoFixFacts(for workspace: Workspace) async -> PullRequestAutoFixFacts? {
         guard let pullRequest = try? await GitHub.pullRequest(for: workspace, maxAge: .zero) else { return nil }
         let path = workspace.path
-        async let localWork = try? Git.localWork(worktree: path)
-        async let branch = try? Git.currentBranch(of: path)
-        async let head = try? Git.run(["rev-parse", "HEAD"], in: path)
-        async let viewer = signedInLogin(worktree: path)
-        async let authors = commitAuthors(number: pullRequest.number, worktree: path)
-        return await PullRequestAutoFixFacts(
-            pullRequest: pullRequest,
-            localWork: localWork,
-            checkedOutBranch: branch,
-            checkedOutHead: head.flatMap { $0.ok ? $0.trimmed : nil },
-            viewerLogin: viewer,
-            commitAuthors: authors
+        return await PullRequestAutoFixFacts.gather(
+            pullRequest, in: path,
+            viewer: { await signedInLogin(worktree: path) },
+            authors: { await commitAuthors(number: pullRequest.number, worktree: path) }
         )
     }
 
