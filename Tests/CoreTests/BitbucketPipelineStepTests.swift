@@ -41,6 +41,7 @@ struct BitbucketPipelineStepTests {
         ("COMPLETED", "STOPPED", "COMPLETED", "CANCELLED"),
         ("COMPLETED", "NOT_RUN", "COMPLETED", "SKIPPED"),
         ("COMPLETED", "SKIPPED", "COMPLETED", "SKIPPED"),
+        ("IN_PROGRESS", "FAILED", "IN_PROGRESS", nil),
     ])
     func stateMapping(state: String, result: String?, status: String, conclusion: String?) throws {
         let steps = try Bitbucket.decode(
@@ -165,6 +166,22 @@ struct BitbucketPipelineStepTests {
         }
 
         #expect(runs == [Self.pipeline(7300)])
+    }
+
+    @Test("a finished pipeline whose steps still show one running is asked again on the next read")
+    func runningStepIsNotKept() async {
+        let calls = Calls()
+        let running = Self.page(Self.step("Build", "IN_PROGRESS", uuid: Self.build))
+        for _ in 0..<2 {
+            _ = await Bitbucket.$commandOverride.withValue({ arguments, _ in
+                await calls.record(arguments)
+                return ShellResult(status: 0, stdout: running, stderr: "")
+            }) {
+                await Bitbucket.withPipelineSteps([Self.pipeline(7400)], in: Self.ledger, context: "work", directory: "/nowhere")
+            }
+        }
+
+        #expect(await calls.seen.count == 2)
     }
 
     @Test("steps bkt cannot read leave the pipeline as one row")

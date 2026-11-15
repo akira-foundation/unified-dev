@@ -54,7 +54,7 @@ actor BitbucketFinishedSteps {
     func steps(for key: Key?) -> [BitbucketPipelineStep]? { key.flatMap { kept[$0] } }
 
     func keep(_ steps: [BitbucketPipelineStep], for key: Key?) {
-        guard let key else { return }
+        guard let key, !steps.isEmpty, !steps.contains(where: { $0.conclusion?.status == "IN_PROGRESS" }) else { return }
         if kept.count >= limit { kept.removeAll() }
         kept[key] = steps
     }
