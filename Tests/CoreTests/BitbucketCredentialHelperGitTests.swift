@@ -40,6 +40,15 @@ struct BitbucketCredentialHelperGitTests {
         #expect(filled.contains("password=from-helper-debtges/ledger.git\n"))
     }
 
+    @Test("www.bitbucket.org is answered by the shim too")
+    func wwwIsOurs() async throws {
+        let (_, environment) = try fixture()
+
+        let filled = try await fill("protocol=https\nhost=www.bitbucket.org\npath=debtges/ledger.git\n\n", environment: environment)
+
+        #expect(filled.contains("password=from-helper-debtges/ledger.git\n"))
+    }
+
     @Test("every other host keeps the helpers this Mac already had")
     func otherHostsAreUntouched() async throws {
         let (_, environment) = try fixture()
@@ -56,17 +65,24 @@ struct BitbucketCredentialHelperGitTests {
 
         let helper = BitbucketCredentialHelper.gitEnvironment(shim: "/Applications/Unified Dev.app/bridge", over: inherited)
 
-        #expect(helper["GIT_CONFIG_COUNT"] == "4")
+        #expect(helper["GIT_CONFIG_COUNT"] == "7")
         #expect(helper["GIT_CONFIG_KEY_0"] == nil)
         #expect(helper["GIT_CONFIG_KEY_1"] == "credential.https://bitbucket.org.helper")
         #expect(helper["GIT_CONFIG_VALUE_1"] == "")
         #expect(helper["GIT_CONFIG_VALUE_2"] == "!'/Applications/Unified Dev.app/bridge' git-credential")
     }
 
-    @Test("no token is ever placed in the environment or on a command line")
-    func carriesNoSecret() {
-        let helper = BitbucketCredentialHelper.gitEnvironment(shim: "/tmp/bridge", over: [:])
+    @Test("the built bridge answers git-credential instead of dialling Unified Dev")
+    func bridgeDispatches() async throws {
+        guard let shim = ProcessInfo.processInfo.environment["UD_BRIDGE_SHIM"], !shim.isEmpty else { return }
 
-        #expect(helper.values.allSatisfy { !$0.contains("password") && !$0.contains("token") })
+        let result = try await Shell.run(
+            shim, ["git-credential", "get"], env: ["BKT_CONFIG_DIR": "/nonexistent"],
+            stdin: "protocol=https\nhost=github.com\n\n", timeout: .seconds(20)
+        )
+
+        #expect(result.status == 0)
+        #expect(result.stdout.isEmpty)
+        #expect(!result.stderr.contains("Unified Dev"))
     }
 }

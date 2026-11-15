@@ -18,10 +18,19 @@ public struct SSHRemote: Sendable, Equatable {
             self.init(host: host.lowercased(), port: url.port)
             return
         }
-        guard !trimmed.hasPrefix("/"), !trimmed.hasPrefix("."), let colon = trimmed.firstIndex(of: ":") else {
-            return nil
+        guard !trimmed.hasPrefix("/"), !trimmed.hasPrefix(".") else { return nil }
+        var authority = Substring(trimmed)
+        if let at = authority.firstIndex(of: "@"), !authority[..<at].contains(where: { $0 == ":" || $0 == "/" }) {
+            authority = authority[authority.index(after: at)...]
         }
-        let host = trimmed[..<colon].split(separator: "@").last.map(String.init) ?? ""
+        let host: Substring
+        if authority.hasPrefix("[") {
+            guard let close = authority.firstIndex(of: "]") else { return nil }
+            host = authority[authority.index(after: authority.startIndex)..<close]
+        } else {
+            guard let colon = authority.firstIndex(of: ":") else { return nil }
+            host = authority[..<colon]
+        }
         guard !host.isEmpty, !host.contains("/"), !host.hasPrefix("-") else { return nil }
         self.init(host: host.lowercased())
     }
@@ -36,11 +45,13 @@ public struct KnownHostOffer: Sendable, Equatable {
     public var host: String
     public var lines: [String]
     public var fingerprints: [String]
+    public var matchesPublished: Bool
 
-    public init(host: String, lines: [String], fingerprints: [String]) {
+    public init(host: String, lines: [String], fingerprints: [String], matchesPublished: Bool = false) {
         self.host = host
         self.lines = lines
         self.fingerprints = fingerprints
+        self.matchesPublished = matchesPublished
     }
 }
 
@@ -51,7 +62,22 @@ public enum KnownHosts {
             .appending(path: "known_hosts")
     }
 
-    public static func offer(for remote: SSHRemote) async -> KnownHostOffer? {
+    static let bitbucketFingerprints: Set<String> = [
+        "ED25519 SHA256:ybgmFkzwOSotHTHLJgHO0QN8L0xErw6vd0VhFA9m3SM",
+        "ECDSA SHA256:FC73VB6C4OQLSCrjEayhMp9UMxS97caD/Yyi2bhW/J0",
+        "RSA SHA256:46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
+    ]
+
+    static let published: [String: Set<String>] = [
+        "bitbucket.org": bitbucketFingerprints,
+        "ssh.bitbucket.org": bitbucketFingerprints,
+    ]
+
+    public static func offer(for remote: SSHRemote, in file: URL = KnownHosts.file) async -> KnownHostOffer? {
+        let recorded = try? await Shell.run(
+            "ssh-keygen", ["-F", remote.shown, "-f", file.path], timeout: .seconds(10)
+        )
+        guard recorded?.ok != true else { return nil }
         var arguments = ["-T", "5"]
         if let port = remote.port { arguments += ["-p", String(port)] }
         arguments += ["--", remote.host]
@@ -65,9 +91,16 @@ public enum KnownHosts {
               ),
               listed.ok
         else { return nil }
-        let fingerprints = fingerprints(in: listed.stdout)
-        guard !fingerprints.isEmpty else { return nil }
-        return KnownHostOffer(host: remote.shown, lines: lines, fingerprints: fingerprints)
+        return judged(host: remote.shown, lines: lines, fingerprints: fingerprints(in: listed.stdout))
+    }
+
+    static func judged(host: String, lines: [String], fingerprints: [String]) -> KnownHostOffer? {
+        guard !fingerprints.isEmpty, fingerprints.count == lines.count else { return nil }
+        guard let expected = published[host] else {
+            return KnownHostOffer(host: host, lines: lines, fingerprints: fingerprints)
+        }
+        guard fingerprints.allSatisfy(expected.contains) else { return nil }
+        return KnownHostOffer(host: host, lines: lines, fingerprints: fingerprints, matchesPublished: true)
     }
 
     public static func trust(_ offer: KnownHostOffer, in file: URL = KnownHosts.file) throws {
@@ -95,8 +128,8 @@ public enum KnownHosts {
 
     static func keyLines(in output: String) -> [String] {
         GitFailureOutput.lines(of: output).filter { line in
-            guard !line.hasPrefix("#") else { return false }
-            return line.split(separator: " ").count >= 3
+            guard !line.hasPrefix("#"), !line.hasPrefix("@") else { return false }
+            return line.split(separator: " ").count == 3
         }
     }
 

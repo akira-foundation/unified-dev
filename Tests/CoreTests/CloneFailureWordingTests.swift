@@ -70,6 +70,7 @@ struct CloneFailureWordingTests {
             (https, RemoteFailure.httpsNeedsCredential),
             (sshRefused, .sshKeyRefused),
             (unknownHost, .unknownHostKey),
+            ("@@@@@@@@\n@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @\nHost key verification failed.", .hostKeyChanged),
             ("fatal: Authentication failed for 'https://bitbucket.org/debtges/ledger.git/'", .httpsCredentialRefused),
             (refusedThroughTheHelper, .httpsCredentialRefused),
             ("You may not have access to this repository or it no longer exists in this workspace.", .noAccess),
@@ -85,7 +86,20 @@ struct CloneFailureWordingTests {
         let advice = try #require(RemoteFailure.httpsNeedsCredential.advice(host: "bitbucket.org", isBitbucket: true))
 
         #expect(advice.contains("Sign in to Bitbucket"))
+        #expect(advice.contains("Keychain"))
+        #expect(advice.contains("an hour"))
         #expect(advice.contains("ssh"))
+    }
+
+    @Test("a changed host key warns and offers nothing to trust")
+    func changedKeyOffersNothing() async {
+        let output = "@@@\n@ WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED! @\nHost key verification failed.\n"
+        let error = ShellError(command: "git clone", status: 128, stderr: output)
+
+        let failure = await RepositoryCloner.failure(cloning: "git@ssh.bitbucket.org:debtges/ledger.git", error)
+
+        #expect(failure.hostOffer == nil)
+        #expect(failure.advice?.contains("not the one this Mac recorded") == true)
     }
 
     @Test("an unknown host is named, and an unrecognised failure adds nothing")

@@ -30,6 +30,11 @@ struct StartProjectFailure: View {
                         .foregroundStyle(Palette.textSecondary)
                         .textSelection(.enabled)
                 }
+                if offer.matchesPublished {
+                    Label("These are the fingerprints Bitbucket publishes.", systemImage: "checkmark.seal")
+                        .font(Typo.caption)
+                        .foregroundStyle(Palette.textSecondary)
+                }
             }
         }
         if let detail = fault.detail {

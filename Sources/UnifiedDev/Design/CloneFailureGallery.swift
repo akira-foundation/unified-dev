@@ -30,9 +30,10 @@ struct CloneFailureGallery: View {
                 host: "ssh.bitbucket.org",
                 lines: [],
                 fingerprints: [
-                    "ED25519 SHA256:exampleEd25519FingerprintNotARealHostKey000",
-                    "ECDSA SHA256:exampleEcdsaFingerprintNotARealHostKey00000",
-                ]
+                    "ED25519 SHA256:ybgmFkzwOSotHTHLJgHO0QN8L0xErw6vd0VhFA9m3SM",
+                    "ECDSA SHA256:FC73VB6C4OQLSCrjEayhMp9UMxS97caD/Yyi2bhW/J0",
+                ],
+                matchesPublished: true
             )
         )
     }

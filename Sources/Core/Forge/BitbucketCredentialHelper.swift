@@ -1,8 +1,10 @@
+import CryptoKit
 import Foundation
 
 public enum BitbucketCredentialHelper {
     public static let command = "git-credential"
-    static let host = "bitbucket.org"
+    static let hosts = ["bitbucket.org", "www.bitbucket.org"]
+    static let renewalPause: TimeInterval = 10 * 60
 
     struct Request: Equatable {
         var protocolName: String?
@@ -23,7 +25,9 @@ public enum BitbucketCredentialHelper {
             }
         }
 
-        var isBitbucket: Bool { protocolName == "https" && host == BitbucketCredentialHelper.host }
+        var isBitbucket: Bool {
+            protocolName == "https" && host.map(BitbucketCredentialHelper.hosts.contains) == true
+        }
 
         var workspace: String? {
             guard let first = path?.split(separator: "/").first, !first.hasPrefix("-") else { return nil }
@@ -31,14 +35,16 @@ public enum BitbucketCredentialHelper {
         }
     }
 
-    public static func gitEnvironment(shim: String, over inherited: [String: String]) -> [String: String] {
+    static func gitEnvironment(shim: String, over inherited: [String: String]) -> [String: String] {
         let start = inherited["GIT_CONFIG_COUNT"].flatMap(Int.init).map { max($0, 0) } ?? 0
-        let scope = "credential.https://\(host)"
-        let entries = [
-            ("\(scope).helper", ""),
-            ("\(scope).helper", "!\(BridgeRegistration.shellQuoted(shim)) \(command)"),
-            ("\(scope).useHttpPath", "true"),
-        ]
+        let entries = hosts.flatMap { host in
+            let scope = "credential.https://\(host)"
+            return [
+                ("\(scope).helper", ""),
+                ("\(scope).helper", "!\(BridgeRegistration.shellQuoted(shim)) \(command)"),
+                ("\(scope).useHttpPath", "true"),
+            ]
+        }
         var result = ["GIT_CONFIG_COUNT": String(start + entries.count)]
         for (offset, entry) in entries.enumerated() {
             result["GIT_CONFIG_KEY_\(start + offset)"] = entry.0
@@ -47,9 +53,29 @@ public enum BitbucketCredentialHelper {
         return result
     }
 
-    public static func environment(over inherited: [String: String], shim: String? = BridgeRegistration.shimPath()) -> [String: String] {
-        guard let shim else { return inherited }
+    static func environment(
+        over inherited: [String: String],
+        shim: String? = BridgeRegistration.shimPath(),
+        keychainHoldsSignIn: () -> Bool = BitbucketKeychainToken.exists
+    ) -> [String: String] {
+        guard let shim, holdsSignIn(inherited, keychain: keychainHoldsSignIn) else { return inherited }
         return inherited.merging(gitEnvironment(shim: shim, over: inherited)) { _, helper in helper }
+    }
+
+    static func variables(signedInAs login: GitHubLogin) -> [String: String] {
+        let signedIn = login.variables.merging(login.bitbucket.variables) { gitHub, _ in gitHub }
+        let inherited = Shell.environment().merging(signedIn) { _, login in login }
+        let helper = environment(over: inherited).filter { $0.key.hasPrefix("GIT_CONFIG_") && inherited[$0.key] != $0.value }
+        return signedIn.merging(helper) { _, helper in helper }
+    }
+
+    static func holdsSignIn(_ environment: [String: String], keychain: () -> Bool) -> Bool {
+        if let folder = environment["KEYRING_FILE_DIR"], !folder.isEmpty {
+            let file = URL(fileURLWithPath: folder).appending(path: BitbucketGitCredential.fileName(of: BitbucketGitCredential.tokenKey))
+            return FileManager.default.fileExists(atPath: file.path)
+        }
+        guard environment[BitbucketLogin.configVariable]?.isEmpty ?? true else { return false }
+        return keychain()
     }
 
     public static func run(
@@ -70,34 +96,48 @@ public enum BitbucketCredentialHelper {
         request text: String,
         environment: [String: String],
         now: Date = Date(),
+        keychain: @Sendable () -> BitbucketKeychainToken.Reading = { BitbucketKeychainToken.read() },
         refresh: (@Sendable (Request, [String: String]) async -> Void)? = nil
     ) async -> String {
         let request = Request(text)
         guard action == "get", request.isBitbucket else { return "" }
-        guard let found = stored(environment: environment, now: now) else { return "" }
+        guard let found = stored(environment: environment, now: now, keychain: keychain) else { return "" }
         guard found.isStale(at: now) else { return found.answer }
+        let paused = renewalFailed(environment)
+        guard !paused.isQuiet(at: now) else { return found.answer }
         if let refresh {
             await refresh(request, environment)
         } else {
             await renew(for: request, environment: environment)
         }
-        return (stored(environment: environment, now: now) ?? found).answer
+        let renewed = stored(environment: environment, now: now, keychain: keychain) ?? found
+        if renewed.isStale(at: now) { paused.remember() } else { paused.forget() }
+        return renewed.answer
     }
 
-    static func stored(environment: [String: String], now: Date) -> BitbucketGitCredential? {
+    static func renewalFailed(_ environment: [String: String]) -> QuietMarker {
+        let store = environment["KEYRING_FILE_DIR"].flatMap { $0.isEmpty ? nil : $0 } ?? "keychain"
+        let digest = SHA256.hash(data: Data(store.utf8)).prefix(8).map { String(format: "%02x", $0) }.joined()
+        let name = "unified-dev-bitbucket-renewal-" + digest
+        return QuietMarker(named: name, period: renewalPause)
+    }
+
+    static func stored(
+        environment: [String: String], now: Date, keychain: () -> BitbucketKeychainToken.Reading
+    ) -> BitbucketGitCredential? {
         if let folder = environment["KEYRING_FILE_DIR"], !folder.isEmpty,
            let passphrase = environment["BKT_KEYRING_PASSPHRASE"], !passphrase.isEmpty {
             return BitbucketGitCredential.read(secrets: URL(fileURLWithPath: folder), passphrase: passphrase)
         }
         guard environment[BitbucketLogin.configVariable]?.isEmpty ?? true,
-              !BitbucketKeychainToken.recentlyDeclined(at: now)
+              !BitbucketKeychainToken.declined.isQuiet(at: now)
         else { return nil }
-        switch BitbucketKeychainToken.read() {
+        switch keychain() {
         case .found(let value):
-            BitbucketKeychainToken.forgetDecline()
+            BitbucketKeychainToken.declined.forget()
             return BitbucketGitCredential.credential(storedValue: value)
         case .declined:
-            BitbucketKeychainToken.rememberDecline()
+            BitbucketKeychainToken.declined.remember()
             return nil
         case .missing:
             return nil

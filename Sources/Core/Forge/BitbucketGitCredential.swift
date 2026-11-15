@@ -3,7 +3,6 @@ import Foundation
 public struct BitbucketGitCredential: Sendable, Equatable {
     public static let username = "x-token-auth"
     static let tokenKey = "host/\(BitbucketAuthStatus.cloudHostKey)/token"
-    static let refreshMargin: TimeInterval = 120
 
     let password: String
     let expiresAt: Date?
@@ -59,7 +58,7 @@ public struct BitbucketGitCredential: Sendable, Equatable {
 
     func isStale(at now: Date) -> Bool {
         guard let expiresAt else { return false }
-        return expiresAt.timeIntervalSince(now) < Self.refreshMargin
+        return expiresAt <= now
     }
 
     var answer: String {

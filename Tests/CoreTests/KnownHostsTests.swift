@@ -11,8 +11,8 @@ struct KnownHostsTests {
         """
 
     static let fingerprinted = """
-        256 SHA256:exampleEd25519FingerprintNotARealHostKey000 ssh.bitbucket.org (ED25519)
-        256 SHA256:exampleEcdsaFingerprintNotARealHostKey00000 ssh.bitbucket.org (ECDSA)
+        256 SHA256:ybgmFkzwOSotHTHLJgHO0QN8L0xErw6vd0VhFA9m3SM ssh.bitbucket.org (ED25519)
+        256 SHA256:FC73VB6C4OQLSCrjEayhMp9UMxS97caD/Yyi2bhW/J0 ssh.bitbucket.org (ECDSA)
         """
 
     @Test(
@@ -21,6 +21,8 @@ struct KnownHostsTests {
             ("git@ssh.bitbucket.org:debtges/ledger.git", SSHRemote(host: "ssh.bitbucket.org")),
             ("ssh://git@bitbucket.org/debtges/ledger.git", SSHRemote(host: "bitbucket.org")),
             ("ssh://git@git.example.com:7999/team/app.git", SSHRemote(host: "git.example.com", port: 7999)),
+            ("git@[fe80::1]:team/app.git", SSHRemote(host: "fe80::1")),
+            ("host.example.com:team/re@po.git", SSHRemote(host: "host.example.com")),
             ("https://bitbucket.org/debtges/ledger.git", nil),
             ("/srv/git/ledger.git", nil),
         ]
@@ -46,8 +48,8 @@ struct KnownHostsTests {
     @Test("fingerprints are shown as the key type and its SHA256")
     func fingerprints() {
         #expect(KnownHosts.fingerprints(in: Self.fingerprinted) == [
-            "ED25519 SHA256:exampleEd25519FingerprintNotARealHostKey000",
-            "ECDSA SHA256:exampleEcdsaFingerprintNotARealHostKey00000",
+            "ED25519 SHA256:ybgmFkzwOSotHTHLJgHO0QN8L0xErw6vd0VhFA9m3SM",
+            "ECDSA SHA256:FC73VB6C4OQLSCrjEayhMp9UMxS97caD/Yyi2bhW/J0",
         ])
     }
 
@@ -76,5 +78,33 @@ struct KnownHostsTests {
         try KnownHosts.trust(offer, in: file)
 
         #expect(try String(contentsOf: file, encoding: .utf8) == "github.com ssh-ed25519 AAAA\nssh.bitbucket.org ssh-ed25519 BBBB\n")
+    }
+
+    @Test("Bitbucket's keys are offered only when they are the ones Bitbucket publishes")
+    func bitbucketIsPinned() {
+        let lines = ["ssh.bitbucket.org ssh-ed25519 AAAA", "ssh.bitbucket.org ecdsa-sha2-nistp256 BBBB"]
+        let genuine = ["ED25519 SHA256:ybgmFkzwOSotHTHLJgHO0QN8L0xErw6vd0VhFA9m3SM", "ECDSA SHA256:FC73VB6C4OQLSCrjEayhMp9UMxS97caD/Yyi2bhW/J0"]
+        let forged = ["ED25519 SHA256:ybgmFkzwOSotHTHLJgHO0QN8L0xErw6vd0VhFA9m3SM", "ECDSA SHA256:someoneElsesKeyEntirely000000000000000000"]
+
+        #expect(KnownHosts.judged(host: "ssh.bitbucket.org", lines: lines, fingerprints: genuine)?.matchesPublished == true)
+        #expect(KnownHosts.judged(host: "ssh.bitbucket.org", lines: lines, fingerprints: forged) == nil)
+        #expect(KnownHosts.judged(host: "git.example.com", lines: lines, fingerprints: forged)?.matchesPublished == false)
+    }
+
+    @Test("a host this Mac already records is never offered, because a mismatch there is a changed key")
+    func recordedHostIsNotOffered() async throws {
+        let folder = URL(fileURLWithPath: TestScratch.unique("unifieddev-ssh"), isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = folder.appending(path: "known_hosts")
+        try "git.example.invalid \(Self.scanned.split(separator: "\n")[1].split(separator: " ", maxSplits: 1)[1])\n"
+            .write(to: file, atomically: true, encoding: .utf8)
+
+        #expect(await KnownHosts.offer(for: SSHRemote(host: "git.example.invalid"), in: file) == nil)
+    }
+
+    @Test("lines that would mark a certificate authority or a revoked key are never written")
+    func dropsMarkers() {
+        let scan = "@cert-authority *.example.com ssh-ed25519 AAAA\nexample.com ssh-ed25519 AAAA\nexample.com ssh-ed25519 AAAA extra"
+        #expect(KnownHosts.keyLines(in: scan) == ["example.com ssh-ed25519 AAAA"])
     }
 }

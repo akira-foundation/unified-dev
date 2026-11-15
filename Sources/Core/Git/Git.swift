@@ -16,9 +16,7 @@ public enum Git {
         timeout: Duration? = nil
     ) async throws -> ShellResult {
         let login = await GitHub.login(forDirectory: loginDirectory ?? directory)
-        let signedIn = login.variables.merging(login.bitbucket.variables) { gitHub, _ in gitHub }
-        let inherited = Shell.environment().merging(signedIn) { _, login in login }
-        let environment = BitbucketCredentialHelper.environment(over: inherited)
+        let environment = BitbucketCredentialHelper.variables(signedInAs: login)
         return try await run(arguments, in: directory, timeout: timeout, environment: environment)
     }
 

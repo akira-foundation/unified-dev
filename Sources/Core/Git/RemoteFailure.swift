@@ -1,6 +1,7 @@
 import Foundation
 
 public enum RemoteFailure: Sendable, Equatable {
+    case hostKeyChanged
     case unknownHostKey
     case sshKeyRefused
     case httpsNeedsCredential
@@ -10,6 +11,7 @@ public enum RemoteFailure: Sendable, Equatable {
 
     public static func of(_ output: String) -> RemoteFailure {
         let text = output.lowercased()
+        if text.contains("remote host identification has changed") { return .hostKeyChanged }
         if text.contains("host key verification failed") { return .unknownHostKey }
         if text.contains("permission denied (publickey") { return .sshKeyRefused }
         if text.contains("could not read username for 'https://")
@@ -29,6 +31,11 @@ public enum RemoteFailure: Sendable, Equatable {
     public func advice(host: String?, isBitbucket: Bool) -> String? {
         let named = host ?? "The server"
         switch self {
+        case .hostKeyChanged:
+            return "\(named) presented a key that is not the one this Mac recorded for it. That is what "
+                + "a server being impersonated looks like, and it also happens when a host replaces its "
+                + "key. Check with whoever runs the host; Unified Dev does not change known_hosts for this."
+
         case .unknownHostKey:
             return "\(named) is not among the ssh hosts this Mac knows, and git cannot ask whether to "
                 + "trust it without a terminal. Compare the fingerprint below with the one the host "

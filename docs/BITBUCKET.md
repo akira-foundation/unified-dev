@@ -119,22 +119,31 @@ makes.
 ### git over https
 
 A bkt sign-in is not a git credential: bkt has no credential helper, and its fetches use whatever
-git already has. So every git the app runs against a remote, and every agent it starts, carries a
-helper scoped to `https://bitbucket.org` in `GIT_CONFIG_COUNT` and its `GIT_CONFIG_KEY_n` and
-`GIT_CONFIG_VALUE_n` pairs. Nothing is written to any git configuration file. The first entry empties
-the helper list for that URL, so the Keychain's own helper is neither asked nor told to store; the
-second is `bridge git-credential`, the shim beside the app; the third turns on `useHttpPath`, so the
-helper learns the workspace. Every other host keeps the helpers this Mac already had.
+git already has. So when the profile holds a bkt sign-in (its token file under `secrets/`, or the
+`bkt` item in the login Keychain, which is looked up by its attributes and never read for this),
+every git the app runs against a remote, every agent it starts, and every terminal and script of a
+workspace carries a helper scoped to `https://bitbucket.org` and `https://www.bitbucket.org`, in
+`GIT_CONFIG_COUNT` and its `GIT_CONFIG_KEY_n` and `GIT_CONFIG_VALUE_n` pairs. Nothing is written to
+any git configuration file. For each of the two hosts the first entry empties the helper list, so
+the Keychain's own helper is neither asked nor told to store; the second is `bridge git-credential`,
+the shim beside the app; the third turns on `useHttpPath`, so the helper learns the workspace. A
+profile with no bkt sign-in gets none of it and keeps whatever credential git already had. Every
+other host keeps the helpers this Mac already had.
 
-The shim answers `get` for `https://bitbucket.org` and nothing else, with the user `x-token-auth`
-and the token of the profile's sign-in, on its standard output to git. The token is never in the
-environment, on a command line or in a URL. It reads the token where bkt keeps it: a profile with a
-sign-in of its own has the file store under `secrets/`, a JWE (`PBES2-HS256+A128KW`, `A256GCM`)
+The shim answers `get` for those two hosts over https and nothing else, with the user
+`x-token-auth` and the token of the profile's sign-in, on its standard output to git. The token is
+never in the environment, on a command line or in a URL. It reads the token where bkt keeps it: a
+profile with a sign-in of its own has the file store, a JWE (`PBES2-HS256+A128KW`, `A256GCM`)
 opened with the profile's passphrase, which arrives in the environment as it does for bkt; any other
-profile reads the `bkt` item in the login Keychain, where macOS asks once whether `bridge`, the
-shim inside Unified Dev, may read it; Always Allow is what stops it asking. A decline is remembered for an hour so background fetches do not ask again and again. An
-OAuth token lasts two hours and bkt renews it only after a 401, so a token within two minutes of
-expiry is renewed first by running `bkt api /user` under the same profile, and read again.
+profile reads the `bkt` item in the login Keychain, where macOS asks whether `bridge`, the shim
+inside Unified Dev, may read it, and Always Allow is what stops it asking. Cancel or Deny is
+remembered for an hour, so background fetches do not ask again and again.
+
+An OAuth token lasts two hours and bkt renews it only after a 401, so an expired token is renewed by
+running `bkt api /user` under the same profile, and read again. That command needs a bkt context;
+when the profile has none, the shim creates the one the app itself creates, `unifieddev`, for the
+workspace git asked about. A renewal that leaves the token expired is not tried again for ten
+minutes. Concurrent renewals are serialised by bkt's own refresh lock.
 
 `x-token-auth` is the user Atlassian documents for an OAuth access token, and one of the two fixed
 users it accepts for an API token. It was measured against bitbucket.org as far as it can be without
@@ -144,11 +153,17 @@ accepted depends on what bkt's OAuth consumer grants, because Bitbucket ignores 
 for. Merging a pull request through bkt needs `pullrequest:write`, which implies
 `repository:write`, so a push is expected to work; it has not been seen working.
 
+Any process that can run git with this environment can ask the helper, as it can ask
+`gh auth git-credential` for a GitHub token. An agent can therefore obtain the profile's Bitbucket
+token, which is the same standing its `bkt` and its `gh` already have.
+
 When a clone fails, the sheet shows the line that names the cause rather than git's first line,
 which is always `Cloning into`, with every line behind Show details. A host missing from
-`known_hosts` makes ssh refuse at once, since git runs without a terminal; the sheet then shows
-the host and the fingerprints `ssh-keyscan` and `ssh-keygen -l` read, and adds them to
-`~/.ssh/known_hosts` only when Trust and try again is pressed.
+`known_hosts` makes ssh refuse at once, since git runs without a terminal; the sheet then shows the
+fingerprints `ssh-keyscan` and `ssh-keygen -l` read, and adds them to `~/.ssh/known_hosts` only when
+Trust and try again is pressed. For `bitbucket.org` and `ssh.bitbucket.org` the fingerprints must be
+the ones Bitbucket publishes, which are written into the app, or nothing is offered. A host already
+in `known_hosts` is never offered: there the failure is a changed key, which the sheet names as such.
 
 ## Contexts
 

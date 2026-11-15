@@ -311,7 +311,9 @@ public struct WorkspaceManager: Sendable {
                 env["\(prefix)_\(key)"] = value
             }
         }
-        return env.merging(store.gitHubLogin(for: repo.profileID).everyVariable) { _, login in login }
+        let login = store.gitHubLogin(for: repo.profileID)
+        let signedIn = login.everyVariable.merging(BitbucketCredentialHelper.variables(signedInAs: login)) { _, git in git }
+        return env.merging(signedIn) { _, login in login }
     }
 
     public static let setupStoppedNote = "[unifieddev] Setup was stopped before it finished. "
