@@ -30,6 +30,8 @@ struct BitbucketPipelineLogTests {
             "https://bitbucket.org/debtges/ledger/pipelines/results/88/steps/%7BADD0ED3C-CEC7-4412-85BE-D9CE5E667AFE%7D",
             88, "{add0ed3c-cec7-4412-85be-d9ce5e667afe}"
         ),
+        ("https://bitbucket.org/acme/results/addon/pipelines/home#!/results/7", 7, nil),
+        ("https://bitbucket.org/results/steps/pipelines/results/9", 9, nil),
     ])
     func parsesTarget(url: String, build: Int, step: String?) {
         #expect(BitbucketPipelineTarget.parse(detailsURL: url) == BitbucketPipelineTarget(buildNumber: build, step: step))
@@ -94,6 +96,57 @@ struct BitbucketPipelineLogTests {
         #expect(seen.count == 3)
     }
 
+    @Test("no more than three failed steps are read, however many failed")
+    func readsThreeStepsAtMost() async throws {
+        let failed = (1...5).map { index in
+            #"{"uuid": "{0000000\#(index)-1111-4111-8111-111111111111}", "name": "Step \#(index)", "#
+                + #""state": {"name": "COMPLETED", "result": {"name": "FAILED"}}}"#
+        }
+        let page = #"{"values": ["# + failed.joined(separator: ",") + "]}"
+        let calls = Calls()
+        let log = try await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+            try await Bitbucket.$commandOverride.withValue({ arguments, _ in
+                await calls.record(arguments)
+                if arguments.starts(with: ["auth", "status"]) { return ShellResult(status: 0, stdout: Self.signedIn, stderr: "") }
+                if arguments.first == "api" { return ShellResult(status: 0, stdout: page, stderr: "") }
+                return ShellResult(status: 0, stdout: "failed\n", stderr: "")
+            }) {
+                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(buildNumber: 88), worktree: "/nowhere")
+            }
+        }
+
+        let logged = await calls.seen.filter { $0.starts(with: ["pipeline", "logs"]) }
+        #expect(logged.count == 3)
+        #expect(log.contains("== Step 3 =="))
+        #expect(!log.contains("== Step 4 =="))
+    }
+
+    @Test("a step whose log cannot be read does not lose the others")
+    func unreadableStepIsSkipped() async throws {
+        let page = """
+        {"values": [
+          {"uuid": "{11111111-1111-4111-8111-111111111111}", "name": "Lint",
+           "state": {"name": "COMPLETED", "result": {"name": "ERROR"}}},
+          {"uuid": "{add0ed3c-cec7-4412-85be-d9ce5e667afe}", "name": "Test",
+           "state": {"name": "COMPLETED", "result": {"name": "FAILED"}}}
+        ]}
+        """
+        let log = try await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+            try await Bitbucket.$commandOverride.withValue({ arguments, _ in
+                if arguments.starts(with: ["auth", "status"]) { return ShellResult(status: 0, stdout: Self.signedIn, stderr: "") }
+                if arguments.first == "api" { return ShellResult(status: 0, stdout: page, stderr: "") }
+                if arguments.contains("{11111111-1111-4111-8111-111111111111}") {
+                    return ShellResult(status: 1, stdout: "", stderr: "404 Not Found")
+                }
+                return ShellResult(status: 0, stdout: "1 failing\n", stderr: "")
+            }) {
+                try await Bitbucket.pipelineLog(BitbucketPipelineTarget(buildNumber: 88), worktree: "/nowhere")
+            }
+        }
+
+        #expect(log == "1 failing\n")
+    }
+
     @Test("several failed steps are joined under their names")
     func joinsLogs() {
         #expect(Bitbucket.joinedLog([("Lint", "a"), ("Test", "b")]) == "== Lint ==\na\n\n== Test ==\nb")
@@ -109,6 +162,9 @@ struct BitbucketPipelineLogTests {
         #expect(text.contains("came from Bitbucket and from whoever wrote the pipeline"))
         #expect(text.contains("The Bitbucket build \"Pipeline #88\" failed."))
         #expect(!text.contains("GitHub"))
+        #expect(text.contains("never edit bitbucket-pipelines.yml, skip or loosen a test or relax a lint rule to turn the build green"))
+        #expect(text.contains("then wait for its builds, thirty minutes at most"))
+        #expect(!text.contains("workflow"))
         #expect(CheckFailureHandoff.request([CheckFailureHandoff.Mention(name: "test")], number: 7)
             .contains("The GitHub check \"test\""))
     }

@@ -25,7 +25,7 @@ public struct ChecksWording: Sendable, Hashable {
                 + "Install it with brew install bitbucket-cli."
         case (.bitbucket, _):
             "Builds come from Bitbucket through the bkt command, and it is signed out. "
-                + "Sign in from the welcome window, or from the profile's settings."
+                + "Sign in to Bitbucket from the profile's settings."
         }
     }
 

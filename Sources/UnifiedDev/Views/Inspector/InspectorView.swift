@@ -46,6 +46,14 @@ struct InspectorView: View {
                 signIn.finish(connected: connected)
             }
         }
+        .alert(
+            signIn.bitbucketRefusal.map { ProfileBitbucketWording.cannotReachTitle($0.access) } ?? "",
+            isPresented: $signIn.bitbucketRefusal.isPresent(),
+            presenting: signIn.bitbucketRefusal
+        ) { _ in
+        } message: { refusal in
+            Text(ProfileBitbucketWording.cannotReachMessage(refusal.access))
+        }
         .onGeometryChange(for: CGFloat.self) { $0.size.width.rounded() } action: { width in
             guard width >= Metrics.inspectorMinimum else { return }
             InspectorGeometry.shared.setInspectorWidth(width)

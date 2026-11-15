@@ -170,9 +170,9 @@ public enum WorkspaceCheckoutPlan {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
-        if let url = URL(string: trimmed), let host = url.host, host.contains("github") {
+        if let url = URL(string: trimmed), let host = url.host, host.contains("github") || host.contains("bitbucket") {
             let parts = url.path.split(separator: "/").map(String.init)
-            guard let index = parts.firstIndex(where: { $0 == "pull" || $0 == "pulls" }),
+            guard let index = parts.firstIndex(where: { $0 == "pull" || $0 == "pulls" || $0 == "pull-requests" }),
                   index >= 2,
                   parts.count > index + 1,
                   let number = positiveNumber(parts[index + 1])

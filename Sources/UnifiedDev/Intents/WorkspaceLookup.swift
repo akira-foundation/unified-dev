@@ -37,6 +37,6 @@ enum WorkspaceLookup {
 
     static func pullRequest(for workspace: Workspace) async -> PullRequest? {
         guard FileManager.default.fileExists(atPath: workspace.path) else { return nil }
-        return try? await GitHub.pullRequest(for: workspace, maxAge: .seconds(60))
+        return try? await ForgePullRequests.pullRequest(for: workspace, maxAge: .seconds(60))
     }
 }

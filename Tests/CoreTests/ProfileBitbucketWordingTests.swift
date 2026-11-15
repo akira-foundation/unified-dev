@@ -21,4 +21,15 @@ struct ProfileBitbucketWordingTests {
             source: .own, isInitial: false, profileName: "Debtges", account: nil, installed: false
         ).contains("brew install bitbucket-cli"))
     }
+
+    @Test("an action on a Bitbucket pull request that bkt cannot reach says where to sign in, or what to install")
+    func cannotReach() {
+        #expect(ProfileBitbucketWording.cannotReachTitle(.notInstalled) == "The Bitbucket CLI is not installed")
+        #expect(ProfileBitbucketWording.cannotReachMessage(.notInstalled).contains("brew install bitbucket-cli"))
+        #expect(ProfileBitbucketWording.cannotReachTitle(.signedOut) == "Bitbucket is not connected")
+        #expect(ProfileBitbucketWording.cannotReachMessage(.signedOut).contains("from the profile's settings"))
+        #expect(ChecksWording(forge: .bitbucket).cannotAskMessage(access: .signedOut).hasSuffix(
+            "Sign in to Bitbucket from the profile's settings."
+        ))
+    }
 }

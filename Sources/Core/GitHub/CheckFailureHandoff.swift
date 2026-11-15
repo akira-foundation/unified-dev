@@ -205,17 +205,17 @@ public enum CheckFailureHandoff {
 
         if moreFailed > 0 {
             parts.append(
-                "\(moreFailed) other check\(moreFailed == 1 ? "" : "s") on #\(number) failed too,"
+                "\(moreFailed) other \(host.checkNoun)\(moreFailed == 1 ? "" : "s") on #\(number) failed too,"
                     + " and \(moreFailed == 1 ? "its log is" : "their logs are") not here."
             )
         }
 
         parts.append(
             "Find out why, fix it in this worktree, commit the fix and push it to the branch of"
-                + " #\(number) and no other, then wait for its checks, thirty minutes at most. Fetch first: if the branch on"
+                + " #\(number) and no other, then wait for its \(host.checkNoun)s, thirty minutes at most. Fetch first: if the branch on"
                 + " the server has commits this worktree lacks, or #\(number) comes from a fork, or"
                 + " auto-merge is on for it, push nothing and say so. Never force the push, and never"
-                + " edit a workflow, skip or loosen a test or relax a lint rule to turn the check green."
+                + " edit \(host.buildDefinitionNotToEdit), skip or loosen a test or relax a lint rule to turn the \(host.checkNoun) green."
                 + " If you are not sure of the fix, or this worktree held other work \(host.displayName) has not"
                 + " got, leave it unpushed and say why. Do not merge #\(number)."
         )

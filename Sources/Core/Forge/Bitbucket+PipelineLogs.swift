@@ -13,8 +13,8 @@ public struct BitbucketPipelineTarget: Sendable, Hashable {
         guard let detailsURL, let url = URL(string: detailsURL),
               let host = url.host?.lowercased(), ForgeRepository.kind(ofHost: host) == .bitbucket
         else { return nil }
-        let trail = url.path + "/" + (url.fragment ?? "")
-        let parts = trail.split(separator: "/").map(String.init)
+        let parts = (url.path.split(separator: "/").dropFirst(2) + (url.fragment ?? "").split(separator: "/"))
+            .map(String.init)
         guard let results = parts.firstIndex(of: "results"), results + 1 < parts.count,
               let number = Int(parts[results + 1]), number > 0
         else { return nil }
@@ -83,13 +83,18 @@ extension Bitbucket {
         let chosen = BitbucketPipelineStep.failing(steps, named: target.step).prefix(stepsLogged)
 
         var logs: [(name: String, text: String)] = []
+        var refusal: (any Error)?
         for step in chosen {
             guard let uuid = step.uuid.flatMap(BitbucketPipelineStep.canonicalUUID) else { continue }
             let arguments = logArguments(build: target.buildNumber, step: uuid, in: repository, context: context)
             let result = try await run(arguments, directory: worktree, timeout: .seconds(90))
-            guard result.ok else { throw shellError(arguments, result: result) }
+            guard result.ok else {
+                refusal = refusal ?? shellError(arguments, result: result)
+                continue
+            }
             logs.append((step.name ?? uuid, result.stdout))
         }
+        if logs.isEmpty, let refusal { throw refusal }
         let log = joinedLog(logs)
         guard !log.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitHubReadFailure(reason: .unavailable, message: "Bitbucket returned no log for that pipeline.")

@@ -237,7 +237,7 @@ extension WorkspaceModel {
             CheckFailureHandoff.carrying(mentions, logPaths: paths),
             moreFailed: more,
             number: number,
-            host: pullRequest?.forge ?? .gitHub
+            host: await Forge.kind(forDirectory: folder)
         )
     }
 

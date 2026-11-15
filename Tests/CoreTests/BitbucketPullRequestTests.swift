@@ -56,7 +56,7 @@ struct BitbucketPullRequestTests {
         #expect(pullRequest.branch == "issue/10.2.x/upmerge")
         #expect(pullRequest.baseBranch == "release/10.2.x")
         #expect(pullRequest.headCommit == "ec3178d4d575")
-        #expect(pullRequest.author == "dc-core-bot")
+        #expect(pullRequest.author == "{9196eaf9-6f9d-404f-a451-5bc9bb347ca9}")
         #expect(pullRequest.isFromFork == false)
         #expect(pullRequest.closedAt == nil)
         #expect(pullRequest.checks == PullRequest.Checks.none)

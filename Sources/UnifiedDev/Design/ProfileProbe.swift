@@ -176,7 +176,29 @@ enum ProfileProbe {
             Scene(name: "bridge-section", size: CGSize(width: ProfileSheetMetrics.width, height: 210), view: AnyView(
                 Form { ProfileBridgeRows(isOn: .constant(true), isEnabled: true, failure: nil) }.settingsForm()
             )),
-        ] + sheets.map { Scene(name: $0.0, size: $0.1.size, view: $0.1.view) }
+        ] + bitbucketScenes + sheets.map { Scene(name: $0.0, size: $0.1.size, view: $0.1.view) }
+    }
+
+    private static var bitbucketScenes: [Scene] {
+        let signedIn = BitbucketAccount(user: "kid", method: "oauth")
+        let signedOut = BitbucketAccount(user: nil, method: nil)
+        let cases: [(String, Profile, ProfileGitHubSource, BitbucketAccount?, Bool)] = [
+            ("bitbucket-own-signed-out", akira, .own, signedOut, true),
+            ("bitbucket-own-signed-in", akira, .own, signedIn, true),
+            ("bitbucket-inherits", akira, .inherits, signedIn, true),
+            ("bitbucket-initial", unified, .inherits, signedOut, true),
+            ("bitbucket-not-installed", akira, .own, nil, false),
+        ]
+        return cases.map { name, profile, source, account, installed in
+            Scene(name: name, size: CGSize(width: ProfileSheetMetrics.width, height: 220), view: AnyView(
+                Form {
+                    ProfileBitbucketRows(
+                        profile: profile, source: source, account: account, installed: installed,
+                        isChecking: false, onSignIn: { _ in }
+                    )
+                }.settingsForm()
+            ))
+        }
     }
 
     private static func shoot(_ scene: Scene, scheme: ColorScheme) async -> Bool {

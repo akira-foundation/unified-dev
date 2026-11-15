@@ -232,9 +232,9 @@ public enum PromptRegistry {
         title: "Merge a pull request",
         summary: """
         Sent when you confirm Merge, with Unified Dev's own merge steps under it and the project's own \
-        instructions attached when it has any and the branch is confirmed as the owner's. The agent runs `gh pr merge` in front of you, not \
-        Unified Dev. When GitHub refuses for a conflict or a failed check, it fixes that, pushes \
-        to the pull request's branch and merges again, three times at most.
+        instructions attached when it has any and the branch is confirmed as the owner's. The agent runs `gh pr merge`, or \
+        `bkt pr merge` on Bitbucket, in front of you, not Unified Dev. When the host refuses for a conflict or a failed \
+        check, it fixes that, pushes to the pull request's branch and merges again, three times at most.
         """,
         variables: [
             PromptVariable(name: MergePullRequest.workspace, summary: "The workspace's name."),
@@ -251,7 +251,7 @@ public enum PromptRegistry {
             ),
             PromptVariable(
                 name: MergePullRequest.methodFlag,
-                summary: "The same method as the gh flag that performs it, such as --squash."
+                summary: "The same method as the flag that performs it: --squash for gh, --strategy squash for bkt."
             ),
         ],
         defaultTemplate: """

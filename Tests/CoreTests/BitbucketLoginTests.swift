@@ -48,9 +48,14 @@ struct BitbucketLoginTests {
 
     @Test("a token inherited from the shell never reaches a profile with its own sign-in")
     func inheritedTokenIsDropped() {
-        let applied = own().everySignIn(appliedTo: ["BKT_TOKEN": "leaked", "BKT_USERNAME": "someone", "PATH": "/bin"])
+        let applied = own().everySignIn(appliedTo: [
+            "BKT_TOKEN": "leaked", "BKT_USERNAME": "someone", "PATH": "/bin",
+            "KEYRING_FILE_PASSWORD": "shell", "KEYRING_PASSWORD": "shell",
+        ])
 
         #expect(applied["BKT_TOKEN"] == nil)
+        #expect(applied["KEYRING_FILE_PASSWORD"] == nil)
+        #expect(applied["KEYRING_PASSWORD"] == nil)
         #expect(applied["BKT_USERNAME"] == nil)
         #expect(applied["PATH"] == "/bin")
         #expect(applied["BKT_CONFIG_DIR"] == "/support/BitbucketLogins/debtges")
@@ -79,6 +84,8 @@ struct BitbucketLoginTests {
         #expect(login.variables["BKT_KEYRING_PASSPHRASE"] == nil)
         try login.prepare()
         let first = try #require(login.variables["BKT_KEYRING_PASSPHRASE"])
+        let secrets = directory.appending(path: "secrets").path
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: secrets)
         try login.prepare()
 
         #expect(login.variables["BKT_KEYRING_PASSPHRASE"] == first)
@@ -88,6 +95,7 @@ struct BitbucketLoginTests {
         let folder = try FileManager.default.attributesOfItem(atPath: directory.path)[.posixPermissions] as? Int
         #expect(permissions == 0o600)
         #expect(folder == 0o700)
+        #expect(try FileManager.default.attributesOfItem(atPath: secrets)[.posixPermissions] as? Int == 0o700)
     }
 
     @Test("the account names the method bkt reports, and never a secret")

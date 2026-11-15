@@ -5,12 +5,12 @@ extension BitbucketPullRequestPayload {
         PullRequestListing(
             number: id ?? 0,
             title: title ?? "",
-            author: author?.login ?? "",
+            author: author?.name ?? "",
             headRefName: source?.branch?.name ?? "",
             baseRefName: destination?.branch?.name ?? "",
             isDraft: draft ?? false,
             state: unifiedState,
-            isCrossRepository: isFromFork ?? false,
+            isCrossRepository: isFromFork ?? true,
             headRepositoryOwner: sourceRepository?.split(separator: "/").first.map(String.init)
         )
     }
@@ -63,9 +63,17 @@ public extension Bitbucket {
         return try decodePullRequest(result.stdout).listing
     }
 
+    internal static func checkoutRefusal(for request: PullRequestListing, localBranch: String) -> String? {
+        guard request.number > 0 else { return "\(request.number) is not a pull request number" }
+        guard Git.isValidBranchName(localBranch) else { return "'\(localBranch)' is not a valid branch name" }
+        guard Git.isValidBranchName(request.headRefName) else {
+            return "#\(request.number) comes from a branch named '\(request.headRefName)', which git cannot fetch safely"
+        }
+        return nil
+    }
+
     static func checkoutPullRequest(_ request: PullRequestListing, into worktree: String, localBranch: String) async throws {
-        guard request.number > 0 else { throw GitHubError("\(request.number) is not a pull request number") }
-        guard Git.isValidBranchName(localBranch) else { throw GitHubError("'\(localBranch)' is not a valid branch name") }
+        if let refusal = checkoutRefusal(for: request, localBranch: localBranch) { throw GitHubError(refusal) }
         let (repository, context) = try await connection(in: worktree)
         let arguments = checkoutArguments(number: request.number, localBranch: localBranch, in: repository, context: context)
         let result = try await run(arguments, directory: worktree, timeout: .seconds(120))

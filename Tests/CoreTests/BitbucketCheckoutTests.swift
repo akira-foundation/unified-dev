@@ -6,6 +6,19 @@ import Testing
 struct BitbucketCheckoutTests {
     private static let repository = ForgeRepository(kind: .bitbucket, host: "bitbucket.org", owner: "debtges", name: "ledger")
 
+    @Test("a Bitbucket pull request link is read as its number and repository")
+    func linkIsRead() {
+        #expect(
+            WorkspaceCheckoutPlan.parseReference("https://bitbucket.org/debtges/ledger/pull-requests/7")
+                == PullRequestReference(number: 7, repository: "debtges/ledger")
+        )
+        #expect(
+            WorkspaceCheckoutPlan.parseReference("https://bitbucket.org/debtges/ledger/pull-requests/7/diff")
+                == PullRequestReference(number: 7, repository: "debtges/ledger")
+        )
+        #expect(WorkspaceCheckoutPlan.parseReference("https://bitbucket.org/debtges/ledger/src/main") == nil)
+    }
+
     @Test("a Bitbucket pull request becomes the same listing a GitHub one does")
     func listing() throws {
         let own = try Bitbucket.decodePullRequest(BitbucketPullRequestTests.pullRequestJSON(draft: true)).listing
@@ -43,6 +56,28 @@ struct BitbucketCheckoutTests {
             ["config", "branch.pr-7.merge", "refs/heads/feat/7"],
         ])
         #expect(Bitbucket.trackingConfiguration(for: fork, localBranch: "pr-8").isEmpty)
+    }
+
+    @Test("a source branch git would read as an option is refused before bkt runs")
+    func unsafeSourceBranchIsRefused() {
+        let safe = PullRequestListing(number: 7, title: "", headRefName: "feat/7", baseRefName: "develop")
+        let option = PullRequestListing(number: 8, title: "", headRefName: "--upload-pack=touch", baseRefName: "develop")
+
+        #expect(Bitbucket.checkoutRefusal(for: safe, localBranch: "pr-7") == nil)
+        #expect(Bitbucket.checkoutRefusal(for: option, localBranch: "pr-8")?.contains("cannot fetch safely") == true)
+        #expect(Bitbucket.checkoutRefusal(for: safe, localBranch: "-x") != nil)
+    }
+
+    @Test("a pull request whose source repository is not named is treated as a fork")
+    func unknownSourceIsAFork() throws {
+        let json = """
+        {"id": 7, "state": "OPEN", "source": {"branch": {"name": "main"}},
+         "destination": {"branch": {"name": "develop"}, "repository": {"full_name": "debtges/ledger"}}}
+        """
+        let listing = try Bitbucket.decodePullRequest(json).listing
+
+        #expect(listing.isCrossRepository)
+        #expect(Bitbucket.trackingConfiguration(for: listing, localBranch: "pr-7").isEmpty)
     }
 
     @Test("the open pull requests are read through bkt, and the slug comes from the remote")

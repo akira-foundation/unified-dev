@@ -24,6 +24,13 @@ public enum ForgeKind: String, Sendable, Hashable, CaseIterable {
         case .bitbucket: "pipeline"
         }
     }
+
+    public var buildDefinitionNotToEdit: String {
+        switch self {
+        case .gitHub: "a workflow"
+        case .bitbucket: "bitbucket-pipelines.yml"
+        }
+    }
 }
 
 public struct ForgeRepository: Sendable, Hashable {

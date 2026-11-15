@@ -9,6 +9,17 @@ public enum ProfileBitbucketWording {
     public static let checking = "Checking"
     public static let signInMenuTitle = "Sign In to Bitbucket"
 
+    public static func cannotReachTitle(_ access: GitHubAccess) -> String {
+        access == .notInstalled ? notInstalled : "Bitbucket is not connected"
+    }
+
+    public static func cannotReachMessage(_ access: GitHubAccess) -> String {
+        access == .notInstalled
+            ? "Pull requests on Bitbucket go through the bkt command. Install it with brew install bitbucket-cli."
+            : "Pull requests on Bitbucket go through the bkt command, and it is signed out for this project's profile. "
+                + "Sign in to Bitbucket from the profile's settings, then try again."
+    }
+
     public static func methodTitle(_ method: BitbucketLogin.Method) -> String {
         switch method {
         case .browser: "In the Browser (OAuth)"

@@ -14,7 +14,10 @@ public struct BitbucketLogin: Sendable, Hashable {
     }
 
     public static let configVariable = "BKT_CONFIG_DIR"
-    public static let clearedVariables = ["BKT_TOKEN", "BKT_HOST", "BKT_USERNAME", "BKT_AUTH_METHOD", "BKT_WORKSPACE"]
+    public static let clearedVariables = [
+        "BKT_TOKEN", "BKT_HOST", "BKT_USERNAME", "BKT_AUTH_METHOD", "BKT_WORKSPACE",
+        "KEYRING_FILE_PASSWORD", "KEYRING_PASSWORD",
+    ]
     static let passphraseFile = "passphrase"
     static let secretsFolder = "secrets"
 
@@ -64,6 +67,7 @@ public struct BitbucketLogin: Sendable, Hashable {
         let manager = FileManager.default
         let secrets = directory.appending(path: Self.secretsFolder, directoryHint: .isDirectory)
         try manager.createDirectory(at: secrets, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: secrets.path)
         try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: directory.path)
         guard Self.readPassphrase(in: directory) == nil else { return }
         let file = directory.appending(path: Self.passphraseFile)

@@ -21,6 +21,40 @@ struct ProfileBitbucketSection: View {
     }
 
     var body: some View {
+        ProfileBitbucketRows(
+            profile: profile, source: source, account: account, installed: installed,
+            isChecking: isChecking, onSignIn: start
+        )
+        .task(id: "\(profile.id.rawValue).\(source.rawValue).\(refresh)") {
+            isChecking = true
+            let login = login
+            let directory = AgentScratchDirectory.current()
+            account = await Bitbucket.account(login: login, directory: directory)
+            installed = account != nil || Shell.which(Bitbucket.executable) != nil
+            isChecking = false
+        }
+        .sheet(item: $signIn) { pending in
+            BitbucketSignInSheet(request: pending) {
+                signIn = nil
+                refresh += 1
+            }
+        }
+    }
+
+    private func start(_ method: BitbucketLogin.Method) {
+        signIn = BitbucketSignInSheet.Request(login: login, method: method, profileName: profile.name)
+    }
+}
+
+struct ProfileBitbucketRows: View {
+    let profile: Profile
+    let source: ProfileGitHubSource
+    let account: BitbucketAccount?
+    let installed: Bool
+    let isChecking: Bool
+    let onSignIn: (BitbucketLogin.Method) -> Void
+
+    var body: some View {
         Section {
             LabeledContent(ProfileBitbucketWording.accountTitle) {
                 Text(accountText)
@@ -29,10 +63,10 @@ struct ProfileBitbucketSection: View {
             if let method = account?.methodName {
                 LabeledContent(ProfileBitbucketWording.methodTitle, value: method)
             }
-            if login.isOwn, installed {
+            if installed {
                 Menu(ProfileBitbucketWording.signInMenuTitle) {
                     ForEach(BitbucketLogin.Method.allCases, id: \.self) { method in
-                        Button(ProfileBitbucketWording.methodTitle(method)) { start(method) }
+                        Button(ProfileBitbucketWording.methodTitle(method)) { onSignIn(method) }
                             .help(ProfileBitbucketWording.methodSummary(method))
                     }
                 }
@@ -50,29 +84,11 @@ struct ProfileBitbucketSection: View {
             )
             .settingsFootnote()
         }
-        .task(id: "\(profile.id.rawValue).\(source.rawValue).\(refresh)") {
-            isChecking = true
-            let login = login
-            let directory = AgentScratchDirectory.current()
-            account = await Bitbucket.account(login: login, directory: directory)
-            installed = account != nil || Shell.which(Bitbucket.executable) != nil
-            isChecking = false
-        }
-        .sheet(item: $signIn) { pending in
-            BitbucketSignInSheet(request: pending) {
-                signIn = nil
-                refresh += 1
-            }
-        }
     }
 
     private var accountText: String {
         if isChecking { return ProfileBitbucketWording.checking }
         if !installed { return ProfileBitbucketWording.notInstalled }
         return account?.user ?? ProfileBitbucketWording.notSignedIn
-    }
-
-    private func start(_ method: BitbucketLogin.Method) {
-        signIn = BitbucketSignInSheet.Request(login: login, method: method, profileName: profile.name)
     }
 }
