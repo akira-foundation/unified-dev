@@ -13,6 +13,8 @@ struct ForgeRepositoryTests {
             "ssh://git@bitbucket.org/debtges/ledger.git",
             "https://www.bitbucket.org/debtges/ledger.git",
             "git@BitBucket.org:debtges/ledger.git",
+            "git@ssh.bitbucket.org:debtges/ledger.git",
+            "ssh://git@ssh.bitbucket.org/debtges/ledger.git",
         ]
     )
     func bitbucketRemotes(remote: String) throws {
@@ -37,6 +39,13 @@ struct ForgeRepositoryTests {
 
         #expect(repository.kind == .gitHub)
         #expect(ForgeRepository.kind(ofRemote: remote) == .gitHub)
+    }
+
+    @Test("the host of a remote is read in every form, and a path has none")
+    func hostOfRemote() {
+        #expect(ForgeRepository.host(ofRemote: "git@ssh.bitbucket.org:debtges/ledger.git") == "ssh.bitbucket.org")
+        #expect(ForgeRepository.host(ofRemote: "https://kid@BitBucket.org/debtges/ledger.git") == "bitbucket.org")
+        #expect(ForgeRepository.host(ofRemote: "/srv/git/ledger.git") == nil)
     }
 
     @Test("no remote, or one with no host, is GitHub as it always was", arguments: [nil, "", "../local/repo", "/srv/git/repo.git"])

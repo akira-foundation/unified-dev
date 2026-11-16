@@ -95,7 +95,8 @@ extension GitHub {
     ) async throws -> ShellResult {
         guard executable == "gh" else {
             let login = await login(forDirectory: cwd)
-            return try await Shell.run(executable, arguments, cwd: cwd, env: login.variables, timeout: timeout)
+            let environment = executable == "git" ? BitbucketCredentialHelper.variables(signedInAs: login) : login.variables
+            return try await Shell.run(executable, arguments, cwd: cwd, env: environment, timeout: timeout)
         }
         let context: GitRepositoryContext?
         if let repositoryContext { context = repositoryContext } else {

@@ -10,10 +10,14 @@ struct GitOutput: Sendable {
 
 public enum Git {
     static func runAgainstRemote(
-        _ arguments: [String], in directory: String, loginDirectory: String? = nil, timeout: Duration? = nil
+        _ arguments: [String],
+        in directory: String,
+        loginDirectory: String? = nil,
+        timeout: Duration? = nil
     ) async throws -> ShellResult {
         let login = await GitHub.login(forDirectory: loginDirectory ?? directory)
-        return try await run(arguments, in: directory, timeout: timeout, environment: login.variables)
+        let environment = BitbucketCredentialHelper.variables(signedInAs: login)
+        return try await run(arguments, in: directory, timeout: timeout, environment: environment)
     }
 
     @discardableResult

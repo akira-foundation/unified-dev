@@ -493,19 +493,15 @@ public enum RepositoryStarter {
         try (existing + block).write(to: url, atomically: true, encoding: .utf8)
     }
 
-    public static func sentence(from error: Error) -> String {
-        let raw: String
+    public static func output(of error: Error) -> String {
         if let shell = error as? ShellError {
-            raw = shell.stderr.isEmpty ? shell.description : shell.stderr
-        } else {
-            raw = error.readableMessage
+            return shell.stderr.isEmpty ? shell.description : shell.stderr
         }
+        return error.readableMessage
+    }
 
-        let lines = raw
-            .components(separatedBy: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty && !$0.hasPrefix("hint:") && !$0.hasPrefix("Usage:") }
-        guard let first = lines.first else { return "It did not say why." }
-        return first.count > 300 ? String(first.prefix(300)) + "..." : first
+    public static func sentence(from error: Error) -> String {
+        guard let cause = GitFailureOutput.cause(in: output(of: error)) else { return "It did not say why." }
+        return cause.count > 300 ? String(cause.prefix(300)) + "..." : cause
     }
 }

@@ -104,4 +104,24 @@ struct StartProjectStageTests {
         ])
         #expect(Set(titles).count == titles.count)
     }
+
+    @Test("a failed clone keeps its advice, git's whole output and the host it offers to trust")
+    func cloneFailureKeepsWhatTheSheetShows() {
+        let offer = KnownHostOffer(host: "ssh.bitbucket.org", lines: ["ssh.bitbucket.org ssh-ed25519 AAAA"], fingerprints: ["ED25519 SHA256:x"])
+        let failure = CloneFailure(
+            message: "Host key verification failed.", folderWasCreated: false,
+            advice: "Compare the fingerprint.", detail: "Cloning into 'x'...\nHost key verification failed.", hostOffer: offer
+        )
+
+        guard case .failed(let fault) = StartProjectStage.after(failure) else {
+            Issue.record("a clone failure did not become a failed stage")
+            return
+        }
+
+        #expect(fault.message == "Host key verification failed.")
+        #expect(fault.advice == "Compare the fingerprint.")
+        #expect(fault.detail == "Cloning into 'x'...\nHost key verification failed.")
+        #expect(fault.hostOffer == offer)
+        #expect(fault.half == .cloning)
+    }
 }

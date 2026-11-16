@@ -65,6 +65,19 @@ extension StartProjectModel {
         }
     }
 
+    func trustHostAndClone() {
+        guard case .failed(var fault) = stage, let offer = fault.hostOffer else { return }
+        do {
+            try KnownHosts.trust(offer)
+        } catch {
+            fault.hostOffer = nil
+            fault.message = "Could not add \(offer.host) to the known hosts: \(error.readableMessage)"
+            stage = .failed(fault)
+            return
+        }
+        clone()
+    }
+
     func stop() {
         cancelWork()
         let leftBehind = leftovers(folderWasCreated: folderWasCreated)

@@ -60,6 +60,10 @@ public struct ForgeRepository: Sendable, Hashable {
         return bitbucketCloudHosts.contains(host) ? .bitbucket : .gitHub
     }
 
+    public static func host(ofRemote remoteURL: String) -> String? {
+        parts(of: remoteURL)?.host
+    }
+
     public static func kind(ofRemote remoteURL: String?) -> ForgeKind {
         guard let remoteURL, let host = parts(of: remoteURL)?.host else { return .gitHub }
         return kind(ofHost: host)
@@ -76,7 +80,7 @@ public struct ForgeRepository: Sendable, Hashable {
         )
     }
 
-    private static let bitbucketCloudHosts: Set<String> = ["bitbucket.org", "www.bitbucket.org"]
+    private static let bitbucketCloudHosts: Set<String> = ["bitbucket.org", "www.bitbucket.org", "ssh.bitbucket.org"]
 
     private static func parts(of remoteURL: String) -> (host: String, path: String)? {
         let remote = remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)

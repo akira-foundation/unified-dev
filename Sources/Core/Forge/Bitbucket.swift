@@ -217,7 +217,8 @@ public enum Bitbucket {
         if let commandOverride { return try await commandOverride(arguments, directory) }
         let login: BitbucketLogin
         if let chosen { login = chosen } else { login = await GitHub.login(forDirectory: directory).bitbucket }
-        return try await Shell.run(executable, arguments, cwd: directory, env: login.variables, timeout: timeout)
+        let env = BitbucketCredentialHelper.variables(adding: login.variables)
+        return try await Shell.run(executable, arguments, cwd: directory, env: env, timeout: timeout)
     }
 
     static func connection(in directory: String) async throws -> (repository: ForgeRepository, context: String) {

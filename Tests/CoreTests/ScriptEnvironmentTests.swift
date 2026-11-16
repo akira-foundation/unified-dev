@@ -4,8 +4,9 @@ import Foundation
 
 @Suite("Script environment")
 struct ScriptEnvironmentTests {
+    private let repo = Repo(id: RepoID("r1"), name: "There There", path: "/tmp/there", defaultBranch: "main")
+
     private func makeEnvironment(port: Int = 3_100) throws -> [String: String] {
-        let repo = Repo(id: RepoID("r1"), name: "There There", path: "/tmp/there", defaultBranch: "main")
         let workspace = Workspace(
             id: WorkspaceID("w1"),
             repoID: repo.id,
@@ -34,15 +35,18 @@ struct ScriptEnvironmentTests {
         #expect(env["UD_WORKSPACE_NAME"]?.contains("/") == false)
     }
 
-    @Test("CONDUCTOR_ is set to exactly the same values, and nothing else is")
+    @Test("CONDUCTOR_ is set to exactly the same values, and nothing else is but the profile's sign-in")
     func theDeprecatedAliasMirrorsIt() throws {
         let env = try makeEnvironment()
+        let login = try Store.inMemory().gitHubLogin(for: repo.profileID)
+        let signedIn = login.everyVariable.merging(BitbucketCredentialHelper.variables(signedInAs: login)) { _, git in git }
 
         let unifieddev = env.filter { $0.key.hasPrefix("UD_") }
         let conductor = env.filter { $0.key.hasPrefix("CONDUCTOR_") }
+        let rest = env.filter { !$0.key.hasPrefix("UD_") && !$0.key.hasPrefix("CONDUCTOR_") }
 
         #expect(unifieddev.count == conductor.count)
-        #expect(unifieddev.count + conductor.count == env.count)
+        #expect(rest == signedIn)
         for (key, value) in unifieddev {
             let alias = key.replacingOccurrences(of: "UD_", with: "CONDUCTOR_")
             #expect(conductor[alias] == value, "\(alias) does not mirror \(key)")
