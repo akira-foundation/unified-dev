@@ -41,14 +41,16 @@ branch, the Release workflow commits `CHANGELOG.md` back to it, a pull request t
    ./Tools/release/changelog-check.sh
    ```
 
-   It takes every commit since the last stable tag that is not a merge, which covers every pull
-   request merged since that release, squashed or not, and compares it with what
+   It takes every commit since the last tag, a prerelease included because that is where
+   git-cliff starts, which covers every pull request merged since, and compares it with what
    `git-cliff --config cliff.toml --use-branch-tags --unreleased --strip all` will write. It also
    compares every entry of those notes with `CHANGELOG.md` on `HEAD` and on `origin/main`. It exits
    non-zero and names each one when a pull request will not reach the notes, because its squash
    subject is not a conventional commit and `filter_unconventional` drops it, or when the notes
    repeat an entry an earlier release already published, which is a fix cherry-picked into a patch
-   release whose original on `develop` does not descend from that tag.
+   release whose original on `develop` does not descend from that tag. A commit inside a branch
+   merged without squashing that will not reach the notes is printed as well, and blocks nothing:
+   read it, because the pull request it belongs to may have no other entry.
 
    Nothing in `release.yml` runs this check, so it holds only because this step is followed.
    **If it fails, stop and do not tag.** Report the list to the owner. The repair is an entry in

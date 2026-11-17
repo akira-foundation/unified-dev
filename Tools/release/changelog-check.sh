@@ -37,23 +37,34 @@ numbers() {
 published_entries="$(entries "$published")"
 published_numbers="$(numbers "$published_entries")"
 
-conventional='^(feat|fix|perf|refactor|docs|style|test|ci|chore)(\([A-Za-z0-9._/-]+\))?(!)?: [^[:space:]]'
+conventional='^[A-Za-z]+(\([^)]*\))?!?: [^[:space:]]'
+skipped='^(docs|style|test|ci|chore)(\([^)]*\))?: '
+first_parent="$(git rev-list --first-parent --no-merges "$previous..HEAD")"
 missing=()
+inside_merges=()
 listed=0
 
 while IFS=$'\t' read -r sha subject; do
   [ -n "$sha" ] || continue
+  [[ "$subject" =~ $skipped ]] && continue
   short="${sha[1,7]}"
-  if [[ ! "$subject" =~ $conventional ]]; then
-    missing+=("$short $subject (not a conventional commit, so git-cliff drops it)")
+  if grep -qF -- "[$short]" <<< "$notes"; then
+    listed=$((listed + 1))
     continue
   fi
-  if [[ "${match[1]}" == (docs|style|test|ci|chore) && -z "${match[3]}" ]]; then
-    continue
+  reason="not in the notes"
+  [[ "$subject" =~ $conventional ]] || reason="not a conventional commit, so git-cliff drops it"
+  if grep -qx -- "$sha" <<< "$first_parent"; then
+    missing+=("$short $subject ($reason)")
+  else
+    inside_merges+=("$short $subject ($reason)")
   fi
-  listed=$((listed + 1))
-  grep -qF -- "[$short]" <<< "$notes" || missing+=("$short $subject (not in the notes)")
 done < <(git log --no-merges --format='%H%x09%s' "$previous..HEAD")
+
+if (( ${#inside_merges} > 0 )); then
+  echo "changelog-check: inside merged branches, these commits will not reach the changelog either; read them, they block nothing:" >&2
+  printf '  %s\n' "${inside_merges[@]}" >&2
+fi
 
 repeated=()
 while IFS= read -r entry; do
