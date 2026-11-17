@@ -39,7 +39,7 @@ struct GitHubLoginRoutingTests {
         let raw = try SQLiteDatabase(path: first.path)
         let version = try raw.readUserVersion()
         try raw.execute("ALTER TABLE profiles DROP COLUMN github_source;")
-        try raw.setUserVersion(version - 3)
+        try raw.setUserVersion(version - 4)
 
         let reopened = try Store(path: first.path)
         #expect(reopened.gitHubLogins().source(of: debtges.id) == .inherits)

@@ -13,9 +13,11 @@ enum ProfileGitHubColumn {
         )
     }
 
-    static func sources(reading query: (String) throws -> [Row]) throws -> [ProfileID: ProfileGitHubSource] {
+    static func sources(
+        reading query: (String) throws -> [Row], select: String = sources
+    ) throws -> [ProfileID: ProfileGitHubSource] {
         var result: [ProfileID: ProfileGitHubSource] = [:]
-        for row in try query(sources) {
+        for row in try query(select) {
             guard let id = row.string("id"), let source = ProfileGitHubSource(rawValue: row.string("source") ?? "")
             else { continue }
             result[ProfileID(id)] = source

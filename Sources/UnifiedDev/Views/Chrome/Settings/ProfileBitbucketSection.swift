@@ -9,6 +9,9 @@ struct ProfileBitbucketSection: View {
     @State private var account: BitbucketAccount?
     @State private var installed = true
     @State private var isChecking = true
+    @State private var isSaving = false
+    @State private var failure: String?
+    @State private var source: ProfileGitHubSource = .inherits
     @State private var signIn: BitbucketSignInSheet.Request?
     @State private var refresh = 0
 
@@ -16,16 +19,13 @@ struct ProfileBitbucketSection: View {
         (app.store?.gitHubLogin(for: profile.id) ?? .thisMac).bitbucket
     }
 
-    private var source: ProfileGitHubSource {
-        app.gitHubSource(of: profile.id)
-    }
-
     var body: some View {
         ProfileBitbucketRows(
-            profile: profile, source: source, account: account, installed: installed,
-            isChecking: isChecking, onSignIn: start
+            profile: profile, source: binding, account: account, installed: installed,
+            isChecking: isChecking || isSaving, failure: failure, onSignIn: start
         )
-        .task(id: "\(profile.id.rawValue).\(source.rawValue).\(refresh)") {
+        .task(id: "\(profile.id.rawValue).\(refresh)") {
+            source = app.source(of: profile.id, on: .bitbucket)
             isChecking = true
             let login = login
             let directory = AgentScratchDirectory.current()
@@ -41,6 +41,24 @@ struct ProfileBitbucketSection: View {
         }
     }
 
+    private var binding: Binding<ProfileGitHubSource> {
+        Binding(
+            get: { source },
+            set: { chosen in
+                guard chosen != source, !isSaving else { return }
+                isSaving = true
+                failure = nil
+                Task {
+                    if await !app.setSource(chosen, for: profile.id, on: .bitbucket) {
+                        failure = ProfileGitHubWording.saveFailure
+                    }
+                    isSaving = false
+                    refresh += 1
+                }
+            }
+        )
+    }
+
     private func start(_ method: BitbucketLogin.Method) {
         signIn = BitbucketSignInSheet.Request(login: login, method: method, profileName: profile.name)
     }
@@ -48,14 +66,23 @@ struct ProfileBitbucketSection: View {
 
 struct ProfileBitbucketRows: View {
     let profile: Profile
-    let source: ProfileGitHubSource
+    @Binding var source: ProfileGitHubSource
     let account: BitbucketAccount?
     let installed: Bool
     let isChecking: Bool
+    var failure: String?
     let onSignIn: (BitbucketLogin.Method) -> Void
 
     var body: some View {
         Section {
+            if !profile.isInitial {
+                Picker(ProfileBitbucketWording.pickerTitle, selection: $source) {
+                    ForEach(ProfileGitHubSource.allCases, id: \.self) { source in
+                        Text(ProfileGitHubWording.label(source)).tag(source)
+                    }
+                }
+                .disabled(isChecking)
+            }
             LabeledContent(ProfileBitbucketWording.accountTitle) {
                 Text(accountText)
                     .foregroundStyle(account?.user == nil ? .secondary : .primary)
@@ -76,13 +103,20 @@ struct ProfileBitbucketRows: View {
         } header: {
             Text(ProfileBitbucketWording.sectionTitle)
         } footer: {
-            Text(
-                ProfileBitbucketWording.footnote(
-                    source: source, isInitial: profile.isInitial, profileName: profile.name,
-                    account: account, installed: installed
+            VStack(alignment: .leading, spacing: Metrics.spacingSmall) {
+                Text(
+                    ProfileBitbucketWording.footnote(
+                        source: source, isInitial: profile.isInitial, profileName: profile.name,
+                        account: account, installed: installed
+                    )
                 )
-            )
-            .settingsFootnote()
+                .settingsFootnote()
+                if let failure {
+                    Text(failure)
+                        .font(Typo.caption)
+                        .foregroundStyle(Palette.negative)
+                }
+            }
         }
     }
 

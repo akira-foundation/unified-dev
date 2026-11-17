@@ -32,7 +32,7 @@ struct ProfileGitHubSection: View {
             onSignIn: startSignIn
         )
         .task(id: "\(profile.id.rawValue).\(refresh)") {
-            source = app.gitHubSource(of: profile.id)
+            source = app.source(of: profile.id, on: .gitHub)
             isChecking = true
             user = await GitHub.signedInUser(login: login)
             isChecking = false
@@ -53,7 +53,7 @@ struct ProfileGitHubSection: View {
                 isSaving = true
                 failure = nil
                 Task {
-                    let saved = await app.setGitHubSource(chosen, for: profile.id)
+                    let saved = await app.setSource(chosen, for: profile.id, on: .gitHub)
                     if !saved { failure = ProfileGitHubWording.saveFailure }
                     isSaving = false
                     refresh += 1

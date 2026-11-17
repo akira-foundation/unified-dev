@@ -2,7 +2,7 @@ import Foundation
 
 public enum GitHubLogin: Sendable, Hashable {
     case thisMac
-    case profile(ProfileID, directory: URL)
+    case profile(ProfileID, directory: URL, uses: ProfileForgeChoice = .own)
     case unresolved(directory: URL)
 
     public static let directoryVariable = "GH_CONFIG_DIR"
@@ -12,13 +12,18 @@ public enum GitHubLogin: Sendable, Hashable {
     public var directory: URL? {
         switch self {
         case .thisMac: nil
-        case .profile(_, let directory): directory
+        case .profile(_, let directory, let uses): uses.gitHub == .own ? directory : nil
         case .unresolved(let directory): directory
         }
     }
 
+    public var ownsGitHub: Bool {
+        guard case .profile(_, _, let uses) = self else { return false }
+        return uses.gitHub == .own
+    }
+
     public var hostsHoldingTokens: Set<String> {
-        guard case .profile(_, let directory) = self else { return [] }
+        guard ownsGitHub, let directory else { return [] }
         return GitHubHostsFile.hostsHoldingTokens(in: directory)
     }
 
@@ -75,7 +80,7 @@ public enum GitHubLogin: Sendable, Hashable {
     }
 
     public func prepare() throws {
-        guard case .profile(_, let directory) = self else { return }
+        guard ownsGitHub, let directory else { return }
         try FileManager.default.createDirectory(
             at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700]
         )

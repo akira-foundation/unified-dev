@@ -61,14 +61,14 @@ extension AppModel {
         store?.gitHubLogin(for: activeProfileID) ?? .thisMac
     }
 
-    func gitHubSource(of id: ProfileID) -> ProfileGitHubSource {
-        store?.gitHubLogins().source(of: id) ?? .inherits
+    func source(of id: ProfileID, on host: ForgeKind) -> ProfileGitHubSource {
+        store?.gitHubLogins().source(of: id, on: host) ?? .inherits
     }
 
-    func setGitHubSource(_ source: ProfileGitHubSource, for id: ProfileID) async -> Bool {
+    func setSource(_ source: ProfileGitHubSource, for id: ProfileID, on host: ForgeKind) async -> Bool {
         guard let store else { return false }
         do {
-            try await store.setGitHubSource(source, for: id)
+            try await store.setSource(source, for: id, on: host)
             return true
         } catch {
             return false

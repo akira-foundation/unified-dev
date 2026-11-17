@@ -7,10 +7,16 @@ public enum ProfileGitHubSource: String, Sendable, Hashable, CaseIterable, Codab
 
 public struct ProfileGitHubLogins: Sendable, Hashable {
     public let sources: [ProfileID: ProfileGitHubSource]
+    public let bitbucketSources: [ProfileID: ProfileGitHubSource]
     public let root: URL
 
-    public init(sources: [ProfileID: ProfileGitHubSource] = [:], root: URL) {
+    public init(
+        sources: [ProfileID: ProfileGitHubSource] = [:],
+        bitbucketSources: [ProfileID: ProfileGitHubSource] = [:],
+        root: URL
+    ) {
         self.sources = sources
+        self.bitbucketSources = bitbucketSources
         self.root = root
     }
 
@@ -22,9 +28,25 @@ public struct ProfileGitHubLogins: Sendable, Hashable {
         profile == .initial ? .inherits : sources[profile] ?? .inherits
     }
 
+    public func bitbucketSource(of profile: ProfileID) -> ProfileGitHubSource {
+        profile == .initial ? .inherits : bitbucketSources[profile] ?? .inherits
+    }
+
+    public func source(of profile: ProfileID, on host: ForgeKind) -> ProfileGitHubSource {
+        choice(of: profile).source(for: host)
+    }
+
+    public func choice(of profile: ProfileID) -> ProfileForgeChoice {
+        ProfileForgeChoice(gitHub: source(of: profile), bitbucket: bitbucketSource(of: profile))
+    }
+
     public func login(for profile: ProfileID?) -> GitHubLogin {
-        guard let profile, source(of: profile) == .own else { return .thisMac }
-        return .profile(profile, directory: root.appending(path: profile.rawValue, directoryHint: .isDirectory))
+        guard let profile else { return .thisMac }
+        let choice = choice(of: profile)
+        guard choice != .thisMac else { return .thisMac }
+        return .profile(
+            profile, directory: root.appending(path: profile.rawValue, directoryHint: .isDirectory), uses: choice
+        )
     }
 
     public func login(forDirectory directory: String, routes: GitHubLoginRoutes) -> GitHubLogin {
@@ -32,7 +54,7 @@ public struct ProfileGitHubLogins: Sendable, Hashable {
     }
 
     public var unresolved: GitHubLogin {
-        guard sources.values.contains(.own) else { return .thisMac }
+        guard sources.values.contains(.own) || bitbucketSources.values.contains(.own) else { return .thisMac }
         return .unresolved(directory: root.appending(path: ".unresolved", directoryHint: .isDirectory))
     }
 }

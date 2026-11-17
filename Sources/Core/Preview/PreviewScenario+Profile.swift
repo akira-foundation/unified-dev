@@ -7,16 +7,19 @@ public extension PreviewScenario {
         public var symbol: String
         public var accounts: ProfileAccountSource
         public var github: ProfileGitHubSource
+        public var bitbucket: ProfileGitHubSource
 
         public init(
             name: String, colour: String, symbol: String,
-            accounts: ProfileAccountSource = .own, github: ProfileGitHubSource = .inherits
+            accounts: ProfileAccountSource = .own, github: ProfileGitHubSource = .inherits,
+            bitbucket: ProfileGitHubSource? = nil
         ) {
             self.name = name
             self.colour = colour
             self.symbol = symbol
             self.accounts = accounts
             self.github = github
+            self.bitbucket = bitbucket ?? github
         }
 
         public init(from decoder: Decoder) throws {
@@ -26,6 +29,7 @@ public extension PreviewScenario {
             symbol = try container.decode(String.self, forKey: .symbol)
             accounts = try container.decodeIfPresent(ProfileAccountSource.self, forKey: .accounts) ?? .own
             github = try container.decodeIfPresent(ProfileGitHubSource.self, forKey: .github) ?? .inherits
+            bitbucket = try container.decodeIfPresent(ProfileGitHubSource.self, forKey: .bitbucket) ?? github
         }
     }
 }
