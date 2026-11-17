@@ -176,6 +176,9 @@ jobs:
       - name: Check a breaking commit bumps the major, and only the #434 exception does not
         run: zsh Tools/release/tests/breaking-bump.sh
 
+      - name: Check the release check refuses a dropped or repeated changelog entry
+        run: zsh Tools/release/tests/changelog-check.sh
+
       - name: Check the app mark is the one Tools/icon/layers.py writes
         run: python3 Tools/icon/layers.py --check
 
