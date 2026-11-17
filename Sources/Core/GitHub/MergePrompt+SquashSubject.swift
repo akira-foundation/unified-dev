@@ -20,8 +20,9 @@ public extension MergePromptContext {
             + "describes it, one of \(ConventionalTitle.typeChoices), and a scope naming the part of "
             + "the project it touches, and rename it with "
             + "`gh pr edit \(number) --title '\(ConventionalTitle.shape)'`, the description in your own "
-            + "words, without the number, and in single quotes, so the shell expands nothing in it, adding `!` before the "
-            + "colon when it breaks something that worked before. Then add "
+            + "words, without the number, in single quotes and with no quote, dollar sign, backtick or "
+            + "backslash in it, so the shell runs nothing from it. Add `!` before the colon when it "
+            + "breaks something that worked before. Then add "
             + "`--subject \"$(gh pr view \(number) --json title --jq .title) (#\(number))\"` to the merge."
     }
 
