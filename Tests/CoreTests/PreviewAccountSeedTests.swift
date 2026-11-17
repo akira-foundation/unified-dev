@@ -145,9 +145,35 @@ struct PreviewAccountSeedTests {
         #expect(twice.problems.contains { $0.contains("two default accounts") })
         #expect(scenario([.init(email: " ")]).problems.contains { $0.contains("no email") })
         #expect(
-            scenario([.init(provider: .grok, email: "a@b.c")]).problems
+            scenario([.init(provider: .antigravity, email: "a@b.c")]).problems
                 .contains { $0.contains("no identity on disk") }
         )
+        #expect(
+            scenario([.init(provider: .grok, email: "a@b.c")]).problems
+                .contains { $0.contains("a Grok account needs a label") }
+        )
+        #expect(scenario([.init(provider: .grok, email: "a@b.c", label: "lab")]).problems.isEmpty)
+    }
+
+    @Test("a seeded Grok account is read back from its own auth file, with no key in it")
+    func seededGrokAccountIsRead() throws {
+        let home = URL(filePath: TestScratch.unique("account-home"), directoryHint: .isDirectory)
+        _ = try seeder().seedAgentAccounts(
+            scenario([.init(provider: .grok, email: "ada@lovelace.dev", displayName: "Ada", label: "lab")]),
+            home: home,
+            at: now
+        )
+
+        let place = try #require(PreviewScenarioSeeder.place(
+            of: .init(provider: .grok, email: "ada@lovelace.dev", label: "lab"), home: home
+        ))
+        let identity = AgentAccountIdentities.read([place])[place.id]
+        let file = try String(contentsOf: place.credentialPath, encoding: .utf8)
+        #expect(identity?.email == "ada@lovelace.dev")
+        #expect(identity?.displayName == "Ada")
+        #expect(identity?.expiresAt ?? now > now)
+        #expect(!file.contains("key"))
+        #expect(!file.contains("token"))
     }
 
     @Test("a labelled account and a project's choice of it are refused when they do not add up")
