@@ -61,7 +61,8 @@ struct AgentTurnRestartTests {
     }
 
     @Test func anAgentWithNoAccountsIsRefusedByName() {
-        #expect(sentence(decide(resolution: .resolved(nil))) == "Claude Code has no separate accounts.")
+        #expect(sentence(decide(resolution: .resolved(nil)))
+            == "Claude Code runs with this Mac's own login here, so this chat cannot be moved to another account.")
     }
 
     @Test func aChatThatNamesTheAccountItRunsUnderIsMoved() {

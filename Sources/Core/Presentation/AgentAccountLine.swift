@@ -28,7 +28,9 @@ public struct AgentAccountLine: Sendable, Equatable {
         let agent = provider.label
 
         guard let home = choice.home else {
-            let sentence = "\(agent) has no separate accounts, so it runs with its own login."
+            let sentence = AgentAccountOffer.canEverBeOffered(provider)
+                ? "\(agent) has no account chosen here, so it runs with this Mac's own login."
+                : "\(agent) has no separate accounts, so it runs with its own login."
             guard isLost else { return AgentAccountLine(title: nil, sentence: sentence, warns: false) }
             return AgentAccountLine(
                 title: unavailableTitle,
