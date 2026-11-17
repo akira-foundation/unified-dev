@@ -9,38 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-- **transcript:** Make code block controls and the reply card take their clicks (#474) ([db3db06](https://github.com/akira-foundation/unified-dev-swift/commit/db3db060589e2911bb57ead7815163786e92e5eb))
 - **profiles:** Close the gaps the branch review found in crossing ([8b14628](https://github.com/akira-foundation/unified-dev-swift/commit/8b146286bc09535634593b64cd600ae6fcc2c944))
 - **profiles:** Keep the other side's words behind the markers ([0e7fbfc](https://github.com/akira-foundation/unified-dev-swift/commit/0e7fbfce3b4a4502c20794dff0cccd6ecf617db1))
 - **profiles:** Leave the tool out of a notice from another profile ([8f2bc43](https://github.com/akira-foundation/unified-dev-swift/commit/8f2bc434c458a9593b38d22e16e8d2ed7510768a))
-- **transcript:** Draw the side conversation's way back as a native control (#478) ([10ba808](https://github.com/akira-foundation/unified-dev-swift/commit/10ba808cc62a72e315c0ef314dca96621e246131))
-- **transcript:** Show the arrow over a code block's controls (#479) ([6f49008](https://github.com/akira-foundation/unified-dev-swift/commit/6f49008172d72562d57f0be7e6b7da81310b39a8))
-- **inspector:** Confirm the toolbar's merge with the bar's popover (#488) ([e3672c6](https://github.com/akira-foundation/unified-dev-swift/commit/e3672c60a0178997078b7f6a1702980c3dcd124b))
-- **profiles:** Keep a profile folder out of an older project's directory (#491) ([97e534a](https://github.com/akira-foundation/unified-dev-swift/commit/97e534a4047eb22f642324f5ffaab1aa9459ac5c))
-- **agent:** Start a new orchestrator when the workspace has live agents (#492) ([0fa809e](https://github.com/akira-foundation/unified-dev-swift/commit/0fa809e372f279582b0fb6147447584718652ad9))
-- **archive:** Name the commands a failed archive stopped (#497) ([afed869](https://github.com/akira-foundation/unified-dev-swift/commit/afed86972476587f4043e86466f37a4d30045d10))
-- **browser:** Keep the owner's browser panes out of the agents' tools (#498) ([2ef4dd8](https://github.com/akira-foundation/unified-dev-swift/commit/2ef4dd811ce7cdcba8d43b04e6599fab642396fa))
-- **agent:** Sign in again to an account that already exists (#501) ([c66bbfc](https://github.com/akira-foundation/unified-dev-swift/commit/c66bbfc8193e911b935a8e4f65f5ca2a585976d3))
-- **updates:** Offer a new release while agents are running (#493) ([3d19310](https://github.com/akira-foundation/unified-dev-swift/commit/3d19310ff2f64cf63633a1fbb393d75c5e595497))
-- **bridge:** Tell a Codex chat it can read the other chats (#508) ([b8a36ff](https://github.com/akira-foundation/unified-dev-swift/commit/b8a36ff5b7f29cefc689c2d95c741e661551b9c1))
-- **composer:** Ask the disk about a drop off the main actor (#506) ([4befba7](https://github.com/akira-foundation/unified-dev-swift/commit/4befba7d755ebb5d8b672cfb7d1a58c9ce27fd55))
-- **app:** Keep the toolbar ground at the toolbar's height in full screen (#509) ([e429d4f](https://github.com/akira-foundation/unified-dev-swift/commit/e429d4f2febf52a081fbdf6ea7784cad28ba7057))
-- **agent:** Keep an account folder a process is still using (#489) ([9897e08](https://github.com/akira-foundation/unified-dev-swift/commit/9897e082a1d86b0e4932ad25193400d58df8daf7))
-- **github:** Take instructions from a checkout only for the owner's work (#487) ([ab35fce](https://github.com/akira-foundation/unified-dev-swift/commit/ab35fce810a82dff39ef1f3af64cae0ff7f5bc05))
-- **archive:** Stop ageing archived workspaces by their last activity (#490) ([bc5910e](https://github.com/akira-foundation/unified-dev-swift/commit/bc5910ef3e21445bb7f55c640fb0b368eeb077ca))
-- **agent:** Make the mid turn state check exhaustive (#494) ([017061f](https://github.com/akira-foundation/unified-dev-swift/commit/017061fc9da0553c79fc9fff983ce2e5607de1d5))
-- **composer:** Say why a model list could not be read (#495) ([bd2faff](https://github.com/akira-foundation/unified-dev-swift/commit/bd2faffea36fefdbd85ce891e09e949edd4b6e7c))
-- **github:** Wait for the login shell PATH before finding gh (#496) ([46829cb](https://github.com/akira-foundation/unified-dev-swift/commit/46829cbcf825042e688838623ab21f1ee9945332))
-- **spend:** Keep the spend days when a read of them fails (#499) ([3e4ce8c](https://github.com/akira-foundation/unified-dev-swift/commit/3e4ce8c8d6bd52ccd1c53b246d746348079fadcf))
-- **composer:** Name the mode an orchestrator really runs in (#502) ([5131305](https://github.com/akira-foundation/unified-dev-swift/commit/51313052c415a963ed1a0a713df1ee9c9f02c7f1))
-- **transcript:** Require proof before a rewind counts as done (#503) ([8ff11f1](https://github.com/akira-foundation/unified-dev-swift/commit/8ff11f1a8e3a46991abbc8391e09de2e9a0bc0ae))
-- **archive:** Measure archived transcripts in short batches (#504) ([ab3df99](https://github.com/akira-foundation/unified-dev-swift/commit/ab3df99cc881a0535e7ab7409aad6372768ba34b))
-- **spend:** Keep usage_files bounded and read it in pages (#505) ([df3af28](https://github.com/akira-foundation/unified-dev-swift/commit/df3af282b57c13f2b85062ed3fbdab636daa9a12))
-- **agent:** Remove a Claude Code account's keychain entries with it (#500) ([9cad96e](https://github.com/akira-foundation/unified-dev-swift/commit/9cad96e95847c65bcc91d631d3f44777479fe8a6))
-- **github:** Keep a checkout's hooks out of every git command (#512) ([df0cc16](https://github.com/akira-foundation/unified-dev-swift/commit/df0cc16bffb7fd6d31ee5a74e74e067a63031c42))
-- **archive:** Keep an orchestrator's worktree and warn when a folder disappears (#513) ([61c02e6](https://github.com/akira-foundation/unified-dev-swift/commit/61c02e63bc8e8a4afb1f0c5e1489aac168198748))
-- **composer:** Show the version each Claude alias runs in the picker (#515) ([6d40f90](https://github.com/akira-foundation/unified-dev-swift/commit/6d40f908bf930c8ad710f6a2197dcef6d0756756))
-- **composer:** Name the version of each Claude alias without a paid turn (#516) ([48dfad2](https://github.com/akira-foundation/unified-dev-swift/commit/48dfad2c1dcc5d6f552d1aaaff3a9ec56f190b29))
 - **inspector:** Hide and show the inspector (#537) ([c2f754d](https://github.com/akira-foundation/unified-dev-swift/commit/c2f754dff2690c0d56471bcaec8e56846078e083))
 - **agent:** Tell a refused account removal beside the account clicked (#540) ([c2726eb](https://github.com/akira-foundation/unified-dev-swift/commit/c2726eba133181c0be4f45bde7694257c8cdb27b))
 - **preview:** Keep a project name that looks like an option out of git init (#546) ([5d2cc90](https://github.com/akira-foundation/unified-dev-swift/commit/5d2cc90bd8694f2fffc35935819efb08ade32a1d))
@@ -63,7 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **archive:** Keep a merged workspace while its other branches are in flight (#591) ([07f1d42](https://github.com/akira-foundation/unified-dev-swift/commit/07f1d42cf8f98e2c24b270d25c80b796f7dbe0a4))
 - **transcript:** Let a chat off screen give its rows back (#583) ([c21d0a3](https://github.com/akira-foundation/unified-dev-swift/commit/c21d0a391bb8e2d657c494fac8452347f9b2f714))
 - **git:** Stop the worktree watcher running the app out of descriptors (#596) ([a32d825](https://github.com/akira-foundation/unified-dev-swift/commit/a32d825b7a38e4226450e4af4d5c3d37b2ae19f9))
+- **agent:** Keep each account's quota readings to that account (#598) ([c4be718](https://github.com/akira-foundation/unified-dev-swift/commit/c4be718c8d1697c651463ec64e147f78fba7ef76))
 - **preview:** Turn peer connections off in a previewed document (#600) ([68f92ce](https://github.com/akira-foundation/unified-dev-swift/commit/68f92ce2acf22f07ccd0832e79e4c8b04e020776))
+- **agent:** Run only a closed list of reads without asking, and keep them inside the worktree (#625) ([0f5a1ad](https://github.com/akira-foundation/unified-dev-swift/commit/0f5a1ad7d767db968af524da32a72d4d5aa0f874))
+- **tools:** Fix seven small infrastructure issues (#624) ([f677c15](https://github.com/akira-foundation/unified-dev-swift/commit/f677c155cac525074246c91df2ce0736648a3f78))
+- **terminal:** Choose the terminal's ANSI colours by its own appearance, and make every one readable (#628) ([4710694](https://github.com/akira-foundation/unified-dev-swift/commit/4710694b8eeca79a58676c9dd8c8eb825bca9437))
+- **forge:** Show why a clone failed and hand the Bitbucket sign-in to git (#638) ([ee6d7f0](https://github.com/akira-foundation/unified-dev-swift/commit/ee6d7f05a59b812b903566634aceede017391927))
 
 
 ### Features
@@ -83,6 +59,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **profiles:** Give each profile its own GitHub login (#557) ([0bdfdbf](https://github.com/akira-foundation/unified-dev-swift/commit/0bdfdbf65be69f9606345c5dbc157022030b3859))
 - **inspector:** Open a side conversation in the inspector (#559) ([8a82633](https://github.com/akira-foundation/unified-dev-swift/commit/8a826336a291a735885d03b1e4028265c1fe1776))
 - **bridge:** Let any workspace reach another profile's orchestrator (#560) ([1751d6c](https://github.com/akira-foundation/unified-dev-swift/commit/1751d6c06e6ec4c4c3ec1d1af82534295420a146))
+- **github:** Name the running CI jobs, redraw the notifications popover and keep the profile switcher whole (#597) ([b4f36d3](https://github.com/akira-foundation/unified-dev-swift/commit/b4f36d37c1c57375f62e9e3f3a47dab6ee643e59))
+- **forge:** Read Bitbucket pull requests and builds beside GitHub (#599) ([2d0d588](https://github.com/akira-foundation/unified-dev-swift/commit/2d0d5880bec68bfd019061b8476532e382d9b02e))
+- **agent:** Switch account inside a chat: Codex limit resume, named dividers, forgotten account notice (#601) ([7f0d1a1](https://github.com/akira-foundation/unified-dev-swift/commit/7f0d1a10e983160a5e2a9bfb8100f50d344fbedd))
+- **transcript:** Pin chapters, fork from a message and give the reply card the keyboard (#604) ([deb1dda](https://github.com/akira-foundation/unified-dev-swift/commit/deb1dda65ba8039d3ecfea7c4fb6eeacaae159f0))
+- **agent:** Let Claude Code agents use Claude in Chrome (#602) ([55431ee](https://github.com/akira-foundation/unified-dev-swift/commit/55431eec6541c043fcbaedf5b99bab7259f6d38b))
+- **workspace:** Suggest starting points below the new workspace composer (#603) ([f72d220](https://github.com/akira-foundation/unified-dev-swift/commit/f72d220b6e76715a02107388bfe13662cf07dda0))
+- **transcript:** Ask before running a writing command from an orchestrator's code block (#629) ([997b294](https://github.com/akira-foundation/unified-dev-swift/commit/997b2949a4384ff59cf31e60977ed1033e85e8da))
+- **agent:** Run Antigravity CLI agents over ACP (#630) ([542e921](https://github.com/akira-foundation/unified-dev-swift/commit/542e921cbc175b200b2d94d1623050ba0bea91bd))
+- **forge:** Merge, check out and read Pipelines logs on Bitbucket, with a sign-in per profile (#632) ([5bb2124](https://github.com/akira-foundation/unified-dev-swift/commit/5bb2124a7083d384f390fa76f3c939dcad53899a))
+- **forge:** Finish Bitbucket Cloud: pipeline steps, starting points, local checkout and the bridge's wording (#636) ([00f8f59](https://github.com/akira-foundation/unified-dev-swift/commit/00f8f59b61a55482cc0a44cd4df2778ee6a1ab36))
+
+
+### Performance Improvements
+
+- **agent:** Release an idle agent process after 30 minutes by default (#587) ([76d7501](https://github.com/akira-foundation/unified-dev-swift/commit/76d750171c78a5eeebfd18bd41492809f727fee0))
+- **agent:** Let go of presentation events every subscriber has acknowledged (#592) ([1e11b9a](https://github.com/akira-foundation/unified-dev-swift/commit/1e11b9a3bb60fb91a49c9a2c2181469e208921e8))
+- **agent:** Ask for agent quotas every five minutes while nobody is looking (#589) ([bfe89fa](https://github.com/akira-foundation/unified-dev-swift/commit/bfe89fa1071fd2f42db10f01d87efbbf4131f7c3))
+- **terminal:** Share one process reading between the terminal loops and slow them down behind another app (#590) ([679e6b4](https://github.com/akira-foundation/unified-dev-swift/commit/679e6b4320fbb2b6a30e9813d3e05977ce14ca1c))
+- **github:** Share one pull request read between the selected workspace's loops (#594) ([82eb929](https://github.com/akira-foundation/unified-dev-swift/commit/82eb9297f8cd40f5947cd36a9661a8a577e0bc33))
 
 ## [1.2.1](https://github.com/akira-foundation/unified-dev-swift/compare/v1.2.0...v1.2.1) (2026-11-10)
 
