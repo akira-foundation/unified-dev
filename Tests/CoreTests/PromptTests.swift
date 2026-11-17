@@ -232,7 +232,7 @@ struct PullRequestInstructionsTests {
         let path = await PullRequestInstructions.ensure(in: repo.path)
         #expect(path == PullRequestInstructions.scratchPath)
         #expect(repo.exists(PullRequestInstructions.projectPath) == false)
-        #expect(repo.read(PullRequestInstructions.scratchPath) == retired)
+        #expect(repo.read(PullRequestInstructions.scratchPath) == PullRequestInstructions.defaultMarkdown)
 
         let status = try await Shell.check("git", ["status", "--porcelain"], cwd: repo.path)
         #expect(status.trimmed.isEmpty, "git reported \(status.trimmed)")

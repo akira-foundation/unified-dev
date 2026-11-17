@@ -119,9 +119,9 @@ extension WorkspaceModel {
         if let refusal = AppRequest.mergeRefusal(from: source, agentIsBusy: isBusy) { return refusal }
 
         let context = MergePromptContext(workspace: workspace, pullRequest: pullRequest, method: method)
-        let render = context.render(template: overrides.template(for: .mergePullRequest))
+        let request = context.request(template: overrides.template(for: .mergePullRequest))
 
-        let text = await turn(render.text, for: .merge, authority: authority, forge: pullRequest.forge)
+        let text = await turn(request, for: .merge, authority: authority, forge: pullRequest.forge)
         activeSessionID = session.id
         return await send(text, to: session, from: source)
     }
