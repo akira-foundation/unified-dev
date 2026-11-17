@@ -94,9 +94,16 @@ git -C "$repo" checkout -q develop
 clock=$((clock + 60))
 GIT_AUTHOR_DATE="@$clock" GIT_COMMITTER_DATE="@$clock" \
   git -C "$repo" merge -q --no-ff -m "Merge pull request #440 from example/feat/readme" feat/readme
-if output="$(run_check "$repo")"; then fail "an unconventional commit inside a merged pull request went through: $output"; fi
-[[ "$output" == *"Bring the README in line with the pattern (not a conventional commit"* ]] \
+output="$(run_check "$repo")" || fail "a commit inside a merged branch blocked the release: $output"
+[[ "$output" == *"inside merged branches"*"Bring the README in line with the pattern (not a conventional commit"* ]] \
   || fail "the commit inside the merge is not named: $output"
+
+released_repository
+merged_back "$repo"
+commit "$repo" "revert: undo the orchestrator change (#563)"
+commit "$repo" "Feat: a capitalised type git-cliff still keeps (#564)"
+output="$(run_check "$repo")" || fail "a subject git-cliff keeps under Other was reported as dropped: $output"
+[[ "$output" == *"v1.2.1..HEAD: 2 for the notes"* ]] || fail "the two kept subjects were not counted: $output"
 
 repo="$(mktemp -d "$work/repository.XXXXXX")"
 git init -q -b develop "$repo"
@@ -119,9 +126,16 @@ origin="$(mktemp -d "$work/origin.XXXXXX")"
 git init -q --bare "$origin"
 git -C "$repo" remote add origin "$origin"
 git -C "$repo" push -q origin release/1.2.1:main
+git -C "$repo" update-ref -d refs/remotes/origin/main
 commit "$repo" "fix(composer): show the version each Claude alias runs (#515)"
 if output="$(run_check "$repo")"; then fail "a fix published only on origin/main went through again: $output"; fi
 [[ "$output" == *"(#515)"* ]] || fail "the fix published on origin/main is not named: $output"
+
+released_repository
+merged_back "$repo"
+git -C "$repo" remote add origin "$work/no-such-origin"
+if output="$(run_check "$repo")"; then fail "an origin that cannot be fetched went through: $output"; fi
+[[ "$output" == *"could not fetch origin/main"* ]] || fail "the failed fetch is not named: $output"
 
 released_repository
 merged_back "$repo"
