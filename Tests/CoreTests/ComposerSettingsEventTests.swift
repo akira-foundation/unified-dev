@@ -18,12 +18,6 @@ struct ComposerSettingsEventTests {
         #expect(!ComposerSettingsEvent.firedQuickPrompt(.composeInNewChat).closesSettings)
     }
 
-    @Test func leavingForAnotherPlaceClosesThem() {
-        #expect(ComposerSettingsEvent.savedPreset.closesSettings)
-        #expect(ComposerSettingsEvent.changedAccount.closesSettings)
-        #expect(ComposerSettingsEvent.openedInNewChat.closesSettings)
-    }
-
     @Test func aSendCountsAsARequestToClose() {
         var requests = ComposerSettingsCloseRequests()
         requests.note(.pressedSend(canSend: true))

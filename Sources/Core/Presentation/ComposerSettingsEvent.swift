@@ -3,9 +3,6 @@ import Foundation
 public enum ComposerSettingsEvent: Equatable, Sendable {
     case pressedSend(canSend: Bool)
     case firedQuickPrompt(QuickPromptDelivery)
-    case savedPreset
-    case changedAccount
-    case openedInNewChat
 
     public var closesSettings: Bool {
         switch self {
@@ -13,8 +10,6 @@ public enum ComposerSettingsEvent: Equatable, Sendable {
             canSend
         case .firedQuickPrompt(let delivery):
             delivery.sends
-        case .savedPreset, .changedAccount, .openedInNewChat:
-            true
         }
     }
 }

@@ -19,7 +19,7 @@ struct ComposerSettingsPicker: View {
     var onContextWindow: @MainActor (Int) -> Void
     var onInteractionMode: @MainActor (InteractionMode) -> Void = { _ in }
     var onOpenInNewChat: (@MainActor (AgentKind) -> Void)?
-    var closeRequests = ComposerSettingsCloseRequests()
+    var closeRequests: ComposerSettingsCloseRequests
 
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
@@ -82,14 +82,10 @@ struct ComposerSettingsPicker: View {
         .task { await library.load(from: app.store) }
     }
 
-    private func close(on event: ComposerSettingsEvent) {
-        if event.closesSettings { isOpen = false }
-    }
-
     private var closingThenOpeningNewChat: (@MainActor (AgentKind) -> Void)? {
         guard let onOpenInNewChat else { return nil }
         return { kind in
-            close(on: .openedInNewChat)
+            isOpen = false
             onOpenInNewChat(kind)
         }
     }
@@ -105,7 +101,7 @@ struct ComposerSettingsPicker: View {
 
     private func changeAccount() {
         guard let account else { return }
-        close(on: .changedAccount)
+        isOpen = false
         RepoSettingsPaneRequest.post(.agents, for: account.repoID)
         openWindow(id: RepoSettingsWindow.id, value: account.repoID)
     }
@@ -127,7 +123,7 @@ struct ComposerSettingsPicker: View {
 
     private func savePreset(_ name: String) {
         guard let name = ModelPreset.cleanName(name) else { return }
-        close(on: .savedPreset)
+        isOpen = false
         library.add(ModelPreset(name: name, controls: controls), in: app.store)
     }
 }

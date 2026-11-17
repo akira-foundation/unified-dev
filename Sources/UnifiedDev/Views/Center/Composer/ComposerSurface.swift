@@ -18,7 +18,7 @@ struct ComposerSend {
     var intent: ComposerIntent = .send
     var canSend: Bool
     var perform: @MainActor () -> Void
-    var onQuickPrompt: @MainActor (QuickPromptPanelRow, @MainActor (QuickPromptPanelRow) -> Void) -> Void
+    var onQuickPrompt: @MainActor (QuickPromptPanelRow, @MainActor (QuickPromptPanelRow) -> Void) -> QuickPromptDelivery
     var usesCLIChat: Binding<Bool>?
     var supportsCLIChat: Bool = true
 }
@@ -129,9 +129,8 @@ struct ComposerSurface: View {
     }
 
     private func fire(_ prompt: QuickPromptPanelRow, insert: @MainActor (QuickPromptPanelRow) -> Void) {
-        let delivery = prompt.delivery(canSend: send.canSend, canOpenNewChat: true)
+        let delivery = send.onQuickPrompt(prompt, insert)
         settingsCloseRequests.note(.firedQuickPrompt(delivery))
-        send.onQuickPrompt(prompt, insert)
     }
 
     private func handle(key: ComposerKey) -> Bool {

@@ -25,7 +25,7 @@ struct ComposerFooterView: View {
     var supportsCLIChat: Bool = true
     var account: ComposerAccountSection?
     var accountHomes: ComposerAccountHomes?
-    var settingsCloseRequests = ComposerSettingsCloseRequests()
+    var settingsCloseRequests: ComposerSettingsCloseRequests
 
     @State private var loadedSpeed: CodexSpeed?
     @State private var loadedSpeedRequest: [String]?

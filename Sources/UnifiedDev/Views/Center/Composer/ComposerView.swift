@@ -377,8 +377,11 @@ struct ComposerView: View {
         }
     }
 
-    private func fire(_ prompt: QuickPromptPanelRow, insert: @MainActor (QuickPromptPanelRow) -> Void) {
-        switch prompt.delivery(canSend: true, canOpenNewChat: model != nil) {
+    private func fire(
+        _ prompt: QuickPromptPanelRow, insert: @MainActor (QuickPromptPanelRow) -> Void
+    ) -> QuickPromptDelivery {
+        let delivery = prompt.delivery(canSend: true, canOpenNewChat: model != nil)
+        switch delivery {
         case .compose:
             insert(prompt)
         case .send:
@@ -389,6 +392,7 @@ struct ComposerView: View {
         case .sendInNewChat:
             openChat(for: prompt, sending: true)
         }
+        return delivery
     }
 
     private func openChat(for prompt: QuickPromptPanelRow, sending: Bool) {
