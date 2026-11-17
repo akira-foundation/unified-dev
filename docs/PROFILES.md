@@ -55,10 +55,11 @@ Which account an agent runs under is decided in this order:
 A profile with accounts of its own never takes the third step, for a CLI that has a default account
 to fall back to. When neither the project nor the profile names an account for the CLI that is still
 there, the turn does not start: the chat says why and asks for an account, and the composer and
-Settings show the account as unavailable before anything is sent. A CLI that has no default account
-at all is the exception, and Grok is the one today: there is nothing to refuse the fall back to, so
-the turn runs under this Mac's own login in every profile, and Settings says so rather than
-promising a refusal that would not happen. The work of one organisation therefore
+Settings show the account as unavailable before anything is sent. Grok is refused the same way,
+although it has no default account listed: a profile can sign in to Grok accounts of its own, so an
+unchosen one is a missing account rather than a reason to run this Mac's login. An agent that cannot
+hold accounts at all, Antigravity, Cursor and OpenCode, runs under this Mac's own login in every
+profile, and Settings says so rather than promising a refusal that would not happen. The work of one organisation therefore
 cannot run, or be billed, under the login of another. A project of such a profile that holds a
 choice of this Mac's own login, made on purpose, runs it. `ProfileAccounts` decides what a profile
 holds, lists and reaches, and `AgentAccountLaunch` decides whether a choice may start an agent at all.

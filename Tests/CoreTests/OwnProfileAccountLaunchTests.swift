@@ -150,11 +150,23 @@ struct OwnProfileAccountLaunchTests {
 struct AgentAccountLaunchDecisionTests {
     private let defaultClaude = AgentAccountHome.defaultHome(for: .claudeCode, home: URL(filePath: "/Users/someone"))!
 
-    @Test("an agent that cannot hold accounts starts in an own profile with nothing to choose")
-    func anAgentWithoutAccountsRuns() {
+    @Test(
+        "an agent that cannot hold accounts starts in an own profile with nothing to choose",
+        arguments: [AgentKind.antigravity, .cursor, .openCode]
+    )
+    func anAgentWithoutAccountsRuns(provider: AgentKind) {
         let choice = AgentAccountChoice(home: nil, reason: .noAccount)
 
-        #expect(AgentAccountLaunch.decide(choice: choice, provider: .grok, outsideUnified: true) == .runs(nil))
+        #expect(AgentAccountLaunch.decide(choice: choice, provider: provider, outsideUnified: true) == .runs(nil))
+    }
+
+    @Test("Grok with no account chosen is refused in an own profile rather than run this Mac's login")
+    func grokWithNothingChosenIsRefused() {
+        let choice = AgentAccountChoice(home: nil, reason: .noAccount)
+
+        #expect(AgentAccountLaunch.decide(choice: choice, provider: .grok, outsideUnified: true)
+            == .refused(AgentAccountRefusal(provider: .grok, isChoiceLost: false)))
+        #expect(AgentAccountLaunch.decide(choice: choice, provider: .grok, outsideUnified: false) == .runs(nil))
     }
 
     @Test("a lost choice with nothing left to fall to is refused in an own profile")
