@@ -8,11 +8,23 @@ cd "$repository"
 
 command -v git-cliff >/dev/null || { echo "changelog-check: git-cliff is not installed" >&2; exit 1; }
 
-previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' HEAD 2>/dev/null || true)"
+previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)"
 [ -n "$previous" ] || { echo "changelog-check: no release tag behind HEAD to compare against" >&2; exit 1; }
 
 notes="$(git-cliff --config "$config" --use-branch-tags --unreleased --strip all 2>/dev/null)"
-published="$( { git show HEAD:CHANGELOG.md 2>/dev/null || true; git show origin/main:CHANGELOG.md 2>/dev/null || true; } )"
+published_refs=(HEAD)
+if git remote get-url origin >/dev/null 2>&1; then
+  git fetch -q origin main || { echo "changelog-check: could not fetch origin/main, so what it published is unknown" >&2; exit 1; }
+  published_refs+=(origin/main)
+fi
+
+published=""
+for ref in "${published_refs[@]}"; do
+  if git cat-file -e "$ref:CHANGELOG.md" 2>/dev/null; then
+    published+="$(git show "$ref:CHANGELOG.md")"$'\n'
+  fi
+done
+[ -n "$published" ] || { echo "changelog-check: no CHANGELOG.md on ${published_refs[*]} to compare against" >&2; exit 1; }
 
 entries() {
   sed -nE '/^- /{s/ \(\[[0-9a-f]{7}\]\([^)]*\)\)$//;p;}' <<< "$1"
@@ -41,7 +53,7 @@ while IFS=$'\t' read -r sha subject; do
   fi
   listed=$((listed + 1))
   grep -qF -- "[$short]" <<< "$notes" || missing+=("$short $subject (not in the notes)")
-done < <(git log --first-parent --no-merges --format='%H%x09%s' "$previous..HEAD")
+done < <(git log --no-merges --format='%H%x09%s' "$previous..HEAD")
 
 repeated=()
 while IFS= read -r entry; do
