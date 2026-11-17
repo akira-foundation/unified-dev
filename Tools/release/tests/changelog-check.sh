@@ -43,7 +43,7 @@ merged_back() {
 }
 
 run_check() {
-  "$check" "$1" "$real_config" 2>&1
+  "$check" "$1" "${2:-$real_config}" 2>&1
 }
 
 fail() {
@@ -85,5 +85,50 @@ merged_back "$repo"
 commit "$repo" "chore!: drop the old settings file (#570)"
 output="$(run_check "$repo")" || fail "a breaking chore listed in the notes was refused: $output"
 [[ "$output" == *"v1.2.1..HEAD: 1 for the notes"* ]] || fail "a breaking chore was not counted: $output"
+
+released_repository
+merged_back "$repo"
+git -C "$repo" checkout -q -b feat/readme
+commit "$repo" "Bring the README in line with the pattern"
+git -C "$repo" checkout -q develop
+clock=$((clock + 60))
+GIT_AUTHOR_DATE="@$clock" GIT_COMMITTER_DATE="@$clock" \
+  git -C "$repo" merge -q --no-ff -m "Merge pull request #440 from example/feat/readme" feat/readme
+if output="$(run_check "$repo")"; then fail "an unconventional commit inside a merged pull request went through: $output"; fi
+[[ "$output" == *"Bring the README in line with the pattern (not a conventional commit"* ]] \
+  || fail "the commit inside the merge is not named: $output"
+
+repo="$(mktemp -d "$work/repository.XXXXXX")"
+git init -q -b develop "$repo"
+commit "$repo" "feat: the first release"
+git -C "$repo" tag v1.2.0
+commit "$repo" "fix: a fix after it (#600)"
+if output="$(run_check "$repo")"; then fail "a range with no published changelog to compare against went through: $output"; fi
+[[ "$output" == *"no CHANGELOG.md"* ]] || fail "the missing changelog is not named: $output"
+
+skipping_features="$work/skipping-features.toml"
+sed 's/{ message = "^feat", group = "Features" }/{ message = "^feat", group = "Features", skip = true }/' "$real_config" > "$skipping_features"
+released_repository
+merged_back "$repo"
+commit "$repo" "feat(bridge): let any workspace reach another orchestrator (#560)"
+if output="$(run_check "$repo" "$skipping_features")"; then fail "a conventional entry missing from the notes went through: $output"; fi
+[[ "$output" == *"(#560) (not in the notes)"* ]] || fail "the entry missing from the notes is not named: $output"
+
+released_repository
+origin="$(mktemp -d "$work/origin.XXXXXX")"
+git init -q --bare "$origin"
+git -C "$repo" remote add origin "$origin"
+git -C "$repo" push -q origin release/1.2.1:main
+commit "$repo" "fix(composer): show the version each Claude alias runs (#515)"
+if output="$(run_check "$repo")"; then fail "a fix published only on origin/main went through again: $output"; fi
+[[ "$output" == *"(#515)"* ]] || fail "the fix published on origin/main is not named: $output"
+
+released_repository
+merged_back "$repo"
+commit "$repo" "feat(bridge): let any workspace reach another orchestrator (#560)"
+git -C "$repo" tag v1.3.0-beta.1
+commit "$repo" "fix(bridge): answer the orchestrator once (#562)"
+output="$(run_check "$repo")" || fail "a range after a prerelease tag was refused: $output"
+[[ "$output" == *"v1.3.0-beta.1..HEAD: 1 for the notes"* ]] || fail "the prerelease tag is not where the range starts: $output"
 
 echo "changelog-check: an unconventional subject and an entry already published are both refused, and a clean range passes."
