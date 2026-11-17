@@ -103,6 +103,9 @@ struct GitHunkDiscardTests {
         let shown = try await hunks(repo, file, scope: .uncommitted)
         let first = try #require(shown.first { $0.lines.contains { $0.text == "line two" } })
 
+        let asked = await Git.stagedHunk(first, of: file, worktree: repo.path, base: "main", scope: .uncommitted)
+        #expect(asked == .divergesFromTheWorktree)
+
         await #expect(throws: HunkDiscardRefusal.indexDiffers) {
             try await Git.discardHunk(first, of: file, worktree: repo.path, base: "main", scope: .uncommitted)
         }
