@@ -17,8 +17,7 @@ extension HunkDiscardRefusal: LocalizedError {
                 + "Nothing was discarded."
         case .indexDiffers:
             "This file has staged changes that do not match the working file, so this hunk cannot "
-                + "leave both of them in one step. Nothing was discarded. Unstage the file with "
-                + "git restore --staged, or commit what is staged, and then discard the hunk."
+                + "leave both of them in one step. Nothing was discarded. " + HunkDiscard.unstageFirst
         case let .doesNotApply(detail):
             "The hunk no longer applies cleanly, so nothing was discarded."
                 + (detail.isEmpty ? "" : "\n\n" + detail)

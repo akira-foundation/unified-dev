@@ -152,11 +152,22 @@ struct HunkDiscardTests {
 
         #expect(sentence
             == "This file has staged changes over these lines that do not match the working file, "
-            + "so git will refuse to discard this hunk and nothing will be written. Unstage the "
+            + "so git refuses to discard this hunk and nothing would be written. Unstage the "
             + "file with git restore --staged, or commit what is staged, and then discard the hunk.")
         #expect(!sentence.contains("puts back"))
         #expect(!sentence.contains("takes out"))
         #expect(!sentence.contains(NoUndo.sentence))
+    }
+
+    @Test("a discard git will refuse is not offered as a button, and its title does not ask")
+    func refusedDiscardIsNotConfirmed() {
+        #expect(!HunkDiscard.canConfirm(.divergesFromTheWorktree))
+        #expect(HunkDiscard.question(path: "src/hull.txt", staged: .divergesFromTheWorktree)
+            == "This hunk in src/hull.txt cannot be discarded yet")
+        for staged: HunkDiscard.Staged in [.clean, .holdsTheHunk, .holdsAnotherVersion, .unreadable] {
+            #expect(HunkDiscard.canConfirm(staged))
+            #expect(HunkDiscard.question(path: "src/hull.txt", staged: staged) == "Discard this hunk in src/hull.txt?")
+        }
     }
 
     @Test("an index nobody could read says so rather than promising a clean discard")
