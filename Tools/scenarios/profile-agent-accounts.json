@@ -1,0 +1,64 @@
+{
+  "welcome": false,
+  "activeProfile": "Akira",
+  "profiles": [
+    {
+      "name": "Akira",
+      "colour": "4C8DF6",
+      "symbol": "building.2",
+      "accounts": "own"
+    }
+  ],
+  "accounts": [
+    {
+      "provider": "claudeCode",
+      "email": "ada@harbour.example",
+      "plan": "Max"
+    },
+    {
+      "provider": "claudeCode",
+      "email": "ada@akira.example",
+      "plan": "Max",
+      "label": "client",
+      "profile": "Akira",
+      "isProfileDefault": true
+    },
+    {
+      "provider": "codex",
+      "email": "ada@lab.example",
+      "plan": "plus",
+      "label": "lab",
+      "profile": "Akira"
+    },
+    {
+      "provider": "grok",
+      "email": "ada@side.example",
+      "displayName": "Ada",
+      "label": "side",
+      "profile": "Akira",
+      "isProfileDefault": true
+    },
+    {
+      "provider": "grok",
+      "email": "ada@night.example",
+      "displayName": "Ada",
+      "label": "night",
+      "profile": "Akira"
+    }
+  ],
+  "projects": [
+    {
+      "name": "lighthouse",
+      "files": {
+        "README.md": "# lighthouse\n\nA project in Akira, which signs in to Claude Code, Codex and Grok accounts of its own.\n"
+      },
+      "commits": [
+        "Start lighthouse"
+      ],
+      "profile": "Akira",
+      "accounts": {
+        "grok": "night"
+      }
+    }
+  ]
+}

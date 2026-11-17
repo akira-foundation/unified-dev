@@ -95,7 +95,7 @@ enum ProfileProbe {
                             options: AgentAccountProbe.profileOptions, failure: nil, onPick: { _, _ in }, onAddAccount: nil
                         )
                         ProfileAccountSignInButtons(
-                            providers: [.claudeCode, .codex], profileName: draft.savedName, onSignIn: { _ in }
+                            providers: [.claudeCode, .codex, .grok], profileName: draft.savedName, onSignIn: { _ in }
                         )
                     }
                 }

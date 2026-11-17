@@ -126,14 +126,14 @@ token is there. A file holds one credential object per issuer, and the one read 
 sorted key that carries a name or an email, so two sign-ins do not make the reading wander between
 launches.
 
-This is the file-read verdict that the Codex section above says is the wrong way to judge a session,
-and Grok keeps it for a reason worth writing down: `AgentAccountLiveness` has no question to ask
-Grok. `codex login status` and `claude auth status` answer for the other two, which is why their
-state is asked rather than read; `grok models` does print "You are logged in with grok.com" or
-"You are not authenticated", so the question exists, but nothing wires it up yet. Until it is, the
-warning here can still be wrong in the one way the Codex line was: a refresh token present but dead
-reads as a session that stands. Wiring `grok models` into `AgentAccountLiveness` closes that and
-makes Grok offerable in the same move, since its isolation doubt is gone.
+Whether a login still stands is asked of the CLI, as it is for the other two. `grok models` runs
+no turn, opens no browser and answers in under a second; it exits 0 whether or not there is a login,
+so the exit status says nothing and the line that names the login is what is read, wherever it falls: "You are logged in with
+grok.com." or "You are authenticated via ..." is a session, "You are not authenticated." is none,
+and anything else is no answer. `AgentAccountLiveness` asks it under the account's own `GROK_HOME`,
+which is why a profile can sign in to a Grok account of its own. The account card reads the email
+and first name from that directory's `auth.json`, and shows an expiry only when there is no refresh
+token to renew it.
 
 An `XAI_API_KEY` in the environment means API key auth instead, and takes precedence in what is
 displayed when no auth file is present. Config file to offer for opening: `~/.grok/config.toml`.
@@ -164,6 +164,28 @@ version if present. Do NOT invent an auth file format for them: show "Connected"
 is real evidence, otherwise show that the CLI was found and leave the account block out. Cursor's
 config directory is `~/.cursor` (exists here, holds `hooks.json`). OpenCode's is `~/.opencode`
 (absent here).
+
+## Which agents a profile can sign in to
+
+A profile signs in to an account of its own only for an agent whose login can be moved into a
+directory of its own by one variable, and whose CLI says, without cost and without a browser,
+whether that directory holds a login. Claude Code, Codex in its file mode and Grok have both. The
+others were measured on 2026-11-17, each pointed at an empty temporary directory, with no login run
+and no credential read, and `AgentAccountRoster.isolationDoubt` gives each its own reason.
+
+| CLI | Moves its login | Says whether a directory holds one | Offered |
+| --- | --- | --- | --- |
+| Grok 1.0.70 | `GROK_HOME` | `grok models`, first line | yes |
+| Antigravity 1.5.9 | only `HOME` | `agy models`, exit status | no |
+| Cursor | not installed; `CURSOR_CONFIG_DIR` moves `cli-config.json`, the login is not documented to follow | `agent status`, output not documented | no |
+| OpenCode | not installed; `XDG_DATA_HOME` or `OPENCODE_DB` move the database that holds its logins | `opencode auth list`, output not documented | no |
+
+Antigravity answers "Please sign in" and exits 1 under an empty `HOME`, and still lists its models
+with `GEMINI_HOME`, `GEMINI_CLI_HOME`, `ANTIGRAVITY_HOME`, `AGY_HOME` or `XDG_CONFIG_HOME` pointed at
+empty directories, so `HOME` is the only thing that moves its login. A separate `HOME` would also
+move the git, ssh and shell configuration of every tool the agent runs, which is not an account.
+Cursor and OpenCode are read from their documentation alone, because neither binary is on this Mac;
+they stay refused until a measurement says what their status commands print.
 
 ## A second account per process
 

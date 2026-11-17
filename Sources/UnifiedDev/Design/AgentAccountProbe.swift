@@ -69,6 +69,7 @@ enum AgentAccountProbe {
                 home("lab", .codex), email: "ada@lab.example",
                 doubt: "Codex keeps its login in the system keychain here, which a separate directory does not keep apart."
             ),
+            standing(home("side", .grok), email: "ada@side.example"),
         ]
     }
 
@@ -88,7 +89,7 @@ enum AgentAccountProbe {
     }
 
     static var profileOptions: AgentAccountOptions {
-        options(.profile, stored: [.claudeCode: "work"], outsideProfile: true)
+        options(.profile, stored: [.claudeCode: "work", .grok: "side"], outsideProfile: true)
     }
 
     private static func form(_ options: AgentAccountOptions, failure: String? = nil) -> AnyView {

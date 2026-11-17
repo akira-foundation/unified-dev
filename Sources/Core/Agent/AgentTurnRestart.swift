@@ -61,7 +61,9 @@ public struct AgentTurnRestart: Sendable, Equatable {
         case .failed(let detail):
             return refused("Unified Dev could not work out which account this chat runs under: \(detail)")
         case .resolved(nil):
-            return refused("\(provider.label) has no separate accounts.")
+            return refused(AgentAccountOffer.canEverBeOffered(provider)
+                ? "\(provider.label) runs with this Mac's own login here, so this chat cannot be moved to another account."
+                : "\(provider.label) has no separate accounts.")
         case .resolved(let home?):
             from = home
         }

@@ -18,6 +18,10 @@ public enum AgentAccountOffer: Sendable, Equatable {
         return .available
     }
 
+    public static func canEverBeOffered(_ provider: AgentKind) -> Bool {
+        make(for: provider, codexStorageMode: .file).isAvailable
+    }
+
     private static func refusal(_ provider: AgentKind, _ because: String) -> AgentAccountOffer {
         .unavailable(reason: "Unified Dev cannot add another \(provider.label) account. \(because)")
     }

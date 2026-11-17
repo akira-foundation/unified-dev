@@ -49,7 +49,7 @@ public enum AgentAccountLaunch: Sendable, Equatable {
         let fallsToTheMac = switch choice.reason {
         case .project, .profile: false
         case .providerDefault: true
-        case .noAccount: isLost
+        case .noAccount: isLost || AgentAccountOffer.canEverBeOffered(provider)
         }
         guard outsideUnified, fallsToTheMac else { return .runs(choice.home) }
         return .refused(AgentAccountRefusal(provider: provider, isChoiceLost: isLost))

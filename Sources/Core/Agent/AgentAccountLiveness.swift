@@ -13,17 +13,25 @@ public struct AgentAccountLiveness: Sendable {
 
     public static let codexNoSessionText = "Not logged in"
 
+    public static let grokArguments = ["models"]
+
+    public static let grokNoSessionText = "You are not authenticated."
+
+    public static let grokSessionTexts = ["You are logged in with", "You are authenticated via"]
+
     public static let timeout: Duration = .seconds(10)
 
     private enum Command {
         case claudeAuthStatus
         case codexLoginStatus
+        case grokModels
 
         init?(_ provider: AgentKind) {
             switch provider {
             case .claudeCode: self = .claudeAuthStatus
             case .codex: self = .codexLoginStatus
-            case .grok, .antigravity, .cursor, .openCode: return nil
+            case .grok: self = .grokModels
+            case .antigravity, .cursor, .openCode: return nil
             }
         }
 
@@ -31,6 +39,7 @@ public struct AgentAccountLiveness: Sendable {
             switch self {
             case .claudeAuthStatus: AgentAccountLiveness.arguments
             case .codexLoginStatus: AgentAccountLiveness.codexArguments
+            case .grokModels: AgentAccountLiveness.grokArguments
             }
         }
     }
@@ -42,6 +51,7 @@ public struct AgentAccountLiveness: Sendable {
 
     private let executable: String
     private let codexExecutable: String
+    private let grokExecutable: String
     private let cwd: String
     private let environment: [String: String]?
     private let timeout: Duration
@@ -51,6 +61,7 @@ public struct AgentAccountLiveness: Sendable {
     init(
         executable: String = AgentRunner.executable,
         codexExecutable: String = CodexClient.executable,
+        grokExecutable: String = AgentKind.grok.executableName,
         cwd: String = AgentScratchDirectory.current(),
         environment: [String: String]? = nil,
         timeout: Duration = AgentAccountLiveness.timeout,
@@ -60,6 +71,7 @@ public struct AgentAccountLiveness: Sendable {
         self.activity = activity
         self.executable = executable
         self.codexExecutable = codexExecutable
+        self.grokExecutable = grokExecutable
         self.cwd = cwd
         self.environment = environment
         self.timeout = timeout
@@ -73,6 +85,7 @@ public struct AgentAccountLiveness: Sendable {
         AgentAccountLiveness(
             executable: executables[.claudeCode] ?? AgentRunner.executable,
             codexExecutable: executables[.codex] ?? CodexClient.executable,
+            grokExecutable: executables[.grok] ?? AgentKind.grok.executableName,
             makeProcess: makeProcess
         )
     }
@@ -90,7 +103,7 @@ public struct AgentAccountLiveness: Sendable {
 
     private func ask(_ command: Command, about home: AgentAccountHome) async -> CliReport {
         let process = makeProcess(AgentLaunch(
-            executable: command == .claudeAuthStatus ? executable : codexExecutable,
+            executable: executable(for: command),
             arguments: command.arguments,
             cwd: cwd,
             environment: AgentAccountEnvironment.apply(home, to: environment ?? Shell.environment())
@@ -105,6 +118,7 @@ public struct AgentAccountLiveness: Sendable {
                 switch command {
                 case .claudeAuthStatus: .answered(await Self.firstReport(in: lines))
                 case .codexLoginStatus: .answered(await Self.codexReport(of: process, lines: lines, errorLines: errorLines))
+                case .grokModels: .answered(await Self.firstGrokReport(in: lines))
                 }
             }
             group.addTask {
@@ -119,6 +133,20 @@ public struct AgentAccountLiveness: Sendable {
         if command == .claudeAuthStatus { await process.killUnlessExited(within: ClaudeAccountActivity.exitGrace) }
         guard case .answered(let answer) = outcome else { return .unanswered }
         return answer ?? .unanswered
+    }
+
+    private func executable(for command: Command) -> String {
+        switch command {
+        case .claudeAuthStatus: executable
+        case .codexLoginStatus: codexExecutable
+        case .grokModels: grokExecutable
+        }
+    }
+
+    static func grokReport(in line: String) -> CliReport? {
+        let text = line.trimmingCharacters(in: .whitespaces)
+        if text.hasPrefix(grokNoSessionText) { return .claimsNoSession }
+        return grokSessionTexts.contains { text.hasPrefix($0) } ? .claimsSession : nil
     }
 
     static func report(in output: String) -> CliReport? {
@@ -137,6 +165,17 @@ public struct AgentAccountLiveness: Sendable {
             for try await line in lines {
                 output += line + "\n"
                 if let report = report(in: output) { return report }
+            }
+        } catch {
+            return nil
+        }
+        return nil
+    }
+
+    private static func firstGrokReport(in lines: AsyncThrowingStream<String, Error>) async -> CliReport? {
+        do {
+            for try await line in lines {
+                if let report = grokReport(in: line) { return report }
             }
         } catch {
             return nil
