@@ -13,6 +13,8 @@ extension PreviewScenario {
         public var profile: String?
         public var isProfileDefault: Bool
 
+        public static let seededProviders: Set<AgentKind> = [.claudeCode, .codex, .grok]
+
         public var id: AgentAccountID {
             guard let label else { return AgentAccountHome.defaultID(for: provider) }
             return AgentAccountID("preview.\(provider.rawValue).\(label.lowercased())")
@@ -61,8 +63,11 @@ extension PreviewScenario {
             if email.trimmingCharacters(in: .whitespaces).isEmpty {
                 found.append("an account has no email to be named by")
             }
-            if provider != .claudeCode, provider != .codex {
+            if !Self.seededProviders.contains(provider) {
                 found.append("\(provider.label) keeps no identity on disk, so it has no account to seed")
+            }
+            if provider == .grok, label == nil {
+                found.append("Grok's own login is never listed as an account, so a Grok account needs a label")
             }
             if let label, !PreviewScenario.isFolderName(label) {
                 found.append("account \"\(label)\" is not a plain folder name")

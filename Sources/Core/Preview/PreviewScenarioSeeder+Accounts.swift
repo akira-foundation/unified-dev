@@ -104,12 +104,24 @@ extension PreviewScenarioSeeder {
         switch account.provider {
         case .codex:
             return [(place.credentialPath, codexAuth(account, expiring: expiry))]
+        case .grok:
+            return [(place.credentialPath, grokAuth(account, expiring: expiry))]
         default:
             return [
                 (place.identityPath, claudeIdentity(account)),
                 (place.credentialPath, claudeCredential(account, expiring: expiry)),
             ]
         }
+    }
+
+    private func grokAuth(_ account: PreviewScenario.Account, expiring: Date) -> String {
+        let members = [
+            "\"email\":\"\(escaped(account.email))\"",
+            "\"first_name\":\"\(escaped(account.displayName ?? account.email))\"",
+            "\"auth_mode\":\"oauth\"",
+            "\"expires_at\":\"\(ISO8601DateFormatter().string(from: expiring))\"",
+        ]
+        return "{\"preview\":{" + members.joined(separator: ",") + "}}"
     }
 
     private func claudeIdentity(_ account: PreviewScenario.Account) -> String {
