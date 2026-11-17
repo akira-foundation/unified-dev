@@ -55,7 +55,7 @@ struct ComposerSurface: View {
 
     @Environment(AppModel.self) private var app
     @State private var loaded: ComposerAccountReading?
-    @State private var sends = 0
+    @State private var settingsCloseRequests = ComposerSettingsCloseRequests()
 
     var body: some View {
         ComposerPrompt(
@@ -93,7 +93,7 @@ struct ComposerSurface: View {
                 intent: send.intent,
                 project: place.project,
                 onAttach: actions.attach,
-                onQuickPrompt: { send.onQuickPrompt($0, actions.insert) },
+                onQuickPrompt: { fire($0, insert: actions.insert) },
                 projectQuickPrompts: place.projectQuickPrompts,
                 onOpenQuickPrompts: place.onOpenQuickPrompts,
                 onSend: performSend,
@@ -104,7 +104,7 @@ struct ComposerSurface: View {
                 supportsCLIChat: send.supportsCLIChat,
                 account: reading?.section,
                 accountHomes: reading?.homes,
-                sends: sends
+                settingsCloseRequests: settingsCloseRequests
             )
         }
         .task(id: accountKey) {
@@ -124,8 +124,14 @@ struct ComposerSurface: View {
     }
 
     private func performSend() {
-        sends += 1
+        settingsCloseRequests.note(.pressedSend(canSend: send.canSend))
         send.perform()
+    }
+
+    private func fire(_ prompt: QuickPromptPanelRow, insert: @MainActor (QuickPromptPanelRow) -> Void) {
+        let delivery = prompt.delivery(canSend: send.canSend, canOpenNewChat: true)
+        settingsCloseRequests.note(.firedQuickPrompt(delivery))
+        send.onQuickPrompt(prompt, insert)
     }
 
     private func handle(key: ComposerKey) -> Bool {

@@ -19,7 +19,7 @@ struct ComposerSettingsPicker: View {
     var onContextWindow: @MainActor (Int) -> Void
     var onInteractionMode: @MainActor (InteractionMode) -> Void = { _ in }
     var onOpenInNewChat: (@MainActor (AgentKind) -> Void)?
-    var sends: Int = 0
+    var closeRequests = ComposerSettingsCloseRequests()
 
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
@@ -66,31 +66,24 @@ struct ComposerSettingsPicker: View {
                 account: account,
                 matchedPreset: summary.matched,
                 suggestedPresetName: summary.suggestedName,
-                onModel: settling(onModel),
-                onEffort: settling(onEffort),
-                onOutputStyle: settling(onOutputStyle),
-                onPermissionMode: settling(onPermissionMode),
-                onContextWindow: settling(onContextWindow),
-                onInteractionMode: settling(onInteractionMode),
+                onModel: onModel,
+                onEffort: onEffort,
+                onOutputStyle: onOutputStyle,
+                onPermissionMode: onPermissionMode,
+                onContextWindow: onContextWindow,
+                onInteractionMode: onInteractionMode,
                 onOpenInNewChat: closingThenOpeningNewChat,
                 onChangeAccount: changeAccount,
                 onSavePreset: savePreset
             )
             .environment(\.fontScale, 1)
         }
-        .onChange(of: sends) { _, _ in close(on: .sentMessage) }
+        .onChange(of: closeRequests) { _, _ in isOpen = false }
         .task { await library.load(from: app.store) }
     }
 
-    private func close(on event: AgentSettingsEvent) {
+    private func close(on event: ComposerSettingsEvent) {
         if event.closesSettings { isOpen = false }
-    }
-
-    private func settling<Value>(_ choose: @escaping @MainActor (Value) -> Void) -> @MainActor (Value) -> Void {
-        { value in
-            choose(value)
-            close(on: .changedSetting)
-        }
     }
 
     private var closingThenOpeningNewChat: (@MainActor (AgentKind) -> Void)? {

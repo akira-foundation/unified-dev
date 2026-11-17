@@ -25,7 +25,7 @@ struct ComposerFooterView: View {
     var supportsCLIChat: Bool = true
     var account: ComposerAccountSection?
     var accountHomes: ComposerAccountHomes?
-    var sends: Int = 0
+    var settingsCloseRequests = ComposerSettingsCloseRequests()
 
     @State private var loadedSpeed: CodexSpeed?
     @State private var loadedSpeedRequest: [String]?
@@ -170,7 +170,7 @@ struct ComposerFooterView: View {
                     onContextWindow: { tokens in edit { $0.codexContextWindow = tokens } },
                     onInteractionMode: { mode in edit { $0.interactionMode = mode } },
                     onOpenInNewChat: newChatOpener(offered: choices.models),
-                    sends: sends
+                    closeRequests: settingsCloseRequests
                 )
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { controlHeight = $0 }
 
