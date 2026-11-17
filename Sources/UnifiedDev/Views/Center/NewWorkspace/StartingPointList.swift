@@ -4,7 +4,7 @@ import Core
 struct StartingPointList: View {
     var catalogue: WorkspaceSourceCatalogue
     var pullRequests: PullRequestLoad
-    var leadingBase: String?
+    var leadingBases: [String]
     var onPick: @MainActor (WorkspaceSource) -> Void
     var onDismiss: @MainActor () -> Void
 
@@ -18,7 +18,7 @@ struct StartingPointList: View {
         StartingPointMenu.sections(
             offering: catalogue.offering,
             query: query,
-            leadingBase: leadingBase,
+            leadingBases: leadingBases,
             offersPullRequests: catalogue.offersPullRequests
         )
     }

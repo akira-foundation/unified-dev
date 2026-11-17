@@ -51,7 +51,9 @@ struct NewWorkspacePane: View {
                     remote: remote(of: draft.startingPoint),
                     catalogue: catalogue,
                     pullRequests: pullRequests,
-                    leadingBase: leadingBase(in: repo),
+                    leadingBases: StartingPointMenu.leadingBases(
+                        point: draft.startingPoint, cameFrom: cameFromBranch(in: repo)
+                    ),
                     isPresented: $isChoosingStart,
                     onPick: { pick($0) }
                 )
@@ -107,7 +109,7 @@ struct NewWorkspacePane: View {
         point.baseBranch.flatMap { catalogue?.remote(of: $0) }
     }
 
-    private func leadingBase(in repo: Repo) -> String? {
+    private func cameFromBranch(in repo: Repo) -> String? {
         guard case .workspace(let id)? = app.drafts.returnTarget(for: repoID),
               let workspace = app.workspaces.first(where: { $0.id == id }),
               workspace.repoID == repo.id else { return nil }

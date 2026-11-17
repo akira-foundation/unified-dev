@@ -6,7 +6,7 @@ struct StartingPointChip: View {
     var remote: String?
     var catalogue: WorkspaceSourceCatalogue?
     var pullRequests: PullRequestLoad
-    var leadingBase: String?
+    var leadingBases: [String]
     @Binding var isPresented: Bool
     var onPick: @MainActor (WorkspaceSource) -> Void
 
@@ -31,7 +31,7 @@ struct StartingPointChip: View {
                 StartingPointList(
                     catalogue: catalogue,
                     pullRequests: pullRequests,
-                    leadingBase: leadingBase,
+                    leadingBases: leadingBases,
                     onPick: { source in
                         isPresented = false
                         onPick(source)

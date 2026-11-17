@@ -24,7 +24,7 @@ struct StartingPointDefaultBranchTests {
 
     private func existing(query: String) -> [WorkspaceSource] {
         let sections = StartingPointMenu.sections(
-            offering: catalogue.offering, query: query, leadingBase: nil, offersPullRequests: true
+            offering: catalogue.offering, query: query, leadingBases: [], offersPullRequests: true
         )
         return sections.first { $0.kind == .existingBranch }?.rows ?? []
     }

@@ -71,7 +71,7 @@ struct StartingPointMenuTests {
     @Test("three sections, in order, each with its own title")
     func threeSections() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "", leadingBase: nil, offersPullRequests: true
+            offering: offering, query: "", leadingBases: [], offersPullRequests: true
         )
         #expect(sections.map(\.kind) == [.newBranch, .existingBranch, .pullRequest])
         #expect(sections.map(\.title) == ["New branch from", "Existing branch", "Pull request"])
@@ -82,7 +82,7 @@ struct StartingPointMenuTests {
     @Test("the branch you came from leads the new branch section while nothing is typed")
     func leadingBase() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "", leadingBase: "lamp", offersPullRequests: true
+            offering: offering, query: "", leadingBases: ["lamp"], offersPullRequests: true
         )
         #expect(sections[0].rows.first == .newBranch(from: "lamp"))
         #expect(sections[0].rows.count == 3)
@@ -91,7 +91,7 @@ struct StartingPointMenuTests {
     @Test("a project without a remote has no pull request section")
     func noRemoteNoRequests() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "", leadingBase: nil, offersPullRequests: false
+            offering: offering, query: "", leadingBases: [], offersPullRequests: false
         )
         #expect(!sections.map(\.kind).contains(.pullRequest))
     }
@@ -99,7 +99,7 @@ struct StartingPointMenuTests {
     @Test("an empty section is left out")
     func emptySectionsGo() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "bell", leadingBase: nil, offersPullRequests: true
+            offering: offering, query: "bell", leadingBases: [], offersPullRequests: true
         )
         #expect(!sections.map(\.kind).contains(.pullRequest))
         #expect(sections.map(\.kind).contains(.existingBranch))
@@ -108,7 +108,7 @@ struct StartingPointMenuTests {
     @Test("typing #13 jumps to that pull request")
     func jumpsToAPullRequest() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "#13", leadingBase: nil, offersPullRequests: true
+            offering: offering, query: "#13", leadingBases: [], offersPullRequests: true
         )
         #expect(StartingPointMenu.jump(query: "#13", in: sections) == .pullRequest(.listed(request)))
     }
@@ -116,7 +116,7 @@ struct StartingPointMenuTests {
     @Test("typing a number nobody listed offers to look it up")
     func typedNumberIsOffered() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "#99", leadingBase: nil, offersPullRequests: true
+            offering: offering, query: "#99", leadingBases: [], offersPullRequests: true
         )
         let jumped = StartingPointMenu.jump(query: "#99", in: sections)
         guard case .pullRequest(.typed(let reference, _)) = jumped else {
@@ -129,7 +129,7 @@ struct StartingPointMenuTests {
     @Test("the arrow keys walk every row across the sections")
     func stepsAcrossSections() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "", leadingBase: nil, offersPullRequests: true
+            offering: offering, query: "", leadingBases: [], offersPullRequests: true
         )
         let rows = StartingPointMenu.rows(in: sections)
         let last = StartingPointMenu.stepped(from: rows[2], by: 1, in: sections)
@@ -140,7 +140,7 @@ struct StartingPointMenuTests {
     @Test("the branch you came from stops leading once something is typed")
     func leadingBaseRestsOnlyWhenNothingIsTyped() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "bell", leadingBase: "lamp", offersPullRequests: true
+            offering: offering, query: "bell", leadingBases: ["lamp"], offersPullRequests: true
         )
         #expect(sections.first?.rows.first != .newBranch(from: "lamp"))
     }
@@ -148,7 +148,7 @@ struct StartingPointMenuTests {
     @Test("a project without pull requests never jumps to one")
     func noJumpWithoutRequests() {
         let sections = StartingPointMenu.sections(
-            offering: offering, query: "#13", leadingBase: nil, offersPullRequests: false
+            offering: offering, query: "#13", leadingBases: [], offersPullRequests: false
         )
         #expect(StartingPointMenu.jump(query: "#13", in: sections) == nil)
     }

@@ -25,12 +25,12 @@ public enum StartingPointMenu {
     public static func sections(
         offering: WorkspaceSourceOffering,
         query: String,
-        leadingBase: String?,
+        leadingBases: [String],
         offersPullRequests: Bool,
         limit: Int = 40
     ) -> [StartingPointSection] {
         let matches = offering.search(query: query, limit: limit)
-        let newRows = leading(leadingBase, in: matches.new, when: matches.query.isEmpty)
+        let newRows = leading(leadingBases, in: matches.new, when: matches.query.isEmpty)
         let branches = matches.open.filter { if case .existingBranch = $0 { true } else { false } }
         let requests = offersPullRequests
             ? matches.open.filter { if case .pullRequest = $0 { true } else { false } }
@@ -40,6 +40,14 @@ public enum StartingPointMenu {
             StartingPointSection(kind: .existingBranch, rows: branches),
             StartingPointSection(kind: .pullRequest, rows: requests),
         ].filter { !$0.rows.isEmpty }
+    }
+
+    public static func leadingBases(point: WorkspaceStartingPoint, cameFrom: String?) -> [String] {
+        var bases: [String] = []
+        for base in [point.baseBranch, cameFrom].compactMap(\.self) where !bases.contains(base) {
+            bases.append(base)
+        }
+        return bases
     }
 
     public static func rows(in sections: [StartingPointSection]) -> [WorkspaceSource] {
@@ -65,10 +73,10 @@ public enum StartingPointMenu {
     }
 
     private static func leading(
-        _ base: String?, in rows: [WorkspaceSource], when isResting: Bool
+        _ bases: [String], in rows: [WorkspaceSource], when isResting: Bool
     ) -> [WorkspaceSource] {
-        guard isResting, let base else { return rows }
-        let lead = WorkspaceSource.newBranch(from: base)
-        return [lead] + rows.filter { $0 != lead }
+        guard isResting else { return rows }
+        let leads = bases.map { WorkspaceSource.newBranch(from: $0) }
+        return leads + rows.filter { !leads.contains($0) }
     }
 }
