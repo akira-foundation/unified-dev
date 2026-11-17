@@ -54,6 +54,13 @@ struct AgentAccountLineTests {
         #expect(!made.warns)
     }
 
+    @Test func grokWithNothingChosenInUnifiedSaysItRunsThisMacsLogin() {
+        let made = line(provider: .grok)
+        #expect(made.title == nil)
+        #expect(made.sentence == "Grok has no account chosen here, so it runs with this Mac's own login.")
+        #expect(!made.warns)
+    }
+
     @Test func aLostChoiceForAnAgentWithoutAccountsStillWarns() {
         let made = line(project: AgentAccountID("deleted"), provider: .cursor)
         #expect(made.title == "Account unavailable")
