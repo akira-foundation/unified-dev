@@ -128,7 +128,7 @@ launches.
 
 Whether a login still stands is asked of the CLI, as it is for the other two. `grok models` runs
 no turn, opens no browser and answers in under a second; it exits 0 whether or not there is a login,
-so the exit status says nothing and the first line is what is read: "You are logged in with
+so the exit status says nothing and the line that names the login is what is read, wherever it falls: "You are logged in with
 grok.com." or "You are authenticated via ..." is a session, "You are not authenticated." is none,
 and anything else is no answer. `AgentAccountLiveness` asks it under the account's own `GROK_HOME`,
 which is why a profile can sign in to a Grok account of its own. The account card reads the email

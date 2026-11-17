@@ -34,6 +34,11 @@ struct GrokAccountLivenessTests {
         #expect(await asked.report(for: grokHome) == .claimsSession)
     }
 
+    @Test func theLineThatNamesTheLoginCountsWhereverItFallsAndHoweverItIsIndented() async {
+        let asked = liveness(printing: ["Checking for updates...", "  You are not authenticated.", "You are logged in with grok.com."])
+        #expect(await asked.report(for: grokHome) == .claimsNoSession)
+    }
+
     @Test func grokPrintingNothingItRecognisesIsUnansweredAndNeverNoSession() async {
         let asked = liveness(printing: ["error: unrecognized subcommand 'models'"])
         #expect(await asked.report(for: grokHome) == .unanswered)

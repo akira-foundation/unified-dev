@@ -238,6 +238,12 @@ struct AgentAccountOfferTests {
         ))
     }
 
+    @Test(arguments: AgentKind.allCases)
+    func everyAgentWhoseLoginKeepsApartHasAQuestionToAskIt(provider: AgentKind) {
+        guard AgentAccountRoster.isolationDoubt(for: provider, codexStorageMode: .file) == nil else { return }
+        #expect(AgentAccountLiveness.canAsk(about: provider))
+    }
+
     @Test func todaysOfferPerAgentIsClaudeCodexAndGrok() {
         let offered = AgentKind.allCases.filter { AgentAccountOffer.make(for: $0, codexStorageMode: .file).isAvailable }
 
