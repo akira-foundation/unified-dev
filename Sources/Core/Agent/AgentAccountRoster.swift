@@ -78,8 +78,12 @@ public enum AgentAccountRoster {
             }
         case .grok:
             nil
-        case .antigravity, .cursor, .openCode:
-            "This agent has no setting that gives an account a directory of its own."
+        case .antigravity:
+            "Antigravity keeps its login under HOME alone, and a separate HOME would move every other setting the agent reads."
+        case .cursor:
+            "Cursor can move its configuration to another directory, but its login is not documented to move with it."
+        case .openCode:
+            "Whether a directory of its own keeps an OpenCode login apart has not been measured yet."
         }
     }
 

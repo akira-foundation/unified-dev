@@ -207,12 +207,12 @@ struct AgentAccountPanelTests {
 
 @Suite("Agent account offer")
 struct AgentAccountOfferTests {
-    @Test(arguments: [AgentKind.claudeCode, .codex])
+    @Test(arguments: [AgentKind.claudeCode, .codex, .grok])
     func anAgentTheAppCanIsolateAndCheckIsOffered(provider: AgentKind) {
         #expect(AgentAccountOffer.make(for: provider, codexStorageMode: .file) == .available)
     }
 
-    @Test(arguments: [AgentKind.cursor, AgentKind.openCode])
+    @Test(arguments: [AgentKind.antigravity, .cursor, .openCode])
     func anAgentWithNoDirectoryOfItsOwnIsNotOfferedAndSaysWhyWithTheRostersOwnWords(provider: AgentKind) throws {
         let doubt = try #require(AgentAccountRoster.isolationDoubt(for: provider, codexStorageMode: .file))
 
@@ -221,13 +221,13 @@ struct AgentAccountOfferTests {
         ))
     }
 
-    @Test func grokKeepsALoginPerDirectoryAndIsHeldBackOnlyBecauseTheAppCannotCheckOne() {
-        #expect(AgentAccountRoster.isolationDoubt(for: .grok, codexStorageMode: .file) == nil)
-
-        #expect(AgentAccountOffer.make(for: .grok, codexStorageMode: .file) == .unavailable(
-            reason: "Unified Dev cannot add another Grok account. "
-                + "Unified Dev cannot ask Grok whether a directory holds a login of its own."
-        ))
+    @Test func eachRefusedAgentGivesTheReasonMeasuredForItself() {
+        #expect(AgentAccountRoster.isolationDoubt(for: .antigravity, codexStorageMode: .file)
+            == "Antigravity keeps its login under HOME alone, and a separate HOME would move every other setting the agent reads.")
+        #expect(AgentAccountRoster.isolationDoubt(for: .cursor, codexStorageMode: .file)
+            == "Cursor can move its configuration to another directory, but its login is not documented to move with it.")
+        #expect(AgentAccountRoster.isolationDoubt(for: .openCode, codexStorageMode: .file)
+            == "Whether a directory of its own keeps an OpenCode login apart has not been measured yet.")
     }
 
     @Test func codexIsNotOfferedWhereItKeepsItsLoginInTheKeychain() throws {
@@ -238,10 +238,10 @@ struct AgentAccountOfferTests {
         ))
     }
 
-    @Test func todaysOfferPerAgentIsClaudeAndCodexOnly() {
+    @Test func todaysOfferPerAgentIsClaudeCodexAndGrok() {
         let offered = AgentKind.allCases.filter { AgentAccountOffer.make(for: $0, codexStorageMode: .file).isAvailable }
 
-        #expect(Set(offered) == [.claudeCode, .codex])
+        #expect(Set(offered) == [.claudeCode, .codex, .grok])
     }
 }
 
