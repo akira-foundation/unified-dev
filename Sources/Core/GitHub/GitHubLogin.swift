@@ -3,7 +3,7 @@ import Foundation
 public enum GitHubLogin: Sendable, Hashable {
     case thisMac
     case profile(ProfileID, directory: URL, uses: ProfileForgeChoice = .own)
-    case unresolved(directory: URL)
+    case unresolved(directory: URL, uses: ProfileForgeChoice = .own)
 
     public static let directoryVariable = "GH_CONFIG_DIR"
     public static let tokenVariables = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"]
@@ -13,7 +13,18 @@ public enum GitHubLogin: Sendable, Hashable {
         switch self {
         case .thisMac: nil
         case .profile(_, let directory, let uses): uses.gitHub == .own ? directory : nil
-        case .unresolved(let directory): directory
+        case .unresolved(let directory, let uses): uses.gitHub == .own ? directory : nil
+        }
+    }
+
+    public var gitHubIdentity: GitHubLogin {
+        let gitHubOnly = ProfileForgeChoice(gitHub: .own, bitbucket: .inherits)
+        switch self {
+        case .thisMac: return .thisMac
+        case .profile(let profile, let directory, let uses):
+            return uses.gitHub == .own ? .profile(profile, directory: directory, uses: gitHubOnly) : .thisMac
+        case .unresolved(let directory, let uses):
+            return uses.gitHub == .own ? .unresolved(directory: directory, uses: gitHubOnly) : .thisMac
         }
     }
 

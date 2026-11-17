@@ -23,6 +23,17 @@ struct PreviewGitHostingTests {
         #expect(throws: PreviewScenarioError.self) { try PreviewScenario.read(Data(wrong.utf8)) }
     }
 
+    @Test("git hosting may name Unified and any profile in any letter case, on either host")
+    func namesItKnows() throws {
+        let json = """
+            {"projects": [{"name": "harbour"}], "profiles": [{"name": "Akira", "colour": "4C8DF6", "symbol": "leaf"}],
+             "gitHosting": {"gitHub": {"profiles": {"unified": "kid", "AKIRA": "bot"}}}}
+            """
+        #expect(try PreviewScenario.read(Data(json.utf8)).gitHosting?.gitHub?.account(ofProfileNamed: "Akira") == .signedIn("bot"))
+        let stranger = json.replacingOccurrences(of: "\"AKIRA\"", with: "\"Nobody\"")
+        #expect(throws: PreviewScenarioError.self) { try PreviewScenario.read(Data(stranger.utf8)) }
+    }
+
     @Test("a profile with no Bitbucket choice in the scenario follows its GitHub one")
     func bitbucketFollowsGitHub() throws {
         let json = #"{"name": "Akira", "colour": "4C8DF6", "symbol": "leaf", "github": "own"}"#

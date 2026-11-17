@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import Core
 
@@ -81,14 +82,50 @@ struct GitHostingTests {
         #expect(GitHostingWording.thisMacFooter(.bitbucket, account: .signedOut).contains("Pipelines"))
         #expect(GitHostingWording.signOutMessage(.gitHub, user: "kid").hasPrefix("gh forgets kid on this Mac."))
         #expect(GitHostingWording.signOutFailure(.bitbucket, detail: "") == "Could not sign out of Bitbucket. bkt did not say why.")
+        #expect(GitHostingWording.sourceLabel(.inherits) == "This Mac's account")
+        #expect(GitHostingWording.sourceLabel(.own) == "Its own sign-in")
+        #expect(GitHostingWording.profilesHeader(.bitbucket) == "Bitbucket Profiles")
+        #expect(GitHostingWording.signInFor(.gitHub, profileName: "Akira") == "Sign In for Akira")
     }
 
-    @Test("sign out names the account to gh only when it is a real login, and asks bkt for the Cloud host")
+    @Test("sign out always names the account to gh, refuses one that is not a login, and asks bkt for the Cloud host")
     func signOutArguments() {
         #expect(GitHub.signOutArguments(user: "kid") == ["auth", "logout", "--hostname", "github.com", "--user", "kid"])
-        #expect(GitHub.signOutArguments(user: nil) == ["auth", "logout", "--hostname", "github.com"])
-        #expect(GitHub.signOutArguments(user: "--all") == ["auth", "logout", "--hostname", "github.com"])
+        #expect(GitHub.signOutArguments(user: "--all") == nil)
+        #expect(GitHub.signOutArguments(user: GitHostingWording.signedInUnnamed) == nil)
         #expect(Bitbucket.signOutArguments == ["auth", "logout", "api.bitbucket.org"])
+    }
+
+    @Test("Sign Out is offered only for an account gh can be told the name of")
+    func canSignOut() {
+        let unnamed = GitHostingAccount.signedIn(GitHostingWording.signedInUnnamed)
+
+        #expect(GitHosting.canSignOut(.gitHub, account: .signedIn("kid")))
+        #expect(!GitHosting.canSignOut(.gitHub, account: unnamed))
+        #expect(GitHosting.canSignOut(.bitbucket, account: unnamed))
+        #expect(!GitHosting.canSignOut(.bitbucket, account: .signedOut))
+        #expect(!GitHosting.canSignOut(.gitHub, account: .checking))
+    }
+
+    @Test("sign out runs under the login it is given, for gh and for bkt")
+    func signOutRunsUnderItsLogin() async {
+        let own = GitHubLogin.profile(akira.id, directory: URL(filePath: "/support/GitHubLogins/akira"))
+        let seen = Mutex<[String]>([])
+        let gh = await GitHub.$commandOverride.withValue({ arguments, _ in
+            seen.withLock { $0.append((arguments + [GitHub.login?.directory?.path ?? "this Mac"]).joined(separator: " ")) }
+            return ShellResult(status: 0, stdout: "", stderr: "")
+        }) { await GitHub.signOut(user: "kid", login: own) }
+        let bkt = await Bitbucket.$commandOverride.withValue({ arguments, _ in
+            seen.withLock { $0.append(arguments.joined(separator: " ")) }
+            return ShellResult(status: 0, stdout: "", stderr: "")
+        }) { await Bitbucket.signOut(directory: "/tmp") }
+
+        #expect(gh?.ok == true)
+        #expect(bkt?.ok == true)
+        #expect(seen.withLock { $0 } == [
+            "auth logout --hostname github.com --user kid /support/GitHubLogins/akira",
+            "auth logout api.bitbucket.org",
+        ])
     }
 
     @Test("an account the tool reads is signed in, a missing one is signed out, or not installed")

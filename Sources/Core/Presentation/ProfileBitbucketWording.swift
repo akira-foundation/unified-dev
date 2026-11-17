@@ -44,10 +44,12 @@ public enum ProfileBitbucketWording {
             return "Install the Bitbucket CLI with brew install bitbucket-cli to read pull requests on Bitbucket."
         }
         let user = account?.user
-        if isInitial || source == .inherits {
-            let owner = isInitial ? "Unified" : profileName
-            return "\(owner) uses this Mac's bkt sign-in, "
-                + (user.map { "signed in as \($0)." } ?? "which is signed out.")
+        if isInitial {
+            return "Unified uses this Mac's bkt sign-in, " + (user.map { "signed in as \($0)." } ?? "which is signed out.")
+        }
+        if source == .inherits {
+            return "\(profileName) uses Unified's Bitbucket sign-in, which is this Mac's, "
+                + (user.map { "signed in as \($0)." } ?? "and it is signed out.")
         }
         guard let user else {
             return "\(profileName) has no Bitbucket sign-in yet, and it never uses this Mac's. Pull requests "

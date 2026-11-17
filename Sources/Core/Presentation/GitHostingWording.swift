@@ -4,11 +4,8 @@ public enum GitHostingWording {
     public static let paneTitle = "Git Hosting"
     public static let thisMacTitle = "This Mac"
     public static let thisMacOwner = "this Mac"
-    public static let checking = "Checking"
-    public static let notSignedIn = "Not signed in"
     public static let signOutTitle = "Sign Out"
     public static let signedInUnnamed = "Signed in"
-    public static let saveFailure = "This could not be saved, so it is as it was."
 
     public static func cli(_ host: ForgeKind) -> String {
         switch host {
@@ -26,9 +23,9 @@ public enum GitHostingWording {
 
     public static func status(_ account: GitHostingAccount, on host: ForgeKind) -> String {
         switch account {
-        case .checking: checking
+        case .checking: ProfileGitHubWording.checking
         case .notInstalled: "The \(host.displayName) CLI is not installed"
-        case .signedOut: notSignedIn
+        case .signedOut: ProfileGitHubWording.notSignedIn
         case .signedIn(let user): user
         }
     }

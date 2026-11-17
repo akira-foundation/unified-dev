@@ -77,6 +77,11 @@ public enum GitHosting {
         }
     }
 
+    public static func canSignOut(_ host: ForgeKind, account: GitHostingAccount) -> Bool {
+        guard let user = account.user else { return false }
+        return host == .bitbucket || user != GitHostingWording.signedInUnnamed
+    }
+
     public static func profilesWithOwnLogin(
         on host: ForgeKind, profiles: [Profile], logins: ProfileGitHubLogins
     ) -> [ProfileID] {

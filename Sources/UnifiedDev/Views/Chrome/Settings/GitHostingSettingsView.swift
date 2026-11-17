@@ -99,7 +99,7 @@ struct GitHostingSettingsView: View {
         saveFailure = nil
         Task {
             if await !app.setSource(source, for: profile, on: host) {
-                saveFailure = GitHostingWording.saveFailure
+                saveFailure = ProfileGitHubWording.saveFailure
             }
             isSaving = false
             refresh += 1
