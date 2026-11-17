@@ -30,4 +30,16 @@ extension Store {
         guard profile != .initial else { return }
         try writeGitHubSource(source, for: profile)
     }
+
+    public func setBitbucketSource(_ source: ProfileGitHubSource, for profile: ProfileID) throws {
+        guard profile != .initial else { return }
+        try writeBitbucketSource(source, for: profile)
+    }
+
+    public func setSource(_ source: ProfileGitHubSource, for profile: ProfileID, on host: ForgeKind) throws {
+        switch host {
+        case .gitHub: try setGitHubSource(source, for: profile)
+        case .bitbucket: try setBitbucketSource(source, for: profile)
+        }
+    }
 }

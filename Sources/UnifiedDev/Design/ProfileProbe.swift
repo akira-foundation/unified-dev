@@ -190,10 +190,10 @@ enum ProfileProbe {
             ("bitbucket-not-installed", akira, .own, nil, false),
         ]
         return cases.map { name, profile, source, account, installed in
-            Scene(name: name, size: CGSize(width: ProfileSheetMetrics.width, height: 220), view: AnyView(
+            Scene(name: name, size: CGSize(width: ProfileSheetMetrics.width, height: 260), view: AnyView(
                 Form {
                     ProfileBitbucketRows(
-                        profile: profile, source: source, account: account, installed: installed,
+                        profile: profile, source: .constant(source), account: account, installed: installed,
                         isChecking: false, onSignIn: { _ in }
                     )
                 }.settingsForm()
