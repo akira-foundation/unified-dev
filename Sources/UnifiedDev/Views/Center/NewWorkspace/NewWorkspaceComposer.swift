@@ -102,12 +102,16 @@ struct NewWorkspaceComposer: View {
         )
     }
 
-    private func quickPrompt(_ row: QuickPromptPanelRow, insert: @MainActor (QuickPromptPanelRow) -> Void) {
+    private func quickPrompt(
+        _ row: QuickPromptPanelRow, insert: @MainActor (QuickPromptPanelRow) -> Void
+    ) -> QuickPromptDelivery {
         insert(row)
-        switch row.delivery(canSend: true, canOpenNewChat: false) {
+        let delivery = row.delivery(canSend: true, canOpenNewChat: false)
+        switch delivery {
         case .send, .sendInNewChat: create()
         case .compose, .composeInNewChat: break
         }
+        return delivery
     }
 
     private func escape() {

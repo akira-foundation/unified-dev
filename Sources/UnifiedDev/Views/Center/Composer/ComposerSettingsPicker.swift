@@ -19,6 +19,7 @@ struct ComposerSettingsPicker: View {
     var onContextWindow: @MainActor (Int) -> Void
     var onInteractionMode: @MainActor (InteractionMode) -> Void = { _ in }
     var onOpenInNewChat: (@MainActor (AgentKind) -> Void)?
+    var closeRequests: ComposerSettingsCloseRequests
 
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
@@ -77,6 +78,7 @@ struct ComposerSettingsPicker: View {
             )
             .environment(\.fontScale, 1)
         }
+        .onChange(of: closeRequests) { _, _ in isOpen = false }
         .task { await library.load(from: app.store) }
     }
 

@@ -18,7 +18,7 @@ struct ComposerSend {
     var intent: ComposerIntent = .send
     var canSend: Bool
     var perform: @MainActor () -> Void
-    var onQuickPrompt: @MainActor (QuickPromptPanelRow, @MainActor (QuickPromptPanelRow) -> Void) -> Void
+    var onQuickPrompt: @MainActor (QuickPromptPanelRow, @MainActor (QuickPromptPanelRow) -> Void) -> QuickPromptDelivery
     var usesCLIChat: Binding<Bool>?
     var supportsCLIChat: Bool = true
 }
@@ -55,6 +55,7 @@ struct ComposerSurface: View {
 
     @Environment(AppModel.self) private var app
     @State private var loaded: ComposerAccountReading?
+    @State private var settingsCloseRequests = ComposerSettingsCloseRequests()
 
     var body: some View {
         ComposerPrompt(
@@ -92,17 +93,18 @@ struct ComposerSurface: View {
                 intent: send.intent,
                 project: place.project,
                 onAttach: actions.attach,
-                onQuickPrompt: { send.onQuickPrompt($0, actions.insert) },
+                onQuickPrompt: { fire($0, insert: actions.insert) },
                 projectQuickPrompts: place.projectQuickPrompts,
                 onOpenQuickPrompts: place.onOpenQuickPrompts,
-                onSend: send.perform,
+                onSend: performSend,
                 onStop: conversation.onStop,
                 onSideConversation: conversation.onSideConversation,
                 orchestrates: place.orchestrates,
                 usesCLIChat: send.usesCLIChat,
                 supportsCLIChat: send.supportsCLIChat,
                 account: reading?.section,
-                accountHomes: reading?.homes
+                accountHomes: reading?.homes,
+                settingsCloseRequests: settingsCloseRequests
             )
         }
         .task(id: accountKey) {
@@ -121,10 +123,20 @@ struct ComposerSurface: View {
         loaded.flatMap { $0.key == accountKey ? $0 : nil }
     }
 
+    private func performSend() {
+        settingsCloseRequests.note(.pressedSend(canSend: send.canSend))
+        send.perform()
+    }
+
+    private func fire(_ prompt: QuickPromptPanelRow, insert: @MainActor (QuickPromptPanelRow) -> Void) {
+        let delivery = send.onQuickPrompt(prompt, insert)
+        settingsCloseRequests.note(.firedQuickPrompt(delivery))
+    }
+
     private func handle(key: ComposerKey) -> Bool {
         switch key {
         case .returnKey, .commandReturn:
-            send.perform()
+            performSend()
             return true
         case .escape:
             onEscape()
