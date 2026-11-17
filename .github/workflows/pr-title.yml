@@ -1,0 +1,41 @@
+name: Pull Request Title
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional-title:
+    name: Conventional title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the title is a conventional commit
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          echo "PR: $HEAD → $BASE"
+          echo "Title: $TITLE"
+
+          conventional='^(feat|fix|perf|refactor|docs|style|test|ci|chore)(\([A-Za-z0-9._/-]+\))?!?: [^[:space:]]'
+          release='^Release v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'
+
+          if [[ "$HEAD_REPO" == "$REPO" && "$HEAD" =~ ^release/ && ( "$BASE" == "main" || "$BASE" == "master" ) && "$TITLE" =~ $release ]]; then
+            echo "Release title OK: $TITLE"
+            exit 0
+          fi
+
+          if [[ ! "$TITLE" =~ $conventional ]]; then
+            echo "::error::The squash merge makes this title the commit on $BASE, and git-cliff leaves out any commit that is not conventional. Rename it to '<type>(<scope>): <description>', with the type one of feat, fix, perf, refactor, docs, style, test, ci or chore, and '!' before the colon for a breaking change. Only a release/* branch of this repository into main may be titled 'Release X.Y.Z'."
+            exit 1
+          fi
+
+          echo "Conventional title OK: $TITLE"

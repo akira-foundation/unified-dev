@@ -25,7 +25,7 @@ public enum MergeInstructions {
     private static let rules = """
     - Merge with `gh pr merge <number> <method flag>`, run from this worktree, where the method
       flag is the one the message names: `--squash`, `--merge` or `--rebase`.
-    - Pass no other flags.
+    - Pass no other flags, but the `--subject` the message gives for a squash merge.
       Not `--admin`, which overrides the repository's own rules.
       Not `--auto`, which merges later, when nobody is watching.
       Not `--delete-branch`, which makes gh reach for this checkout and fail, because a worktree

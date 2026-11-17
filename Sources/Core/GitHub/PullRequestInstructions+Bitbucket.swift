@@ -44,6 +44,7 @@ public extension PullRequestInstructions {
     - Open the pull request with `bkt pr create --source <this branch> --target <target branch>
       --title <title> --description <description>`. Keep the title under 80 characters and the
       description under five sentences.
+    \(titleRule)
     - Say what the pull request URL is once it exists. `bkt pr create` prints it.
 
     If a step fails, stop and say what went wrong instead of working around it.
