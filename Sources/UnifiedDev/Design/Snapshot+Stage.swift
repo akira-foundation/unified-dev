@@ -73,7 +73,6 @@ extension Snapshot {
         let model = stagedModel()
         let tab = CenterTabStore.shared.add(kind: .terminal, workspaceID: model.workspace.id)
         WorkspaceTabsStore.shared.select(.tool(tab.id), in: model)
-        NotificationCenter.default.post(name: .unifieddevToggleSidebar, object: nil)
         try? await Task.sleep(for: .seconds(1))
         var sent = false
         for _ in 0..<40 where !sent {
