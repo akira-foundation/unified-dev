@@ -162,7 +162,7 @@ struct ProfileAccountWordsTests {
         #expect(footer(.claudeCode, in: akira.id) == "Akira has no Claude Code account of its own, "
             + "so its projects do not start Claude Code until one is added.")
         #expect(footer(.grok, in: akira.id) == "Akira has no Grok account of its own, "
-            + "so its projects run Grok under this Mac's own login.")
+            + "so its projects do not start Grok until one is added.")
         #expect(footer(.grok, in: .initial) == "Unified has no Grok account of its own, "
             + "so its projects run Grok under this Mac's own login.")
         #expect(footer(.cursor, in: akira.id) == nil)
