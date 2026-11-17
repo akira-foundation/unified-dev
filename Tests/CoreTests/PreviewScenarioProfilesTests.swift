@@ -21,7 +21,7 @@ struct PreviewScenarioProfilesTests {
                 PreviewScenario.Project(name: "tides", profile: "Debtges"),
             ],
             profiles: [
-                PreviewScenario.Profile(name: "Akira", colour: "4C8DF6", symbol: "building.2"),
+                PreviewScenario.Profile(name: "Akira", colour: "4C8DF6", symbol: "building.2", bitbucket: .own),
                 PreviewScenario.Profile(name: "Debtges", colour: "E06C2A", symbol: "briefcase", github: .own),
             ],
             activeProfile: "Akira"
@@ -46,6 +46,8 @@ struct PreviewScenarioProfilesTests {
         #expect(placed["tides"] == byName["Debtges"])
         #expect(store.gitHubLogins().source(of: try #require(byName["Akira"])) == .inherits)
         #expect(store.gitHubLogins().source(of: try #require(byName["Debtges"])) == .own)
+        #expect(store.gitHubLogins().source(of: try #require(byName["Akira"]), on: .bitbucket) == .own)
+        #expect(store.gitHubLogins().source(of: try #require(byName["Debtges"]), on: .bitbucket) == .own)
     }
 
     @Test("the scenario opens on the profile it names")
@@ -97,7 +99,7 @@ struct PreviewScenarioProfilesTests {
         let scenario = PreviewScenario(
             projects: [PreviewScenario.Project(name: "ledger")],
             profiles: [
-                PreviewScenario.Profile(name: "Akira", colour: "4C8DF6", symbol: "building.2"),
+                PreviewScenario.Profile(name: "Akira", colour: "4C8DF6", symbol: "building.2", bitbucket: .own),
                 PreviewScenario.Profile(name: "akira", colour: "D8608C", symbol: "briefcase"),
                 PreviewScenario.Profile(name: "Unified", colour: "D8608C", symbol: "briefcase"),
             ]

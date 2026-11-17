@@ -54,7 +54,11 @@ public struct ProfileGitHubLogins: Sendable, Hashable {
     }
 
     public var unresolved: GitHubLogin {
-        guard sources.values.contains(.own) || bitbucketSources.values.contains(.own) else { return .thisMac }
-        return .unresolved(directory: root.appending(path: ".unresolved", directoryHint: .isDirectory))
+        let uses = ProfileForgeChoice(
+            gitHub: sources.values.contains(.own) ? .own : .inherits,
+            bitbucket: bitbucketSources.values.contains(.own) ? .own : .inherits
+        )
+        guard uses != .thisMac else { return .thisMac }
+        return .unresolved(directory: root.appending(path: ".unresolved", directoryHint: .isDirectory), uses: uses)
     }
 }

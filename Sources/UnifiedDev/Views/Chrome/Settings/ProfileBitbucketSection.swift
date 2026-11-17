@@ -90,7 +90,7 @@ struct ProfileBitbucketRows: View {
             if let method = account?.methodName {
                 LabeledContent(ProfileBitbucketWording.methodTitle, value: method)
             }
-            if installed {
+            if installed, profile.isInitial || source == .own {
                 Menu(ProfileBitbucketWording.signInMenuTitle) {
                     ForEach(BitbucketLogin.Method.allCases, id: \.self) { method in
                         Button(ProfileBitbucketWording.methodTitle(method)) { onSignIn(method) }

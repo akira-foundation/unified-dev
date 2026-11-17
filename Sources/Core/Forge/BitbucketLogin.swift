@@ -33,13 +33,11 @@ public struct BitbucketLogin: Sendable, Hashable {
         case .thisMac:
             self.init(directory: nil)
             return
-        case .profile(_, let directory, let uses):
+        case .profile(_, let directory, let uses), .unresolved(let directory, let uses):
             guard uses.bitbucket == .own else {
                 self.init(directory: nil)
                 return
             }
-            anchor = directory
-        case .unresolved(let directory):
             anchor = directory
         }
         self.init(anchoredAt: anchor)

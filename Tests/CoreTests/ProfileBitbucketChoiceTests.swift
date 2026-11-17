@@ -44,6 +44,42 @@ struct ProfileBitbucketChoiceTests {
         #expect(ProfileGitHubLogins(root: root).unresolved == .thisMac)
     }
 
+    @Test("a directory nobody can place keeps this Mac's GitHub when only Bitbucket is kept apart, and the reverse")
+    func unresolvedPerHost() {
+        let bitbucketOnly = ProfileGitHubLogins(bitbucketSources: [debtges: .own], root: root).unresolved
+        #expect(bitbucketOnly.directory == nil)
+        #expect(bitbucketOnly.variables.isEmpty)
+        #expect(!bitbucketOnly.acceptsSignIn)
+
+        let gitHubOnly = ProfileGitHubLogins(sources: [debtges: .own], root: root).unresolved
+        #expect(gitHubOnly.directory?.path == "/support/GitHubLogins/.unresolved")
+        #expect(gitHubOnly.bitbucket == .thisMac)
+    }
+
+    @Test("GitHub's readiness is one answer for every login that reaches gh the same way")
+    func gitHubIdentity() {
+        let shared = ProfileGitHubLogins(bitbucketSources: [debtges: .own], root: root).login(for: debtges)
+        let own = ProfileGitHubLogins(sources: [debtges: .own], bitbucketSources: [debtges: .own], root: root)
+            .login(for: debtges)
+        let ownGitHubOnly = ProfileGitHubLogins(sources: [debtges: .own], root: root).login(for: debtges)
+
+        #expect(shared != .thisMac)
+        #expect(shared.gitHubIdentity == .thisMac)
+        #expect(own.gitHubIdentity == ownGitHubOnly.gitHubIdentity)
+        #expect(own.gitHubIdentity != .thisMac)
+    }
+
+    @Test("preparing a profile that keeps only Bitbucket apart makes no gh folder")
+    func prepareSkipsGitHub() throws {
+        let scratch = URL(filePath: TestScratch.unique("bitbucket-only-prepare"), directoryHint: .isDirectory)
+        let login = GitHubLogin.profile(
+            debtges, directory: scratch.appending(path: "debtges"),
+            uses: ProfileForgeChoice(gitHub: .inherits, bitbucket: .own)
+        )
+        try login.prepare()
+        #expect(!FileManager.default.fileExists(atPath: scratch.appending(path: "debtges").path))
+    }
+
     @Test("the choice is stored per host and survives reopening")
     func storedApart() async throws {
         let store = try makeTestStore("bitbucket-choice")
@@ -58,6 +94,28 @@ struct ProfileBitbucketChoiceTests {
 
         try await reopened.setSource(.own, for: .initial, on: .bitbucket)
         #expect(reopened.gitHubLogin(for: .initial) == .thisMac)
+        let raw = try SQLiteDatabase(path: store.path)
+        let unified = try raw.query(
+            "SELECT \(ProfileBitbucketColumn.column) AS source FROM profiles WHERE id = ?", [.text(ProfileID.initial.rawValue)]
+        )
+        #expect(unified.first?.string("source") == ProfileGitHubSource.inherits.rawValue)
+    }
+
+    @Test("a change reaches the open store at once, on the host it names and no other")
+    func openStoreFollows() async throws {
+        let store = try makeTestStore("bitbucket-choice-live")
+        let profile = try await store.createProfile(name: "Debtges", colour: Accent.all[1], symbol: "star")
+
+        try await store.setSource(.own, for: profile.id, on: .bitbucket)
+        #expect(store.gitHubLogin(for: profile.id).bitbucket.isOwn)
+        #expect(!store.gitHubLogin(for: profile.id).ownsGitHub)
+
+        try await store.setSource(.own, for: profile.id, on: .gitHub)
+        #expect(store.gitHubLogin(for: profile.id).ownsGitHub)
+
+        try await store.setSource(.inherits, for: profile.id, on: .bitbucket)
+        #expect(!store.gitHubLogin(for: profile.id).bitbucket.isOwn)
+        #expect(store.gitHubLogin(for: profile.id).ownsGitHub)
     }
 
     @Test("a database from before keeps every profile's Bitbucket where its GitHub choice put it")

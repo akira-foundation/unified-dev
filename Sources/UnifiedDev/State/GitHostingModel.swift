@@ -39,8 +39,7 @@ final class GitHostingModel {
     }
 
     func signOut(_ host: ForgeKind) async {
-        guard let user = account(on: host).user else { return }
-        let named = user == GitHostingWording.signedInUnnamed ? nil : user
+        guard GitHosting.canSignOut(host, account: account(on: host)), let user = account(on: host).user else { return }
         signingOut = host
         failure = nil
         defer { signingOut = nil }
@@ -50,7 +49,7 @@ final class GitHostingModel {
             return
         }
         let result = switch host {
-        case .gitHub: await GitHub.signOut(user: named)
+        case .gitHub: await GitHub.signOut(user: user)
         case .bitbucket: await Bitbucket.signOut(directory: AgentScratchDirectory.current())
         }
         if result?.ok != true {

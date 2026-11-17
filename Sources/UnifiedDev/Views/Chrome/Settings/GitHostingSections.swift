@@ -24,7 +24,7 @@ struct GitHostingSections: View {
             }
             if account.isSettled, account != .notInstalled {
                 signIn(GitHostingWording.signInTitle(host, account: account)) { .thisMac($0) }
-                if account.user != nil {
+                if GitHosting.canSignOut(host, account: account) {
                     Button(GitHostingWording.signOutTitle, role: .destructive, action: onSignOut)
                         .disabled(isBusy)
                 }
