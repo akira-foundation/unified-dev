@@ -30,6 +30,7 @@ enum PreviewScenarioLaunch {
             )
             seedUpdate(scenario.update)
             PreviewScenario.AgentSettings.adopt(scenario.agentSettings)
+            PreviewScenario.GitHosting.adopt(scenario.gitHosting)
             request = .success((scenario, root, path))
         } catch {
             seedUpdate(nil)
@@ -53,6 +54,7 @@ enum PreviewScenarioLaunch {
         UserDefaults.standard.removeObject(forKey: PreviewScenario.agentsWithoutLimitsKey)
         UserDefaults.standard.removeObject(forKey: PreviewScenario.seededUpdateKey)
         PreviewScenario.AgentSettings.adopt(nil)
+        PreviewScenario.GitHosting.adopt(nil)
     }
 
     static func seed(with manager: WorkspaceManager) async -> PreviewScenarioTrouble? {

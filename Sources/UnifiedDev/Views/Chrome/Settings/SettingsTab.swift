@@ -13,6 +13,7 @@ enum SettingsTab: String, CaseIterable, SettingsPage {
     case prompts
     case terminal
     case commandLine
+    case gitHosting
 
     var title: String {
         switch self {
@@ -28,6 +29,7 @@ enum SettingsTab: String, CaseIterable, SettingsPage {
         case .prompts: "Prompts"
         case .terminal: "Terminal"
         case .commandLine: "Command Line"
+        case .gitHosting: GitHostingWording.paneTitle
         }
     }
 
@@ -45,6 +47,7 @@ enum SettingsTab: String, CaseIterable, SettingsPage {
         case .prompts: "text.bubble"
         case .terminal: "terminal"
         case .commandLine: "link"
+        case .gitHosting: "server.rack"
         }
     }
 
@@ -62,6 +65,7 @@ enum SettingsTab: String, CaseIterable, SettingsPage {
         case .prompts: .pink
         case .terminal: Color(nsColor: .darkGray)
         case .commandLine: .green
+        case .gitHosting: .cyan
         }
     }
 
@@ -70,6 +74,6 @@ enum SettingsTab: String, CaseIterable, SettingsPage {
     static let sections = [
         SettingsSidebarSection("Unified Dev", pages: [SettingsTab.general, .workspaces, .appearance, .menuBar, .notifications]),
         SettingsSidebarSection("Agents", pages: [SettingsTab.agents, .sessions, .presets, .permissions, .prompts]),
-        SettingsSidebarSection("Terminal & connections", pages: [SettingsTab.terminal, .commandLine]),
+        SettingsSidebarSection("Terminal & connections", pages: [SettingsTab.terminal, .commandLine, .gitHosting]),
     ]
 }

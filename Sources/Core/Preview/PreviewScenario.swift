@@ -250,6 +250,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
     public var profiles: [Profile]
     public var activeProfile: String?
     public var reachableProfiles: [String]
+    public var gitHosting: GitHosting?
 
     public init(
         welcome: Bool = true,
@@ -267,7 +268,8 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         agentSettings: AgentSettings? = nil,
         profiles: [Profile] = [],
         activeProfile: String? = nil,
-        reachableProfiles: [String] = []
+        reachableProfiles: [String] = [],
+        gitHosting: GitHosting? = nil
     ) {
         self.welcome = welcome
         self.projects = projects
@@ -285,6 +287,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         self.profiles = profiles
         self.activeProfile = activeProfile
         self.reachableProfiles = reachableProfiles
+        self.gitHosting = gitHosting
     }
 
     public init(from decoder: Decoder) throws {
@@ -305,6 +308,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         profiles = try container.decodeIfPresent([Profile].self, forKey: .profiles) ?? []
         activeProfile = try container.decodeIfPresent(String.self, forKey: .activeProfile)
         reachableProfiles = try container.decodeIfPresent([String].self, forKey: .reachableProfiles) ?? []
+        gitHosting = try container.decodeIfPresent(GitHosting.self, forKey: .gitHosting)
     }
 
     public static func read(_ data: Data) throws -> PreviewScenario {

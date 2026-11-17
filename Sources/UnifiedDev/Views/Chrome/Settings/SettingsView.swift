@@ -84,6 +84,7 @@ struct SettingsView: View {
         case .prompts: PromptSettingsView()
         case .terminal: TerminalSettingsView()
         case .commandLine: CommandLineSettingsView()
+        case .gitHosting: GitHostingSettingsView()
         }
     }
 }
