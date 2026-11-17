@@ -19,6 +19,7 @@ struct ComposerSettingsPicker: View {
     var onContextWindow: @MainActor (Int) -> Void
     var onInteractionMode: @MainActor (InteractionMode) -> Void = { _ in }
     var onOpenInNewChat: (@MainActor (AgentKind) -> Void)?
+    var sends: Int = 0
 
     @Environment(AppModel.self) private var app
     @Environment(\.openWindow) private var openWindow
@@ -65,25 +66,37 @@ struct ComposerSettingsPicker: View {
                 account: account,
                 matchedPreset: summary.matched,
                 suggestedPresetName: summary.suggestedName,
-                onModel: onModel,
-                onEffort: onEffort,
-                onOutputStyle: onOutputStyle,
-                onPermissionMode: onPermissionMode,
-                onContextWindow: onContextWindow,
-                onInteractionMode: onInteractionMode,
+                onModel: settling(onModel),
+                onEffort: settling(onEffort),
+                onOutputStyle: settling(onOutputStyle),
+                onPermissionMode: settling(onPermissionMode),
+                onContextWindow: settling(onContextWindow),
+                onInteractionMode: settling(onInteractionMode),
                 onOpenInNewChat: closingThenOpeningNewChat,
                 onChangeAccount: changeAccount,
                 onSavePreset: savePreset
             )
             .environment(\.fontScale, 1)
         }
+        .onChange(of: sends) { _, _ in close(on: .sentMessage) }
         .task { await library.load(from: app.store) }
+    }
+
+    private func close(on event: AgentSettingsEvent) {
+        if event.closesSettings { isOpen = false }
+    }
+
+    private func settling<Value>(_ choose: @escaping @MainActor (Value) -> Void) -> @MainActor (Value) -> Void {
+        { value in
+            choose(value)
+            close(on: .changedSetting)
+        }
     }
 
     private var closingThenOpeningNewChat: (@MainActor (AgentKind) -> Void)? {
         guard let onOpenInNewChat else { return nil }
         return { kind in
-            isOpen = false
+            close(on: .openedInNewChat)
             onOpenInNewChat(kind)
         }
     }
@@ -99,7 +112,7 @@ struct ComposerSettingsPicker: View {
 
     private func changeAccount() {
         guard let account else { return }
-        isOpen = false
+        close(on: .changedAccount)
         RepoSettingsPaneRequest.post(.agents, for: account.repoID)
         openWindow(id: RepoSettingsWindow.id, value: account.repoID)
     }
@@ -121,7 +134,7 @@ struct ComposerSettingsPicker: View {
 
     private func savePreset(_ name: String) {
         guard let name = ModelPreset.cleanName(name) else { return }
-        isOpen = false
+        close(on: .savedPreset)
         library.add(ModelPreset(name: name, controls: controls), in: app.store)
     }
 }

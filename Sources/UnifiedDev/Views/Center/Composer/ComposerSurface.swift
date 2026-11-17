@@ -55,6 +55,7 @@ struct ComposerSurface: View {
 
     @Environment(AppModel.self) private var app
     @State private var loaded: ComposerAccountReading?
+    @State private var sends = 0
 
     var body: some View {
         ComposerPrompt(
@@ -95,14 +96,15 @@ struct ComposerSurface: View {
                 onQuickPrompt: { send.onQuickPrompt($0, actions.insert) },
                 projectQuickPrompts: place.projectQuickPrompts,
                 onOpenQuickPrompts: place.onOpenQuickPrompts,
-                onSend: send.perform,
+                onSend: performSend,
                 onStop: conversation.onStop,
                 onSideConversation: conversation.onSideConversation,
                 orchestrates: place.orchestrates,
                 usesCLIChat: send.usesCLIChat,
                 supportsCLIChat: send.supportsCLIChat,
                 account: reading?.section,
-                accountHomes: reading?.homes
+                accountHomes: reading?.homes,
+                sends: sends
             )
         }
         .task(id: accountKey) {
@@ -121,10 +123,15 @@ struct ComposerSurface: View {
         loaded.flatMap { $0.key == accountKey ? $0 : nil }
     }
 
+    private func performSend() {
+        sends += 1
+        send.perform()
+    }
+
     private func handle(key: ComposerKey) -> Bool {
         switch key {
         case .returnKey, .commandReturn:
-            send.perform()
+            performSend()
             return true
         case .escape:
             onEscape()
