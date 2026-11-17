@@ -21,7 +21,7 @@ struct GitHubLoginTests {
     }
 
     @Test func aProfileWithItsOwnLoginHasADirectoryNamedAfterIt() {
-        let logins = ProfileGitHubLogins(sources: [debtges: .own], root: root)
+        let logins = ProfileGitHubLogins(sources: [debtges: .own], bitbucketSources: [debtges: .own], root: root)
         let login = logins.login(for: debtges)
         #expect(login == .profile(debtges, directory: root.appending(path: "debtges", directoryHint: .isDirectory)))
         #expect(login.directory?.path == "/support/GitHubLogins/debtges")

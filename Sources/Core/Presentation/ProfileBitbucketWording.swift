@@ -2,6 +2,7 @@ import Foundation
 
 public enum ProfileBitbucketWording {
     public static let sectionTitle = "Bitbucket"
+    public static let pickerTitle = "Bitbucket login"
     public static let accountTitle = "Signed in as"
     public static let methodTitle = "Signed in with"
     public static let notSignedIn = "Not signed in"
@@ -43,15 +44,17 @@ public enum ProfileBitbucketWording {
             return "Install the Bitbucket CLI with brew install bitbucket-cli to read pull requests on Bitbucket."
         }
         let user = account?.user
-        if isInitial || source == .inherits {
-            let owner = isInitial ? "Unified" : "\(profileName) follows its GitHub choice above and"
-            return "\(owner) uses this Mac's bkt sign-in, "
-                + (user.map { "signed in as \($0)." } ?? "which is signed out.")
+        if isInitial {
+            return "Unified uses this Mac's bkt sign-in, " + (user.map { "signed in as \($0)." } ?? "which is signed out.")
+        }
+        if source == .inherits {
+            return "\(profileName) uses Unified's Bitbucket sign-in, which is this Mac's, "
+                + (user.map { "signed in as \($0)." } ?? "and it is signed out.")
         }
         guard let user else {
-            return "\(profileName) follows its GitHub choice above, so it keeps a Bitbucket sign-in of its own "
-                + "and never uses this Mac's. Pull requests and agents in its Bitbucket projects stop until you "
-                + "sign in here. App passwords are retired by Atlassian: use the browser or an API token."
+            return "\(profileName) has no Bitbucket sign-in yet, and it never uses this Mac's. Pull requests "
+                + "and agents in its Bitbucket projects stop until you sign in here. App passwords are retired by "
+                + "Atlassian: use the browser or an API token."
         }
         return "Pull requests, builds and agents in \(profileName)'s Bitbucket projects run as \(user)."
     }

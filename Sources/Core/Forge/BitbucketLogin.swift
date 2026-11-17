@@ -28,10 +28,22 @@ public struct BitbucketLogin: Sendable, Hashable {
     }
 
     public init(gitHub: GitHubLogin) {
-        guard let directory = gitHub.directory else {
+        let anchor: URL
+        switch gitHub {
+        case .thisMac:
             self.init(directory: nil)
             return
+        case .profile(_, let directory, let uses), .unresolved(let directory, let uses):
+            guard uses.bitbucket == .own else {
+                self.init(directory: nil)
+                return
+            }
+            anchor = directory
         }
+        self.init(anchoredAt: anchor)
+    }
+
+    private init(anchoredAt directory: URL) {
         let root = directory.deletingLastPathComponent().deletingLastPathComponent()
         self.init(
             directory: root

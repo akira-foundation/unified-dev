@@ -32,7 +32,7 @@ final class GitHubAvailability {
     private var answeredAt: [GitHubLogin: ContinuousClock.Instant] = [:]
 
     func state(for login: GitHubLogin) -> State {
-        states[login] ?? .unknown
+        states[login.gitHubIdentity] ?? .unknown
     }
 
     @discardableResult
@@ -41,7 +41,8 @@ final class GitHubAvailability {
     }
 
     @discardableResult
-    func check(login: GitHubLogin, force: Bool = false) async -> State {
+    func check(login requested: GitHubLogin, force: Bool = false) async -> State {
+        let login = requested.gitHubIdentity
         let state = state(for: login)
         if force {
             probes[login]?.cancel()

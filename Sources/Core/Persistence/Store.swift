@@ -45,10 +45,13 @@ public actor Store {
         try Self.migrate(database)
         try database.transaction { try Self.seedOceans(database) }
         let sources = try ProfileGitHubColumn.sources { try database.query($0) }
+        let bitbucket = try ProfileBitbucketColumn.sources { try database.query($0) }
         let support = URL(filePath: path).deletingLastPathComponent()
         self.path = path
         self.db = database
-        self.gitHubLoginBook = Mutex(ProfileGitHubLogins(sources: sources, root: ProfileGitHubLogins.root(support: support)))
+        self.gitHubLoginBook = Mutex(ProfileGitHubLogins(
+            sources: sources, bitbucketSources: bitbucket, root: ProfileGitHubLogins.root(support: support)
+        ))
     }
 
     private nonisolated static func seedOceans(_ db: SQLiteDatabase) throws {
@@ -696,6 +699,7 @@ public actor Store {
             ProfileGitHubColumn.migrate,
             QuotaAccountColumn.migrate,
             sql(TranscriptChapterColumns.createTable),
+            ProfileBitbucketColumn.migrate,
         ]
 
         guard current >= 0, current <= migrations.count else {
@@ -941,11 +945,19 @@ public actor Store {
 
     func refreshGitHubLogins() throws {
         let sources = try ProfileGitHubColumn.sources { try db.query($0) }
-        gitHubLoginBook.withLock { $0 = ProfileGitHubLogins(sources: sources, root: $0.root) }
+        let bitbucket = try ProfileBitbucketColumn.sources { try db.query($0) }
+        gitHubLoginBook.withLock {
+            $0 = ProfileGitHubLogins(sources: sources, bitbucketSources: bitbucket, root: $0.root)
+        }
     }
 
     func writeGitHubSource(_ source: ProfileGitHubSource, for profile: ProfileID) throws {
         try db.run(ProfileGitHubColumn.setSource, [.text(source.rawValue), .text(profile)])
+        try refreshGitHubLogins()
+    }
+
+    func writeBitbucketSource(_ source: ProfileGitHubSource, for profile: ProfileID) throws {
+        try db.run(ProfileBitbucketColumn.setSource, [.text(source.rawValue), .text(profile)])
         try refreshGitHubLogins()
     }
 

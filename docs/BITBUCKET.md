@@ -70,8 +70,10 @@ at two directories the way `GH_CONFIG_DIR` does for `gh`.
 bkt's secret store is 99designs/keyring, and it reads four variables of its own that no help page
 lists: `KEYRING_BACKEND` chooses the backend, `BKT_ALLOW_INSECURE_STORE=1` admits the encrypted
 file one, `KEYRING_FILE_DIR` names its folder and `BKT_KEYRING_PASSPHRASE` its key. A profile whose
-GitHub login is its own gets a Bitbucket sign-in of its own the same way, under
-`<Application Support>/BitbucketLogins/<profile>/`, beside `GitHubLogins/`:
+Bitbucket login is its own gets a sign-in of its own the same way, under
+`<Application Support>/BitbucketLogins/<profile>/`, beside `GitHubLogins/`. The choice is the
+profile's `bitbucket_source`, kept apart from its GitHub one, and a database from before the two
+were split copies each profile's GitHub choice into it:
 
 | Variable | Value |
 | --- | --- |
@@ -89,7 +91,7 @@ backup read on its own, and it does not keep it from a process running as the ow
 same standing `gh auth login --insecure-storage` has in the profile's `GH_CONFIG_DIR`. An agent of the
 profile is started with the passphrase in its environment, because its own `bkt pr merge` has to
 open the store; anything that agent runs can read it, as it could read a `gh` token from that folder. The
-initial profile, and every profile whose GitHub login is Unified's, keep this Mac's own bkt
+initial profile, and every profile whose Bitbucket login is Unified's, keep this Mac's own bkt
 configuration and Keychain, and the app adds nothing to their environment.
 
 `BitbucketLogin` in `Sources/Core/Forge/` holds this; `GitHubLogin.everySignIn(appliedTo:)` is what
@@ -97,9 +99,11 @@ every agent runner and `GitHubLogin.everyVariable` what a workspace's setup is s
 agent's `bkt pr merge` runs as the profile. Every `bkt` the app runs itself goes through
 `Bitbucket.run`, which resolves the directory's profile exactly as `gh` does.
 
-Profile Settings shows a Bitbucket section under the GitHub one. It reads `bkt auth status --json`
+Profile Settings shows a Bitbucket section under the GitHub one, with the profile's choice, and the
+Git Hosting pane of Settings shows this Mac's bkt account with Sign In and Sign Out (`bkt auth logout
+api.bitbucket.org`) and every profile's choice beside it. The section reads `bkt auth status --json`
 under the profile's variables and shows the user and the method bkt reports (`oauth` is the browser
-sign-in, `basic` an API token, `bearer` an access token). Every profile offers two methods, each run
+sign-in, `basic` an API token, `bearer` an access token). A profile that keeps its own sign-in, and Unified, offer two methods, each run
 in a terminal inside the sheet: `bkt auth login https://bitbucket.org --kind cloud --web` for OAuth
 in the browser, and the same with `--web-token` for an Atlassian API token, where bkt itself asks
 for the email and the token. A profile with its own sign-in adds `--allow-insecure-store` and its

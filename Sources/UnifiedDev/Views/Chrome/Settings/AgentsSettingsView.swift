@@ -99,14 +99,6 @@ struct AgentsSettingsView: View {
                     notInstalledSection
                 }
 
-                Section("GitHub") {
-                    SettingsRow("Account") {
-                        Text(GitHubIdentity.cachedUsername ?? "Not available")
-                            .foregroundStyle(Palette.textSecondary)
-                            .textSelection(.enabled)
-                    }
-                }
-
                 Section {
                     DisclosureGroup("Advanced configuration") {
                         executableSection(status)

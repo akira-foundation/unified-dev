@@ -176,7 +176,7 @@ enum ProfileProbe {
             Scene(name: "bridge-section", size: CGSize(width: ProfileSheetMetrics.width, height: 210), view: AnyView(
                 Form { ProfileBridgeRows(isOn: .constant(true), isEnabled: true, failure: nil) }.settingsForm()
             )),
-        ] + bitbucketScenes + sheets.map { Scene(name: $0.0, size: $0.1.size, view: $0.1.view) }
+        ] + bitbucketScenes + gitHostingScenes + sheets.map { Scene(name: $0.0, size: $0.1.size, view: $0.1.view) }
     }
 
     private static var bitbucketScenes: [Scene] {
@@ -190,11 +190,38 @@ enum ProfileProbe {
             ("bitbucket-not-installed", akira, .own, nil, false),
         ]
         return cases.map { name, profile, source, account, installed in
-            Scene(name: name, size: CGSize(width: ProfileSheetMetrics.width, height: 220), view: AnyView(
+            Scene(name: name, size: CGSize(width: ProfileSheetMetrics.width, height: 260), view: AnyView(
                 Form {
                     ProfileBitbucketRows(
-                        profile: profile, source: source, account: account, installed: installed,
+                        profile: profile, source: .constant(source), account: account, installed: installed,
                         isChecking: false, onSignIn: { _ in }
+                    )
+                }.settingsForm()
+            ))
+        }
+    }
+
+    private static func gitHostingRows(mac: GitHostingAccount, own: GitHostingAccount) -> [GitHostingProfileRow] {
+        [
+            GitHostingProfileRow(profileID: .initial, name: "Unified", source: .inherits, choosesSource: false, account: mac),
+            GitHostingProfileRow(profileID: akira.id, name: "Akira", source: .inherits, choosesSource: true, account: mac),
+            GitHostingProfileRow(profileID: ProfileID("debtges"), name: "Debtges", source: .own, choosesSource: true, account: own),
+        ]
+    }
+
+    private static var gitHostingScenes: [Scene] {
+        let mac = GitHostingAccount.signedIn("kidiatoliny")
+        let cases: [(String, GitHostingAccount, GitHostingAccount, GitHostingAccount)] = [
+            ("git-hosting-signed-in", mac, .signedIn("debtges-bot"), .signedOut),
+            ("git-hosting-signed-out", .signedOut, .checking, .notInstalled),
+        ]
+        return cases.map { name, gitHub, own, bitbucket in
+            Scene(name: name, size: CGSize(width: 640, height: 820), view: AnyView(
+                Form {
+                    GitHostingSections(host: .gitHub, account: gitHub, rows: gitHostingRows(mac: gitHub, own: own))
+                    GitHostingSections(
+                        host: .bitbucket, account: bitbucket,
+                        rows: gitHostingRows(mac: bitbucket, own: bitbucket == .notInstalled ? .notInstalled : .signedOut)
                     )
                 }.settingsForm()
             ))

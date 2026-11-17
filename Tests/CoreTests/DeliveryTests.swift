@@ -241,7 +241,7 @@ struct DeliveryStoreTests {
         let current = try SQLiteDatabase(path: path).readUserVersion()
         let raw = try SQLiteDatabase(path: path)
         try raw.execute("ALTER TABLE deliveries DROP COLUMN canvas_document_path;")
-        try raw.setUserVersion(current - 9)
+        try raw.setUserVersion(current - 10)
 
         let upgraded = try Store(path: path)
 

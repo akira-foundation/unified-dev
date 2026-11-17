@@ -152,9 +152,11 @@ is read from this Mac's login.
 
 ## Bitbucket
 
-A profile's Bitbucket sign-in follows its GitHub choice: a profile using Unified's GitHub login uses this
-Mac's `bkt` configuration and Keychain, and a profile with its own GitHub login has its own Bitbucket one,
-in `BitbucketLogins/<profile id>` beside `GitHubLogins/`. bkt keys its Keychain item by host alone, so the
+A profile chooses its Bitbucket sign-in apart from its GitHub one: a profile using Unified's uses this
+Mac's `bkt` configuration and Keychain, and a profile with its own has one in `BitbucketLogins/<profile id>`
+beside `GitHubLogins/`. A database from before the choice was split gives each profile the Bitbucket choice
+its GitHub one was. Settings, Git Hosting shows this Mac's GitHub and Bitbucket accounts with Sign In and
+Sign Out, and every profile's choice for each host. bkt keys its Keychain item by host alone, so the
 profile's token lives in bkt's encrypted file store in that folder instead. Profile Settings shows it in a
 Bitbucket section, with the browser and an API token as the two ways to sign in, for this Mac's sign-in or
 the profile's own, whichever the profile uses. Repository and workspace access tokens are not

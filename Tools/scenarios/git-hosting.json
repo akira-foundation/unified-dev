@@ -1,0 +1,66 @@
+{
+  "welcome": false,
+  "activeProfile": "Unified",
+  "profiles": [
+    {
+      "name": "Akira",
+      "colour": "4C8DF6",
+      "symbol": "building.2",
+      "accounts": "inherits"
+    },
+    {
+      "name": "Debtges",
+      "colour": "E06C2A",
+      "symbol": "briefcase",
+      "accounts": "inherits",
+      "github": "own",
+      "bitbucket": "own"
+    }
+  ],
+  "gitHosting": {
+    "gitHub": {
+      "thisMac": "harbour-mac",
+      "profiles": {
+        "Debtges": "debtges-bot"
+      }
+    },
+    "bitbucket": {
+      "thisMac": "harbour-mac",
+      "profiles": {
+        "Debtges": "debtges-pipelines"
+      }
+    }
+  },
+  "projects": [
+    {
+      "name": "almanac",
+      "files": {
+        "README.md": "# almanac\n\nA project in the Unified profile, on this Mac's accounts.\n"
+      },
+      "commits": [
+        "Start almanac"
+      ],
+      "profile": "Unified"
+    },
+    {
+      "name": "lighthouse",
+      "files": {
+        "README.md": "# lighthouse\n\nA project in Akira, which uses this Mac's GitHub and Bitbucket accounts.\n"
+      },
+      "commits": [
+        "Start lighthouse"
+      ],
+      "profile": "Akira"
+    },
+    {
+      "name": "ledger",
+      "files": {
+        "README.md": "# ledger\n\nA project in Debtges, which signs in to GitHub and Bitbucket on its own.\n"
+      },
+      "commits": [
+        "Start ledger"
+      ],
+      "profile": "Debtges"
+    }
+  ]
+}

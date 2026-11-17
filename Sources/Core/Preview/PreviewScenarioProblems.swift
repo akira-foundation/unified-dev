@@ -151,6 +151,7 @@ public extension PreviewScenario {
         problems += accountProblems
         problems += updateProblems
         problems += agentSettingsProblems
+        problems += gitHostingProblems
         return problems
     }
 
