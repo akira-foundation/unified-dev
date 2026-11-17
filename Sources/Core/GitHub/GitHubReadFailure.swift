@@ -8,11 +8,16 @@ public struct GitHubReadFailure: Error, Sendable, Equatable, CustomStringConvert
     public let reason: Reason
     public let message: String
     public let retryAt: Date?
+    public internal(set) var forge: ForgeKind = .gitHub
 
     public init(reason: Reason, message: String, retryAt: Date? = nil) {
         self.reason = reason
         self.message = message
         self.retryAt = retryAt
+    }
+
+    public func headline(hasPullRequest: Bool) -> String {
+        hasPullRequest ? "Showing the last \(forge.displayName) update" : "\(forge.displayName) could not refresh"
     }
 
     public var description: String { message }

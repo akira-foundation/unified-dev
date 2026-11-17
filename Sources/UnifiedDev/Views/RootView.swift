@@ -14,6 +14,10 @@ struct RootView: View {
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var centreWidth: CGFloat = 0
+    @State private var sidebarWidth = Metrics.sidebarWidth
+    @State private var sidebarFooterWidth: CGFloat = 0
+    @State private var profileNameWidth: CGFloat?
+    @State private var fullScreenBarIsHidden = false
     @State private var isStartingProject = false
 
     var body: some View {
@@ -23,10 +27,28 @@ struct RootView: View {
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 SidebarView()
                     .navigationSplitViewColumnWidth(
-                        min: UnifiedDevApp.sidebarMinimumWidth,
-                        ideal: Metrics.sidebarWidth,
+                        min: widths.sidebarMinimum,
+                        ideal: max(Metrics.sidebarWidth, widths.sidebarMinimum),
                         max: columns.sidebarCeiling
                     )
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sidebarWidth = $0 }
+                    .onPreferenceChange(SidebarFooterWidth.self) { sidebarFooterWidth = $0 }
+                    .toolbar {
+                        if columns.drawsSidebar, fullScreenBarIsHidden {
+                            ProfileSwitcherToolbar(
+                                app: app,
+                                placement: .automatic,
+                                drawsSidebar: true,
+                                barIsHidden: true,
+                                sidebarWidth: sidebarWidth
+                            )
+                        }
+                        if columns.drawsSidebar, !fullScreenBarIsHidden {
+                            ProfileSwitcherToolbar(
+                                app: app, placement: .secondaryAction, drawsSidebar: true, sidebarWidth: sidebarWidth
+                            )
+                        }
+                    }
             } content: {
                 DetailColumn()
                     .navigationSplitViewColumnWidth(
@@ -40,12 +62,12 @@ struct RootView: View {
                         WindowToolbar(
                             app: app,
                             centreWidth: centreWidth,
-                            showsProfileMark: columns.showsProfileMark,
+                            columns: columns,
                             startFreshAskConversation: { Task { await app.ask.newConversation() } }
                         )
                     }
             } detail: {
-                InspectorColumn()
+                InspectorColumn(isDrawn: columns.drawsInspector)
                     .navigationSplitViewColumnWidth(
                         min: Metrics.inspectorMinimum,
                         ideal: Metrics.inspectorWidth,
@@ -58,6 +80,10 @@ struct RootView: View {
             .keepsToolbarGroundAtToolbarHeight()
 
             .focusedSceneValue(\.isMainWindowFocused, true)
+
+            .onChange(of: app.activeProfile?.name, initial: true) { _, name in
+                profileNameWidth = name.map(ProfileSwitcherMenu.nameWidth)
+            }
 
             .onChange(of: columns.reach, initial: true) { _, reach in
                 columnVisibility = reach == .all ? .all : .doubleColumn
@@ -133,6 +159,7 @@ struct RootView: View {
             } onConfirm: { request in
                 request.model.runSetupAgain()
             }
+            .modifier(CodeBlockRunConfirmation())
             .alert(
                 app.alert?.title ?? "",
                 isPresented: $app.alert.isPresent(),
@@ -165,6 +192,10 @@ struct RootView: View {
             guard was != now else { return }
             app.homeFilter.scope = HomeScope.settle(app.homeFilter.scope, searching: now)
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            app.notificationInbox.noteOnScreen()
+        }
+        .background(FullScreenBarReader { fullScreenBarIsHidden = $0 })
         .onReceive(NotificationCenter.default.publisher(for: .unifieddevToggleSidebar)) { _ in
             toggleSidebar()
         }
@@ -219,11 +250,17 @@ struct RootView: View {
         WindowColumns.resolve(
             selection: app.selection,
             hasInspectorSubject: app.selectedModel != nil,
-            reservesInspectorRoom: app.isInspectorPresented,
+            reservesInspectorRoom: app.selectedWorkspace != nil,
             hidesSidebar: app.isSidebarHidden,
-            widths: UnifiedDevApp.widths,
+            hidesInspector: app.inspectorVisibility.hidesInspector,
+            widths: widths,
             availableWidth: availableWidth
         )
+    }
+
+    private var widths: WindowWidths {
+        let titleBar = profileNameWidth.map(ProfileToolbarLabel.titleBarWidth(forNameWidth:))
+        return UnifiedDevApp.widths.holding(sidebarContent: [titleBar, sidebarFooterWidth].compactMap { $0 })
     }
 
     private func confirmArchive(_ request: ArchiveRequest) {
@@ -248,10 +285,12 @@ extension Notification {
 }
 
 private struct InspectorColumn: View {
+    let isDrawn: Bool
+
     @Environment(AppModel.self) private var app
 
     var body: some View {
-        if let model = app.selectedModel {
+        if isDrawn, let model = app.selectedModel {
             InspectorView(model: model)
         } else {
             Color.clear

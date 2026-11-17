@@ -160,7 +160,7 @@ public enum ModelPrices {
         switch provider {
         case .claudeCode: claude
         case .codex: openAI
-        case .grok, .cursor, .openCode: [:]
+        case .grok, .antigravity, .cursor, .openCode: [:]
         }
     }
 

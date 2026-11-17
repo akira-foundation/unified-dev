@@ -102,12 +102,22 @@ struct MenuBarCatalogueTests {
     @Test("a two-state item carries both of its titles")
     func twoStateItems() {
         let twoState = MenuBarCatalogue.commands.filter { $0.alternateTitle != nil }
-        #expect(Set(twoState.map(\.action)) == [.pin, .unreadMark, .fileBack, .fileForward, .browserReload, .browserComment])
+        #expect(Set(twoState.map(\.action)) == [.pin, .unreadMark, .fileBack, .fileForward, .browserReload, .browserComment, .toggleInspector])
         for item in twoState {
             #expect(item.title(alternate: false) == item.title, "\(item.action)")
             #expect(item.title(alternate: true) == item.alternateTitle, "\(item.action)")
         }
         #expect(MenuBarCatalogue[.archive].title(alternate: true) == "Archive Workspace")
+    }
+
+    @Test("the inspector is hidden and shown with Option-Command-0, workspace or not")
+    func inspectorItem() {
+        let item = MenuBarCatalogue[.toggleInspector]
+        #expect(item.menu == .view)
+        #expect(item.key == MenuShortcut("0", .command, .option))
+        #expect(item.availability == .always)
+        #expect(item.title(alternate: false) == "Hide Inspector")
+        #expect(item.title(alternate: true) == "Show Inspector")
     }
 
     @Test("the bar words a workspace's actions the way its own row menu does")

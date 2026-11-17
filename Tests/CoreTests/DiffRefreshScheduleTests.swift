@@ -12,16 +12,12 @@ struct DiffRefreshScheduleTests {
         Dictionary(uniqueKeysWithValues: ids.map { ($0, moment) })
     }
 
-    @Test("a workspace with an agent writing in it is refreshed on every tick")
-    func busyEveryTick() {
+    @Test("a busy workspace that has never been read is due at once")
+    func busyNeverReadIsDue() {
         let all = ids(20)
-        let now = Date()
 
         let due = DiffRefreshSchedule.due(
-            workspaces: all,
-            busy: [all[3], all[7]],
-            lastRefreshed: justRefreshed(all, at: now),
-            now: now
+            workspaces: all, busy: [all[3], all[7]], lastRefreshed: [:], now: Date()
         )
 
         #expect(due.contains(all[3]))

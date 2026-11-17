@@ -8,6 +8,8 @@ public enum BridgeReadTrouble: Error, Sendable, Equatable {
     case archived(given: String)
     case callerHasGone
     case callerArchived
+    case profile(BridgeProfileTrouble)
+    case profileNeedsWorkspace
 
     public func sentence(tool: String) -> String {
         switch self {
@@ -32,6 +34,12 @@ public enum BridgeReadTrouble: Error, Sendable, Equatable {
                 The workspace '\(given)' has been archived, so \(tool) has nothing there to read. \
                 Retrying will not change that.
                 """
+
+        case .profile(let trouble):
+            return trouble.sentence
+
+        case .profileNeedsWorkspace:
+            return "\(tool) needs 'workspace' as well when it is given 'profile': the id workspace_list reports for that profile."
 
         case .callerHasGone:
             return """

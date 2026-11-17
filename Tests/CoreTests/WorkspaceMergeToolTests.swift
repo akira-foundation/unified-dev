@@ -31,16 +31,17 @@ struct WorkspaceMergeToolTests {
     func describesTheRounds() {
         let description = tool().tool.description
 
-        #expect(description.contains("If GitHub refuses for a conflict or a failed check, the agent fixes it, pushes to the pull request's branch and merges again, three times at most; any other refusal it reports."))
+        #expect(description.contains("If the host refuses for a conflict or a failed check, the agent fixes it, pushes to the pull request's branch and merges again, three times at most; any other refusal it reports."))
     }
 
     private func tool(
         reading: WorkspacePullRequestReading? = nil,
         handoff: WorkspaceMergeHandoff = .turnBegun(chat: "Merge"),
-        sent: Sent = Sent()
+        sent: Sent = Sent(),
+        forge: ForgeKind = .gitHub
     ) -> WorkspaceMergeTool {
         let reading = reading ?? .found(Self.open(), local: nil)
-        return WorkspaceMergeTool(read: { _ in reading }) { workspace, pullRequest, method in
+        return WorkspaceMergeTool(read: { _ in reading }, host: { _ in forge }) { workspace, pullRequest, method in
             sent.record(workspace, pullRequest, method)
             return handoff
         }
@@ -345,13 +346,13 @@ struct WorkspaceMergeToolTests {
             stderr: "no git remotes found\n"
         )
 
-        let plain = WorkspaceMergeTool.plainly(error)
+        let plain = WorkspaceMergeTool.plainly(error, on: .gitHub)
 
         #expect(plain == "no git remotes found.")
         #expect(!plain.contains("--json"))
-        #expect(!WorkspaceMergeTrouble.githubSilent(plain).sentence.contains("--json"))
-        #expect(WorkspaceMergeTrouble.githubSilent(plain).sentence.contains("found. Nothing was sent"))
-        #expect(WorkspaceMergeTrouble.githubSilent("gh gave up").sentence.contains("up. Nothing was sent"))
+        #expect(!WorkspaceMergeTrouble.forgeSilent(plain, on: .gitHub).sentence.contains("--json"))
+        #expect(WorkspaceMergeTrouble.forgeSilent(plain, on: .gitHub).sentence.contains("found. Nothing was sent"))
+        #expect(WorkspaceMergeTrouble.forgeSilent("gh gave up", on: .gitHub).sentence.contains("up. Nothing was sent"))
     }
 
     @Test("no pull request says not to open one")
@@ -366,6 +367,91 @@ struct WorkspaceMergeToolTests {
         #expect(result.isError)
         #expect(result.text.contains("GitHub has no pull request for its branch"))
         #expect(result.text.contains("Do not open one to make this call succeed"))
+    }
+
+    @Test("a Bitbucket workspace's refusals name bkt and Bitbucket, never gh", arguments: [
+        WorkspacePullRequestReading.unavailable(.notInstalled),
+        .unavailable(.signedOut),
+        .failed("bkt timed out after 20s"),
+        .noPullRequest,
+    ])
+    func bitbucketRefusalsNameBkt(reading: WorkspacePullRequestReading) async throws {
+        let store = try makeTestStore("merge-bitbucket-refusal")
+        let target = try await workspace(in: store)
+
+        let result = await tool(reading: reading, forge: .bitbucket).call(
+            request(["workspace": .string(target.id.rawValue)]), as: .owner, store: store
+        )
+
+        let body = result.text.replacingOccurrences(of: WorkspaceMergeTrouble.notYours, with: "")
+        #expect(result.isError)
+        #expect(body.contains("Bitbucket"))
+        #expect(!body.contains("GitHub"))
+        #expect(!body.contains("`gh`"))
+        #expect(!body.contains(" gh "))
+    }
+
+    @Test("on Bitbucket, a pull request the host will not take and work it has not got name Bitbucket")
+    func bitbucketBlockedAndLocalWork() async throws {
+        let store = try makeTestStore("merge-bitbucket-blocked")
+        let target = try await workspace(in: store)
+        let request = request(["workspace": .string(target.id.rawValue)])
+
+        let draft = await tool(reading: .found(Self.open(isDraft: true), local: nil), forge: .bitbucket)
+            .call(request, as: .owner, store: store)
+        let local = await tool(
+            reading: .found(Self.open(), local: LocalWork(modifiedFiles: 1)), forge: .bitbucket
+        ).call(request, as: .owner, store: store)
+
+        #expect(draft.text.contains("Bitbucket reports it as"))
+        #expect(draft.text.contains("skip a build"))
+        #expect(local.text.contains("work Bitbucket has not got"))
+        #expect(!draft.text.contains("GitHub") && !local.text.contains("GitHub"))
+    }
+
+    @Test("on Bitbucket the answer says the agent runs bkt pr merge and Bitbucket may refuse")
+    func bitbucketAnswer() async throws {
+        let store = try makeTestStore("merge-bitbucket-answer")
+        let target = try await workspace(in: store)
+
+        let result = await tool(forge: .bitbucket).call(
+            request(["workspace": .string(target.id.rawValue)]), as: .owner, store: store
+        )
+
+        let note = try answer(result)["note"]?.stringValue ?? ""
+        #expect(note.contains("`bkt pr merge`"))
+        #expect(note.contains("Bitbucket is allowed to refuse"))
+        #expect(!note.contains("gh pr merge"))
+    }
+
+    @Test("the default host is read from the workspace's base remote")
+    func defaultHost() async throws {
+        let store = try makeTestStore("merge-default-host")
+        let target = try await workspace(in: store)
+
+        let host = await Forge.$remoteOverride.withValue({ _ in "git@bitbucket.org:debtges/ledger.git" }) {
+            await WorkspaceMergeTool.hostOf(target)
+        }
+
+        #expect(host == .bitbucket)
+    }
+
+    @Test("bkt missing is named as bkt, and bkt signed out as not signed in to Bitbucket")
+    func bitbucketAccessWording() {
+        let missing = WorkspaceMergeTrouble.forgeUnavailable(.notInstalled, on: .bitbucket).sentence
+        let signedOut = WorkspaceMergeTrouble.forgeUnavailable(.signedOut, on: .bitbucket).sentence
+
+        #expect(missing.contains("`bkt` is not installed"))
+        #expect(signedOut.contains("`bkt` is installed but not signed in to Bitbucket"))
+        #expect(WorkspaceMergeTrouble.forgeUnavailable(.notInstalled, on: .gitHub).sentence.contains("`gh` is not installed"))
+    }
+
+    @Test("bkt exiting without a word is reported as bkt")
+    func bktSilentExit() {
+        let error = ShellError(command: "bkt api /x", status: 3, stderr: "  ")
+
+        #expect(WorkspaceMergeTool.plainly(error, on: .bitbucket) == "bkt exited 3 without saying why.")
+        #expect(WorkspaceMergeTool.plainly(error, on: .gitHub) == "gh exited 3 without saying why.")
     }
 
     @Test("a pull request GitHub will not take is refused in the gate's own words", arguments: [
@@ -461,12 +547,12 @@ struct WorkspaceMergeToolTests {
             .unknownWorkspace(id: "x", alias: .several(name: "n", count: 3)),
             .archived(workspace: "w"),
             .worktreeGone(workspace: "w"),
-            .githubUnavailable(.notInstalled),
-            .githubUnavailable(.signedOut),
-            .githubSilent("gh fell over"),
-            .noPullRequest(workspace: "w", branch: "b"),
-            .blocked(workspace: "w", number: 1, headline: "Draft", reason: "It is a draft."),
-            .localWork(workspace: "w", number: 1, detail: "1 file to commit", needsCommit: true),
+            .forgeUnavailable(.notInstalled, on: .gitHub),
+            .forgeUnavailable(.signedOut, on: .bitbucket),
+            .forgeSilent("gh fell over", on: .gitHub),
+            .noPullRequest(workspace: "w", branch: "b", on: .gitHub),
+            .blocked(workspace: "w", number: 1, headline: "Draft", reason: "It is a draft.", on: .bitbucket),
+            .localWork(workspace: "w", number: 1, detail: "1 file to commit", needsCommit: true, on: .gitHub),
             .wouldQueue(workspace: "w", hold: .setup),
             .wouldQueue(workspace: "w", hold: .question),
             .wouldQueue(workspace: "w", hold: .turn),

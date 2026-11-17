@@ -3,11 +3,12 @@ import Foundation
 enum AgentKindColumns {
     static let accountTable = "agent_accounts"
 
-    static let namesThatHoldIt: Set<String> = ["provider", "agent_kind"]
+    static let namesThatHoldIt: Set<String> = ["provider", "agent_kind", "account_id"]
 
     static let aRenameMustMigrate: Set<String> = [
         "agent_accounts.id",
         "agent_accounts.provider",
+        "agent_quotas.account_id",
         "agent_quotas.provider",
         "profile_agent_accounts.account_id",
         "profile_agent_accounts.provider",

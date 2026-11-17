@@ -25,7 +25,7 @@ struct AgentAccountSessionRecordTests {
         let settlement = AgentSessionSettlement.decide(
             session: session, account: account, purpose: .sending
         )
-        try await AgentSessionRecord.write(settlement, session: session.id, account: account, in: store)
+        try await AgentSessionRecord.write(settlement, session: session.id, account: account, standings: [], in: store)
     }
 
     @Test("a first send on a database that has never chosen an account records the synthesised default")
@@ -93,7 +93,7 @@ struct AgentAccountSessionRecordTests {
 
         await #expect(throws: (any Error).self) {
             try await AgentSessionRecord.write(
-                settlement, session: session.id, account: forgotten, in: store
+                settlement, session: session.id, account: forgotten, standings: [], in: store
             )
         }
 

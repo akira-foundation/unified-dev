@@ -212,6 +212,48 @@ struct ClaudeResolvedModelTests {
         #expect(await ClaudeResolvedModel.reported(account: work, in: store) == ["opus": "claude-opus-5-5", "sonnet": "claude-sonnet-4-5"])
     }
 
+    @Test("a turn whose init names no CLI version still outranks a probe")
+    func anUnversionedTurnOutranksAProbe() async throws {
+        let store = try makeTestStore("resolved")
+
+        await ClaudeResolvedModel.record(requested: "opus", reported: "claude-opus-4-1", cliVersion: "", account: work, in: store)
+        await ClaudeResolvedModel.record(ClaudeAliasAnswers(probed: ["opus": "claude-opus-5-5"]), cliVersion: "2.1.322", account: work, in: store)
+
+        #expect(await ClaudeResolvedModel.reported(account: work, in: store) == ["opus": "claude-opus-4-1"])
+    }
+
+    @Test("a probe and a turn of the same CLI recorded at once always leave the turn's answer", .timeLimit(.minutes(1)))
+    func aProbeNeverLandsUnderATurnsMarker() async throws {
+        let store = try makeTestStore("resolved")
+        let accounts = (0..<200).map {
+            AgentAccountHome(
+                provider: .claudeCode, id: AgentAccountID("race-\($0)"),
+                directory: URL(filePath: "/accounts/claudeCode/race-\($0)"), isDefault: false
+            )
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            for account in accounts {
+                group.addTask {
+                    await ClaudeResolvedModel.record(
+                        ClaudeAliasAnswers(probed: ["opus": "claude-opus-5-5"]), cliVersion: "2.1.322", account: account, in: store
+                    )
+                }
+                group.addTask {
+                    await ClaudeResolvedModel.record(
+                        requested: "opus", reported: "claude-opus-4-1", cliVersion: "2.1.322", account: account, in: store
+                    )
+                }
+            }
+        }
+        var probeWon: [String] = []
+        for account in accounts where await ClaudeResolvedModel.reported(account: account, in: store)["opus"] != "claude-opus-4-1" {
+            probeWon.append(account.id.rawValue)
+        }
+
+        #expect(probeWon.isEmpty)
+    }
+
     @Test("a pin to a model id the picker cannot read is kept, and the alias then names no version")
     func anUnreadablePinShowsNoVersion() async throws {
         let store = try makeTestStore("resolved")

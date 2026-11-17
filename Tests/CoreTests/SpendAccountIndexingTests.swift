@@ -207,4 +207,77 @@ struct SpendAccountIndexingTests {
         #expect(unknown.first?.name == SpendAccounts.unknown)
         #expect(Set(lines.filter(\.isKnown).map(\.name)) == ["Default account", "Kept"])
     }
+
+    @Test("turns the indexer had not read yet are kept when their account is removed")
+    func removalReadsTheTurnsNotYetIndexed() async throws {
+        let world = try World()
+        let removed = try await world.createAccount(label: "Removed")
+        try world.transcript([claudeLine(40, identity: "msg_read")], in: removed)
+        _ = try await world.refresh()
+        try world.transcript(
+            [claudeLine(40, identity: "msg_read"), claudeLine(60, identity: "msg_unread")], in: removed
+        )
+
+        try await AgentAccountRemoval.remove(removed, support: world.support, store: world.store, keychain: .untouched, processes: { [] })
+
+        #expect(!FileManager.default.fileExists(atPath: removed.directory.path))
+        #expect(try await spendTotals(in: world.store).output == 100)
+    }
+
+    @Test("an account whose transcripts cannot be read is kept, folder and all")
+    func unreadableTranscriptKeepsTheAccount() async throws {
+        let world = try World()
+        let held = try await world.createAccount(label: "Held")
+        try world.transcript([claudeLine(60, identity: "msg_held")], in: held)
+        let file = held.directory.appending(path: "projects/-Users-ada-work/s.jsonl")
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: file.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path) }
+
+        var refusal: AgentAccountError?
+        do {
+            try await AgentAccountRemoval.remove(held, support: world.support, store: world.store, keychain: .untouched, processes: { [] })
+        } catch let error as AgentAccountError {
+            refusal = error
+        }
+
+        guard case .spendUnread(let path) = refusal else {
+            Issue.record("the removal went ahead: \(String(describing: refusal))")
+            return
+        }
+        #expect(path.hasSuffix("/projects/-Users-ada-work/s.jsonl"))
+
+        #expect(FileManager.default.fileExists(atPath: held.directory.path))
+        #expect(try await world.store.agentAccounts().map(\.id) == [held.id])
+    }
+
+    @Test("a removal reads a turn whose line is longer than a refresh would hold")
+    func removalReadsALongLine() async throws {
+        let world = try World()
+        let removed = try await world.createAccount(label: "Long")
+        let padding = String(repeating: "x", count: TranscriptReader.defaultBudget + 1_000)
+        let long = claudeLine(70, identity: "msg_long")
+            .replacingOccurrences(of: "\"type\":\"assistant\",", with: "\"type\":\"assistant\",\"padding\":\"\(padding)\",")
+        try world.transcript([long], in: removed)
+
+        try await AgentAccountRemoval.remove(removed, support: world.support, store: world.store, keychain: .untouched, processes: { [] })
+
+        #expect(try await spendTotals(in: world.store).output == 70)
+    }
+
+    @Test("a removal cancelled before it reads stops as cancelled and keeps the account")
+    func cancelledRemovalKeepsTheAccount() async throws {
+        let world = try World()
+        let held = try await world.createAccount(label: "Held")
+        try world.transcript([claudeLine(60, identity: "msg_held")], in: held)
+        let (support, store) = (world.support, world.store)
+
+        let removal = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await AgentAccountRemoval.remove(held, support: support, store: store, keychain: .untouched, processes: { [] })
+        }
+
+        await #expect(throws: CancellationError.self) { try await removal.value }
+        #expect(FileManager.default.fileExists(atPath: held.directory.path))
+        #expect(try await store.agentAccounts().map(\.id) == [held.id])
+    }
 }

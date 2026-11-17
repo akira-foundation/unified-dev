@@ -11,6 +11,7 @@ struct SelectionReplyCard: View {
 
     static let width: CGFloat = 380
     private static let inset: CGFloat = 16
+    private static let focusAttempts = 10
 
     var body: some View {
         VStack(alignment: .leading, spacing: Self.inset) {
@@ -54,7 +55,15 @@ struct SelectionReplyCard: View {
         }
         .shadow(color: .black.opacity(0.25), radius: 16, y: 6)
         .fixedSize(horizontal: false, vertical: true)
-        .onAppear { isFocused = true }
+        .task { await takeKeyboard() }
+    }
+
+    private func takeKeyboard() async {
+        for _ in 0..<Self.focusAttempts {
+            isFocused = true
+            try? await Task.sleep(for: .milliseconds(30))
+            if isFocused || Task.isCancelled { return }
+        }
     }
 
     private func commit() {

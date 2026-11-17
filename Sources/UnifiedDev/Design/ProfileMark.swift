@@ -13,17 +13,6 @@ struct ProfileMark: View {
     }
 }
 
-struct ProfileWindowMark: View {
-    var profile: Profile
-
-    var body: some View {
-        ProfileMark(symbol: profile.symbol, colour: profile.colour)
-            .help(profile.activeLabel)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(profile.activeLabel)
-    }
-}
-
 struct ProfileMenuLabel: View {
     var profile: Profile
 

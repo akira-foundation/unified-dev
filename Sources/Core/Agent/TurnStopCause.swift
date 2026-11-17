@@ -9,14 +9,24 @@ public enum TurnStopCause: Sendable, Equatable {
     static let measuredStatus = 429
     static let measuredWords = "You've hit your"
     static let measuredAPIError = "usage_limit_reached"
+    static let codexErrorField = "codex_error"
+    static let codexUsageLimit = "usageLimitExceeded"
 
     public static func ofLastTurn(messages: [Message], agent: AgentKind) -> TurnStopCause {
-        guard agent == .claudeCode else { return .other }
         let rows = messages.sorted { $0.seq < $1.seq }
         let turn = rows.reversed().prefix { !$0.kind.opensTurn }
-        guard let last = turn.first(where: { carriesOutput($0) || isResumeMark($0) }),
-              !isResumeMark(last) else { return .other }
-        return reportsClaudeUsageLimit(last) ? .usageLimit : .other
+        switch agent {
+        case .claudeCode:
+            guard let last = turn.first(where: { carriesOutput($0) || isResumeMark($0) }),
+                  !isResumeMark(last) else { return .other }
+            return reportsClaudeUsageLimit(last) ? .usageLimit : .other
+        case .codex:
+            guard let last = turn.first(where: { carriesOutput($0) || isResumeMark($0) || $0.kind == .result }),
+                  !isResumeMark(last) else { return .other }
+            return reportsCodexUsageLimit(last) ? .usageLimit : .other
+        case .grok, .antigravity, .cursor, .openCode:
+            return .other
+        }
     }
 
     static func noModelWrote(_ line: JSONValue) -> Bool {
@@ -40,6 +50,13 @@ public enum TurnStopCause: Sendable, Equatable {
         case .assistantText, .thinking, .toolUse, .toolResult, .permissionAsk: true
         default: false
         }
+    }
+
+    private static func reportsCodexUsageLimit(_ row: Message) -> Bool {
+        guard row.kind == .result, let json = JSONValue.parse(row.payload) else { return false }
+        return json["type"]?.stringValue == "result"
+            && json["is_error"]?.boolValue == true
+            && json[codexErrorField]?.stringValue == codexUsageLimit
     }
 
     private static func reportsClaudeUsageLimit(_ row: Message) -> Bool {

@@ -1,0 +1,48 @@
+{
+  "welcome": false,
+  "activeProfile": "Unified",
+  "reachableProfiles": ["Unified", "Akira"],
+  "profiles": [
+    { "name": "Akira", "colour": "4C8DF6", "symbol": "building.2", "accounts": "own" },
+    { "name": "Debtges", "colour": "E06C2A", "symbol": "briefcase", "accounts": "inherits" }
+  ],
+  "projects": [
+    {
+      "name": "almanac",
+      "profile": "Unified",
+      "files": { "README.md": "# almanac\n\nA scratch project in the Unified profile.\n" },
+      "commits": ["Start almanac"],
+      "workspaces": [
+        {
+          "name": "Orchestrator",
+          "branch": "orchestrator",
+          "orchestrator": true,
+          "chats": [{ "title": "Plans" }]
+        },
+        {
+          "name": "Tide tables",
+          "branch": "tide-tables",
+          "chats": [{ "title": "Tides" }]
+        }
+      ]
+    },
+    {
+      "name": "ledger",
+      "profile": "Akira",
+      "files": { "README.md": "# ledger\n\nA scratch project in the Akira profile, open to the others.\n" },
+      "commits": ["Start ledger"],
+      "workspaces": [
+        { "name": "Quarterly close", "branch": "quarterly-close", "chats": [{ "title": "Close" }] }
+      ]
+    },
+    {
+      "name": "arrears",
+      "profile": "Debtges",
+      "files": { "README.md": "# arrears\n\nA scratch project in the Debtges profile, left closed.\n" },
+      "commits": ["Start arrears"],
+      "workspaces": [
+        { "name": "Reminder letters", "branch": "reminder-letters", "chats": [{ "title": "Letters" }] }
+      ]
+    }
+  ]
+}

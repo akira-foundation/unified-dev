@@ -4,12 +4,14 @@ public enum SearchPanelRow: Equatable, Sendable, Identifiable {
     case workspace(SearchPanelWorkspaceHit)
     case transcript(SearchPanelTranscriptHit)
     case command(SearchPanelCommandHit)
+    case profile(SearchPanelProfileHit)
 
     public var id: String {
         switch self {
         case .workspace(let hit): "workspace:\(hit.workspace.id.rawValue)"
         case .transcript(let hit): "transcript:\(hit.result.workspaceID.rawValue)"
         case .command(let hit): "command:\(hit.item.action.rawValue)"
+        case .profile(let hit): "profile:\(hit.profile.id.rawValue)"
         }
     }
 
@@ -17,7 +19,7 @@ public enum SearchPanelRow: Equatable, Sendable, Identifiable {
         switch self {
         case .workspace(let hit): hit.workspace.id
         case .transcript(let hit): hit.result.workspaceID
-        case .command: nil
+        case .command, .profile: nil
         }
     }
 }
@@ -96,5 +98,21 @@ public struct SearchPanelCommandHit: Equatable, Sendable, Identifiable {
         self.item = item
         self.highlights = highlights
         self.score = score
+    }
+}
+
+public struct SearchPanelProfileHit: Equatable, Sendable, Identifiable {
+    public var profile: Profile
+    public var highlights: [Int]
+    public var score: Int
+    public var keyText: String?
+
+    public var id: ProfileID { profile.id }
+
+    public init(profile: Profile, highlights: [Int] = [], score: Int = 0, keyText: String? = nil) {
+        self.profile = profile
+        self.highlights = highlights
+        self.score = score
+        self.keyText = keyText
     }
 }

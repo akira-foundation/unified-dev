@@ -54,7 +54,7 @@ struct InspectorTabTests {
     @Test("a selection that is still on offer is left alone", arguments: InspectorTab.allCases)
     func selectionSurvives(_ tab: InspectorTab) {
         let open = pullRequest(checks: .failing, summary: "1 required check failed")
-        #expect(InspectorTab.resolve(tab, available: InspectorTab.available(for: open, hasTasks: true)) == tab)
+        #expect(InspectorTab.resolve(tab, available: InspectorTab.available(for: open, hasTasks: true, hasSideConversation: true)) == tab)
     }
 
     @Test("a chat with background tasks adds Tasks, before Checks")
@@ -63,6 +63,17 @@ struct InspectorTabTests {
         #expect(InspectorTab.available(for: nil, hasTasks: true) == [.allFiles, .changes, .tasks])
         #expect(InspectorTab.available(for: open, hasTasks: true) == [.allFiles, .changes, .tasks, .checks])
         #expect(!InspectorTab.available(for: open).contains(.tasks))
+    }
+
+    @Test("a side conversation adds Side beside Changes, before Tasks and Checks")
+    func sideTab() {
+        let open = pullRequest(checks: .passing, summary: "1 check passed")
+        #expect(InspectorTab.available(for: nil, hasSideConversation: true) == [.allFiles, .changes, .side])
+        #expect(
+            InspectorTab.available(for: open, hasTasks: true, hasSideConversation: true)
+                == [.allFiles, .changes, .side, .tasks, .checks]
+        )
+        #expect(!InspectorTab.available(for: open).contains(.side))
     }
 
     @Test("Tasks selected, then the chat has none, falls back to Changes")

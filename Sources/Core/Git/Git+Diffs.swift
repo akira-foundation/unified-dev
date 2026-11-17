@@ -22,8 +22,12 @@ extension Git {
 
         let changeByPath = parseNameStatus(nameStatus.stdout)
         var byPath = parseNumstat(numstat.stdout, changes: changeByPath)
+        addUntracked(untracked.stdout, in: worktree, to: &byPath)
+        return byPath.values.sorted { $0.path < $1.path }
+    }
 
-        for record in nulRecords(untracked.stdout) {
+    private static func addUntracked(_ listing: Data, in worktree: String, to byPath: inout [String: ChangedFile]) {
+        for record in nulRecords(listing) {
             let path = String(decoding: record, as: UTF8.self)
             guard !path.isEmpty, byPath[path] == nil else { continue }
             let full = (worktree as NSString).appendingPathComponent(path)
@@ -34,8 +38,6 @@ extension Git {
                 isBinary: lineCount == 0 && FileManager.default.fileExists(atPath: full)
             )
         }
-
-        return byPath.values.sorted { $0.path < $1.path }
     }
 
     static func parseNameStatus(_ data: Data) -> [String: (ChangedFile.Change, String?)] {
@@ -94,7 +96,18 @@ extension Git {
     }
 
     public static func diffStat(worktree: String, base: String) async throws -> (files: Int, additions: Int, deletions: Int) {
-        let files = try await changedFiles(worktree: worktree, base: base)
+        let mergeBase = try await baseline(base, in: worktree)
+        async let numstatRead = checkRaw(
+            ["diff", "--numstat", "-M", "-z", mergeBase, "--"], in: worktree
+        )
+        async let untrackedRead = checkRaw(
+            ["ls-files", "--others", "--exclude-standard", "-z"], in: worktree
+        )
+        let numstat = try await numstatRead
+        let untracked = try await untrackedRead
+        var byPath = parseNumstat(numstat.stdout, changes: [:])
+        addUntracked(untracked.stdout, in: worktree, to: &byPath)
+        let files = Array(byPath.values)
         return (
             files.count,
             files.reduce(0) { $0 + $1.additions },

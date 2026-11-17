@@ -124,7 +124,7 @@ public enum BridgeRegistration {
         ]
     }
 
-    public static func grokServers(_ attachment: BridgeAttachment?) -> [JSONValue] {
+    public static func acpServers(_ attachment: BridgeAttachment?) -> [JSONValue] {
         guard let attachment else { return [] }
         let environment = attachment.environment
             .sorted { $0.key < $1.key }

@@ -12,7 +12,8 @@ import Foundation
         summary: String = ""
     ) -> Subagent {
         Subagent(id: SubagentID(id), description: "Job \(id)", type: "Explore",
-                 state: state, summary: summary, outputFile: "/x", finishedAt: finishedAt)
+                 state: state, summary: summary, outputFile: "/x", finishedAt: finishedAt,
+                 startedAt: Self.start)
     }
 
     private func fanOut(finishedAt: Date) -> SubagentRoster {
@@ -150,9 +151,11 @@ import Foundation
         #expect(SubagentRetention.nextChange(SubagentRoster(), now: Self.start) == nil)
     }
 
-    @Test func aWorkingRowIsAskedForAgainASecondLater() {
+    @Test func aWorkingRowIsNotOnAClock() {
         let running = SubagentRoster([subagent("1")])
-        #expect(SubagentRetention.nextChange(running, now: Self.start) == Self.start.addingTimeInterval(1))
+        #expect(SubagentRetention.nextChange(running, now: Self.start) == nil)
+        #expect(SubagentRetention.rows(running, now: Self.start)
+            == SubagentRetention.rows(running, now: Self.start.addingTimeInterval(30)))
 
         let mixed = SubagentRoster([
             subagent("1"),

@@ -96,7 +96,7 @@ struct WelcomeCheckDetailStep: View {
     }
 
     private func copy(_ command: String) {
-        Clipboard.copy(command)
+        Clipboard.copy(.command(command))
         didCopy = true
         Task {
             try? await Task.sleep(for: Clipboard.flashDuration)

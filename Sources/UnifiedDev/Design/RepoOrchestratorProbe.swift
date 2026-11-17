@@ -41,7 +41,7 @@ enum RepoOrchestratorProbe {
 
     private static func shoot(isOn: Bool, scheme: ColorScheme) async -> Bool {
         let form = Form {
-            RepoOrchestratorRows(isOn: .constant(isOn), isEnabled: true, failure: nil)
+            RepoSettingSwitchRows(copy: RepoOrchestratorSection.copy, isOn: .constant(isOn), isEnabled: true, failure: nil)
         }
         .settingsForm()
         .scrollDisabled(true)

@@ -16,7 +16,8 @@ struct ComposerSessionEditor {
     }
 
     private func mirror(_ session: Session) {
-        if let model, let index = model.sessions.firstIndex(where: { $0.id == session.id }) {
+        if let model, let index = model.sessions.firstIndex(where: { $0.id == session.id }),
+           model.sessions[index] != session {
             model.sessions[index] = session
         }
     }

@@ -9,7 +9,7 @@ struct SpendProbeWorld {
 
     init(at path: String) throws {
         let root = URL(filePath: path, directoryHint: .isDirectory)
-        try? FileManager.default.removeItem(at: root)
+        try ProbeFolder.renew(root)
         home = root.appending(path: "home", directoryHint: .isDirectory)
         support = root.appending(path: "support", directoryHint: .isDirectory)
         for directory in [home, support] {

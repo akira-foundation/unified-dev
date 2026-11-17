@@ -17,7 +17,7 @@ public struct BackgroundTaskList: Sendable, Hashable {
             id = subagent.id
             kind = subagent.kind
             title = SubagentRow.title(of: subagent)
-            mark = SubagentRow(subagent, now: now).mark
+            mark = SubagentRow(subagent).mark
             canStop = stopsTasks && subagent.state == .running
             let state = SubagentPane.status(subagent, now: now)
             let elapsed = SubagentRow.duration(subagent.secondsElapsed(at: now))

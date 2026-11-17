@@ -269,7 +269,8 @@ public struct CodexTranslation: Sendable {
         durationMS: Int,
         usage: AgentUsage,
         model: String,
-        sessionID: String
+        sessionID: String,
+        errorCode: String? = nil
     ) -> Data {
         var result: [String: JSONValue] = [
             "type": .string("result"),
@@ -281,6 +282,7 @@ public struct CodexTranslation: Sendable {
             "session_id": .string(sessionID),
             "usage": encode(usage),
         ]
+        if let errorCode { result[TurnStopCause.codexErrorField] = .string(errorCode) }
         if usage.contextTokens > 0 {
             result["modelUsage"] = .object([
                 model: .object(["contextWindow": .integer(usage.contextTokens)]),
@@ -486,7 +488,8 @@ public struct CodexTranslation: Sendable {
                 durationMS: turn.durationMS ?? 0,
                 usage: usage.agentUsage,
                 model: context.model,
-                sessionID: turn.threadID
+                sessionID: turn.threadID,
+                errorCode: turn.status == .failed ? turn.errorCode : nil
             ),
             sessionID: turn.threadID
         )

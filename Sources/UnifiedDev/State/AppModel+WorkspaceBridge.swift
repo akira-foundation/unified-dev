@@ -168,7 +168,7 @@ extension AppModel {
         method: GitHub.MergeMethod
     ) async -> WorkspaceMergeHandoff {
         let model = self.model(for: workspace)
-        if let refusal = await model.requestMerge(pullRequest, method: method) {
+        if let refusal = await model.requestMerge(pullRequest, method: method, from: .agentThroughBridge) {
             return .refused(refusal)
         }
         return .turnBegun(chat: model.activeSession?.title ?? "Merge")
@@ -227,7 +227,7 @@ extension AppModel {
         let inheritedAgent = controls.agentKind
         let agent = order.agent
             ?? order.model.map {
-                DefaultBackend.kind(ofModel: $0, running: inheritedAgent, models: [:])
+                ComposerModelCatalog.shared.backend(ofModel: $0, current: inheritedAgent)
             }
             ?? inheritedAgent
         controls.agentKind = agent

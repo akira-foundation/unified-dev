@@ -50,12 +50,12 @@ stops signing anything new, which is all you want.
 ## The signing identity, and why it is a fingerprint
 
 `UD_CODESIGN_IDENTITY` locally and the `APPLE_SIGNING_IDENTITY` secret in CI hold the
-certificate's **SHA-1 fingerprint**, not its name. The scripts still say the name form in their
-own headers and in the error they print when no identity is found; correcting them is part of
-#239, and this file is the record until then.
+certificate's **SHA-1 fingerprint**, not its name. The name works as well, and the head of
+`Tools/release/package-app.sh` says so, but the fingerprint is the value that cannot be
+misspelt or re-encoded on its way to `codesign`.
 
-A name that carries a character outside ASCII reaches `codesign` mangled. Measured, with a real
-certificate:
+A name that carries a character outside ASCII used to reach `codesign` mangled. Measured, with a
+real certificate:
 
 ```
 ==> signing with the hardened runtime
@@ -63,12 +63,12 @@ certificate:
 Developer ID Application: Kidiatoliny Gon√ßalves (ZF76N8225L): no identity found
 ```
 
-The `ç` arrives as `√ß`, `codesign` looks for a certificate that does not exist, and the build
-stops with an error that reads like a missing certificate rather than a mangled string. In CI it
-does that after the whole app has been compiled. The same run signs correctly when the
-fingerprint is used instead. That defect is
-[#239](https://github.com/akira-foundation/unified-dev-swift/issues/239); until it is fixed, the
-fingerprint is the value that works for everyone, whatever their name is.
+`codesign` decodes its arguments in the encoding `__CF_USER_TEXT_ENCODING` names, and that is Mac
+Roman unless it says otherwise, so the UTF-8 bytes of `ç` were read as `√ß`.
+`Tools/release/codesign-identity.sh` exports a UTF-8 encoding before anything is signed, and
+`Tools/release/tests/codesign-identity.sh` passes an accented name through `codesign` both ways to
+prove it. When no identity matches, `package-app.sh` stops before the build and prints what it
+searched for and what the keychain holds, each with its bytes, so a mangled name shows as one.
 
 `APPLE_SIGNING_IDENTITY` is **optional**, and that is the trap. When it is unset the workflow
 falls back to what `Tools/release/keychain.sh` reports after importing the certificate, which is
@@ -218,12 +218,15 @@ The owner decides when the next major comes.
 
 A commit already on a release branch that was marked breaking by mistake is excused by name in
 `commit_preprocessors` in `cliff.toml`, which rewrites that one message before git-cliff reads it,
-and it is then listed as what it is. Three are excused so far. `870b8712` (#434) undid #374, which
+and it is then listed as what it is. Four are excused so far. `870b8712` (#434) undid #374, which
 never shipped. `f1c119b8` and `5f328fed` (#460) removed `CodexAccount.isExpired`, the `now`
 parameter of `codexDetails`, `AgentAccountEnvironment.givesADirectory` and an initialiser of
 `AgentAccountPanel.Owner`, all of them internal to `Core` with no caller outside this repository,
 so nobody running v1.1.3 feels anything: the `!` was the habit of a published library applied to a
-target that is not one. `Tools/release/tests/breaking-bump.sh` holds both halves, that each excused
+target that is not one. `2ef4dd81` (#498) keeps the owner's browser panes out of the agents' tools,
+and v1.2.1 shipped it as a fix under a reworded message: an agent losing a pane it was never meant to
+reach is the defect being fixed, not a break for anybody running the app, and the commit body says
+what agents now have to do instead. `Tools/release/tests/breaking-bump.sh` holds both halves, that each excused
 commit derives no major and that any other break after a 1.x tag still derives 2.0.0, and the
 `lint` job runs it.
 
@@ -271,8 +274,8 @@ stops at the changelog job, which refuses to replace a published release.
 
 ## When it goes wrong
 
-- **`no identity found`, with the name looking odd in the error.** The fingerprint, not the name.
-  See above.
+- **`No signing identity matches UD_CODESIGN_IDENTITY`.** Compare the two byte lines it prints,
+  or use the fingerprint. See above.
 - **Notarisation comes back `Invalid`.** The script prints Apple's submission log, which is the
   only thing that says which file was objected to. Without it the failure is a single word.
 - **The build fails before anything is signed.** `Tools/release.sh` captures the compile into

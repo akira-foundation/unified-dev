@@ -9,8 +9,8 @@ worktree on disk, which is why so much of what follows is about not destroying o
 
 Longer documents, pointed at rather than repeated here: `README.md` for what the app is,
 `RELEASING.md` for signing and notarising, `docs/CODEX.md` for the Codex app-server
-protocol as measured, `docs/GROK.md` for Grok's ACP over stdio, `docs/PROTOCOL.md` for Claude Code's stream-json,
-`docs/AGENTS-INTEGRATION.md` for how the five CLIs are detected, `docs/PREVIEW-APPS.md` for the
+protocol as measured, `docs/GROK.md` for Grok's ACP over stdio, `docs/ANTIGRAVITY.md` for Antigravity's, and why it is not Gemini CLI, `docs/BITBUCKET.md` for the Bitbucket CLI and how a pull request there is read, `docs/PROTOCOL.md` for Claude Code's stream-json,
+`docs/AGENTS-INTEGRATION.md` for how the six CLIs are detected, `docs/PREVIEW-APPS.md` for the
 preview app every worktree can build and the scenario it is seeded with, `docs/CHAT-SEGMENTS.md` for how one chat
 is run by several agents in turn and what the agent that comes in is told, `docs/BRIDGE.md` for the MCP
 bridge an agent calls back in through and which callers may call what, `docs/PROFILES.md` for the groups of projects the window shows one at a time, `docs/PLAN.md` for what was
@@ -220,7 +220,7 @@ built there and then. Hand it a row read a few seconds ago and it carries every 
 it looked like then. `update(workspaceID:)` and its siblings read the row inside the actor, apply
 the change and write, with no suspension in between.
 
-This is not tidiness. A workspace row has a diff stat refresh writing every six seconds, an archive
+This is not tidiness. A workspace row has a diff stat refresh writing every few seconds, an archive
 that takes seconds of disk work, a panel somebody sits in for a minute, and an agent turn that runs
 for ten. Whole-value writes rolled each other back, and the worst of it was a row that said a
 workspace was live after its worktree had been deleted. `Tests/CoreTests/WorkspaceWriteIsolationTests.swift`
@@ -276,12 +276,14 @@ a model or a helper type beside the view (`FileRevert`, `FileIndex`, `TerminalPe
 `WorkspaceModel` over in `State/`), never from a `body` or a button action. `make lint` holds this
 one too, by looking for `await Git.` and `await Shell.` under `Sources/UnifiedDev/Views/`: the subprocess
 calls are all async and the pure helpers on the same types are not, so the test costs no exception
-list of its own. The three of those that live under `Views/` are named in the allow-list because
-they are what a view calls **instead** of reaching for a process itself; `WorkspaceModel` is outside
-that path, so the rule never sees it and needs no entry. `CreateWorkspaceView` was the last
-exception, calling `Git.branches` from its own `.task`; that loading and both branch decisions it
-fed are `WorkspaceStartContext` in the core now, tested, so its entry came off and the allow-list
-in `Tools/house-rules.sh` is back to the three helper types it was meant to hold.
+list of its own. A terminal is the one process that starts synchronously, so the rule also names
+`TerminalLaunch(` and `startProcess(`; a login terminal is handed a `LoginCommand` the core already
+parsed, and `LoginTerminal` and `TerminalView` are where the process is actually started. The five
+of those that live under `Views/` are named in the allow-list because they are what a view calls
+**instead** of reaching for a process itself; `WorkspaceModel` is outside that path, so the rule
+never sees it and needs no entry. `CreateWorkspaceView` was the last exception, calling
+`Git.branches` from its own `.task`; that loading and both branch decisions it fed are
+`WorkspaceStartContext` in the core now, tested, so its entry came off.
 
 ## Where a file goes
 
@@ -291,6 +293,7 @@ in `Tools/house-rules.sh` is back to the three helper types it was meant to hold
     Bridge/         the unix socket, the MCP tools an agent calls back in with
     Git/            git itself, and everything read out of a diff
     GitHub/         gh, pull requests, checks
+    Forge/          which host a repository is on, and Bitbucket through bkt
     Workspace/      creating, starting, archiving, restoring, and a project's own settings
     Transcript/     what a turn is made of: rows, tools, subagents, attachments, prompts
     Persistence/    Store, SQLite, the settings file, the old app's leftovers

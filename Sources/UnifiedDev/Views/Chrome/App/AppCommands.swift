@@ -242,6 +242,10 @@ struct AppCommands: Commands {
                 NotificationCenter.default.post(name: .unifieddevToggleSidebar, object: nil)
             }
 
+            MenuCommand(.toggleInspector, alternate: model.inspectorVisibility.menuTitleIsAlternate) {
+                model.toggleInspector()
+            }
+
             Picker("Group Sidebar By", selection: groupingChoice) {
                 ForEach(SidebarGrouping.allCases, id: \.self) { option in
                     Text(option.title).tag(option)

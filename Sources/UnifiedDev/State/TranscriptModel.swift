@@ -79,6 +79,11 @@ final class TranscriptModel {
     var isAwaitingPermission: Bool { storedIsAwaitingPermission }
     private var storedIsAwaitingPermission = false
     private(set) var isLoaded = false
+    @ObservationIgnored private var rowsReleased = false
+    @ObservationIgnored private var releasedNotes: [Int: String] = [:]
+    @ObservationIgnored private var viewers = 0
+    @ObservationIgnored private var lastShown = 0
+    @ObservationIgnored private static var showings = 0
 
     private(set) var contextUsage: ContextWindowUsage?
 
@@ -107,6 +112,12 @@ final class TranscriptModel {
 
     private(set) var backgroundWork: String?
 
+    #if DEBUG
+    func probeApply(_ signal: SubagentSignal) {
+        subagents.apply(signal)
+    }
+    #endif
+
     var draft = ""
 
     private(set) var pendingDeliveries: [Delivery] = []
@@ -120,7 +131,7 @@ final class TranscriptModel {
     }
 
     var hasNothingToShow: Bool {
-        rows.allSatisfy { AppRequest.isHidden(kind: $0.kind, payload: $0.payload) }
+        !rowsReleased && rows.allSatisfy { AppRequest.isHidden(kind: $0.kind, payload: $0.payload) }
             && sending == nil && Delivery.messages(in: pendingDeliveries).isEmpty
     }
 
@@ -149,6 +160,12 @@ final class TranscriptModel {
     @ObservationIgnored private var replyQuoteWrite: Task<Void, Never>?
 
     @ObservationIgnored private var removedReplyQuotes: Set<ReplyQuoteID> = []
+
+    private(set) var chapters: [TranscriptChapter] = []
+
+    @ObservationIgnored private var chapterWrite: Task<Void, Never>?
+
+    @ObservationIgnored private var chapterEdits = 0
 
     private(set) var messageRevealRequests = 0
 
@@ -189,6 +206,38 @@ final class TranscriptModel {
         }
     }
 
+    func isChapter(_ seq: Int) -> Bool {
+        chapters.contains { $0.seq == seq }
+    }
+
+    func pinChapter(_ row: TranscriptRow) {
+        guard let chapter = TranscriptChapter(seq: row.seq, kind: row.kind, payload: row.payload) else { return }
+        chapters = TranscriptChapter.ordered(chapters.filter { $0.seq != row.seq } + [chapter])
+        chapterEdits += 1
+        let sessionID = session.id
+        writeChapters { try await $0.pin(chapter, sessionID: sessionID) }
+    }
+
+    func unpinChapter(seq: Int) {
+        chapters.removeAll { $0.seq == seq }
+        chapterEdits += 1
+        let sessionID = session.id
+        writeChapters { try await $0.unpinChapter(seq: seq, sessionID: sessionID) }
+    }
+
+    private func writeChapters(_ write: @escaping @Sendable (Store) async throws -> Void) {
+        guard let store else { return }
+        let previous = chapterWrite
+        chapterWrite = Task {
+            await previous?.value
+            do {
+                try await write(store)
+            } catch {
+                Log.composer.error("a chapter could not be saved: \(error.readableMessage, privacy: .public)")
+            }
+        }
+    }
+
     func revealMessage(seq: Int) {
         messageRevealSeq = seq
         messageRevealRequests += 1
@@ -199,6 +248,7 @@ final class TranscriptModel {
     private var isReconcilingPresentation = false
     private var isReplayingPastTurn = false
     private var presentationMessageSeq: Int?
+    @ObservationIgnored private var probeRelay: StoredMessageRelay?
     private var dispatchingDeliveryID: DeliveryID?
     private var activeInteractionMode: InteractionMode?
     private var runner: (any SessionRunner)?
@@ -216,6 +266,10 @@ final class TranscriptModel {
     private var ownerStops = 0
     private var resumeStopMark: Int?
     private var runnerIsSettled = false
+
+    var quotaHolder: QuotaHolder {
+        QuotaHolder(provider: session.agentKind, account: session.accountID)
+    }
 
     var accountScope: AccountScope {
         AccountScope.chat(
@@ -295,6 +349,11 @@ final class TranscriptModel {
 
     func load() async {
         guard let store, !isLoaded else {
+            if let store, rowsReleased {
+                await loader.run { [self] in await restoreRows(from: store) }
+                await appendLatestMessages()
+                return
+            }
             SwitchTrace.mark("transcript.reused", workspace: workspace?.id)
             SwitchTrace.markOnScreen("transcript.reused", workspace: workspace?.id)
             return
@@ -306,33 +365,8 @@ final class TranscriptModel {
         SwitchTrace.mark("transcript.read.start", workspace: workspace?.id)
         let messages = (try? await store.messages(sessionID: session.id)) ?? []
         SwitchTrace.mark("transcript.read.done", workspace: workspace?.id)
-        let decisions = (try? await store.permissionAskDecisions(sessionID: session.id)) ?? [:]
-        let answers = (try? await store.permissionAskAnswers(sessionID: session.id)) ?? [:]
-
-        let built = await Task.detached(priority: .userInitiated) {
-            var rows: [TranscriptRow] = []
-            var index: [String: Int] = [:]
-            var highestMessageSeq = -1
-            for message in messages {
-                highestMessageSeq = max(highestMessageSeq, message.seq)
-                Self.absorb(
-                    message,
-                    decisions: decisions,
-                    answers: answers,
-                    into: &rows,
-                    indexByRefID: &index
-                )
-            }
-            return (rows: rows, index: index, highestMessageSeq: highestMessageSeq)
-        }.value
-
-        foldCache.reset()
-        freshCalls = []
-        questionIndex = PinnedQuestionIndex()
-        rows = built.rows
-        presentationRevision += 1
-        indexByRefID = built.index
-        highestSeenMessageSeq = built.highestMessageSeq
+        let built = await builtRows(from: messages, store: store)
+        adopt(built)
 
         let unread = firstUnreadSeq
         Task.detached(priority: .utility) { [rows = built.rows, worktree = cwd] in
@@ -349,35 +383,126 @@ final class TranscriptModel {
         await replyQuoteWrite?.value
         let storedQuotes = (try? await store.replyQuotes(sessionID: session.id)) ?? []
         replyQuotes = ReplyQuote.merging(stored: storedQuotes, into: replyQuotes, removed: removedReplyQuotes)
+        await chapterWrite?.value
+        let editsBeforeReading = chapterEdits
+        let storedChapters = (try? await store.chapters(sessionID: session.id)) ?? []
+        if chapterEdits == editsBeforeReading { chapters = storedChapters }
         await refreshQueue()
         await history.load(store: store, sessionID: session.id, workspaceID: workspace?.id)
         if workspace != nil { await history.cleanupRetired(store: store, sessionID: session.id, cwd: cwd) }
         isLoaded = true
     }
 
+    private typealias BuiltRows = (rows: [TranscriptRow], index: [String: Int], highestMessageSeq: Int)
+
+    private func builtRows(from messages: [Message], store: Store) async -> BuiltRows {
+        let decisions = (try? await store.permissionAskDecisions(sessionID: session.id)) ?? [:]
+        let answers = (try? await store.permissionAskAnswers(sessionID: session.id)) ?? [:]
+        let inWorkspace = session.workspaceID != nil
+        return await Task.detached(priority: .userInitiated) {
+            var rows: [TranscriptRow] = []
+            var index: [String: Int] = [:]
+            var highestMessageSeq = -1
+            for message in messages {
+                highestMessageSeq = max(highestMessageSeq, message.seq)
+                Self.absorb(
+                    DecidedMessage(message),
+                    decisions: decisions,
+                    answers: answers,
+                    inWorkspace: inWorkspace,
+                    into: &rows,
+                    indexByRefID: &index
+                )
+            }
+            return (rows: rows, index: index, highestMessageSeq: highestMessageSeq)
+        }.value
+    }
+
+    private func adopt(_ built: BuiltRows) {
+        foldCache.reset()
+        freshCalls = []
+        questionIndex = PinnedQuestionIndex()
+        rows = built.rows
+        presentationRevision += 1
+        indexByRefID = built.index
+        highestSeenMessageSeq = built.highestMessageSeq
+        rowsReleased = false
+        releasedNotes = [:]
+    }
+
+    var retention: TranscriptRetention.Chat {
+        TranscriptRetention.Chat(
+            session: session.id,
+            workspace: workspace?.id,
+            holdsRows: isLoaded && !rowsReleased && !rows.isEmpty,
+            isShown: viewers > 0,
+            isBusy: isRunning || isAwaitingPermission || isStreaming || sending != nil
+                || !pendingDeliveries.isEmpty || subagents.isWorking || history.isFinalisingTurn,
+            lastShown: lastShown
+        )
+    }
+
+    func beginShowing() {
+        viewers += 1
+        Self.showings += 1
+        lastShown = Self.showings
+    }
+
+    func endShowing() {
+        viewers = max(0, viewers - 1)
+    }
+
+    func releaseRows() {
+        guard isLoaded, !rowsReleased else { return }
+        releasedNotes = Dictionary(
+            rows.filter { !$0.permissionNote.isEmpty }.map { ($0.seq, $0.permissionNote) }
+        ) { first, _ in first }
+        rows = []
+        indexByRefID = [:]
+        foldCache.reset()
+        freshCalls = []
+        questionIndex = PinnedQuestionIndex()
+        presentationRevision += 1
+        rowsReleased = true
+    }
+
+    private func restoreRows(from store: Store) async {
+        guard rowsReleased else { return }
+        let ceiling = highestSeenMessageSeq
+        guard let stored = try? await store.messages(sessionID: session.id) else { return }
+        let built = await builtRows(from: stored.filter { $0.seq <= ceiling }, store: store)
+        guard rowsReleased else { return }
+        var restored = built.rows
+        for index in restored.indices {
+            if let note = releasedNotes[restored[index].seq] { restored[index].permissionNote = note }
+        }
+        adopt((rows: restored, index: built.index, highestMessageSeq: max(ceiling, built.highestMessageSeq)))
+    }
+
     nonisolated private static func absorb(
-        _ message: Message,
+        _ decided: DecidedMessage,
         decisions: [String: String],
         answers: [String: [String: String]] = [:],
+        inWorkspace: Bool,
         into rows: inout [TranscriptRow],
         indexByRefID: inout [String: Int]
     ) {
+        let message = decided.message
         if message.kind == .toolResult, let refID = message.refID,
            let index = indexByRefID[refID] {
             rows[index].resultPayload = message.payload
-            let summary = ToolResultSummary.decode(message.payload)
-            rows[index].isError = summary.isError
-            rows[index].refusal = summary.refusal
-            rows[index].refusalReason = summary.reason
+            rows[index].isError = decided.result.isError
+            rows[index].refusal = decided.result.refusal
+            rows[index].refusalReason = decided.result.reason
             if let duration = message.durationMS { rows[index].durationMS = duration }
             return
         }
 
         var row = TranscriptRow(message: message)
-        row.parentToolUseID = ParentProbe.parentToolUseID(message.payload)
-        if message.kind == .permissionAsk,
-           let ask = PermissionAsk.decode(payload: message.payload) {
-            row.permissionDecision = ask.standing(in: decisions)
+        row.parentToolUseID = decided.parentToolUseID
+        row.payload = TranscriptRowPayload.retained(kind: message.kind, payload: message.payload)
+        if let ask = decided.ask {
+            row.permissionDecision = ask.standing(in: decisions, inWorkspace: inWorkspace)
             row.isQuestion = ask.isQuestion
             row.permissionAnswers = answers[ask.requestID] ?? [:]
         }
@@ -391,17 +516,21 @@ final class TranscriptModel {
         var built: [TranscriptRow] = []
         var indexByRefID: [String: Int] = [:]
         for message in messages {
-            Self.absorb(message, decisions: [:], into: &built, indexByRefID: &indexByRefID)
+            Self.absorb(DecidedMessage(message), decisions: [:], inWorkspace: false, into: &built, indexByRefID: &indexByRefID)
         }
         return built
     }
 
-    private func absorb(_ message: Message, decisions: [String: String] = [:]) {
+    private func absorb(_ decided: DecidedMessage, decisions: [String: String] = [:]) {
+        let message = decided.message
         messageArrivals.persisted(seq: message.seq, kind: message.kind, sending: sending?.id)
         let changedIndex = message.kind == .toolResult
             ? message.refID.flatMap { indexByRefID[$0] } ?? rows.count : rows.count
         foldCache.invalidate(row: changedIndex)
-        Self.absorb(message, decisions: decisions, into: &rows, indexByRefID: &indexByRefID)
+        Self.absorb(
+            decided, decisions: decisions, inWorkspace: session.workspaceID != nil,
+            into: &rows, indexByRefID: &indexByRefID
+        )
         presentationRevision += 1
         if SendingSlot.retires(sending, onPersisting: message.kind) { sending = nil }
     }
@@ -529,11 +658,11 @@ final class TranscriptModel {
     }
 
     @discardableResult
-    func submitAppRequest(_ text: String) async -> Bool {
+    func submitAppRequest(_ text: String, keepsPlace: Bool = false) async -> Bool {
         guard let body = acceptableBody(of: text), let store else { return false }
 
         let delivery = AppRequest.delivery(to: session.id, text: body, interactionMode: session.interactionMode)
-        hold(delivery)
+        hold(delivery, followsLiveEnd: !keepsPlace)
 
         do {
             _ = try await store.enqueueDelivery(delivery)
@@ -567,13 +696,13 @@ final class TranscriptModel {
         return body.isEmpty ? nil : body
     }
 
-    private func hold(_ delivery: Delivery) {
+    private func hold(_ delivery: Delivery, followsLiveEnd: Bool = true) {
         if queuesNextMessage || (isRunning && delivery.interactionMode != activeInteractionMode) {
             pendingDeliveries.append(delivery)
         } else {
             sending = delivery
         }
-        jumpToLiveEnd()
+        if followsLiveEnd { jumpToLiveEnd() }
     }
 
     private func letGo(_ delivery: Delivery) {
@@ -1124,6 +1253,17 @@ final class TranscriptModel {
         workspace.map { app.isArchiving($0.id) } ?? false
     }
 
+    var pullRequestAutoFixReading: PullRequestAutoFix.ChatReading {
+        PullRequestAutoFix.ChatReading(
+            runsInTerminal: !acceptsMessages,
+            isBusy: isRunning || sending != nil || !pendingDeliveries.isEmpty || queuesNextMessage,
+            isAwaitingAnswer: isAwaitingPermission || !pendingPermissionAsks.isEmpty,
+            wasStoppedByOwner: wasStoppedByHand || session.state == .cancelled,
+            permissionMode: session.permissionMode,
+            interactionMode: session.interactionMode
+        )
+    }
+
     var acceptsMessages: Bool {
         !usesInteractiveTerminal && !isWorkspaceArchiving
     }
@@ -1159,8 +1299,11 @@ final class TranscriptModel {
         let account = resolved
         guard !usesInteractiveTerminal else { return nil }
         let orchestrates = await readOrchestratorRole(from: store)
+        let gitHub = await store.gitHubLogin(for: scope)
+        let usesChrome = await ClaudeChrome.launches(in: store, orchestrates: orchestrates)
         let fingerprint = AgentRunnerFingerprint(
-            session: session, account: account, orchestrates: orchestrates, segment: seat.segmentID
+            session: session, account: account, orchestrates: orchestrates, segment: seat.segmentID, gitHub: gitHub,
+            usesChrome: usesChrome
         )
         let setup = AgentRunnerSetup.decide(
             gate: AgentDeliveryGate.decide(
@@ -1171,7 +1314,7 @@ final class TranscriptModel {
             isSettled: runnerIsSettled,
             purpose: purpose,
             settlement: AgentSessionSettlement.decide(
-                session: session, account: account, purpose: purpose
+                session: session, account: account, purpose: purpose, lostItsAccount: seat.lostItsAccount
             )
         )
         let plan: AgentRunnerSetup.Plan
@@ -1214,7 +1357,7 @@ final class TranscriptModel {
         ) {
             app.notice = Notice(message: notice)
         }
-        let bridge = workspace.map { app.bridge?.register(session: session, workspace: $0) }
+        let bridge = workspace.map { app.bridge?.register(session: session, workspace: $0, orchestrates: orchestrates) }
             ?? app.bridge?.register(askSession: session)
         let runner = Self.makeRunner(
             session: session,
@@ -1222,11 +1365,14 @@ final class TranscriptModel {
             store: store,
             segmentID: seat.segmentID,
             bridge: bridge,
-            account: account
+            account: account,
+            gitHub: gitHub,
+            usesChrome: usesChrome
         )
         self.runner = runner
         runnerFingerprint = AgentRunnerFingerprint(
-            session: session, account: account, orchestrates: orchestrates, segment: seat.segmentID
+            session: session, account: account, orchestrates: orchestrates, segment: seat.segmentID, gitHub: gitHub,
+            usesChrome: usesChrome
         )
         startIdleEviction()
         startPump(on: runner)
@@ -1236,7 +1382,10 @@ final class TranscriptModel {
     private func apply(_ settlement: AgentSessionSettlement, account: AgentAccountHome?) async -> Bool {
         guard !settlement.changesNothing, let store else { return true }
         do {
-            try await AgentSessionRecord.write(settlement, session: session.id, account: account, in: store)
+            try await AgentSessionRecord.write(
+                settlement, session: session.id, account: account,
+                standings: app.agentAccounts.standings, in: store
+            )
         } catch {
             runnerFailure = AgentSessionSettlement.writeFailure(error.readableMessage)
             return false
@@ -1461,7 +1610,8 @@ final class TranscriptModel {
         do {
             session = try await AgentSwitch.retireAndSwitch(
                 runner: dying, store: store, sessionID: session.id,
-                controls: workMode.applied(to: controls), account: account
+                controls: workMode.applied(to: controls), account: account,
+                standings: app.agentAccounts.standings
             )
         } catch {
             noteAgentSwitchFailed(to: controls.agentKind, error)
@@ -1541,7 +1691,9 @@ final class TranscriptModel {
         store: Store,
         segmentID: SessionSegmentID,
         bridge: BridgeHandle? = nil,
-        account: AgentAccountHome? = nil
+        account: AgentAccountHome? = nil,
+        gitHub: GitHubLogin = .thisMac,
+        usesChrome: Bool = false
     ) -> any SessionRunner {
         switch session.agentKind {
         case .codex:
@@ -1551,16 +1703,20 @@ final class TranscriptModel {
                 store: store,
                 segmentID: segmentID,
                 bridge: bridge?.attachment,
-                account: account
+                account: account,
+                gitHub: gitHub
             )
-        case .grok:
-            return GrokRunner(
+        case .grok, .antigravity:
+            guard let dialect = ACPDialect.speaking(session.agentKind) else { fallthrough }
+            return ACPRunner(
+                dialect: dialect,
                 workspacePath: workspacePath,
                 session: session,
                 store: store,
                 segmentID: segmentID,
                 bridge: bridge?.attachment,
-                account: account
+                account: account,
+                gitHub: gitHub
             )
         case .claudeCode, .cursor, .openCode:
             return AgentRunner(
@@ -1569,7 +1725,9 @@ final class TranscriptModel {
                 store: store,
                 segmentID: segmentID,
                 mcpConfigPath: bridge?.mcpConfigPath,
-                account: account
+                account: account,
+                gitHub: gitHub,
+                usesChrome: usesChrome
             )
         }
     }
@@ -1588,8 +1746,7 @@ final class TranscriptModel {
     private func evictIdleProvider() async {
         guard let store, let current = runner, !isRunning, !isAwaitingPermission,
               sending == nil, pendingDeliveries.isEmpty, !subagents.isAnythingRunning else { return }
-        let stored = try? await store.setting(ProviderIdlePolicy.settingKey)
-        guard let duration = ProviderIdlePolicy.duration(stored: stored),
+        guard let duration = await ProviderIdlePolicy.duration(in: store),
               let waiting = try? await store.pendingDeliveries(sessionID: session.id), waiting.isEmpty,
               !isRunning, sending == nil else { return }
         guard await current.evictIfIdle(for: duration), runner === current else { return }
@@ -1767,12 +1924,22 @@ final class TranscriptModel {
         thinkingTokens = recovery.thinkingTokens
         if let status = recovery.status { await handle(.status(status)) }
         if let retry = recovery.retry { absorb(retry) }
-        if let quota = recovery.quota { await app.recordQuotas(AgentQuotaAdapters.quotas(fromRateLimitEvent: quota)) }
+        if let quota = recovery.quota {
+            await app.recordQuotas(AgentQuotaAdapters.quotas(fromRateLimitEvent: quota), heldBy: quotaHolder)
+        }
         if isAwaitingPermission { statusLabel = "Waiting on you" }
     }
 
     func acceptForProbe(_ event: AgentEvent) async {
         await handle(event)
+    }
+
+    func acceptForProbe(_ event: AgentEvent, messageSeq: Int, relayedBy relay: StoredMessageRelay? = nil) async {
+        presentationMessageSeq = messageSeq
+        probeRelay = relay
+        await handle(event)
+        probeRelay = nil
+        presentationMessageSeq = nil
     }
 
     private func handle(_ event: AgentEvent) async {
@@ -1807,7 +1974,7 @@ final class TranscriptModel {
             settleRetryRun()
             let runningTool = streamingToolName
             let callsBefore = freshCalls
-            await appendLatestMessages()
+            await appendLatestMessages(announced: presentationMessageSeq)
             clearStreaming()
             if case .toolUse = event, !freshCalls.isSubset(of: callsBefore) {
                 streamingToolName = runningTool
@@ -1818,7 +1985,7 @@ final class TranscriptModel {
             steering = nil
             abandonRetryRun()
             clearStreaming()
-            await appendLatestMessages()
+            await appendLatestMessages(announced: presentationMessageSeq)
             if let store { await history.finish(store: store, cwd: cwd, endSeq: presentationMessageSeq ?? highestSeenMessageSeq, captureFiles: !isReplayingPastTurn) }
             setRunning(false)
             statusLabel = nil
@@ -1830,7 +1997,9 @@ final class TranscriptModel {
                 message: failure.message.isEmpty ? "It exited without finishing the turn." : failure.message
             )
             if let workspaceNow {
-                NotificationService.shared.agentFailed(workspace: workspaceNow, message: failure.message)
+                NotificationService.shared.agentFailed(
+                    workspace: workspaceNow, sessionID: session.id, message: failure.message
+                )
             }
             await reportToOrchestrator(
                 CrewMessage.failed(name: session.title, reason: failure.message)
@@ -1856,7 +2025,7 @@ final class TranscriptModel {
             history.isFinalisingTurn = true
             if result.succeeded { settleRetryRun() } else { abandonRetryRun() }
             clearStreaming()
-            await appendLatestMessages()
+            await appendLatestMessages(announced: presentationMessageSeq)
             fileRecoveredRun()
             if let store { await history.finish(store: store, cwd: cwd, endSeq: presentationMessageSeq ?? highestSeenMessageSeq, captureFiles: !isReplayingPastTurn) }
             setRunning(false)
@@ -1877,12 +2046,12 @@ final class TranscriptModel {
 
         case .permissionAsk:
             clearStreaming()
-            await appendLatestMessages()
+            await appendLatestMessages(announced: presentationMessageSeq)
             statusLabel = "Waiting on you"
             refreshAwaitingPermission()
             await refreshSession()
             if let workspaceNow {
-                NotificationService.shared.agentNeedsPermission(workspace: workspaceNow)
+                NotificationService.shared.agentNeedsPermission(workspace: workspaceNow, sessionID: session.id)
             }
             if !isReconcilingPresentation, !isReplayingPastTurn, let ask = pendingPermissionAsks.last {
                 await app.noteWorkspaceTurnEnded(.ofAsk(ask), in: session)
@@ -1897,11 +2066,14 @@ final class TranscriptModel {
             await refreshSession()
 
         case .rateLimit(let raw):
-            await app.recordQuotas(AgentQuotaAdapters.quotas(fromRateLimitEvent: raw))
+            await app.recordQuotas(AgentQuotaAdapters.quotas(fromRateLimitEvent: raw), heldBy: quotaHolder)
+            if let workspaceNow {
+                NotificationService.shared.rateLimitReported(raw, workspace: workspaceNow, sessionID: session.id)
+            }
 
         case .subagent(let signal):
             subagents.apply(signal)
-            if case .reported = signal, !isRunning { await appendLatestMessages() }
+            if case .reported = signal, !isRunning { await appendLatestMessages(announced: presentationMessageSeq) }
 
         case .hook, .unknown:
             break
@@ -1972,24 +2144,34 @@ final class TranscriptModel {
         presentationRevision += 1
     }
 
-    private func appendLatestMessages() async {
+    private func appendLatestMessages(announced: Int? = nil) async {
         guard let store else { return }
         await loader.wait()
-        let fresh = (
-            try? await store.messages(sessionID: session.id, afterSeq: highestSeenMessageSeq)
-        ) ?? []
+        let fresh = await latestDecided(from: store, announced: announced)
         guard !fresh.isEmpty else { return }
+        if rowsReleased { await loader.run { [self] in await restoreRows(from: store) } }
+        guard !rowsReleased else { return }
         let appendedFrom = rows.count
         var calls: [String] = []
-        for message in fresh where message.seq > highestSeenMessageSeq {
+        for decided in fresh where decided.message.seq > highestSeenMessageSeq {
+            let message = decided.message
             highestSeenMessageSeq = max(highestSeenMessageSeq, message.seq)
             if message.kind == .toolUse, let id = message.refID { calls.append(id) }
-            absorb(message)
+            absorb(decided)
         }
-        let stopsOnAQuestion = fresh.contains { $0.kind == .permissionAsk }
+        let stopsOnAQuestion = fresh.contains { $0.message.kind == .permissionAsk }
         if stopsOnAQuestion { endFreshCalls(Array(freshCalls)) }
         if !stopsOnAQuestion, !calls.isEmpty { beginFreshCalls(calls) }
         noteContextWindow(in: rows[min(appendedFrom, rows.count)...])
+    }
+
+    private func latestDecided(from store: Store, announced: Int?) async -> [DecidedMessage] {
+        let relayed = announced.flatMap {
+            (probeRelay ?? runner?.storedMessages)?.take(after: highestSeenMessageSeq, through: $0)
+        }
+        if let relayed { return await DecidedMessage.deciding(relayed) }
+        let fresh = (try? await store.messages(sessionID: session.id, afterSeq: highestSeenMessageSeq)) ?? []
+        return await DecidedMessage.deciding(fresh)
     }
 
     private func beginFreshCalls(_ calls: [String]) {
@@ -2092,6 +2274,7 @@ final class TranscriptModel {
 
         NotificationService.shared.turnFinished(
             workspace: workspaceNow,
+            sessionID: session.id,
             result: result,
             wasCancelled: session.state == .cancelled,
             hookRefusedCalls: rows.hookRefusedCalls
@@ -2100,14 +2283,5 @@ final class TranscriptModel {
         await app.archiveIfRequested(
             workspaceNow, endedIn: session.id, wasStopped: wasStoppedByHand
         )
-    }
-}
-
-enum ParentProbe {
-    static func parentToolUseID(_ payload: Data) -> String? {
-        guard let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] else {
-            return nil
-        }
-        return object["parent_tool_use_id"] as? String
     }
 }

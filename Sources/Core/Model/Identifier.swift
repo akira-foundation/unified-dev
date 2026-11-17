@@ -91,6 +91,11 @@ public struct SessionSegmentID: Identifier {
     public init(_ rawValue: String) { self.rawValue = rawValue }
 }
 
+public struct InboxNotificationID: Identifier {
+    public let rawValue: String
+    public init(_ rawValue: String) { self.rawValue = rawValue }
+}
+
 public struct ProfileID: Identifier {
     public static let initial = ProfileID("unified")
 

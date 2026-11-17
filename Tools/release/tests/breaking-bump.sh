@@ -17,6 +17,7 @@ unreleased_434=$'feat(composer)!: show the agent account in the model menu and c
 
 unreleased_session='fix(agent)!: ask the CLI whether a session stands, instead of dating its token'
 unreleased_footer='fix(profiles)!: let the footer follow the launch, agent by agent'
+unreleased_498=$'fix(browser)!: keep the owner\'s browser panes out of the agents\' tools (#498)\n\n* fix(browser)!: keep the owner\'s browser panes out of the agents\' tools\n\nThe tools now refuse a pane the owner has not shared.\n\nBREAKING CHANGE: an agent can no longer read or act in a browser pane the\nowner opened, including panes restored from an earlier version, until the\nowner shares it.'
 
 repository_with() {
   local repo
@@ -69,6 +70,14 @@ verdict() {
   [ "$(section_of "$text" "the footer follow the launch")" = "Bug Fixes" ] \
     || { echo "the footer commit is not listed under Bug Fixes"; return 1; }
 
+  repo="$(repository_with "$unreleased_498")" || return 1
+  version="$(bumped "$config" "$repo")"
+  [ "$version" = v1.1.4 ] \
+    || { echo "the #498 commit, shipped in v1.2.1 as a fix, bumps to ${version} rather than the patch"; return 1; }
+  text="$(notes "$config" "$repo")"
+  [ "$(section_of "$text" "out of the agents' tools (#498)")" = "Bug Fixes" ] \
+    || { echo "the #498 commit is not listed under Bug Fixes"; return 1; }
+
   expect_major "$config" "a feat!" "Drop the old settings file" \
     "fix: an ordinary fix" "feat!: drop the old settings file" || return 1
   expect_major "$config" "another feat(composer)!" "Show the agent account in the settings" \
@@ -118,4 +127,4 @@ verdict "$real_config" || { echo "breaking-bump: failed" >&2; exit 1; }
 expect_refused "no exception for #434" without_preprocessors
 expect_refused "every breaking commit bumps the minor" broadened
 
-echo "breaking-bump: only the three named commits are excused from the major; any other break on 1.x still bumps to 2.0.0."
+echo "breaking-bump: only the four named commits are excused from the major; any other break on 1.x still bumps to 2.0.0."

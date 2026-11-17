@@ -1,0 +1,48 @@
+{
+  "welcome": false,
+  "accounts": [
+    { "provider": "claudeCode", "email": "ada@home.example" },
+    { "provider": "claudeCode", "email": "ada@client.example", "label": "client", "organisation": "Client Ltd" }
+  ],
+  "projects": [
+    {
+      "name": "harbour",
+      "files": {
+        "README.md": "# Harbour\n\nA scratch project for trying Unified Dev out.\n",
+        "src/pier.txt": "wood\n"
+      },
+      "commits": ["Lay the pier", "Paint the boats"],
+      "workspaces": [
+        {
+          "name": "Lighthouse",
+          "branch": "lighthouse",
+          "changes": { "src/lamp.txt": "oil\n" },
+          "chats": [
+            {
+              "title": "Light the lamp",
+              "agent": "claudeCode",
+              "model": "opus",
+              "messages": [
+                { "from": "user", "text": "Light the lamp before the fog comes in, and note it in src/lamp.txt." },
+                { "from": "agent", "text": "I wrote src/lamp.txt with the fuel the lamp burns. The next step is checking the wick." },
+                { "from": "agent", "handoff": { "agent": "claudeCode", "model": "opus", "account": "client" } },
+                { "from": "agent", "text": "I read what was done under the other account. The wick is trimmed and the lamp is lit." }
+              ]
+            },
+            {
+              "title": "Count the boats",
+              "agent": "claudeCode",
+              "model": "opus",
+              "messages": [
+                { "from": "user", "text": "Count the boats in the harbour." },
+                { "from": "agent", "text": "There are three boats at the pier." },
+                { "from": "agent", "handoff": { "agent": "codex", "model": "gpt-5.6-sol" } },
+                { "from": "agent", "text": "Four from the quay, one was hidden behind the pier." }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

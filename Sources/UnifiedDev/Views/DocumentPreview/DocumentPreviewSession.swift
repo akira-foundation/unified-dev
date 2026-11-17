@@ -16,6 +16,9 @@ final class DocumentPreviewSession {
     private var exitGate = DocumentPreviewExitGate()
     private var draft: String?
     private var watch: Task<Void, Never>?
+    private var loading: Task<Void, Never>?
+    private var hasNetworkRules = false
+    private let hasFeaturesOff: Bool
 
     private static var positions: [String: CGPoint] = [:]
 
@@ -31,6 +34,7 @@ final class DocumentPreviewSession {
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(schemes, forURLScheme: DocumentPreview.scheme)
         configuration.websiteDataStore = .nonPersistent()
+        hasFeaturesOff = DocumentPreview.turnOffFeatures(in: configuration.preferences)
         let controller = configuration.userContentController
         controller.add(scroll, contentWorld: .defaultClient, name: DocumentPreviewScrollListener.name)
         controller.addUserScript(WKUserScript(
@@ -59,7 +63,24 @@ final class DocumentPreviewSession {
         schemes.forget()
         hasLoaded = true
         exitGate.reloaded()
-        webView.load(URLRequest(url: address))
+        load(address)
+    }
+
+    private func load(_ address: URL) {
+        loading?.cancel()
+        loading = Task { [weak self] in
+            let rules = await DocumentPreviewNetworkRules.list()
+            guard let self, !Task.isCancelled else { return }
+            guard let rules, self.hasFeaturesOff else {
+                self.fingerprint = nil
+                return
+            }
+            if !self.hasNetworkRules {
+                self.webView.configuration.userContentController.add(rules)
+                self.hasNetworkRules = true
+            }
+            self.webView.load(URLRequest(url: address))
+        }
     }
 
     private func watchForChanges() {
@@ -76,6 +97,8 @@ final class DocumentPreviewSession {
     func close() {
         watch?.cancel()
         watch = nil
+        loading?.cancel()
+        loading = nil
         webView.stopLoading()
         webView.loadHTMLString("", baseURL: nil)
         webView.configuration.userContentController.removeAllScriptMessageHandlers()

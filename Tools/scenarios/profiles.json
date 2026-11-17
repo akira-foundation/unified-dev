@@ -6,7 +6,8 @@
       "name": "Akira",
       "colour": "4C8DF6",
       "symbol": "building.2",
-      "accounts": "own"
+      "accounts": "own",
+      "github": "own"
     },
     {
       "name": "Debtges",
@@ -203,6 +204,27 @@
               ]
             }
           ]
+        },
+        {
+          "name": "Old statements",
+          "branch": "old-statements",
+          "state": "archived",
+          "archivedAgo": 6,
+          "chats": [
+            {
+              "title": "Old statements",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Close the old statements."
+                },
+                {
+                  "from": "agent",
+                  "text": "Closed them and kept the totals."
+                }
+              ]
+            }
+          ]
         }
       ],
       "profile": "Debtges"
@@ -246,6 +268,55 @@
       "plan": "pro",
       "label": "akira-codex",
       "profile": "Akira"
+    }
+  ],
+  "notifications": [
+    {
+      "event": "needsInput",
+      "project": "ledger",
+      "workspace": "Quarterly close",
+      "chat": "Quarterly close",
+      "detail": "Wants to run git push origin main.",
+      "minutesAgo": 2
+    },
+    {
+      "event": "turnFinished",
+      "project": "arrears",
+      "workspace": "Reminder letters",
+      "chat": "Reminder letters",
+      "detail": "The letters now use the new template.",
+      "minutesAgo": 9
+    },
+    {
+      "event": "quotaExhausted",
+      "project": "settlements",
+      "workspace": "Payment plans",
+      "chat": "Payment plans",
+      "detail": "All of the 5 hours allowance used",
+      "minutesAgo": 21
+    },
+    {
+      "event": "checksFinished",
+      "project": "almanac",
+      "workspace": "Tide tables",
+      "detail": "3 of 3 checks passed",
+      "minutesAgo": 64,
+      "read": true
+    },
+    {
+      "event": "agentFailed",
+      "project": "settlements",
+      "workspace": "Old statements",
+      "chat": "Old statements",
+      "detail": "The agent exited without finishing.",
+      "minutesAgo": 180
+    },
+    {
+      "event": "setupFailed",
+      "project": "invoices",
+      "workspace": "Removed work",
+      "minutesAgo": 900,
+      "removed": true
     }
   ]
 }

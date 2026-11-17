@@ -30,7 +30,7 @@ public struct BridgeDispatch: Sendable {
         case "ping":
             return .result(id: id, .object([:]))
         case "tools/list":
-            let tools = toolbox.tools(for: identity.role).map(\.listing)
+            let tools = await toolbox.tools(for: identity, store: store).map(\.listing)
             return .result(id: id, .object(["tools": .array(tools)]))
         case "tools/call":
             return await callTool(request, id: id)
@@ -63,7 +63,7 @@ public struct BridgeDispatch: Sendable {
                 message: "tools/call needs a tool name"
             )
         }
-        guard let handler = toolbox.handler(named: name, for: identity.role) else {
+        guard let handler = await toolbox.handler(named: name, for: identity, store: store) else {
             return .failure(
                 id: id,
                 code: MCPErrorCode.methodNotFound,

@@ -65,6 +65,7 @@ public struct UsageMeterReading: Sendable, Hashable {
         public var showsFlame: Bool
         public var tooltip: String?
         public var isDeadline: Bool
+        public var deadline: Date?
     }
 
     public var fill: Double
@@ -186,7 +187,8 @@ public struct UsageMeterReading: Sendable, Hashable {
                     ),
                     showsFlame: true,
                     tooltip: reading.paceTooltip,
-                    isDeadline: true
+                    isDeadline: true,
+                    deadline: deadline
                 )
             } else {
                 reading.status = Status(text: nil, showsFlame: true, tooltip: reading.paceTooltip, isDeadline: false)

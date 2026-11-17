@@ -145,9 +145,6 @@ struct SidebarView: View {
             .animation(motion.subagent, value: app.crewRows.mapValues { $0.map(\.id) })
             .settlesArrivals($pane.arrival)
             .task(id: pane.reorderNote) { await pane.expireReorderNote() }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                ProfileSwitcher()
-            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 SidebarStatusBar(
                     filter: $filter,

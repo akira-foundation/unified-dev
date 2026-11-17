@@ -3,7 +3,7 @@ import Core
 
 struct ProviderIdleSettingsSection: View {
     @Environment(AppModel.self) private var app
-    @State private var minutes = 0
+    @State private var minutes = ProviderIdlePolicy.defaultMinutes
     @State private var loaded = false
     @State private var failure: String?
 
@@ -21,10 +21,11 @@ struct ProviderIdleSettingsSection: View {
             if let failure { Text(failure).foregroundStyle(.red) }
         }
         .task {
-            let stored = try? await app.store?.setting(ProviderIdlePolicy.settingKey)
-            let value = stored.flatMap(Int.init) ?? 0
-            minutes = ProviderIdlePolicy.choices.contains(value) ? value : 0
-            loaded = true
+            guard let store = app.store else { return }
+            do {
+                minutes = ProviderIdlePolicy.minutes(stored: try await store.setting(ProviderIdlePolicy.settingKey))
+                loaded = true
+            } catch { failure = error.localizedDescription }
         }
         .onChange(of: minutes) { _, value in
             guard loaded else { return }

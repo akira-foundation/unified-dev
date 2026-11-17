@@ -7,9 +7,6 @@ struct ComposerBox: ViewModifier {
     var isDropTarget = false
     var isBusy = false
 
-    @State private var angle: Double = 0
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     @Environment(\.controlActiveState) private var activeState
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var scheme
@@ -22,7 +19,7 @@ struct ComposerBox: ViewModifier {
 
     private var shape: AnyShape {
         isFloating
-            ? AnyShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            ? AnyShape(RoundedRectangle(cornerRadius: Self.floatingCorner, style: .continuous))
             : AnyShape(insetShape)
     }
 
@@ -60,18 +57,9 @@ struct ComposerBox: ViewModifier {
                             .accessibilityHidden(true)
                     }
                     .overlay {
-                        shape.stroke(busyStroke, lineWidth: Self.busyOutline)
-                            .opacity(isBusy ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.25), value: isBusy)
+                        ComposerBusyRing(isBusy: isBusy, cornerRadius: Self.floatingCorner)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
-                            .onChange(of: isBusy, initial: true) { _, busy in
-                                guard busy, !reduceMotion else { return }
-                                angle = 0
-                                withAnimation(
-                                    .linear(duration: Self.lap).repeatForever(autoreverses: false)
-                                ) { angle = 360 }
-                            }
                     }
         } else {
             padded
@@ -92,22 +80,7 @@ struct ComposerBox: ViewModifier {
         }
     }
 
-    private var busyStroke: AngularGradient {
-        AngularGradient(
-            stops: [
-                .init(color: Palette.running.opacity(0.08), location: 0),
-                .init(color: Palette.running.opacity(0.08), location: 0.72),
-                .init(color: Palette.running, location: 0.88),
-                .init(color: Palette.running.opacity(0.08), location: 1),
-            ],
-            center: .center,
-            angle: .degrees(reduceMotion ? 0 : angle)
-        )
-    }
-
-    private static let lap = 3.0
-
-    private static let busyOutline = 3.0
+    static let floatingCorner: CGFloat = 16
 
     private var focusColour: Color {
         contrast == .increased ? Palette.focusRing : Palette.textSecondary

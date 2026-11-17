@@ -761,7 +761,10 @@ purpose.
 
 ## A turn stopped by the usage limit
 
-Not measured: no usage-limit stop has been captured from Codex. A failed turn arrives as
-`turn.status == failed` with `error.message`, which becomes `.error` and a `result` with
-`isError: true`, and no error code is parsed. `TurnStopCause.ofLastTurn` answers `.other` for Codex
-until a real stop is captured.
+No usage-limit stop has been captured live from Codex. The app-server schema declares one: a failed
+turn arrives as `turn.status == failed` with `error.message` and `error.codexErrorInfo`, and among the
+string values of `CodexErrorInfo` is `usageLimitExceeded`, beside `rateLimitExceeded`,
+`sessionBudgetExceeded` and the others. `CodexTurn.decode` keeps the string form as `errorCode` (the
+object forms are connection failures), `CodexTranslation` writes it on the stored `result` row as
+`codex_error` when the turn failed, and `TurnStopCause.ofLastTurn` answers `.usageLimit` only for
+`usageLimitExceeded`. Measured against the schema of codex-cli 0.157.0.

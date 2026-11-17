@@ -19,6 +19,7 @@ final class StartProjectModel {
     var typed = ""
     var remote = ""
     var selectedCompletion: Int?
+    var gitHubLogin: GitHubLogin = .thisMac
 
     private(set) var facts = NewProjectFacts()
     private(set) var contents: FolderContents?

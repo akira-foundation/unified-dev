@@ -102,6 +102,93 @@ struct AgentWorkspaceLaunchTests {
         #expect(starts.orders.isEmpty)
     }
 
+    private func children(_ count: Int, of parent: Workspace, in f: Fixture) async throws {
+        for index in 0..<count {
+            _ = try await f.store.upsert(Workspace(
+                repoID: f.repo.id, name: "child \(index)", branch: "claude/child-\(index)",
+                path: "/tmp/child-\(index)", baseBranch: "main",
+                origin: .agent(parentWorkspaceID: parent.id, spawnToolUseID: "t\(index)")
+            ))
+        }
+    }
+
+    private func oneMore(_ f: Fixture, _ starts: Starts = Starts()) async -> AgentWorkspaceLaunch.Outcome {
+        await starts.launch().launch(
+            AgentWorkspaceOrder(prompt: "One more"), in: f.repo, as: f.identity,
+            origin: .agent(parentWorkspaceID: f.parent.id, spawnToolUseID: "fresh"), store: f.store
+        )
+    }
+
+    private func isStarted(_ outcome: AgentWorkspaceLaunch.Outcome) -> Bool {
+        if case .started = outcome { return true }
+        return false
+    }
+
+    private func refusedLimit(_ outcome: AgentWorkspaceLaunch.Outcome) -> Int? {
+        if case .refused(.overAllowance(_, retry: .whenAWorkspaceIsArchived(let limit))) = outcome { return limit }
+        return nil
+    }
+
+    @Test("an orchestrator holding fifteen workspaces it started may start another")
+    func orchestratorBelowItsCeiling() async throws {
+        let f = try await fixture("launch-orchestrator-15")
+        _ = try await f.store.setOrchestrator(true, workspaceID: f.parent.id)
+        try await children(15, of: f.parent, in: f)
+
+        #expect(isStarted(await oneMore(f)))
+    }
+
+    @Test("an orchestrator holding sixteen workspaces it started is refused at sixteen")
+    func orchestratorAtItsCeiling() async throws {
+        let f = try await fixture("launch-orchestrator-16")
+        _ = try await f.store.setOrchestrator(true, workspaceID: f.parent.id)
+        try await children(16, of: f.parent, in: f)
+        let starts = Starts()
+
+        let outcome = await oneMore(f, starts)
+
+        #expect(refusedLimit(outcome) == 16)
+        #expect(starts.orders.isEmpty)
+        guard case .refused(let refusal) = outcome else { return }
+        #expect(refusal.sentence == WorkspaceStartAllowance.running(limit: 16).refusal(count: 16))
+    }
+
+    @Test("an ordinary workspace may start its eighth and is refused at eight")
+    func ordinaryWorkspaceKeepsEight() async throws {
+        let below = try await fixture("launch-ordinary-7")
+        try await children(7, of: below.parent, in: below)
+        let at = try await fixture("launch-ordinary-8")
+        try await children(8, of: at.parent, in: at)
+
+        #expect(isStarted(await oneMore(below)))
+        #expect(refusedLimit(await oneMore(at)) == 8)
+    }
+
+    @Test("another workspace being the project's orchestrator lends an ordinary one nothing")
+    func theRoleIsTheCallersOwn() async throws {
+        let f = try await fixture("launch-neighbour-orchestrator")
+        let orchestrator = try await f.store.upsert(Workspace(
+            repoID: f.repo.id, name: "Bridge", branch: "bridge", path: "/tmp/bridge", baseBranch: "main"
+        ))
+        _ = try await f.store.setOrchestrator(true, workspaceID: orchestrator.id)
+        try await children(8, of: f.parent, in: f)
+
+        #expect(refusedLimit(await oneMore(f)) == 8)
+    }
+
+    @Test("a workspace that stops being the orchestrator is held to eight at its next call")
+    func losingTheRoleLowersTheCeiling() async throws {
+        let f = try await fixture("launch-orchestrator-lost")
+        _ = try await f.store.setOrchestrator(true, workspaceID: f.parent.id)
+        try await children(8, of: f.parent, in: f)
+
+        #expect(isStarted(await oneMore(f)))
+
+        _ = try await f.store.setOrchestrator(false, workspaceID: f.parent.id)
+
+        #expect(refusedLimit(await oneMore(f)) == 8)
+    }
+
     @Test("the owner's rate says when the next start is free")
     func ownerRate() async throws {
         let f = try await fixture("launch-rate")

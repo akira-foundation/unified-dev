@@ -14,11 +14,13 @@ public struct Subagent: Sendable, Hashable, Identifiable {
     public private(set) var outputFile: String?
     public private(set) var elapsedSeconds: Int = 0
     public let startedAt: Date
+    public private(set) var workingSince: Date
     public private(set) var retry: AgentRetry?
     public private(set) var finishedAt: Date?
 
     init(_ start: SubagentStart, at now: Date) {
         startedAt = now
+        workingSince = now
         id = start.id
         toolUseID = start.toolUseID
         description = start.description
@@ -47,6 +49,7 @@ public struct Subagent: Sendable, Hashable, Identifiable {
         startedAt: Date = Date()
     ) {
         self.startedAt = startedAt
+        self.workingSince = min(startedAt, (finishedAt ?? startedAt).addingTimeInterval(-Double(elapsedSeconds)))
         self.id = id
         self.toolUseID = toolUseID
         self.description = description
@@ -68,13 +71,13 @@ public struct Subagent: Sendable, Hashable, Identifiable {
     public var hasOutput: Bool { !(outputFile ?? "").isEmpty }
 
     public func secondsElapsed(at now: Date) -> Int {
-        let ours = Int((finishedAt ?? now).timeIntervalSince(startedAt))
-        return max(elapsedSeconds, max(0, ours))
+        max(0, Int((finishedAt ?? now).timeIntervalSince(workingSince)))
     }
 
     fileprivate mutating func move(to state: SubagentState, at now: Date) {
         self.state = state
         if state == .running {
+            if finishedAt != nil { workingSince = now }
             finishedAt = nil
             return
         }
@@ -92,9 +95,11 @@ public struct Subagent: Sendable, Hashable, Identifiable {
         self.outputFile = outputFile
     }
 
-    fileprivate mutating func tick(_ progress: SubagentProgress) {
+    fileprivate mutating func tick(_ progress: SubagentProgress, at now: Date) {
         elapsedSeconds = max(elapsedSeconds, progress.elapsedSeconds)
         retry = progress.retry
+        let reported = now.addingTimeInterval(-Double(progress.elapsedSeconds))
+        if reported.timeIntervalSince(workingSince) <= -1 { workingSince = reported }
     }
 }
 
@@ -172,7 +177,7 @@ public struct SubagentRoster: Sendable, Hashable {
                   let index = subagents.firstIndex(where: { $0.id == id }),
                   subagents[index].state == .running
             else { return }
-            subagents[index].tick(progress)
+            subagents[index].tick(progress, at: now)
 
         case .patched(let patch):
             guard let index = subagents.firstIndex(where: { $0.id == patch.id }) else { return }

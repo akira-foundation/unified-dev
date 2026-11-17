@@ -164,6 +164,8 @@ public struct WorkSuggestTool: BridgeToolHandling {
             "The repository at \(path), which Unified Dev does not have yet. The owner can add it from the card."
         case .remote(let slug):
             "\(slug) on GitHub, which has to be cloned and added before it can start. The card says so and offers no start."
+        case .orchestrator(let id):
+            "The orchestrator of '\(projects.first { $0.id == id }?.name ?? id.rawValue)', started on the owner's click."
         }
     }
 }

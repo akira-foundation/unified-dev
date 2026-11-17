@@ -18,15 +18,19 @@ public struct GrokQuotaSource: AgentQuotaSource {
     private let timeout: Duration
     private let bundleIdentifier: String?
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
+    private let watchdogSleep: @Sendable (Duration) async throws -> Void
+    private let loginShellReady: @Sendable () async -> Void
 
     public init(
-        executable: String = GrokClient.executable,
+        executable: String = AgentKind.grok.executableName,
         cwd: String = AgentScratchDirectory.current(),
         environment: [String: String]? = nil,
         account: AgentAccountHome? = nil,
         timeout: Duration = GrokQuotaSource.timeout,
         bundleIdentifier: String? = Bundle.main.bundleIdentifier,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = GrokClient.spawn
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = ACPClient.spawn,
+        watchdogSleep: @escaping @Sendable (Duration) async throws -> Void = ACPClient.taskSleep,
+        loginShellReady: @escaping @Sendable () async -> Void = LoginShellPath.readiness
     ) {
         self.executable = executable
         self.cwd = cwd
@@ -35,23 +39,28 @@ public struct GrokQuotaSource: AgentQuotaSource {
         self.timeout = timeout
         self.bundleIdentifier = bundleIdentifier
         self.makeProcess = makeProcess
+        self.watchdogSleep = watchdogSleep
+        self.loginShellReady = loginShellReady
     }
 
+    public var holder: QuotaHolder { QuotaHolder(provider: Self.provider, home: account) }
+
     public func standing() async -> QuotaStanding {
-        await LoginShellPath.ready()
+        await loginShellReady()
         let wouldReadTheOwnersLogin = account == nil && PreviewIdentity.isPreview(bundleIdentifier: bundleIdentifier)
         return QuotaStanding(isInstalled: !wouldReadTheOwnersLogin && Shell.which(executable) != nil)
     }
 
     public func read() async -> Data? {
-        await LoginShellPath.ready()
-        let configuration = GrokClient.Configuration(
+        await loginShellReady()
+        let configuration = ACPClient.Configuration(
+            dialect: .grok,
             executable: executable,
             cwd: cwd,
             account: account,
             environment: environment ?? Shell.environment()
         )
-        let client = GrokClient(configuration: configuration, makeProcess: makeProcess)
+        let client = ACPClient(configuration: configuration, makeProcess: makeProcess, watchdogSleep: watchdogSleep)
         defer { Task { await client.stop() } }
         do {
             try await client.start(timeout: timeout)
@@ -61,7 +70,7 @@ public struct GrokQuotaSource: AgentQuotaSource {
         do {
             let result = try await client.send(Self.method, params: .object([:]), timeout: timeout)
             return try JSONEncoder().encode(result)
-        } catch let refusal as GrokRPCError where refusal.code == Self.methodNotFound {
+        } catch let refusal as ACPRPCError where refusal.code == Self.methodNotFound {
             return Self.reportsNothing
         } catch {
             return nil

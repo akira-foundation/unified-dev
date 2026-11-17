@@ -1,7 +1,7 @@
 import Foundation
 
 public extension GitHub {
-    private static var summaryFields: String {
+    internal static var summaryFields: String {
         [
             "number", "title", "author", "headRefName", "baseRefName",
             "isDraft", "state", "isCrossRepository", "headRepositoryOwner",
@@ -9,7 +9,7 @@ public extension GitHub {
     }
 
     static func openPullRequests(repoPath: String, limit: Int = 30) async throws -> [PullRequestListing] {
-        guard await isAvailable() else { return [] }
+        guard await isAvailable(directory: repoPath) else { return [] }
         let result = try await run(
             "gh",
             ["pr", "list", "--state", "open", "--limit", String(limit), "--json", summaryFields],

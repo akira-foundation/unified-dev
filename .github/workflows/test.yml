@@ -340,6 +340,9 @@ jobs:
       - name: Check the disk image builds
         run: zsh Tools/dmg/tests/disk-image.sh
 
+      - name: Check a signing identity with an accent reaches codesign intact
+        run: zsh Tools/release/tests/codesign-identity.sh
+
       - name: Check welcome navigation and window sizing
         run: ./Tools/welcome-layout-probe.sh
 

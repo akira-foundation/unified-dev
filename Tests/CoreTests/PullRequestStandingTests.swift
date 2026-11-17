@@ -199,6 +199,50 @@ struct PullRequestStandingTests {
         #expect(standing.reach(of: .merge) == nil)
     }
 
+    @Test("Asking to fix a conflict goes on the click and says so, and no longer speaks of the composer")
+    func conflictRequestLeavesOnTheClick() throws {
+        let standing = standing(pullRequest: pullRequest(mergeable: "CONFLICTING"))
+        let sentence = try #require(standing.button?.sentence)
+
+        #expect(sentence == "Ask this workspace's agent to bring main into this worktree, resolve the"
+            + " conflicts here and push \(Self.branch). The request goes as soon as you click and"
+            + " does not appear in the conversation. #\(standing.number ?? 0) is not merged.")
+    }
+
+    @Test("Every request the bar sends says it leaves without a bubble")
+    func everyRequestOfTheBarIsSilent() throws {
+        let openPullRequest = standing(pullRequest: nil).button
+        let failedCheck = standing(
+            pullRequest: pullRequest(checks: .failing, checksSummary: "1 of 12 checks failed")
+        ).button
+        let draft = standing(
+            pullRequest: pullRequest(isDraft: true, checks: .passing, checksSummary: "12 checks passed")
+        ).button
+        let push = standing(
+            pullRequest: pullRequest(checks: .passing), localWork: LocalWork(unpushedCommits: 2)
+        ).button
+
+        #expect(draft?.act == .markReadyForReview)
+        #expect(draft?.sentence.contains(PullRequestStanding.sentWithoutABubble) == true)
+        #expect(push?.act == .push)
+        #expect(push?.sentence.contains(PullRequestStanding.sentWithoutABubble) == true)
+        #expect(openPullRequest?.act == .openPullRequest)
+        #expect(openPullRequest?.sentence.contains(PullRequestStanding.sentWithoutABubble) == true)
+        #expect(failedCheck?.act == .askToFixChecks)
+        #expect(failedCheck?.sentence.contains(PullRequestStanding.sentWithoutABubble) == true)
+        #expect(PullRequestStanding.sentWithoutABubble
+            == "The request goes as soon as you click and does not appear in the conversation.")
+    }
+
+    @Test("Merging says it waits for the confirmation, and then leaves without a bubble")
+    func mergeWaitsForTheConfirmation() throws {
+        let merge = standing(pullRequest: pullRequest(checks: .passing)).button
+
+        #expect(merge?.act == .merge)
+        #expect(merge?.sentence.hasSuffix("Once you confirm, the request goes without appearing in the conversation.") == true)
+        #expect(merge?.sentence.contains(PullRequestStanding.sentWithoutABubble) == false)
+    }
+
     @Test("A draft stands on the pull request, and marking it ready is next")
     func draft() {
         let standing = standing(

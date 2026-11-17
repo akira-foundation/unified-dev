@@ -4,19 +4,18 @@ import Core
 struct WindowToolbar: ToolbarContent {
     let app: AppModel
     let centreWidth: CGFloat
-    let showsProfileMark: Bool
+    let columns: WindowColumns
     let startFreshAskConversation: () -> Void
 
     @FocusedValue(\.homeScopeCounts) private var homeCounts: HomeScopeCounts?
 
     @FocusedValue(\.notesFormatting) private var notesFormatting: NotesFormattingContext?
 
+    private var collapsesProfileSwitcher: Bool { columns.collapsesProfileSwitcher }
+
     var body: some ToolbarContent {
-        if showsProfileMark, let profile = app.activeProfile {
-            ToolbarItem(placement: .navigation) {
-                ProfileWindowMark(profile: profile)
-            }
-            .sharedBackgroundVisibility(.hidden)
+        if collapsesProfileSwitcher {
+            ProfileSwitcherToolbar(app: app, placement: .navigation, drawsSidebar: false, sidebarWidth: 0)
         }
 
         if app.selection == .home {
@@ -31,7 +30,7 @@ struct WindowToolbar: ToolbarContent {
 
         if let tabs = conversationTabs {
             ToolbarItem(placement: .principal) {
-                let width = ToolbarTabsWidth.width(inColumn: centreWidth, showingProfileMark: showsProfileMark)
+                let width = ToolbarTabsWidth.width(inColumn: centreWidth, besideCollapsedSwitcher: collapsesProfileSwitcher)
                 tabs
                     .frame(width: width)
                     .id(width.rounded())
@@ -67,14 +66,16 @@ struct WindowToolbar: ToolbarContent {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
-            Button {
-                SearchPanelModel.shared.open(app: app)
-            } label: {
-                Image(systemName: "magnifyingglass")
+        if columns.inspectorToggleSection == .centre {
+            ToolbarItem(placement: .primaryAction) {
+                InspectorToggle(visibility: app.inspectorVisibility) { app.toggleInspector() }
             }
-            .help("Search workspaces, transcripts and commands")
-            .accessibilityLabel("Search workspaces, transcripts and commands")
+        }
+
+        if columns.trailingSection == .centre {
+            ToolbarItem(placement: .primaryAction) {
+                NotificationBellButton(inbox: app.notificationInbox, profiles: app.profiles)
+            }
         }
 
         ToolbarSpacer(.fixed, placement: .primaryAction)

@@ -21,6 +21,8 @@ struct SearchPanelOverlay: ViewModifier {
             .onChange(of: app.transcriptResults) { _, _ in panel.rebuild(app: app) }
             .onChange(of: app.runningWorkspaceIDs) { _, _ in panel.rebuild(app: app) }
             .onChange(of: app.waitingWorkspaceIDs) { _, _ in panel.rebuild(app: app) }
+            .onChange(of: app.profiles) { _, _ in panel.rebuild(app: app) }
+            .onChange(of: app.activeProfileID) { _, _ in panel.rebuild(app: app) }
     }
 
     private func install() {

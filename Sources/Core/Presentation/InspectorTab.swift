@@ -3,6 +3,7 @@ import Foundation
 public enum InspectorTab: String, Hashable, CaseIterable, Sendable {
     case allFiles = "All files"
     case changes = "Changes"
+    case side = "Side"
     case tasks = "Tasks"
     case checks = "Checks"
 
@@ -10,6 +11,7 @@ public enum InspectorTab: String, Hashable, CaseIterable, Sendable {
         switch self {
         case .allFiles: "list.bullet"
         case .changes: "plus.forwardslash.minus"
+        case .side: "arrow.turn.down.right"
         case .tasks: "checklist"
         case .checks: "checkmark.circle"
         }
@@ -17,10 +19,13 @@ public enum InspectorTab: String, Hashable, CaseIterable, Sendable {
 
     public static let fallback: InspectorTab = .changes
 
-    public static func available(for pullRequest: PullRequest?, hasTasks: Bool = false) -> [InspectorTab] {
+    public static func available(
+        for pullRequest: PullRequest?, hasTasks: Bool = false, hasSideConversation: Bool = false
+    ) -> [InspectorTab] {
         allCases.filter { tab in
             switch tab {
             case .allFiles, .changes: true
+            case .side: hasSideConversation
             case .tasks: hasTasks
             case .checks: hasChecks(pullRequest)
             }

@@ -29,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         servicesProvider.attach(model)
         RunningApp.attach(model)
         NotificationService.shared.attach(model)
+        #if DEBUG
+        NotificationBellJumpProbe.attach(model)
+        #endif
         WelcomeWindow.attach(model)
         CentreTabCycleShortcut.attach(model)
         SoftwareUpdater.shared.start(app: model, appDelegate: self)
@@ -237,18 +240,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
         let workspaceID = NotificationService.workspaceID(from: response)
+        let sessionID = NotificationService.sessionID(from: response)
         let reply = (response as? UNTextInputNotificationResponse)?.userText
 
         Task { @MainActor in
             if let reply, let workspaceID, !reply.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                await NotificationService.shared.reply(reply, toWorkspace: workspaceID)
+                await NotificationService.shared.reply(reply, toWorkspace: workspaceID, session: sessionID)
                 completionHandler()
                 return
             }
 
             MainWindow.raise()
             if let workspaceID {
-                OpenWorkspaceNotification.post(workspaceID)
+                if let appModel {
+                    await appModel.notificationInbox.openBanner(workspaceID: workspaceID, sessionID: sessionID)
+                } else {
+                    OpenWorkspaceNotification.post(workspaceID)
+                }
             }
             completionHandler()
         }

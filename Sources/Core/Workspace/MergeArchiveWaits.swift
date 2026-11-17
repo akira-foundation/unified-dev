@@ -12,6 +12,7 @@ public struct MergeArchiveWaits: Sendable, Equatable {
 
     public private(set) var pullRequests: [WorkspaceID: Int] = [:]
     public private(set) var recheckedIDs: Set<WorkspaceID> = []
+    public private(set) var mergedHeads: [WorkspaceID: String] = [:]
     private var announcedIDs: Set<WorkspaceID> = []
 
     public init() {}
@@ -24,12 +25,16 @@ public struct MergeArchiveWaits: Sendable, Equatable {
 
     public mutating func forget(_ id: WorkspaceID) {
         pullRequests[id] = nil
+        mergedHeads[id] = nil
         recheckedIDs.remove(id)
         announcedIDs.remove(id)
     }
 
     @discardableResult
-    public mutating func record(_ decision: MergeArchiveDecision, for id: WorkspaceID, pullRequest: Int) -> Bool {
+    public mutating func record(
+        _ decision: MergeArchiveDecision, for id: WorkspaceID, pullRequest: Int, mergedHead: String? = nil
+    ) -> Bool {
+        if decision == .archiveAfterTurn || decision == .waitForCommand { mergedHeads[id] = mergedHead }
         switch decision {
         case .archiveAfterTurn:
             wait(for: id, pullRequest: pullRequest)

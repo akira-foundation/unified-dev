@@ -107,11 +107,9 @@ extension AppModel {
             return
         }
         guard accountFingerprint(for: selectedAccountScope) == fingerprint else { return }
-        let previous = selectedAccountHomes
         selectedAccountHomes = resolution.homes
         ComposerModelCatalog.shared.adopt(accounts: resolution.homes, store: store)
-        guard !previous.isEmpty, previous != resolution.homes else { return }
-        await refreshQuotas(after: 0)
+        adoptQuotaScope(QuotaScope(homes: resolution.homes))
     }
 }
 

@@ -25,7 +25,21 @@ public struct BridgeWorkspaceCensus: Sendable {
     }
 
     public static func read(for identity: BridgeIdentity, from store: Store) async throws -> BridgeWorkspaceCensus {
-        let all = try await BridgeProfileScope.workspaces(for: identity, store: store, includeArchived: true)
+        try await read(
+            all: try await BridgeProfileScope.workspaces(for: identity, store: store, includeArchived: true),
+            from: store
+        )
+    }
+
+    static func read(in profiles: [Profile], from store: Store) async throws -> BridgeWorkspaceCensus {
+        let every = try await store.workspaces(includeArchived: true)
+        let repos = try await store.repos()
+        return try await read(
+            all: profiles.flatMap { ProfileScope.workspaces(every, repos: repos, in: $0.id) }, from: store
+        )
+    }
+
+    private static func read(all: [Workspace], from store: Store) async throws -> BridgeWorkspaceCensus {
         let activity = try await store.sessionActivity()
         return BridgeWorkspaceCensus(
             all: all,

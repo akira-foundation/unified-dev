@@ -215,7 +215,7 @@ private struct StripRow: View {
         } trailing: {
             if let inspectorVisible {
                 TabStripSeparator()
-                InspectorToggle(isVisible: .constant(inspectorVisible))
+                InspectorToggle(visibility: InspectorVisibility(isVisible: inspectorVisible)) {}
             }
         }
         .frame(width: 620)

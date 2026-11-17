@@ -92,8 +92,8 @@ final class TerminalCommandRecall {
         recorded[pane] = command
 
         if let session, let persistence {
-            let pids = await persistence.panePIDs()
-            if let shell = pids[session], let table = await ProcessTable.current(),
+            let pids = await persistence.panePIDs(notOlderThan: .zero)
+            if let shell = pids[session], let table = await ProcessTable.recent(notOlderThan: .zero),
                table.foregroundCommand(ofShell: shell) != nil {
                 return
             }
@@ -104,11 +104,12 @@ final class TerminalCommandRecall {
 
     func record(panes: [Pane], persistence: TerminalPersistence?, store: Store) async {
         runningCommands.formIntersection(panes.map(\.pane))
-        guard !panes.isEmpty, let table = await ProcessTable.current() else { return }
+        guard !panes.isEmpty,
+              let table = await ProcessTable.recent(notOlderThan: TerminalActivitySchedule.readingMaxAge) else { return }
 
         var pids: [String: Int32] = [:]
         if panes.contains(where: { $0.session != nil }) {
-            pids = await persistence?.panePIDs() ?? [:]
+            pids = await persistence?.panePIDs(notOlderThan: TerminalActivitySchedule.readingMaxAge) ?? [:]
         }
 
         for pane in panes {

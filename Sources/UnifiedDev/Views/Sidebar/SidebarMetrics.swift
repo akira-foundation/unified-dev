@@ -3,8 +3,6 @@ import SwiftUI
 enum SidebarMetrics {
     static let headerLead: CGFloat = 8
 
-    static let switcherEdge: CGFloat = 18
-
     static let navIconSize: CGFloat = 16
 
     static let navIconColumn: CGFloat = 21

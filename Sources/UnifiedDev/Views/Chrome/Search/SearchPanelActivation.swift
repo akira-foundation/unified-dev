@@ -20,6 +20,9 @@ enum SearchPanelActivation {
 
         case .command(let hit):
             run(hit.item.action, mode: mode, panel: panel, app: app)
+
+        case .profile(let hit):
+            Task { await app.switchProfile(to: hit.profile.id) }
         }
     }
 

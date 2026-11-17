@@ -61,7 +61,8 @@ struct ClaudeQuotaSourceTests {
         ClaudeCodeQuotaSource(
             accountPath: accountPath,
             clock: { now },
-            makeProcess: { _ in ScriptedAsk(answer: answer) }
+            makeProcess: { _ in ScriptedAsk(answer: answer) },
+            loginShellReady: {}
         )
     }
 
@@ -87,7 +88,8 @@ struct ClaudeQuotaSourceTests {
             accountPath: path,
             credentialPath: credentialPath,
             clock: { now },
-            makeProcess: { _ in ScriptedAsk(answer: answer) }
+            makeProcess: { _ in ScriptedAsk(answer: answer) },
+            loginShellReady: {}
         )
         let report = await AgentQuotaSources.report([asked], at: now)
         return try #require(report.accounts.first).plan
@@ -231,7 +233,7 @@ struct ClaudeQuotaSourceTests {
     @Test("an executable that is not on PATH is reported as not installed, with its last report")
     func standingNamesWhatIsThere() async {
         let path = accountFile(fetchedAtMs: fetchedAtMs)
-        let absent = ClaudeCodeQuotaSource(executable: "unifieddev-no-such-agent", accountPath: path)
+        let absent = ClaudeCodeQuotaSource(executable: "unifieddev-no-such-agent", accountPath: path, loginShellReady: {})
         let standing = await absent.standing()
 
         #expect(!standing.isInstalled)
@@ -240,7 +242,7 @@ struct ClaudeQuotaSourceTests {
 
     @Test("an executable that is on PATH is reported as installed")
     func standingFindsAnInstalledAgent() async {
-        let installed = ClaudeCodeQuotaSource(executable: "/bin/sh", accountPath: "/nonexistent/claude.json")
+        let installed = ClaudeCodeQuotaSource(executable: "/bin/sh", accountPath: "/nonexistent/claude.json", loginShellReady: {})
         let standing = await installed.standing()
 
         #expect(standing.isInstalled)
@@ -249,8 +251,8 @@ struct ClaudeQuotaSourceTests {
 
     @Test("Codex is asked only when its own executable is there, and carries no last report")
     func codexStanding() async {
-        let absent = await CodexQuotaSource(executable: "unifieddev-no-such-agent").standing()
-        let installed = await CodexQuotaSource(executable: "/bin/sh").standing()
+        let absent = await CodexQuotaSource(executable: "unifieddev-no-such-agent", loginShellReady: {}).standing()
+        let installed = await CodexQuotaSource(executable: "/bin/sh", loginShellReady: {}).standing()
 
         #expect(!absent.isInstalled)
         #expect(installed.isInstalled)

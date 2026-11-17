@@ -18,7 +18,7 @@ struct PreAccountChatOwnersTests {
 
     private let defaultClaude = AgentAccountHome.defaultID(for: .claudeCode)
     private let defaultCodex = AgentAccountHome.defaultID(for: .codex)
-    private let accountsMigrationFromTheEnd: Int32 = 11
+    private let accountsMigrationFromTheEnd: Int32 = 14
 
     private func seeded(_ name: String, withCodex: Bool = true) async throws -> Seeded {
         let path = TestScratch.unique(name) + ".sqlite"

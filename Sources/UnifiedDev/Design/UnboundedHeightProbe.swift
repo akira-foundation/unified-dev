@@ -33,6 +33,7 @@ enum UnboundedHeightProbe {
         window.setFrameOrigin(GalleryOffscreen.parked)
         window.alphaValue = 1
         guard let app = ProbeHarness.appModel else { harness.fail("no app model") }
+        app.isInspectorVisible = true
         for _ in 0..<200 where !app.isLoaded { try? await Task.sleep(for: .milliseconds(100)) }
 
         var failures: [String] = []

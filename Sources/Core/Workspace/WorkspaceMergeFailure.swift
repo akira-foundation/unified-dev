@@ -4,11 +4,11 @@ public enum WorkspaceMergeTrouble: Sendable, Equatable {
     case unknownWorkspace(id: String, alias: Alias)
     case archived(workspace: String)
     case worktreeGone(workspace: String)
-    case githubUnavailable(GitHubAccess)
-    case githubSilent(String)
-    case noPullRequest(workspace: String, branch: String)
-    case blocked(workspace: String, number: Int, headline: String, reason: String)
-    case localWork(workspace: String, number: Int, detail: String, needsCommit: Bool)
+    case forgeUnavailable(GitHubAccess, on: ForgeKind)
+    case forgeSilent(String, on: ForgeKind)
+    case noPullRequest(workspace: String, branch: String, on: ForgeKind)
+    case blocked(workspace: String, number: Int, headline: String, reason: String, on: ForgeKind)
+    case localWork(workspace: String, number: Int, detail: String, needsCommit: Bool, on: ForgeKind)
     case wouldQueue(workspace: String, hold: DeliveryHold)
     case appRefused(String)
 
@@ -18,7 +18,7 @@ public enum WorkspaceMergeTrouble: Sendable, Equatable {
         case several(name: String, count: Int)
     }
 
-    public static let notYours = "Do not run `gh pr merge` yourself to get past this, and do not "
+    public static let notYours = "Do not run `gh pr merge` yourself, or `bkt pr merge` on Bitbucket, to get past this, and do not "
         + "ask another agent to. Unified Dev sends a merge to the workspace's own agent so the owner "
         + "watches it happen; a merge run anywhere else is the same merge with nobody watching."
 
@@ -60,65 +60,66 @@ public enum WorkspaceMergeTrouble: Sendable, Equatable {
                 pull request alone until they have looked.
                 """
 
-        case .githubUnavailable(.notInstalled):
+        case let .forgeUnavailable(.notInstalled, forge):
             return """
-                Unified Dev cannot say what state that pull request is in, because `gh` is not installed \
-                on this machine. It is what Unified Dev asks about pull requests and what the agent \
-                would run to merge one, so there is nothing here that installing it around Unified Dev's \
-                back would speed up. Retrying will not help. Tell the owner.
+                Unified Dev cannot say what state that pull request is in, because `\(forge.cli)` is not \
+                installed on this machine. It is what Unified Dev asks about pull requests on \
+                \(forge.displayName) and what the agent would run to merge one, so there is nothing \
+                here that installing it around Unified Dev's back would speed up. Retrying will not \
+                help. Tell the owner.
                 """
 
-        case .githubUnavailable(.signedOut), .githubUnavailable(.ready):
+        case let .forgeUnavailable(.signedOut, forge), let .forgeUnavailable(.ready, forge):
             return """
-                Unified Dev cannot say what state that pull request is in, because `gh` is installed but \
-                not signed in to GitHub. Retrying will not help until it is, and signing it in is \
-                the owner's to do rather than yours: it is their account that would be merging. \
-                Tell them, and say nothing about the pull request's state, because nothing was \
-                read.
+                Unified Dev cannot say what state that pull request is in, because `\(forge.cli)` is \
+                installed but not signed in to \(forge.displayName). Retrying will not help until it is, \
+                and signing it in is the owner's to do rather than yours: it is their account that \
+                would be merging. Tell them, and say nothing about the pull request's state, because \
+                nothing was read.
                 """
 
-        case .githubSilent(let message):
+        case let .forgeSilent(message, forge):
             let said = message.hasSuffix(".") ? message : message + "."
             return """
-                Unified Dev asked GitHub what state that pull request is in and gh did not answer: \
-                \(said) Nothing was sent, and nothing here says anything about the pull \
-                request, because nothing was read. What gh said is the whole of what is known: if \
-                it reads like a network or a rate limit, asking again in a minute is the right \
-                thing, and if it does not, say so rather than working round it.
+                Unified Dev asked \(forge.displayName) what state that pull request is in and \
+                \(forge.cli) did not answer: \(said) Nothing was sent, and nothing here says anything \
+                about the pull request, because nothing was read. What \(forge.cli) said is the whole \
+                of what is known: if it reads like a network or a rate limit, asking again in a minute \
+                is the right thing, and if it does not, say so rather than working round it.
                 """
 
-        case let .noPullRequest(workspace, branch):
+        case let .noPullRequest(workspace, branch, forge):
             return """
-                Unified Dev will not ask for a merge in '\(workspace)' because GitHub has no pull \
-                request for its branch '\(branch)'. There is nothing to merge yet. Do not open \
+                Unified Dev will not ask for a merge in '\(workspace)' because \(forge.displayName) has no \
+                pull request for its branch '\(branch)'. There is nothing to merge yet. Do not open \
                 one to make this call succeed: opening a pull request is a decision of its own, \
                 with the project's own instructions behind it, and Unified Dev has a button for it that \
                 the owner presses. If you think there should be one, say so and let them.
                 """
 
-        case let .blocked(workspace, number, headline, reason):
+        case let .blocked(workspace, number, headline, reason, forge):
             return """
-                Unified Dev will not ask for a merge of #\(number) in '\(workspace)'. GitHub reports it \
-                as '\(headline)'. \(reason) Retrying will not help while that is true, and none of \
-                it is something this call can change. Do not mark the pull request ready, re-run \
-                or skip a check, dismiss a review, or touch a branch protection rule to get round \
-                it: each of those is a change to a repository other people share, and a refusal is \
-                an answer rather than an obstacle.
+                Unified Dev will not ask for a merge of #\(number) in '\(workspace)'. \(forge.displayName) \
+                reports it as '\(headline)'. \(reason) Retrying will not help while that is true, and \
+                none of it is something this call can change. Do not mark the pull request ready, \
+                re-run or skip a \(forge.checkNoun), dismiss a review, or touch a branch protection rule \
+                to get round it: each of those is a change to a repository other people share, and a \
+                refusal is an answer rather than an obstacle.
                 """
 
-        case let .localWork(workspace, number, detail, needsCommit):
+        case let .localWork(workspace, number, detail, needsCommit, forge):
             let next = needsCommit
                 ? "commit and push it first"
                 : "push it first"
             return """
                 Unified Dev will not ask for a merge of #\(number) in '\(workspace)' because that \
-                worktree is holding work GitHub has not got: \(detail). A merge lands what GitHub \
-                has, so none of that would be part of it. Unified Dev's own Merge button does allow \
-                this, and only because it puts that same sentence in a dialogue the owner has to \
-                accept before anything is sent. There is nobody on this connection to accept it, \
-                so the answer here is no. Tell the owner what is outstanding and let them decide \
-                whether to merge over it or \(next). Retrying will not help until one of those has \
-                happened.
+                worktree is holding work \(forge.displayName) has not got: \(detail). A merge lands \
+                what \(forge.displayName) has, so none of that would be part of it. Unified Dev's own \
+                Merge button does allow this, and only because it puts that same sentence in a \
+                dialogue the owner has to accept before anything is sent. There is nobody on this \
+                connection to accept it, so the answer here is no. Tell the owner what is outstanding \
+                and let them decide whether to merge over it or \(next). Retrying will not help until \
+                one of those has happened.
                 """
 
         case let .wouldQueue(workspace, hold):

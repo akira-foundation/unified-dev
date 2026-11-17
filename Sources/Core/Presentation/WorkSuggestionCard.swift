@@ -7,11 +7,12 @@ public enum WorkSuggestionCard {
         case newWorkspace
         case here
         case addProjectAndStart
+        case startOrchestrator
         case dismiss
 
         public var choice: WorkSuggestionLaunch.Choice? {
             switch self {
-            case .newWorkspace, .addProjectAndStart: .newWorkspace
+            case .newWorkspace, .addProjectAndStart, .startOrchestrator: .newWorkspace
             case .here: .here
             case .dismiss: nil
             }
@@ -84,6 +85,15 @@ public enum WorkSuggestionCard {
             ]
         case .remote:
             return [dismiss]
+        case .orchestrator:
+            return [
+                Offer(
+                    action: .startOrchestrator, title: "Start Orchestrator",
+                    accessibilityLabel: "Start an orchestrator in \(context.projectName) and deliver the message to it",
+                    isProminent: true
+                ),
+                dismiss,
+            ]
         }
     }
 
@@ -91,7 +101,7 @@ public enum WorkSuggestionCard {
         guard suggestion.state == .pending else { return false }
         switch suggestion.target {
         case .sameProject, .project: return true
-        case .folder, .remote: return false
+        case .folder, .remote, .orchestrator: return false
         }
     }
 
@@ -109,6 +119,8 @@ public enum WorkSuggestionCard {
             "In \(path), which is not in Unified Dev yet. Starting it adds the folder as a project first."
         case .remote(let slug):
             WorkSuggestionWording.cloneFirst(slug)
+        case .orchestrator:
+            WorkSuggestionWording.awaitsOrchestrator(context.projectName)
         }
     }
 
@@ -134,6 +146,16 @@ public enum WorkSuggestionCard {
     }
 
     public static func accessibilityLabel(for suggestion: WorkSuggestion) -> String {
-        "\(heading): \(suggestion.title)"
+        "\(heading(for: suggestion)): \(suggestion.title)"
+    }
+
+    public static func heading(for suggestion: WorkSuggestion) -> String {
+        guard case .orchestrator = suggestion.target else { return heading }
+        return "Message waiting for an orchestrator"
+    }
+
+    public static func promptLabel(for suggestion: WorkSuggestion) -> String {
+        guard case .orchestrator = suggestion.target else { return "Prompt" }
+        return "Message"
     }
 }

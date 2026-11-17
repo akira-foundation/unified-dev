@@ -85,10 +85,22 @@ public indirect enum MarkdownBlock: Identifiable, Sendable, Hashable {
 
 public enum MarkdownParser: Sendable {
     public static func parse(_ text: String) -> [MarkdownBlock] {
-        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+        parse(lines: normalized(text).components(separatedBy: "\n")).blocks
+    }
+
+    static func normalized(_ text: String) -> String {
+        text.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
-        var parser = BlockParser(lines: normalized.components(separatedBy: "\n"), allowIndentedCode: true)
-        return parser.parse()
+    }
+
+    static func parse(lines: [String]) -> (blocks: [MarkdownBlock], starts: [Int]) {
+        var parser = BlockParser(lines: lines, allowIndentedCode: true)
+        let blocks = parser.parse()
+        return (blocks, parser.starts)
+    }
+
+    static func isBlankLine(_ line: String) -> Bool {
+        isBlank(line)
     }
 }
 
@@ -104,6 +116,7 @@ private struct BlockParser {
     let lines: [String]
     let allowIndentedCode: Bool
     var index = 0
+    var starts: [Int] = []
 
     mutating func parse() -> [MarkdownBlock] {
         var blocks: [MarkdownBlock] = []
@@ -129,6 +142,7 @@ private struct BlockParser {
             } else {
                 blocks.append(parseParagraphOrSetext())
             }
+            if blocks.count > starts.count { starts.append(previous) }
             if index <= previous { index = previous + 1 }
         }
         return blocks

@@ -41,11 +41,10 @@ public struct BackgroundWake: Sendable, Equatable {
 
     public var exitLabel: String? { exitCode.map { "exit \($0)" } }
 
-    private static let probeLength = 256
     private static let marker = Data("\"subtype\":\"task_notification\"".utf8)
 
     public static func isRow(kind: MessageKind, payload: Data) -> Bool {
-        kind == .system && payload.prefix(probeLength).range(of: marker) != nil
+        kind == .system && payload.prefix(TranscriptRowInk.probeLength).range(of: marker) != nil
     }
 
     public static func opensTurn(during state: SessionState) -> Bool {

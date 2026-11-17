@@ -59,6 +59,8 @@ struct PreviewScenarioTests {
         #"{"projects":[]}"#,
         #"{"projects":[{"name":"../escape"}]}"#,
         #"{"projects":[{"name":".hidden"}]}"#,
+        #"{"projects":[{"name":"--bare"}]}"#,
+        #"{"projects":[{"name":"-q"}]}"#,
         #"{"projects":[{"name":"a"},{"name":"A"}]}"#,
         #"{"projects":[{"name":"a","files":{"/etc/hosts":"x"}}]}"#,
         #"{"projects":[{"name":"a","files":{"src/../../x":"x"}}]}"#,
@@ -275,7 +277,7 @@ struct PreviewScenarioTests {
         let merlin = try #require(scenario.projects.last)
         let settings = try TOML.parse(try #require(merlin.files[".unifieddev/settings.toml"]))
         let model = settings["models.default"]?.stringValue
-        #expect(model == "codex:gpt-5.6-sol")
+        #expect(model == "codex:" + TestScenarios.codexModel)
         #expect(ModelIdentifier.resolve(try #require(model)).kind == .codex)
     }
 }

@@ -10,17 +10,23 @@ struct UnifiedDevApp: App {
         if SourceEditorProbe.isRequested { SourceEditorProbe.runAndExit() }
         if AppChromeProbe.isRequested { AppChromeProbe.runAndExit() }
         if BackgroundTaskProbe.isRequested { BackgroundTaskProbe.runAndExit() }
+        if SideConversationProbe.isRequested { SideConversationProbe.runAndExit() }
         if ComposerInputProbe.isRequested { ComposerInputProbe.runAndExit() }
+        if ComposerBusyProbe.isRequested { ComposerBusyProbe.runAndExit() }
         if MarkdownTableProbe.isRequested { MarkdownTableProbe.runAndExit() }
         if MarkdownSelectionProbe.isRequested { MarkdownSelectionProbe.runAndExit() }
         if MenuBarSpendProbe.isRequested { MenuBarSpendProbe.schedule() }
         if SpendScreenProbe.isRequested { SpendScreenProbe.runAndExit() }
         if AgentAccountProbe.isRequested { AgentAccountProbe.runAndExit() }
+        if MergeConfirmationProbe.isRequested { MergeConfirmationProbe.runAndExit() }
         if OrchestratorSidebarProbe.isRequested { OrchestratorSidebarProbe.runAndExit() }
         if RepoOrchestratorProbe.isRequested { RepoOrchestratorProbe.runAndExit() }
         if UpdateAlertProbe.isRequested { UpdateAlertProbe.runAndExit() }
         if ArchiveRetentionProbe.isRequested { ArchiveRetentionProbe.runAndExit() }
         if ProfileProbe.isRequested { ProfileProbe.runAndExit() }
+        if NotificationBellProbe.isRequested { NotificationBellProbe.runAndExit() }
+        if ProfileToolbarProbe.isRequested { ProfileToolbarProbe.runAndExit() }
+        if SearchPanelProbe.isRequested { SearchPanelProbe.runAndExit() }
         if CanvasEditorProbe.isRequested { CanvasEditorProbe.runAndExit() }
         #endif
         if BrowserViewportDemo.isRequested { BrowserViewportDemo.schedule() }
@@ -67,10 +73,14 @@ struct UnifiedDevApp: App {
         if ReplyQuoteProbe.isRequested { ReplyQuoteProbe.schedule() }
         #if DEBUG
         if SelectionReplyProbe.isRequested { SelectionReplyProbe.schedule() }
+        if StartingPointSuggestionProbe.isRequested { StartingPointSuggestionProbe.schedule() }
         #endif
         if WelcomeRestartProbe.isRequested { WelcomeRestartProbe.schedule() }
 
         if IdleProbe.isRequested { IdleProbe.schedule() }
+        #if DEBUG
+        if BusyProbe.isRequested { BusyProbe.schedule() }
+        #endif
         if BrowserToolbarProbe.isRequested { BrowserToolbarProbe.schedule() }
 
         TranscriptStateDump.listen()

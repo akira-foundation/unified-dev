@@ -30,23 +30,27 @@ struct MenuBarKeepAwakeChip: View {
             }
         }
         .menuBarModule(KeepAwake.title, inset: Metrics.inset)
+        .help(detail)
     }
 
     private func header(detail: String) -> some View {
         HStack(spacing: Metrics.spacingWide) {
             Toggle(isOn: Binding(get: { KeepAwakeChip.isOn(session: keepAwake.session, at: now) }, set: { _ in tap() })) {
-                VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: Metrics.spacingWide) {
                     Text(KeepAwake.title)
                         .font(Typo.labelEmphasis)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                    Spacer(minLength: Metrics.spacingWide)
                     Text(detail)
                         .font(Typo.caption)
                         .foregroundStyle(Palette.textSecondary)
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
             .toggleStyle(MenuBarChipToggleStyle(symbolName: KeepAwake.menuBarSymbol))
             .panelFocus(focus, .keepAwake)
-            Spacer(minLength: Metrics.spacingWide)
             Button(action: reveal) {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 11, weight: .semibold))

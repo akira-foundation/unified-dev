@@ -206,11 +206,12 @@ struct LoginShellAdoptionTests {
         let store = try makeTestStore("login-shell-grok")
         let session = try await agentSession(store, kind: .grok, model: "grok-4.6")
         let box = ProcessBox()
-        let runner = GrokRunner(
+        let runner = ACPRunner(
+            dialect: .grok,
             workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session),
             makeClient: { configuration in
                 watch.noteSpawn()
-                return GrokClient(configuration: configuration, makeProcess: box.factory)
+                return ACPClient(configuration: configuration, makeProcess: box.factory)
             }
         )
 

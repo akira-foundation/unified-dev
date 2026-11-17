@@ -151,6 +151,7 @@ struct AgentRunnerArgvTests {
             "--permission-prompt-tool", "stdio",
             "--model", "opus",
             "--effort", "high",
+            "--settings", AgentRunner.settingsJSON(outputStyle: nil, guardsCrossing: true) ?? "",
         ])
     }
 
@@ -689,7 +690,7 @@ struct AgentRunnerProcessTests {
 
         #expect(activity.beginProbe(account))
         let sending = Task { try await runner.send("hello") }
-        try await Task.sleep(for: .milliseconds(100))
+        await waitUntil("the send waits for the probe") { activity.waitingRuns(account) == 1 }
         let launchedDuringProbe = recorder.all.count
         activity.endProbe(account)
         try await sending.value
@@ -719,13 +720,130 @@ struct AgentRunnerProcessTests {
         let sending = Task { try await runner.send("hello") }
         await waitUntil("the turn waits for the probe") { activity.isRunning(account) }
         runner.cancelNow()
-        try await Task.sleep(for: .milliseconds(50))
         activity.endProbe(account)
         let outcome = await sending.result
 
         #expect(throws: CancellationError.self) { try outcome.get() }
         #expect(recorder.all.isEmpty)
         #expect(!activity.isRunning(account))
+    }
+
+    @Test("a stop pressed while a send waits for the alias probe ends that send at once, with the probe still running",
+          arguments: [true, false])
+    func aStopEndsTheWaitAtOnce(fromAnyThread: Bool) async throws {
+        let store = try makeTestStore("agent")
+        let session = try await makeSession(store)
+        let recorder = ProcessRecorder()
+        let activity = ClaudeAccountActivity()
+        let account = AgentAccountHome.defaultID(for: .claudeCode)
+        let runner = AgentRunner(
+            workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session),
+            activity: activity, makeProcess: recorder.factory
+        )
+
+        #expect(activity.beginProbe(account))
+        let stopped = AwaitedAnswer<Bool>()
+        let sending = Task {
+            do {
+                try await runner.send("hello")
+                stopped.set(false)
+            } catch {
+                stopped.set(error is CancellationError)
+            }
+        }
+        await waitUntil("the send waits for the probe") { activity.waitingRuns(account) == 1 }
+        if fromAnyThread { runner.cancelNow() } else { await runner.cancel() }
+        let endedDuringProbe = await stopped.wait(upTo: .seconds(5))
+        let stillWaiting = activity.isRunning(account)
+        activity.endProbe(account)
+        _ = await sending.result
+
+        #expect(endedDuringProbe == true)
+        #expect(!stillWaiting)
+        #expect(recorder.all.isEmpty)
+    }
+
+    @Test("a process left without a turn by a failed send is ended once idle, and gives the account back")
+    func anUnpromptedProcessIsEvictedOnceIdle() async throws {
+        let store = try makeTestStore("agent")
+        let session = try await makeSession(store)
+        let recorder = ProcessRecorder()
+        let activity = ClaudeAccountActivity()
+        let account = AgentAccountHome.defaultID(for: .claudeCode)
+        let runner = AgentRunner(
+            workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session),
+            activity: activity, makeProcess: recorder.factory
+        )
+        let unclaimed = try await store.enqueueDelivery(Delivery(targetSessionID: session.id, body: "hello"))
+
+        await #expect(throws: DeliveryDispatchError.notClaimed) { try await runner.sendDelivery(unclaimed) }
+        let process = try #require(recorder.last)
+        let heldAfterTheFailure = activity.isRunning(account)
+        #expect(try await store.cancelDelivery(id: unclaimed.id))
+        let evicted = await runner.evictIfIdle(for: .zero)
+
+        #expect(heldAfterTheFailure)
+        #expect(evicted)
+        #expect(process.wasTerminated)
+        #expect(process.stdin.isEmpty)
+        await waitUntil("the account is free again") { !activity.isRunning(account) }
+        #expect(activity.beginProbe(account))
+    }
+
+    @Test("the next send after an idle eviction resumes the same conversation")
+    func theNextSendAfterAnIdleEvictionResumes() async throws {
+        let store = try makeTestStore("agent")
+        let session = try await makeSession(store)
+        let recorder = ProcessRecorder()
+        let segmentID = try await activeSegmentID(store, session)
+        let evicted = AgentRunner(
+            workspacePath: "/tmp/w", session: session, store: store, segmentID: segmentID, makeProcess: recorder.factory
+        )
+        try await evicted.send("hello")
+        let first = try #require(recorder.last)
+        first.emit(#"{"type":"system","subtype":"init","session_id":"s-evicted","cwd":"/tmp/w","model":"opus"}"#)
+        first.emit(#"{"type":"result","subtype":"success","is_error":false,"duration_api_ms":1,"num_turns":1,"session_id":"s-evicted","total_cost_usd":0,"result":"done","duration_ms":10,"uuid":"u"}"#)
+        await waitUntil("the turn ended") { await evicted.currentSession.state == .idle }
+        let wasEvicted = await evicted.evictIfIdle(for: .zero)
+        #expect(wasEvicted)
+        #expect(first.wasTerminated)
+
+        let reopened = try #require(try await store.session(id: session.id))
+        let resumed = AgentRunner(
+            workspacePath: "/tmp/w", session: reopened, store: store, segmentID: segmentID, makeProcess: recorder.factory
+        )
+        try await resumed.send("again")
+
+        #expect(recorder.all.count == 2)
+        let arguments = try #require(recorder.last).launch.arguments
+        let resumeIndex = try #require(arguments.firstIndex(of: "--resume"))
+        #expect(arguments.indices.contains(resumeIndex + 1) && arguments[resumeIndex + 1] == "s-evicted")
+        #expect(!first.launch.arguments.contains("--resume"))
+        recorder.last?.endOutput()
+    }
+
+    @Test("a failed send leaves a process alone once a turn has been written to it")
+    func aFailedSendKeepsAPromptedProcess() async throws {
+        let store = try makeTestStore("agent")
+        let session = try await makeSession(store)
+        let recorder = ProcessRecorder()
+        let activity = ClaudeAccountActivity()
+        let account = AgentAccountHome.defaultID(for: .claudeCode)
+        let runner = AgentRunner(
+            workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session),
+            activity: activity, makeProcess: recorder.factory
+        )
+        try await runner.send("hello")
+        let unclaimed = try await store.enqueueDelivery(Delivery(targetSessionID: session.id, body: "and this"))
+
+        await #expect(throws: DeliveryDispatchError.notClaimed) { try await runner.sendDelivery(unclaimed) }
+        let process = try #require(recorder.last)
+
+        #expect(recorder.all.count == 1)
+        #expect(!process.wasTerminated)
+        #expect(activity.isRunning(account))
+        process.endOutput()
+        await waitUntil("the runner stopped") { await runner.isRunning == false }
     }
 
     @Test("a stop pressed while two sends wait for the probe ends both of them")
@@ -744,11 +862,13 @@ struct AgentRunnerProcessTests {
         let first = Task { try await runner.send("hello") }
         await waitUntil("the first send waits for the probe") { activity.isRunning(account) }
         let second = Task { try await runner.send("and this") }
-        try await Task.sleep(for: .milliseconds(100))
+        await waitUntil("both sends wait for the probe") { activity.waitingRuns(account) == 2 }
         runner.cancelNow()
-        try await Task.sleep(for: .milliseconds(50))
-        activity.endProbe(account)
+        let stillWaiting = activity.waitingRuns(account)
         let outcomes = [await first.result, await second.result]
+        activity.endProbe(account)
+
+        #expect(stillWaiting == 0)
 
         #expect(outcomes.allSatisfy { (try? $0.get()) == nil })
         #expect(recorder.all.isEmpty)
@@ -794,7 +914,7 @@ struct AgentRunnerProcessTests {
 
         let process = try #require(recorder.last)
         let index = try #require(process.launch.arguments.firstIndex(of: "--settings"))
-        #expect(process.launch.arguments[index + 1] == #"{"outputStyle":"Concise"}"#)
+        #expect(JSONValue.parse(process.launch.arguments[index + 1])?["outputStyle"] == .string("Concise"))
     }
 
     @Test("the stored executable reaches the process the runner spawns")
@@ -852,7 +972,7 @@ struct AgentRunnerProcessTests {
     @Test("a session with no output style spawns without a settings object")
     func spawnsWithoutSettingsByDefault() async throws {
         let store = try makeTestStore("agent")
-        let session = try await makeSession(store)
+        let session = try await makeSession(store, permissionMode: .bypassPermissions)
         let recorder = ProcessRecorder()
         let runner = AgentRunner(
             workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session), makeProcess: recorder.factory
@@ -1073,6 +1193,24 @@ struct AgentRunnerPermissionTests {
         return event
     }
 
+    @Test("a call in a workspace chat that names another profile stops for the owner")
+    func crossingCallStopsForTheOwner() async throws {
+        let store = try makeTestStore("perm")
+        let session = try await makeSession(store)
+        let (runner, process) = try await running(store, session: session)
+        let line = askLine()
+            .replacingOccurrences(
+                of: #""tool_name":"Bash""#,
+                with: #""tool_name":"mcp__unifieddev-workspace-bridge__workspace_diff""#
+            )
+            .replacingOccurrences(of: #""command":"sudo -n true""#, with: #""profile":"Akira""#)
+
+        await runner.ingest(try #require(AgentEvent.decode(line: line)))
+
+        #expect(answers(on: process).isEmpty)
+        #expect(await runner.pendingAsks.count == 1)
+    }
+
     @Test("a self-approved bridge tool is answered without becoming a question")
     func selfApprovedLeavesNoCard() async throws {
         let store = try makeTestStore("perm")
@@ -1126,17 +1264,17 @@ struct AgentRunnerPermissionTests {
         let stored = try #require(PermissionAsk.decode(payload: Data(line.utf8)))
 
         #expect(BridgeToolApproval.isSelfApproved(toolName: stored.toolName))
-        #expect(stored.standing(in: [:]) == nil)
+        #expect(stored.standing(in: [:], inWorkspace: false) == nil)
     }
 
     @Test("a stored ask for a self-approved tool reads as settled, and any other waits for its decision")
     func storedSelfApprovedAskIsSettled() throws {
         guard case .permissionAsk(let bridge) = try selfApprovedAsk() else { return }
 
-        #expect(bridge.standing(in: [:]) == PermissionAskOutcome.selfApproved)
-        #expect(bridge.standing(in: ["req-1": "deny"]) == "deny")
-        #expect(ask().standing(in: [:]) == nil)
-        #expect(ask().standing(in: ["req-1": "allow"]) == "allow")
+        #expect(bridge.standing(in: [:], inWorkspace: false) == PermissionAskOutcome.selfApproved)
+        #expect(bridge.standing(in: ["req-1": "deny"], inWorkspace: false) == "deny")
+        #expect(ask().standing(in: [:], inWorkspace: false) == nil)
+        #expect(ask().standing(in: ["req-1": "allow"], inWorkspace: false) == "allow")
     }
 
     @Test("the question is on the pile and in the transcript")
@@ -1636,6 +1774,7 @@ struct AgentRunnerPermissionTests {
         let store = try makeTestStore("perm-orchestrator")
         let session = try await makeSession(store)
         try await orchestrate(session, in: store)
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let (runner, process) = try await running(store, session: session)
 
         await runner.ingest(.permissionAsk(shellAsk(command)))
@@ -1650,11 +1789,12 @@ struct AgentRunnerPermissionTests {
         let store = try makeTestStore("perm-orchestrator")
         let session = try await makeSession(store)
         try await orchestrate(session, in: store)
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let (runner, process) = try await running(store, session: session)
         func ask(_ id: String, _ command: String) -> PermissionAsk {
             PermissionAsk(requestID: id, toolName: "Bash", input: .object(["command": .string(command)]))
         }
-        let compound = "make build && echo \"a b\""
+        let compound = "rg x && echo \"a b\""
 
         await runner.ingest(.permissionAsk(ask("off", compound)))
         #expect(answers(on: process).isEmpty)

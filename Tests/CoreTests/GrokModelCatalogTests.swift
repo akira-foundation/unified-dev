@@ -5,10 +5,10 @@ import Foundation
 private actor ModelFetch {
     var attempts = 0
 
-    func fetch() throws -> [GrokModel] {
+    func fetch() throws -> [ACPModel] {
         attempts += 1
-        if attempts == 1 { throw GrokClientError.notInitialized }
-        return [GrokModel(id: "grok-test", displayName: "Test")]
+        if attempts == 1 { throw ACPClientError.notInitialized }
+        return [ACPModel(id: "grok-test", displayName: "Test")]
     }
 }
 
@@ -18,7 +18,7 @@ struct GrokModelCatalogTests {
     func retryAfterFailure() async throws {
         let source = ModelFetch()
         let catalog = GrokModelCatalog(fetch: { try await source.fetch() })
-        await #expect(throws: GrokClientError.notInitialized) {
+        await #expect(throws: ACPClientError.notInitialized) {
             try await catalog.models()
         }
         let models = try await catalog.models()
@@ -40,7 +40,7 @@ struct GrokModelCatalogTests {
             ])]),
         ])]))
         let catalog = GrokModelCatalog.live(cwd: "/tmp/w", store: store, makeClient: { configuration in
-            GrokClient(configuration: configuration, makeProcess: box.factory)
+            ACPClient(configuration: configuration, makeProcess: box.factory)
         })
         let models = try await catalog.pickerModels()
         #expect(models.map(\.id) == ["grok-test"])

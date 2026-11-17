@@ -24,6 +24,8 @@ final class MenuBarPanelPresenter {
         controller.open(AnyView(view), below: button)
     }
 
+    var isOpen: Bool { controller.isOpen }
+
     func close() {
         controller.close()
     }

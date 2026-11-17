@@ -21,13 +21,19 @@ private func makeGrokSession(
     ))
 }
 
-private func makeRunner(store: Store, session: Session, box: ProcessBox) async throws -> GrokRunner {
-    GrokRunner(
+private func makeRunner(
+    store: Store, session: Session, box: ProcessBox,
+    gitHub: GitHubLogin = .thisMac, seen: SeenEnvironment? = nil
+) async throws -> ACPRunner {
+    ACPRunner(
+        dialect: .grok,
         workspacePath: "/tmp/w",
         session: session,
         store: store, segmentID: try await activeSegmentID(store, session),
+        gitHub: gitHub,
         makeClient: { configuration in
-            GrokClient(configuration: configuration, makeProcess: box.factory)
+            seen?.value.withLock { $0 = configuration.environment }
+            return ACPClient(configuration: configuration, makeProcess: box.factory)
         }
     )
 }
@@ -53,6 +59,22 @@ private func eventually(
 
 @Suite(.scratchDirectory)
 struct GrokRunnerTests {
+    @Test("the server starts under the profile's GitHub login")
+    func startsUnderTheProfilesGitHubLogin() async throws {
+        let store = try makeTestStore("grok-github-login")
+        let session = try await makeGrokSession(store)
+        let seen = SeenEnvironment()
+        let runner = try await makeRunner(
+            store: store, session: session, box: scriptedGrokBox(),
+            gitHub: GitHubLogin.profile(ProfileID("debtges"), directory: URL(filePath: "/support/GitHubLogins/debtges")), seen: seen
+        )
+        defer { runner.terminateNow() }
+        try await runner.send("first")
+        let environment = seen.value.withLock { $0 }
+        #expect(environment["GH_CONFIG_DIR"] == "/support/GitHubLogins/debtges")
+        #expect(environment["GH_TOKEN"] == GitHubLogin.signedOutToken)
+    }
+
     @Test("a restarted server can reuse a permission RPC id without inheriting its old decision")
     func permissionIDsSurviveReconnect() async throws {
         let store = try makeTestStore("grok-permission-reconnect")
@@ -145,6 +167,7 @@ struct GrokRunnerTests {
         let store = try makeTestStore("grok-orchestrator-read")
         let session = try await makeGrokSession(store)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedGrokBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -173,6 +196,7 @@ struct GrokRunnerTests {
         let store = try makeTestStore("grok-orchestrator-unasked")
         let session = try await makeGrokSession(store)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedGrokBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -181,7 +205,7 @@ struct GrokRunnerTests {
                 $0["id"]?.intValue == id && $0["result"] != nil
             }?["result"]?["outcome"]?["optionId"]?.stringValue
         }
-        let compound = "make build && echo a"
+        let compound = "rg x && echo a"
 
         try await runner.send("first")
         box.process.emit(permissionRequestLine(id: 7, command: compound))
@@ -256,7 +280,7 @@ struct GrokRunnerTests {
         runner.terminateNow()
     }
 
-    @Test("makeRunner picks GrokRunner for a Grok session")
+    @Test("makeRunner picks ACPRunner for a Grok session")
     func makeRunnerPicksGrok() {
         let session = Session(
             workspaceID: WorkspaceID("w"),

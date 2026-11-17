@@ -164,8 +164,9 @@ owner's tools because a config file was read. See `BridgeOwnerPlacement`.
 
 ### The profile a caller is limited to
 
-**A caller lists, reads, starts and talks only to projects, workspaces and chats of its own profile.**
-`BridgeProfileScope` is the one place that decides it, and every tool takes its rows from there.
+**A caller lists, reads, starts and talks only to projects, workspaces and chats of its own profile,**
+unless it may reach another and names it, which is [Reaching another profile](#reaching-another-profile).
+`BridgeProfileScope` is the one place that decides a caller's own, and every tool takes its rows from there.
 
 | Caller | Its profile |
 | --- | --- |
@@ -206,6 +207,148 @@ when it places the owner's token, since a shim inside a workspace of any profile
 ceiling on what the owner's client starts in a window counts across all profiles, because it limits
 this Mac rather than a profile.
 
+### Reaching another profile
+
+A profile can be opened to the others, and callers can then cross into it. The default is closed:
+with every switch off, every tool answers as it does without this section. The rule is about the
+destination: whatever comes from outside a profile goes through the orchestrator of the project it is
+for.
+
+**Who.** `BridgeProfileReach.caller` reads it from the rows on every call, and from what the chat's bridge token recorded when it launched.
+`BridgeProfileReach.mayCross` then decides it for one of two purposes: talking, which is `project_list`,
+`workspace_list` and `workspace_say`, and reading, which is `chat_list`, `chat_read` and `workspace_diff`.
+
+| Caller | May talk when | May read when |
+| --- | --- | --- |
+| A top level chat of a project's orchestrator workspace, on Claude Code or Grok | Its own profile and the destination are both open, and the owner approves the call | The same |
+| The owner's own clients: an Ask chat and the standalone token | The destination is open | The destination is open |
+| Any other workspace chat on Claude Code, a subagent included, launched in Accept edits | Its own profile and the destination are both open, and the owner approves the call, and only to an orchestrator | Never |
+| Any other workspace chat on Claude Code launched in Auto, Plan or Bypass permissions | Never, and it is told why | Never |
+| Any other workspace chat on Grok, Cursor or OpenCode | Never | Never |
+| A chat running on Codex | Never | Never |
+
+A workspace that stops being the orchestrator becomes an ordinary workspace at its next call: it can still
+talk to another profile's orchestrators and can no longer read there. `isOrchestrator` is written only by
+the app.
+
+**An ordinary workspace talks to the orchestrator.** Its `workspace_list` lists the orchestrators alone, in
+its own profile and in another, by id, name and project and nothing else, since those are the workspaces it
+may write to across profiles. `BridgeProfileReach.lists` decides which rows, and `WorkspaceListBriefRow` what
+they hold. In another profile, `workspace_say` from an ordinary workspace looks the name up among that
+profile's orchestrators alone, through `WorkspaceSayDestination.orchestrators`, so any other workspace there
+is refused in the same words as one that does not exist, and the refusal points at `workspace_list` and at
+passing the project. A read in another profile is refused with a sentence that points at the orchestrator,
+which can read and answer. A message may name the project instead of the workspace, and goes to that
+project's orchestrator; naming both is refused.
+
+**A project with no orchestrator.** A message for one does not start anything. It becomes a card for the
+owner below the sender's message, in the shape of `work_suggest`, carrying the message, and the answer says
+so. Only the owner's click on Start Orchestrator acts on it: `OrchestratorRequestLaunch` starts a workspace
+in that project as its orchestrator and delivers the message to it, in the same envelope as any message from
+outside. If the project has gained an orchestrator by then, the message goes to that one and nothing new is
+started. The click is judged again: a card from a workspace whose profile, or whose destination, has since
+been closed, whose chat has moved to Codex, or whose workspace was archived, is
+refused and stays waiting, and the refusal says which side closed. A card whose sender has since become that
+project's orchestrator is not delivered to itself. A card from the owner's Ask chat always arrives in the
+envelope from outside, with its profile given as unknown, since which profile that chat was in is not kept. A delivery
+that fails leaves the card waiting with the orchestrator already in place, and the next click delivers to it.
+`notify_when_done` does not apply to a message waiting on a card. The sender can withdraw it with
+`work_withdraw`. No bridge tool starts an orchestrator.
+
+**A closed destination is named.** When the profile a message names exists and the owner has not opened
+it, `workspace_say` says that its orchestrators do not accept messages from outside it, instead of the
+answer it gives for a profile that does not exist. That holds only for talking, and only for a caller that
+could otherwise leave its own profile; the lists and the reads still answer a closed profile and an
+invented one in the same words.
+
+**The owner approves a workspace's crossing.** Every call from a workspace chat that names a `profile`
+stops on the permission card, reads included, because what it reads could steer it and what it sends wakes
+an agent. `BridgeToolApproval.isSelfApproved(toolName:input:inWorkspace:)` decides it, and the same call
+decides how a stored card reads afterwards. This rule adds no card for an Ask chat or the owner's standalone client,
+which are the owner's own. Codex has no approval request for an MCP tool call, so nothing could stop it, and
+`BridgeProfileReach.caller` confines it instead. An orchestrator always launches in a mode that asks, and
+that launch is what the bridge token records: a chat at rest when its workspace becomes the orchestrator
+cannot cross until its next start, which is its next message.
+
+**An ordinary workspace crosses only from a chat launched asking.** Claude Code puts every call to the
+owner in Accept edits; in Auto a classifier may let it through, Bypass permissions, which is the default,
+never asks, and Plan does ask but approving the plan moves the same process to Auto or Bypass
+permissions. Accept edits is kept until the app starts the CLI again, whatever the chat's row says
+meanwhile, since a change of mode in the app starts it again, so the bridge token records it: `BridgeServer.attach` sets `launchedAsking` from
+`BridgeProfileReach.asksTheOwner`, and an orchestrator's launch, which always asks, sets it too.
+`BridgeProfileReach.caller` makes an ordinary chat launched any other way `.unasked`, which reaches no other
+profile. Naming a profile that exists answers with `BridgeProfileTrouble.asksNobody`, which says why and what
+the owner can change; a profile that does not exist is answered as before. A chat switched to Accept edits
+crosses from its next start, which is its next message. Grok, Cursor and OpenCode stay confined:
+an approval Grok remembers covers a whole tool, so a call allowed in a chat's own profile would carry every
+later call that names another.
+
+A call that names a `profile` can never be allowed always: `PermissionAsk.canWiden` is false for it, so the
+card offers no "always allow", `PermissionAnswer.encode` sends the CLI nothing to remember, and
+`SessionGrants` stores no grant from it. This holds for an orchestrator too. An ordinary chat launched
+asking also gets `ask` rules for the tools that can name a profile, `BridgeToolApproval.claudeCrossingPermissions`
+in its `--settings`, because Claude Code puts an `ask` rule above an `allow`: a rule allowing the bridge in
+the owner's own settings cannot skip the card. A call that names no profile is still approved by
+Unified Dev itself, so the rule adds no card the owner sees.
+
+**The role does not land on a workspace at work.** The limits on an orchestrator are applied when an agent
+launches, and a turn already running under `acceptEdits` or `bypassPermissions`, Codex's sandbox once its thread is
+open, and a terminal chat have nowhere to be stopped afterwards. So `Store.setOrchestrator` refuses, in the same
+write, when any chat of the workspace is running or waiting, crew included, and when the app says something is still at work there:
+a background task of a chat, or an agent process it finds in one of the workspace's terminals when asked, or it cannot tell.
+Make Orchestrator then leaves that workspace exactly as it is and starts a new one as the orchestrator, opened
+with `OrchestratorHandover`'s account: the workspace it stands in for, its chats, the most recent of their conversations, any agent
+found in a terminal, and the instruction to leave those agents running. Every name and transcript in that account is fenced as untrusted text. A workspace whose chats are all at rest takes the
+role where it stands.
+
+**What.** Reading and talking, and nothing that creates: `project_list`, `workspace_list`, `chat_list`,
+`chat_read`, `workspace_diff` and `workspace_say`. `workspace_start` stays inside the caller's profile, and
+`agent_say` and `agent_start` act inside one worktree, so they have nothing to cross.
+
+`workspace_list` has otherwise been the owner's alone. It is served to a workspace chat only while that
+chat may leave its profile to talk, and answers exactly as an unknown tool otherwise, in `tools/list` and in
+`tools/call`, through `BridgeToolHandling.isServed`. An orchestrator's list is always fenced.
+
+**The switch.** One per profile, in Profile Settings, under the key `ProfileBridgeSwitch.key(profile:)`,
+off by default and read on every call. It is held to the rule of who may write the orchestrator's unasked switch: it lives
+in the app's `settings` table, only its settings section writes it (and a seeded preview), and
+`OrchestratorUnaskedReachTests` reads it back after calling every bridge tool in every role.
+
+**Naming a target.** The tools above take an optional `profile`, an id or a name no other reachable profile
+shares, and the two lists also take `all`, meaning the caller's own and every one it can reach. Without it
+nothing changes: an id from another profile is still answered as if it did not exist, so crossing is always
+something the caller said out loud. Naming the caller's own profile is not a crossing. A profile the caller
+cannot reach gets one refusal, whether it is closed or does not exist. `all` is reserved on the two lists, so
+a profile called All is named by its id there, and `include_github` is refused with `all` because it starts
+processes per workspace. A tool in `tools/list` is the list from when the agent started, so a switch turned
+on later reaches an orchestrator's `workspace_list` at its next start.
+
+**What comes back from a read.** Every answer that crosses is fenced as untrusted content, and names the
+profile it belongs to. Refusals inside a crossing list workspace ids, never names, and a refusal from the
+app, a project lookup or git there is one generic sentence. A notice about the other side names it by id. What was read can still be repeated by the reader, so
+text planted in one profile can travel to another if the owner approves carrying it.
+
+**What the receiver sees.** A message from another profile gets an envelope of its own, written by
+`WorkspaceMessage`: the profile and workspace id it came from, then between the untrusted markers the names of
+its workspace, project and chat, and the text, and a sentence saying that it does not carry the owner's authority and to ask the owner before
+acting on it. That holds for the owner's own clients as well, since an Ask chat reads untrusted text too.
+A message still waiting in a queue was written when it was sent and arrives as written, even if a switch is
+turned off meanwhile.
+Inside one profile the envelope and its authority are as described under "Talking to another workspace".
+
+**Accounts.** A turn that a message wakes in another profile runs on the account of the destination's
+project, as every chat in that workspace does, and never on the caller's. With no account available there,
+the turn does not start and the chat says why.
+
+**What comes back.** `notify_when_done` crosses back to the asking chat, with the report fenced as usual and
+naming the other profile, and a watch made before a switch is turned off is still kept. An Ask chat has no chat
+to be told in, so it is not offered one. Answering with `workspace_say` follows the rule
+above: an orchestrator can answer any sender, and an ordinary workspace on the receiving side can answer
+only a sender that is an orchestrator, and the envelope says so. The announcement to a project's orchestrator is per project, so it never crosses a profile.
+
+**What this does not hold.** The scope is the bridge's. An agent runs as this user, and anything it can run
+outside the bridge is limited by what that user can read, as section 2 says of the token.
+
 ## 3. The tools
 
 Fifty-three, each a type of its own in `Sources/Core/Bridge/`, each carrying its own role
@@ -219,12 +362,12 @@ places: the listing, the dispatch and the gate.
 | `project_add` | Register a git repository that **already exists** as a project | | ✓ |
 | `project_hide` | Take a project out of the sidebar. A view preference and nothing more | | ✓ |
 | `project_unhide` | Put it back, in the place it already had | | ✓ |
-| `workspace_list` | Every workspace of the caller's profile, its state, its worktree path, its chats and their cost, what an agent is stopped on, what is queued and why, and which one is the project's orchestrator | | ✓ |
+| `workspace_list` | Every workspace of the caller's profile, its state, its worktree path, its chats and their cost, what an agent is stopped on, what is queued and why, and which one is the project's orchestrator. Served to a project's orchestrator too, only while it may leave its profile | ✓ | ✓ |
 | `workspace_start` | Cut a worktree and put an agent in it with a task, on a new branch, existing branch or GitHub pull request, in the caller's own project or another it names. With notify_when_done, or always when the caller is the project's orchestrator, the calling chat is told once when the new agent's first turn comes to rest | ✓ | ✓ |
 | `workspace_rename` | Give a workspace the name the work in it turned out to be about. Its own, or one it started (by name or id), for a workspace agent; any of them, named out loud, for the owner | ✓ | ✓ |
 | `workspace_archive` | Archive a workspace through normal safety checks, keeping its branch and history. For a workspace agent, its own once the turn asking for it has ended, or one it started, by id and at once; any of them, named out loud and at once, for the owner. The project's orchestrator is refused until it stops being one | ✓ | ✓ |
 | `workspace_merge` | Ask a workspace's own agent to merge its pull request | | ✓ |
-| `workspace_say` | Put a message in another workspace's chat, with the owner's authority, headed with the workspace, project and chat it came from. Cancellable from either end until the agent there starts reading it. Refused past thirty messages to one workspace in ten minutes, or for the same words twice in that window, except from the owner's own client. With notify_when_done, Unified Dev tells the calling chat once when the turn it caused finishes, fails or blocks on the owner | ✓ | ✓ |
+| `workspace_say` | Put a message in another workspace's chat, with the owner's authority unless it crosses a profile, headed with the workspace, project and chat it came from. Cancellable from either end until the agent there starts reading it. Refused past thirty messages to one workspace in ten minutes, or for the same words twice in that window, except from the owner's own client. With notify_when_done, Unified Dev tells the calling chat once when the turn it caused finishes, fails or blocks on the owner | ✓ | ✓ |
 | `reveal` | Point Unified Dev's window at one workspace, or at Home narrowed by project, scope and search. Navigation and nothing else: it creates nothing and archives nothing | | ✓ |
 | `pane_open` | Open a chat, a terminal or a browser in a new tab of the caller's own workspace. A browser opens behind the tab in front and fetches nothing until somebody looks at it | ✓ | |
 | `pane_split` | Add a pane inside the calling chat's tab, defaulting to a new chat on its right. A browser pane opens blank | ✓ | |
@@ -310,7 +453,7 @@ before placement, so a changed target cannot produce a false success or split un
 
 `chat_list` discovers the unarchived sessions in a workspace, including crew members. `chat_read`
 accepts an ID from that list or an exact title. Shared titles are refused until the caller names
-an ID. A request Unified Dev sent on the owner's behalf, the report of a Run or a failed check, is
+an ID. A request Unified Dev sent on the owner's behalf, the report of a Run, a failed check or a request from the pull request bar, is
 not drawn in the owner's window and is still read here, as a `crew` record with its full text and
 `sent_by` set to `unified_dev`, so a reader can explain the reply that followed it and cannot take
 it for the owner's words.
@@ -406,7 +549,7 @@ rule the sidebar mark asks. A project's `workspaces` is therefore exactly how ma
 `agent_running`. Two tools deriving that separately is two rules to drift.
 
 One number kept its old sense deliberately: `WorkspaceStartAllowance.running`, the ceiling of
-eight on the workspaces an agent started, counts workspaces that are not archived rather than
+eight, or sixteen for a project's orchestrator, on the workspaces an agent started, counts workspaces that are not archived rather than
 agents mid turn. That is a brake on worktrees held open, not on turns in flight.
 
 ### What `setup_state` says
@@ -466,7 +609,7 @@ workspace looks far more like a thing the window owns than a quick prompt does. 
 workspace's name is one column of the `workspaces` table, the sidebar draws it from there, and the
 sidebar re-reads on the `workspaces` domain already, because that is how it finds out about a
 rename typed into the row itself. The write goes through `Store.update(workspaceID:)` and never
-`upsert`: a diff stat refresh writes to that row every six seconds and an agent turn writes to it
+`upsert`: a diff stat refresh writes to that row every few seconds and an agent turn writes to it
 for ten minutes, and a whole-value write would put both back to whatever the rename had read. See
 `Tests/CoreTests/WorkspaceWriteIsolationTests.swift`, which is that bug written down.
 `workspace_diff` is on that side too: it reads a worktree through git, which needs no window
@@ -566,7 +709,7 @@ project that finds the fix belongs in the app starts it there. The owner's clien
 because nothing else says which. Either way the name is resolved by `BridgeProjectLookup`, so both
 may only name a project Unified Dev already has and both are refused in the same words when the
 name matches nothing or matches too much. Naming another project changes nothing else: the
-workspace is still `.agent` origin with the caller as its parent, so the ceiling of eight counts it
+workspace is still `.agent` origin with the caller as its parent, so the caller's ceiling counts it
 and it may not start more. The spawn key carries the project only when it is not the caller's own,
 so a retry of a call that named none is still recognised as a repeat. `project_list` is open to a
 workspace agent for this, because a tool that takes a project name from a caller that cannot find
@@ -666,7 +809,7 @@ tell me the version" had no way to follow up. Claude Code's own cross-session me
 text, and the agent receiving it rightly treats an unverified relay as one and will not merge or
 tag on its say-so. `workspace_say` is Unified Dev delivering the message itself.
 
-**It carries the owner's authority, and that is the owner's decision.** An approval step was built
+**Inside one profile it carries the owner's authority, and that is the owner's decision.** An approval step was built
 first: the message waited, a card showed the owner the text, and only an approved message arrived as
 theirs. It was taken out. Every agent here works for the same person, and the control the owner
 wanted is the one every queued message already has: taking it back out before it goes. So the
@@ -810,7 +953,7 @@ anything can start, so nothing starts on text the owner could not read.
 
 **Nothing on the bridge starts a suggestion.** The buttons do: New Workspace goes through
 `AgentWorkspaceLaunch`, the path `workspace_start` takes, with the suggesting workspace as
-the new one's parent, so the ceiling of eight counts it; Here goes through `CrewLaunch`, the path
+the new one's parent, so that workspace's ceiling counts it; Here goes through `CrewLaunch`, the path
 `agent_start` takes, as a subagent of the chat that suggested it, under the same three rules;
 Add Project and Start runs the Add Project check first; Open as Draft fills the New Workspace draft.
 The press is the approval, and the brakes those tools have apply to it: a refusal puts the card
@@ -1167,20 +1310,27 @@ variable in it, which is **how much a workspace costs the caller to ask for**.
 | Caller | Brake |
 | --- | --- |
 | The new workspace draft and a Shortcut | None. Each is a deliberate gesture per workspace; a `unifieddev://` link and the Services menu only open the draft |
-| A workspace agent | Eight running workspaces it started, at once |
+| A workspace agent | Eight workspaces it started that are not archived, at once |
+| A project's orchestrator | Sixteen workspaces it started that are not archived, at once |
 | The owner's own client | Six starts in fifteen minutes |
 
 The two brakes are shaped differently on purpose. The workspaces an agent started are work it is waiting on, so
 what matters is how many are alive at once and a ceiling is right. The owner is a person whose
 workspaces accumulate over weeks, so a ceiling would refuse the eleventh workspace of a busy
-fortnight, which is ordinary use; what is not ordinary is the rate. Neither number is a safety
-limit. Six worktrees and six agents is already real money, and the point of both is that somebody
-notices at six or at eight instead of at forty.
+fortnight, which is ordinary use; what is not ordinary is the rate. None of these numbers is a safety
+limit. Six worktrees and six agents is already real money, and the point of all three is that somebody
+notices at six, at eight or at sixteen instead of at forty.
 
-Both are counted from the database rather than kept in memory, so they survive a restart. The count
+An orchestrator's ceiling is higher because starting workspaces is the whole of its work.
+`AgentWorkspaceLaunch.overAllowance` reads `isOrchestrator` from the parent's row on every call, so
+nothing an agent passes or says can raise it. A workspace that stops being the orchestrator is held
+to eight at its next call, and when it already holds more nothing is archived for it: it starts
+nothing until it holds fewer than eight.
+
+All three are counted from the database rather than kept in memory, so they survive a restart. The count
 is a reading and not a reservation: a workspace's row is written only after `git worktree add` has finished,
-so two starts at the same moment can both pass on the same number. Nothing is taken back; the next start is
-refused until it holds fewer than the ceiling.
+so two starts at the same moment can both pass on the same number, and an orchestrator can end up
+holding seventeen of sixteen. Nothing is taken back; the next start is refused until it holds fewer than the ceiling.
 
 Every start is deduplicated by a digest of the call, because a model retries and a retried spawn
 cuts a second worktree. A repeat answers with the workspace that already exists and a note saying
@@ -1209,7 +1359,7 @@ thinking about it rather than by inheriting a decision made before it existed.
 Answering is not a shortcut round consent, because **Unified Dev is on both ends of this question**. It
 wrote the tool, it minted the token, it knows which workspace is asking, and it enforces every
 limit itself: the handler refuses a caller whose workspace was itself
-agent-started, and eight is the ceiling. There is nothing for a person to weigh that
+agent-started, and eight, or sixteen for a project's orchestrator, is the ceiling. There is nothing for a person to weigh that
 Unified Dev has not already decided, and the ask carries no information a person could act on beyond "an
 agent would like to use Unified Dev". None of that is true of the tools the agent brings with it: `Bash`,
 `Write` and `Edit` reach outside anything Unified Dev knows about, and nothing here touches them.
@@ -1371,16 +1521,6 @@ permission model.
 
 ### What an orchestrator's commands get
 
-**The role does not land on a workspace at work.** The limits on an orchestrator are applied when an agent
-launches, and a turn already running under `acceptEdits` or `bypassPermissions`, Codex's sandbox once its thread is
-open, and a terminal chat have nowhere to be stopped afterwards. So `Store.setOrchestrator` refuses, in the same
-write, when any chat of the workspace is running or waiting, crew included, and when the app says something is still at work there:
-a background task of a chat, or an agent process it finds in one of the workspace's terminals when asked, or it cannot tell.
-Make Orchestrator then leaves that workspace exactly as it is and starts a new one as the orchestrator, opened
-with `OrchestratorHandover`'s account: the workspace it stands in for, its chats, the most recent of their conversations, any agent
-found in a terminal, and the instruction to leave those agents running. Every name and transcript in that account is fenced as untrusted text. A workspace whose chats are all at rest takes the
-role where it stands.
-
 The project's orchestrator gets three answers to a shell command, and `OrchestratorToolGuard` picks
 one on every ask, reading the role from the store each time.
 
@@ -1443,13 +1583,19 @@ What happens to the rest depends on the agent:
 | Codex | Runs in the read only sandbox, and reaches the owner only when it asks to leave it. It is answered only when the request is a command request about running that command, names the command a known item runs, and carries no field beyond those known to change nothing about what runs; anything else goes to the owner, including a field added by a later version of Codex. A command Codex wraps in its own shell is never answered | No approval request exists for an MCP tool call, so nothing here judges one |
 | Grok | Asked on every call | Asked, and so are the bridge's own tools, since only Claude's runner answers those |
 
-The same judge decides the Run button on a code block: in an orchestrator it is offered only for a
-command on the list, through `CodeBlockCommand.mayRun`, and the copy button stays.
+The same judge decides the Run button on a code block, which only the owner presses. In an
+orchestrator a command on the list runs at once, and any other command first opens an alert showing
+the whole command, continuation lines included, the folder it runs in and that it may change files;
+it runs only when the owner confirms, and cancelling runs nothing. A character that would not show
+or would reorder the text, such as a bidi override or a zero width space, is spelt out as `[U+code]`
+in the alert, which then says how many it holds; what runs is the command as written.
+`CodeBlockLaunch.of` takes that decision and `CodeBlockConfirmation.answer` the one after it. Outside an orchestrator the button runs what the reply showed, as it always has.
 
 ### Running commands without asking
 
 A project's settings carry a switch, **Run commands without asking**, in the Workspaces pane. It is
-off by default, and off changes nothing above. It belongs to one project: another project's
+on by default: a project with nothing stored counts as on, and a value the owner saved, on or off, is
+kept as saved. `OrchestratorUnaskedCommands.parse` takes that decision. Off changes nothing above. It belongs to one project: another project's
 orchestrator does not inherit it, and a workspace that is not the orchestrator is not affected.
 
 On, a shell command that would have stopped for the owner is judged by `OrchestratorUnaskedJudge`,
@@ -1459,8 +1605,8 @@ substitution, a here document, `eval`, `sh -c` and programs known to run other p
 | Answer | What gets it |
 | --- | --- |
 | Refused | Anywhere in the command: a git verb in `OrchestratorShellJudge.gitVerbs`, `gh pr merge`, `gh pr checkout`, a redirection to a file, a program on the list of those that write files, or one whose flag says it writes or edits in place |
-| Left for the owner | The judge cannot read it, or the program is on `OrchestratorUnaskedPrograms.leftWithTheOwner`: a command name or git verb only known at run time, a script on standard input or inline, an environment variable set for a command, git flags that bring in other configuration, a git verb it does not know, a `gh` command off its short list, `gh` deleting or setting something, unterminated quoting, an ask with a field it does not know, or nesting and work beyond a fixed limit |
-| Unified Dev allows it, once | Everything else |
+| Unified Dev allows it, once | Every program in the command is on `OrchestratorUnaskedPrograms.runWithoutAsking`, or is `git`, `gh`, `find`, `sed` or `awk` used only to read, and nothing in it is refused or left for the owner |
+| Left for the owner | Everything else: any program off that list, builds, test runs, scripts in the worktree, interpreters, `curl` and every other network tool among them, a runner that does more than wrap (`ssh`, `sudo`, `npx`, `watch`, `tmux` and the like) whatever it runs, a command the judge cannot read, a command name or git verb only known at run time, a script on standard input or inline, an environment variable set for a command, git flags that bring in other configuration, a git verb it does not know, a `gh` command off its short list, `gh` deleting or setting something, a `gh` read that waits on what it follows (`gh run watch`, `--watch`, `--interval`), unterminated quoting, an ask with a field it does not know, or nesting and work beyond a fixed limit |
 
 The refusal outranks the other two, so one refused clause refuses the whole command. Tools other
 than the shell are untouched: file edits and terminals stay refused and another server's MCP tool
@@ -1470,14 +1616,55 @@ still asks. The orchestrator still does not implement, and the refusal says so t
 but a construct it misreads can pass, so its refusals are a net rather than a wall, and they are not
 what makes the switch safe to turn on.
 
-**A program off those lists passes, because the owner asked for this to mean everything else.** The
-judge reads words and runs nothing, so what a program does once it is running is beyond it. A script
-or a build in the worktree can write files, or commit and push, and no list names every way to do
-that. The limits on paths and directories that hold the read list do not hold here, so a command
-can read outside the worktree and send what it read over the network. That is the cost of turning
-the switch on, along with the one the settings footer names: text planted in a file or an issue the
-orchestrator reads can run commands the owner does not see first. Each one still leaves its tool
-row in the transcript. The Run button on a code block is not affected.
+**The list is closed.** A program passes only when Unified Dev names it, and it names programs that
+read: listing and reading files, searching and filtering text, paths, the date and the machine's own name.
+`git` and `gh` pass only for their reads, by the verbs and flags above, and the `gh` verbs they share with
+the read list are one table, `OrchestratorReadList.ghVerbs`, with `gh repo view`, `gh repo list` and
+`gh label list` added here, since the judge checks the host they name. A listed name passes only bare or
+in one of the system's own directories, `/bin`, `/usr/bin`, `/sbin`, `/usr/sbin`, `/usr/local/bin` and
+`/opt/homebrew/bin`, so `./git` or `tools/cat` committed to the project asks. git asks when it is pointed
+at another repository: `git -C`, a command that also changes directory, `find -execdir git`, a shell
+call whose working directory is not the worktree, and `git ls-remote` with an address rather than a
+remote's name, since another repository's own configuration can run programs and an address can
+name any host. `sed` passes only with scripts that print, delete or substitute with `/`, and `awk`
+asks when it loads an extension or runs a file. `tail -f` asks, as `gh run watch` does, because it
+holds the call until what it follows ends.
+
+A wrapper that only changes how a program runs, `env`, `time`, `nice`, `timeout`, `nohup`, `command`,
+`builtin`, `stdbuf`, `xargs` without a replacement string, `noglob` and `nocorrect`, is judged by the
+program it runs. `OrchestratorUnaskedWrappers` knows each one's options and which of them take a value,
+so a value is never taken for the program, and an option it does not know asks: `env -P`, `env -C` and
+`time -o` among them. A listed program whose arguments make it write a file, `uniq` with an output
+operand, `tree -o`, `tree -R` with `-H`, `file -C`, and `tar` told to delete or join archives, is refused,
+and one told to run another program or reach a host, `sort --compress-program`, `rg --pre`,
+`rg --hostname-bin`, `tar -F`, `tar --info-script` and an archive named with a host, asks. `xargs` adds
+arguments from what it reads, so it passes only in front of a listed program outside
+`OrchestratorUnaskedPrograms.steeredByTheirArguments`. Everything else asks rather
+than being refused, so nothing that worked before is blocked: it comes back to the owner once.
+
+**Paths stay in the worktree.** A command that passes the judge passes only if
+`OrchestratorWorktreeReach` also finds that every path it can name stays inside the orchestrator's
+worktree, and that limit holds for the read list above as well, switch on or off. It reads every
+argument, the value after `=`, `@` or `:` in one, the words of a nested shell and of a command
+substitution, and the target of each change of directory, and resolves each one on disk with
+`WorktreePathResolver` before deciding, so a link inside the worktree is judged by where it really
+leads and `~` by the home it names. The search pattern of `grep` and `rg`, the script of `sed` and
+the endpoint of `gh api` are not paths and are left out, and only where the words before them leave
+no doubt which word that is. A change of directory passes only with one operand that names an existing
+directory inside the worktree explicitly, from `/`, `./` or `../`, so that no search path the shell
+keeps can send it elsewhere, and only when no link below that directory leads out. The orchestrator's
+Claude is launched with `CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR` set, so each command starts from the
+worktree again; Codex and Grok name the directory of every command, and it has to be the worktree.
+Anything whose path is only known at run time asks: an expansion handed to a program that reads files,
+a glob that matches a link out, a program fed its arguments by another, a list of files to check read
+from a file, and the flags that make `find`, `grep`, `rg`, `tree`, `ls`, `du` and `diff` follow links
+as they walk. Outside the worktree, or in doubt, it asks rather than refusing.
+
+The judge reads words and runs nothing, and a `gh` read or `git fetch` reaches GitHub, or the host a
+remote names, with what it is given. That is the cost of the switch being on, along with the one
+the settings footer names: text planted in a file or an issue the orchestrator reads can choose which of
+those reads run, and the owner does not see them first. Each one still leaves its tool row in the
+transcript. The Run button on a code block is not affected.
 
 **The setting is read on every ask.** `SessionGrants` reads it from the store each time it judges a
 command, so turning it off applies to the next ask, in a chat already running, with no restart.
@@ -1497,7 +1684,7 @@ nowhere in `Sources/Core/Bridge`, in `AppModel` or in a file that serves a tool.
 calls every bridge tool's handler, in every role it is served to, with every field set to one of six values
 naming the switch or its owner, then with only the fields it requires and with every field, read from their
 names and filled with the quick prompt and suggestion ids that exist, and reads the switch back from the store
-after each call. It then cuts, sets up, archives, restores and opens a workspace with settings files planted in
+after each call, starting from an off the owner saved, so that it is still off. It then cuts, sets up, archives, restores and opens a workspace with settings files planted in
 the project, which is where those paths read them, and loads the worktree's planted files through
 `SettingsLoader` directly, reading the switch back after each step. What it does not reach: the app's own
 closures behind the tools `AppModel.bridgeToolbox()` adds, which the suite replaces with stubs, so for those the
@@ -1505,6 +1692,29 @@ handler is proven and the closure is held only by the lint above, one file deep;
 settings files, which the core reads through the same `SettingsLoader` the suite calls directly. `make lint`
 refuses an app tool the suite does not build. `sqlite3` and `defaults` are left with the owner. The database is still a file this user owns, so a program already running
 as this user can open it, which no app can prevent.
+
+### Asking to fix a pull request on its own
+
+A project's settings carry a switch in the Workspaces pane that lets the app send the request behind **Ask to fix**
+when a pull request has a conflict with its base or a failed check. It is off by default, and only those two
+states are covered. `PullRequestAutoFix.decide` takes the decision and `PullRequestFixColumns` holds what was
+already tried, per head commit and reason, with at most three in a row per pull request.
+
+It holds to the same rule as the switch above: it lives under `PullRequestAutoFixSetting.key(repoID:)` in the
+`settings` table, `make lint` keeps the one call that saves it in the settings pane, and
+`OrchestratorUnaskedReachTests` reads it back after every bridge tool. The same limit applies, since a program
+already running as this user can open the database.
+
+Anything the decision cannot establish counts as no: the fork flag, the pull request's author, the signed in
+account and the author GitHub attributes every commit on the head to. That attribution comes from what a commit
+declares, so it narrows who can put text in front of the agent and does not close it. A failed check's log is still text the agent reads with nobody reading it first.
+
+The request goes through `submitAppRequest`, as the click does, into the chat the click would choose, and it never
+creates a chat or changes the tab on screen. A turn in progress holds it back rather than queueing it, the chat
+is read again immediately before it goes, a chat in Bypass permissions never receives one, and the conflict request
+carries only the app's own steps, leaving out `.unifieddev/conflict-instructions.md`. The checks it names are re-read
+and have to belong to the head the attempt was claimed for. What the agent loads for itself from the repository,
+such as its own instructions file, is outside what this request controls.
 
 ## 6. How each CLI is told the bridge exists
 

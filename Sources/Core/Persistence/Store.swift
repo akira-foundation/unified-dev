@@ -4,6 +4,8 @@ import Synchronization
 public actor Store {
     private let db: SQLiteDatabase
     public nonisolated let path: String
+    let gitHubLoginBook: Mutex<ProfileGitHubLogins>
+    private var gitHubRouteCache: (signature: String, routes: GitHubLoginRoutes)?
 
     public static let primaryBundleIdentifier = "io.akira.unifieddev"
     public static let devBundleIdentifier = "io.akira.unifieddev.dev"
@@ -39,10 +41,14 @@ public actor Store {
     }
 
     public init(path: String) throws {
+        let database = try SQLiteDatabase(path: path)
+        try Self.migrate(database)
+        try database.transaction { try Self.seedOceans(database) }
+        let sources = try ProfileGitHubColumn.sources { try database.query($0) }
+        let support = URL(filePath: path).deletingLastPathComponent()
         self.path = path
-        self.db = try SQLiteDatabase(path: path)
-        try Self.migrate(db)
-        try db.transaction { try Self.seedOceans(db) }
+        self.db = database
+        self.gitHubLoginBook = Mutex(ProfileGitHubLogins(sources: sources, root: ProfileGitHubLogins.root(support: support)))
     }
 
     private nonisolated static func seedOceans(_ db: SQLiteDatabase) throws {
@@ -117,6 +123,7 @@ public actor Store {
         try AgentAccountChoiceColumns.migrate(db)
         try ProfileColumns.migrate(db)
         try ProfileAccountColumns.repair(db)
+        try PullRequestFixColumns.migrate(db)
     }
 
     private nonisolated static func migrate(_ db: SQLiteDatabase) throws {
@@ -686,6 +693,9 @@ public actor Store {
             { try PreAccountChatOwners.record($0, predatingAccounts: current <= beforeAccounts.count) },
             sql(InboxNotificationColumns.createTable),
             { try UndatedArchives.stamp($0) },
+            ProfileGitHubColumn.migrate,
+            QuotaAccountColumn.migrate,
+            sql(TranscriptChapterColumns.createTable),
         ]
 
         guard current >= 0, current <= migrations.count else {
@@ -720,11 +730,20 @@ public actor Store {
     }
 
     public func forgetAgentAccount(_ id: AgentAccountID) throws {
-        let stored = try db.query("SELECT is_default FROM agent_accounts WHERE id = ?", [.text(id)]).first
+        let stored = try db.query("SELECT is_default, provider FROM agent_accounts WHERE id = ?", [.text(id)]).first
         guard !AgentAccountHome.isDefaultID(id), stored?.bool("is_default") != true else {
             throw AgentAccountError.isDefault(id)
         }
         try db.transaction {
+            let prefix = AgentSessionSettlement.lostAccountKeyPrefix
+            try db.run(
+                "DELETE FROM settings WHERE key LIKE ? || '%' AND substr(key, ?) NOT IN (SELECT id FROM sessions)",
+                [.text(prefix), .int(Int64(prefix.count + 1))]
+            )
+            try db.run(
+                "INSERT OR REPLACE INTO settings (key, value) SELECT ? || id, '1' FROM sessions WHERE account_id = ?",
+                [.text(prefix), .text(id)]
+            )
             try db.run(SessionSegmentColumns.forgetActiveHistory, [.text(id)])
             try db.run(SessionSegmentColumns.forgetChatHistory, [.text(id)])
             for table in AgentAccountColumns.pointingTables {
@@ -733,6 +752,9 @@ public actor Store {
             try db.run(SessionSegmentColumns.forgetHistory, [.text(id)])
             try db.run(AgentAccountColumns.release("session_segments"), [.text(id)])
             try db.run(AgentAccountColumns.delete, [.text(id)])
+            if let provider = stored?.string("provider") {
+                try db.run(QuotaAccountColumn.forget, [.text(provider), .text(id)])
+            }
             for key in ClaudeResolvedModel.settingKeys(account: id) {
                 try db.run("DELETE FROM settings WHERE key = ?", [.text(key)])
             }
@@ -752,7 +774,11 @@ public actor Store {
     public func runnerSeat(sessionID: SessionID) throws -> RunnerSeat? {
         guard let session = try session(id: sessionID),
               let segment = try activeSegment(sessionID: sessionID) else { return nil }
-        return RunnerSeat(session: session, segmentID: segment.id)
+        return RunnerSeat(
+            session: session,
+            segmentID: segment.id,
+            lostItsAccount: try setting(AgentSessionSettlement.lostAccountKey(sessionID: sessionID)) != nil
+        )
     }
 
     public func advanceCursor(segmentID: SessionSegmentID, toSeq: Int) throws {
@@ -763,8 +789,12 @@ public actor Store {
         try db.run(SessionSegmentColumns.reset, [.text(segmentID)])
     }
 
-    public func seed(sessionID: SessionID, from source: SessionID) throws {
-        try db.run(SessionSegmentColumns.seed, [.text(source), .text(sessionID)])
+    public func seed(sessionID: SessionID, from source: SessionID, through seq: Int? = nil) throws {
+        guard let seq else {
+            try db.run(SessionSegmentColumns.seed, [.text(source), .text(sessionID)])
+            return
+        }
+        try db.run(SessionSegmentColumns.seedThrough, [.text(source), .text(sessionID), .int(Int64(seq))])
     }
 
     public func pendingSource(sessionID: SessionID) throws -> SessionID? {
@@ -808,11 +838,12 @@ public actor Store {
             ])
             try db.run(AgentAccountColumns.choose("sessions"), [.text(target.accountID), .text(sessionID)])
             try setSetting(ComposerControls.defaultsAppliedKey(sessionID: sessionID), "1")
+            try setSetting(AgentSessionSettlement.lostAccountKey(sessionID: sessionID), nil)
             let divider = try insertNext(
                 sessionID: sessionID,
                 kind: .handoff,
                 payload: HandoffMark.continued(
-                    agent: target.agentKind, model: target.model, from: current.agentKind
+                    agent: target.agentKind, model: target.model, from: current.agentKind, account: target.accountName
                 ).payload
             )
             try db.run(SessionSegmentColumns.enter, [
@@ -885,6 +916,39 @@ public actor Store {
         try db.transaction { try writeAccountSource(source, for: profile) }
     }
 
+    func gitHubLoginRoutes() throws -> GitHubLoginRoutes {
+        let rows = try db.query(
+            """
+            SELECT path, profile_id FROM repos
+            UNION ALL
+            SELECT workspaces.path, repos.profile_id FROM workspaces JOIN repos ON repos.id = workspaces.repo_id
+            ORDER BY 1, 2
+            """
+        )
+        let pairs = rows.compactMap { row -> (String, String)? in
+            guard let path = row.string("path"), let profile = row.string("profile_id") else { return nil }
+            return (path, profile)
+        }
+        let signature = pairs.map { $0.0 + "\u{0}" + $0.1 }.joined(separator: "\n")
+        if let cached = gitHubRouteCache, cached.signature == signature { return cached.routes }
+        let routes = GitHubLoginRoutes(routes: pairs.flatMap { path, profile -> [GitHubLoginRoutes.Route] in
+            let resolved = URL(filePath: path).resolvingSymlinksInPath().path
+            return Set([path, resolved]).map { GitHubLoginRoutes.Route(path: $0, profile: ProfileID(profile)) }
+        })
+        gitHubRouteCache = (signature, routes)
+        return routes
+    }
+
+    func refreshGitHubLogins() throws {
+        let sources = try ProfileGitHubColumn.sources { try db.query($0) }
+        gitHubLoginBook.withLock { $0 = ProfileGitHubLogins(sources: sources, root: $0.root) }
+    }
+
+    func writeGitHubSource(_ source: ProfileGitHubSource, for profile: ProfileID) throws {
+        try db.run(ProfileGitHubColumn.setSource, [.text(source.rawValue), .text(profile)])
+        try refreshGitHubLogins()
+    }
+
     func writeAccountSource(_ source: ProfileAccountSource, for profile: ProfileID) throws -> [RepoID] {
         guard profile != .initial else { return [] }
         try db.run(ProfileAccountColumns.setSource, [.text(source.rawValue), .text(profile)])
@@ -907,6 +971,64 @@ public actor Store {
 
     func returnAccountsToInitial(from profile: ProfileID) throws {
         try db.run(ProfileAccountColumns.returnToInitial, [.text(profile)])
+    }
+
+    public func pullRequestFixLedger(
+        workspaceID: WorkspaceID, number: Int
+    ) throws -> PullRequestAutoFix.Ledger {
+        let key = PullRequestFixColumns.key(workspaceID, number)
+        let run = try db.query(PullRequestFixColumns.run, key).first
+        let tried = try db.query(PullRequestFixColumns.attempts, key).compactMap(PullRequestFixColumns.attempt)
+        return PullRequestAutoFix.Ledger(
+            inARow: run?.int("in_a_row").map(Int.init) ?? 0,
+            tried: Set(tried),
+            stopAnnounced: run?.date("stop_announced_at") != nil
+        )
+    }
+
+    public func claimPullRequestFix(
+        _ attempt: PullRequestAutoFix.Attempt,
+        workspaceID: WorkspaceID,
+        number: Int,
+        at date: Date = Date()
+    ) throws -> Bool {
+        let key = PullRequestFixColumns.key(workspaceID, number)
+        return try inTransaction {
+            _ = try db.run(PullRequestFixColumns.openRun, key)
+            let inARow = try db.query(PullRequestFixColumns.run, key).first?.int("in_a_row") ?? 0
+            guard inARow < PullRequestAutoFix.attemptsInARow else { return false }
+            let values = PullRequestFixColumns.values(attempt)
+            _ = try db.run(PullRequestFixColumns.insertAttempt, key + values + [.double(date.timeIntervalSince1970)])
+            guard db.changedRowCount > 0 else { return false }
+            _ = try db.run(PullRequestFixColumns.count, key)
+            return true
+        }
+    }
+
+    public func releasePullRequestFix(
+        _ attempt: PullRequestAutoFix.Attempt, workspaceID: WorkspaceID, number: Int
+    ) throws {
+        let key = PullRequestFixColumns.key(workspaceID, number)
+        try inTransaction {
+            _ = try db.run(PullRequestFixColumns.deleteAttempt, key + PullRequestFixColumns.values(attempt))
+            guard db.changedRowCount > 0 else { return }
+            _ = try db.run(PullRequestFixColumns.uncount, key)
+        }
+    }
+
+    public func forgivePullRequestFixRun(workspaceID: WorkspaceID, number: Int) throws {
+        _ = try db.run(PullRequestFixColumns.forgive, PullRequestFixColumns.key(workspaceID, number))
+    }
+
+    public func claimPullRequestFixStopNotice(
+        workspaceID: WorkspaceID, number: Int, at date: Date = Date()
+    ) throws -> Bool {
+        let key = PullRequestFixColumns.key(workspaceID, number)
+        return try inTransaction {
+            _ = try db.run(PullRequestFixColumns.openRun, key)
+            _ = try db.run(PullRequestFixColumns.announceStop, [.double(date.timeIntervalSince1970)] + key)
+            return db.changedRowCount > 0
+        }
     }
 
     func inTransaction<T>(_ work: () throws -> T) throws -> T {
@@ -1353,8 +1475,23 @@ public actor Store {
         }
         try db.run(
             "UPDATE workspaces SET additions = ?, deletions = ?, changed_files = ? WHERE id = ?",
-            [.int(Int64(additions)), .int(Int64(deletions)), .int(Int64(files)), .text(workspaceID)]
+            [.int(Int64(additions)), .int(Int64(deletions)), .int(Int64(files)), .text(workspaceID)],
+            publishing: [.workspaces: .diffStats]
         )
+    }
+
+    public func diffStats() throws -> [WorkspaceID: WorkspaceDiffStat] {
+        let rows = try db.query("SELECT id, additions, deletions, changed_files FROM workspaces WHERE state = 'active'")
+        var stats: [WorkspaceID: WorkspaceDiffStat] = [:]
+        for row in rows {
+            guard let id = row.string("id") else { continue }
+            stats[WorkspaceID(id)] = WorkspaceDiffStat(
+                additions: Int(row.int("additions") ?? 0),
+                deletions: Int(row.int("deletions") ?? 0),
+                files: Int(row.int("changed_files") ?? 0)
+            )
+        }
+        return stats
     }
 
     public func updateCheckedOutBranch(_ branch: String, observed: Workspace) throws {
@@ -1495,9 +1632,9 @@ public actor Store {
                   let workspace = try workspace(id: workspaceID), workspace.state == .active else {
                 throw SQLiteError(message: "This chat cannot start a side conversation.", sql: nil)
             }
-            if let existing = try sessions(workspaceID: workspaceID).first(where: {
-                $0.sideConversationParentID == parentID
-            }) { return existing }
+            for leftover in try sessions(workspaceID: workspaceID) where leftover.sideConversationParentID == parentID {
+                _ = try update(sessionID: leftover.id) { $0.sideConversationParentID = nil }
+            }
             let recent = try db.query(
                 "SELECT * FROM messages WHERE session_id = ? ORDER BY seq DESC LIMIT 300",
                 [.text(parentID)]
@@ -1595,6 +1732,14 @@ public actor Store {
         }
     }
 
+    @discardableResult
+    public func closeSideConversation(sessionID: SessionID) throws -> Bool {
+        guard let row = try session(id: sessionID), row.sideConversationParentID != nil,
+              row.archivedAt == nil else { return false }
+        _ = try update(sessionID: sessionID) { $0.archivedAt = Date() }
+        return true
+    }
+
     public func sessions(workspaceID: WorkspaceID) throws -> [Session] {
         try db.query(
             "SELECT * FROM sessions WHERE workspace_id = ? AND archived_at IS NULL ORDER BY sort_order, created_at",
@@ -1645,6 +1790,16 @@ public actor Store {
 
     public func session(id: SessionID) throws -> Session? {
         try db.query("SELECT * FROM sessions WHERE id = ?", [.text(id)]).first.map(Self.session(from:))
+    }
+
+    public func sessions(ids: [SessionID]) throws -> [SessionID: Session] {
+        let unique = Array(Set(ids))
+        guard !unique.isEmpty else { return [:] }
+        let placeholders = unique.map { _ in "?" }.joined(separator: ", ")
+        let rows = try db.query(
+            "SELECT * FROM sessions WHERE id IN (\(placeholders))", unique.map { SQLValue.text($0) }
+        ).map(Self.session(from:))
+        return Dictionary(rows.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     public func sessionActivity(includingArchivedWorkspaces: Bool = false) throws -> [SessionActivity] {
@@ -1810,6 +1965,7 @@ public actor Store {
     public func deleteSession(id: SessionID) throws {
         try requireSessionCanClose(id: id)
         try db.run("DELETE FROM sessions WHERE id = ?", [.text(id)])
+        try setSetting(AgentSessionSettlement.lostAccountKey(sessionID: id), nil)
     }
 
     public func requireSessionCanClose(id: SessionID) throws {
@@ -1925,6 +2081,7 @@ public actor Store {
             try db.run("DELETE FROM messages WHERE session_id = ? AND seq >= ?", [.text(sessionID), .int(Int64(seq))])
             try db.run(WorkSuggestionColumns.deleteAnchored, [.text(sessionID), .int(Int64(seq))])
             try db.run("DELETE FROM transcript_places WHERE session_id = ? AND anchor_seq >= ?", [.text(sessionID), .int(Int64(seq))])
+            try db.run(TranscriptChapterColumns.unpinFrom, [.text(sessionID), .int(Int64(seq))])
             try db.run("UPDATE deliveries SET delivered_seq = NULL WHERE target_session_id = ? AND delivered_seq >= ?", [
                 .text(sessionID), .int(Int64(seq)),
             ])
@@ -2191,6 +2348,19 @@ public actor Store {
         }
     }
 
+    public func chapters(sessionID: SessionID) throws -> [TranscriptChapter] {
+        try db.query(TranscriptChapterColumns.forSession, [.text(sessionID)])
+            .compactMap(TranscriptChapterColumns.chapter(from:))
+    }
+
+    public func pin(_ chapter: TranscriptChapter, sessionID: SessionID) throws {
+        try db.run(TranscriptChapterColumns.pin, [.text(sessionID), .int(Int64(chapter.seq)), .text(chapter.title)])
+    }
+
+    public func unpinChapter(seq: Int, sessionID: SessionID) throws {
+        try db.run(TranscriptChapterColumns.unpin, [.text(sessionID), .int(Int64(seq))])
+    }
+
     public func replyQuotes(sessionID: SessionID) throws -> [ReplyQuote] {
         try db.query(
             "SELECT * FROM reply_quotes WHERE session_id = ? ORDER BY rowid", [.text(sessionID)]
@@ -2321,10 +2491,10 @@ public actor Store {
             try db.run(
                 """
                 INSERT INTO agent_quotas
-                    (provider, window_key, window_label, window_seconds,
+                    (provider, account_id, window_key, window_label, window_seconds,
                      used, limit_value, unit, resets_at, observed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(provider, window_key) DO UPDATE SET
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(provider, account_id, window_key) DO UPDATE SET
                     window_label = excluded.window_label,
                     window_seconds = excluded.window_seconds,
                     used = excluded.used,
@@ -2336,6 +2506,7 @@ public actor Store {
                 """,
                 [
                     .text(quota.provider.rawValue),
+                    QuotaAccountColumn.value(quota.account),
                     .text(quota.window.key),
                     .text(quota.window.label),
                     quota.window.duration.map { SQLValue.double($0) } ?? .null,
@@ -2380,7 +2551,8 @@ public actor Store {
             ),
             measure: measure,
             resetsAt: row.double("resets_at").map { Date(timeIntervalSince1970: $0) },
-            observedAt: row.double("observed_at").map { Date(timeIntervalSince1970: $0) } ?? Date()
+            observedAt: row.double("observed_at").map { Date(timeIntervalSince1970: $0) } ?? Date(),
+            account: QuotaAccountColumn.account(from: row)
         )
     }
 
@@ -2671,6 +2843,37 @@ public actor Store {
             }
             return try workspaceMessage(id: message.id) ?? message
         }
+    }
+
+    public func recordInboxNotification(_ draft: NotificationDraft, at moment: Date = Date()) throws {
+        try db.transaction { try InboxNotificationColumns.record(draft, at: moment, in: db) }
+    }
+
+    public func inboxNotifications(at moment: Date = Date()) throws -> [InboxNotification] {
+        try db.query(InboxNotificationColumns.all, [.double(InboxNotificationColumns.cutoff(at: moment))])
+            .compactMap(InboxNotificationColumns.notification(from:))
+    }
+
+    public func markInboxNotificationRead(id: InboxNotificationID, at moment: Date = Date()) throws {
+        try db.run(InboxNotificationColumns.markRead, [.double(moment.timeIntervalSince1970), .text(id)])
+    }
+
+    public func markInboxNotificationsRead(_ opening: InboxOpening, at moment: Date = Date()) throws {
+        let unread = try db.query(InboxNotificationColumns.unreadInWorkspace, [.text(opening.workspaceID)])
+            .compactMap(InboxNotificationColumns.notification(from:))
+        try db.transaction {
+            for row in unread where NotificationInbox.clears(row, by: opening) {
+                try markInboxNotificationRead(id: row.id, at: moment)
+            }
+        }
+    }
+
+    public func markAllInboxNotificationsRead(at moment: Date = Date()) throws {
+        try db.run(InboxNotificationColumns.markAllRead, [.double(moment.timeIntervalSince1970)])
+    }
+
+    public func pruneInboxNotifications(at moment: Date = Date()) throws {
+        try db.transaction { try InboxNotificationColumns.prune(at: moment, in: db) }
     }
 
     public func addWorkspaceDoneWatch(_ watch: WorkspaceDoneWatch) throws {

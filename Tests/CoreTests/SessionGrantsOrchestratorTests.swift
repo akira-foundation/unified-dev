@@ -36,6 +36,7 @@ struct SessionGrantsOrchestratorTests {
     func readsAnsweredLive() async throws {
         let store = try makeTestStore("orchestrator")
         let rows = try await seed(store)
+        try await OrchestratorUnaskedCommands.save(false, repoID: rows[0].repoID, to: store)
         let lead = SessionGrants(store: store, workspaceID: rows[0].id)
         let other = SessionGrants(store: store, workspaceID: rows[1].id)
         let read = JSONValue.object(["command": .string("git log -1")])

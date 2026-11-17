@@ -20,7 +20,7 @@ extension Git {
         }
         guard let remote = destination, (try? validate(ref: remote, label: "remote")) != nil else { return false }
         let refspec = "+refs/heads/\(branch):refs/remotes/\(remote)/\(branch)"
-        let result = try? await run(
+        let result = try? await runAgainstRemote(
             ["fetch", "--no-tags", "--", remote, refspec], in: directory, timeout: timeout
         )
         return result?.ok ?? false
@@ -31,7 +31,7 @@ extension Git {
     ) async -> Bool {
         guard (try? validate(ref: remote, label: "remote")) != nil else { return false }
         let refspec = "+refs/heads/*:refs/remotes/\(remote)/*"
-        let result = try? await run(
+        let result = try? await runAgainstRemote(
             ["fetch", "--no-tags", "--prune", "--", remote, refspec], in: directory, timeout: timeout
         )
         return result?.ok ?? false

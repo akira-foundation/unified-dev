@@ -77,4 +77,9 @@ struct SearchPanelCommandsTests {
         let others = MenuBarCatalogue.commands.filter { $0.action != .quickSearch }
         #expect(!others.contains { $0.key == .command("k") })
     }
+
+    @Test("the catalogue offers the panel whatever is selected")
+    func thePanelNeedsNoSelection() {
+        #expect(MenuBarCatalogue[.quickSearch].availability == .always)
+    }
 }

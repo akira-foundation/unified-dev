@@ -26,7 +26,6 @@ struct TranscriptLinkActions: Sendable, Equatable {
     var previewSource: @MainActor @Sendable (URL) -> URL? = { _ in nil }
 
     var runCommand: (@MainActor @Sendable (String) -> Void)?
-    var mayRunCommand: @MainActor @Sendable (String) -> Bool = { _ in true }
     var stopCommand: @MainActor @Sendable (String) -> Void = { _ in }
     var commandRun: @MainActor @Sendable (String) -> CodeBlockRun? = { _ in nil }
 

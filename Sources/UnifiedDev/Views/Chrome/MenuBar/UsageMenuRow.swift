@@ -2,79 +2,63 @@ import SwiftUI
 import Core
 
 struct UsageMenuRow: View {
-    let metric: UsageMetric
-    let now: Date
-    let options: UsageDisplayOptions
-    var isCondensed = false
+    let row: UsageCompactRow
 
     var body: some View {
-        switch metric.content {
-        case .meter(let quota):
-            meter(UsageMeterReading.of(quota, isSession: metric.isSession, at: now, options: options))
-        case .value(let text, _, _):
-            value(text)
+        HStack(spacing: UsageColumns.gap) {
+            Text(row.title)
+                .foregroundStyle(MenuInk.primary)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .help(row.title)
+            UsageMeterBar(reading: row.reading, height: 4)
+                .frame(width: UsageColumns.bar)
+            Text(row.value)
+                .fontWeight(.medium)
+                .foregroundStyle(row.reading.tone == .critical ? MenuInk.critical : MenuInk.primary)
+                .frame(width: UsageColumns.value, alignment: .trailing)
+            alert
+                .frame(width: UsageColumns.alert, alignment: .leading)
+            Text(row.reset)
+                .foregroundStyle(MenuInk.secondary)
+                .lineLimit(1)
+                .frame(width: UsageColumns.reset, alignment: .trailing)
+                .help(row.resetHelp ?? "")
         }
+        .font(UsageScale.supporting)
+        .monospacedDigit()
+        .frame(minHeight: UsageColumns.rowHeight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(row.spoken)
     }
 
-    private func meter(_ reading: UsageMeterReading) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(metric.title)
-                    .font(UsageScale.label)
-                    .foregroundStyle(MenuInk.primary)
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-                if let status = reading.status {
-                    HStack(spacing: 4) {
-                        if status.showsFlame {
-                            Image(systemName: "flame.fill")
-                                .font(UsageScale.supporting)
-                                .foregroundStyle(MenuInk.critical)
-                        }
-                        if let text = status.text {
-                            Text(text)
-                                .font(UsageScale.supporting)
-                                .foregroundStyle(MenuInk.secondary)
-                        }
-                    }
-                    .lineLimit(1)
+    @ViewBuilder
+    private var alert: some View {
+        if row.showsFlame {
+            HStack(spacing: 2) {
+                Image(systemName: "flame.fill")
+                if let text = row.alert {
+                    Text(text)
+                        .lineLimit(1)
+                        .fixedSize()
                 }
             }
-            UsageMeterBar(reading: reading)
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(reading.headline)
-                    .foregroundStyle(MenuInk.primary)
-                Spacer(minLength: 8)
-                Text(reading.trailing)
-                    .foregroundStyle(MenuInk.secondary)
-            }
-            .font(UsageScale.supporting)
-            .monospacedDigit()
-            .lineLimit(1)
+            .foregroundStyle(MenuInk.critical)
+            .help(row.alertHelp ?? "")
+        } else {
+            Color.clear.frame(height: 1)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(reading.spoken(title: metric.title))
     }
+}
 
-    private func value(_ text: String) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            Text(metric.title)
-                .font(UsageScale.supporting.weight(.semibold))
-                .foregroundStyle(MenuInk.primary)
-            Spacer(minLength: 12)
-            Text(text)
-                .font(UsageScale.supporting)
-                .foregroundStyle(MenuInk.primary)
-                .monospacedDigit()
-        }
-        .lineLimit(1)
-        .padding(.horizontal, 12)
-        .padding(.top, isCondensed ? 2 : 6)
-        .padding(.bottom, 6)
-        .accessibilityElement(children: .combine)
-    }
+enum UsageColumns {
+    static let gap: CGFloat = 5
+    static let bar: CGFloat = 64
+    static let value: CGFloat = 34
+    static let alert: CGFloat = 52
+    static let reset: CGFloat = 52
+    static let rowHeight: CGFloat = 22
 }
 
 struct UsageMeterBar: View {
@@ -103,12 +87,5 @@ struct UsageMeterBar: View {
         }
         .frame(height: height)
         .accessibilityHidden(true)
-    }
-}
-
-extension UsageMetric {
-    var isText: Bool {
-        if case .value = content { return true }
-        return false
     }
 }

@@ -9,6 +9,7 @@ struct WorkspaceBrowserURLTests {
         "UD_PROJECT_NAME": "shop",
         "UD_WORKSPACE_NAME": "feature-checkout",
     ]
+    private let worktree = TestScratch.unique("unifieddev-browser-url-bounded")
 
     @Test("the port is the answer when nothing states an address")
     func portIsTheFallback() {
@@ -157,6 +158,65 @@ struct WorkspaceBrowserURLTests {
             worktree: worktree, settings: settings, environment: environment, port: 3100
         )
         #expect(address == "https://written.test")
+    }
+
+    @Test("only the first 64 KiB of the file are read, so an address past them is never reached")
+    func readsABoundedPrefix() throws {
+        try writtenFile(String(repeating: "\n", count: 65_536) + "https://past-the-limit.test\n")
+        #expect(readAddress() == "https://stated.test")
+    }
+
+    @Test("an address after a long run of blank lines is still found")
+    func findsAnAddressAfterBlankLines() throws {
+        try writtenFile(String(repeating: "\n", count: 65_000) + "https://inside.test\n")
+        #expect(readAddress() == "https://inside.test")
+    }
+
+    @Test("a first line cut by the limit is not taken for an address")
+    func refusesATruncatedLine() throws {
+        try writtenFile("https://shop.test/" + String(repeating: "a", count: 70_000))
+        #expect(readAddress() == "https://stated.test")
+    }
+
+    @Test("a file that is not UTF-8 falls through to the settings file")
+    func refusesInvalidText() throws {
+        let path = try writtenFile("")
+        try Data([0x68, 0x74, 0x74, 0x70, 0xFF, 0xFE, 0x0A]).write(to: URL(filePath: path))
+        #expect(readAddress() == "https://stated.test")
+    }
+
+    @Test("a character the limit cuts in two does not cost the address before it")
+    func keepsTheAddressBeforeACutCharacter() throws {
+        let head = "https://ok.test\n"
+        let filler = String(repeating: "a", count: 65_536 - head.utf8.count - 1) + "\u{E9}"
+        try writtenFile(head + filler)
+        #expect(readAddress() == "https://ok.test")
+    }
+
+    @Test("a pipe in place of the file is not waited on", .timeLimit(.minutes(1)))
+    func refusesAPipe() throws {
+        let path = try writtenFile("")
+        try FileManager.default.removeItem(atPath: path)
+        #expect(mkfifo(path, 0o600) == 0)
+        #expect(readAddress() == "https://stated.test")
+    }
+
+    @discardableResult
+    private func writtenFile(_ contents: String) throws -> String {
+        let path = WorkspaceBrowserURL.path(inWorktree: worktree)
+        try FileManager.default.createDirectory(
+            atPath: (path as NSString).deletingLastPathComponent, withIntermediateDirectories: true
+        )
+        try contents.write(toFile: path, atomically: true, encoding: .utf8)
+        return path
+    }
+
+    private func readAddress() -> String {
+        var settings = RepoSettings()
+        settings.browserURL = "https://stated.test"
+        return WorkspaceBrowserURL.read(
+            worktree: worktree, settings: settings, environment: environment, port: 3100
+        )
     }
 
     @Test("a worktree with no such file uses the settings file")

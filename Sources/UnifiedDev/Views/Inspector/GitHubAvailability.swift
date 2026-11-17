@@ -24,49 +24,45 @@ final class GitHubAvailability {
         var isUsable: Bool { self != .notInstalled && self != .signedOut }
     }
 
-    private(set) var state: State = .unknown
+    private(set) var states: [GitHubLogin: State] = [:]
 
     private static let negativeLifetime = Duration.seconds(120)
 
-    private var probe: Task<State, Never>?
-    private var answeredAt: ContinuousClock.Instant?
+    private var probes: [GitHubLogin: Task<State, Never>] = [:]
+    private var answeredAt: [GitHubLogin: ContinuousClock.Instant] = [:]
 
-    func isReady() async -> Bool {
-        await check() == .ready
+    func state(for login: GitHubLogin) -> State {
+        states[login] ?? .unknown
     }
 
     @discardableResult
-    func check(force: Bool = false) async -> State {
+    func check(directory: String?, force: Bool = false) async -> State {
+        await check(login: await GitHub.login(forDirectory: directory), force: force)
+    }
+
+    @discardableResult
+    func check(login: GitHubLogin, force: Bool = false) async -> State {
+        let state = state(for: login)
         if force {
-            probe?.cancel()
-            probe = nil
-            answeredAt = nil
+            probes[login]?.cancel()
+            probes[login] = nil
+            answeredAt[login] = nil
         } else {
             if state == .ready { return .ready }
-            if let answeredAt, answeredAt.duration(to: .now) < Self.negativeLifetime,
+            if let answered = answeredAt[login], answered.duration(to: .now) < Self.negativeLifetime,
                !state.isUsable {
                 return state
             }
-            if let probe { return await probe.value }
+            if let probe = probes[login] { return await probe.value }
         }
 
-        let task = Task { State(await GitHubBridge.access()) }
-        probe = task
+        let task = Task { State(await GitHub.access(login: login)) }
+        probes[login] = task
         let answer = await task.value
-        guard probe == task else { return answer }
-        probe = nil
-        answeredAt = .now
-        state = answer
+        guard probes[login] == task else { return answer }
+        probes[login] = nil
+        answeredAt[login] = .now
+        states[login] = answer
         return answer
-    }
-}
-
-extension GitHubBridge {
-    static func access() async -> GitHubAccess {
-        await GitHub.access()
-    }
-
-    static func isAvailable() async -> Bool {
-        await GitHub.isAvailable()
     }
 }

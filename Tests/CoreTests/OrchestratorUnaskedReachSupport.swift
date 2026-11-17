@@ -28,6 +28,8 @@ struct UnaskedSwitchOwner {
             repoID: repo.id, name: "crew", branch: "b/crew", path: TestScratch.unique("crew"), baseBranch: "main"
         ))
         let neighbour = try await store.upsert(Repo(name: "neighbour", path: TestScratch.unique("neighbour")))
+        try await OrchestratorUnaskedCommands.save(false, repoID: repo.id, to: store)
+        try await OrchestratorUnaskedCommands.save(false, repoID: neighbour.id, to: store)
         return UnaskedSwitchOwner(
             repo: repo, lead: lead, session: try await store.upsert(Session(workspaceID: lead.id, title: "Chat")),
             crew: crew, crewSession: try await store.upsert(Session(workspaceID: crew.id, title: "Chat")),
@@ -47,12 +49,17 @@ struct UnaskedSwitchOwner {
     func isStillOff() async throws -> Bool {
         let grants = SessionGrants(store: store, workspaceID: lead.id)
         let answers = await grants.answersItself(
-            toolName: "Bash", input: .object(["command": .string("make build && make test")])
+            toolName: "Bash", input: .object(["command": .string("rg x && echo \"a b\"")])
         )
         var stored: [String?] = []
         for repoID in [repo.id, neighbour.id] {
-            stored.append(try await store.setting(OrchestratorUnaskedCommands.key(repoID: repoID)))
+            if try await store.setting(OrchestratorUnaskedCommands.key(repoID: repoID)) != "off" { return false }
+            stored.append(try await store.setting(PullRequestAutoFixSetting.key(repoID: repoID)))
             if await OrchestratorUnaskedCommands.isOn(repoID: repoID, in: store) { return false }
+            if await PullRequestAutoFixSetting.isOn(repoID: repoID, in: store) { return false }
+        }
+        for profile in try await store.profiles() {
+            stored.append(try await store.setting(ProfileBridgeSwitch.key(profile: profile.id)))
         }
         return stored.allSatisfy { $0 == nil } && !answers
     }

@@ -3,7 +3,15 @@ import Foundation
 public enum QuotaPollSchedule {
     public static let interval: TimeInterval = 60
 
+    public static let backgroundInterval: TimeInterval = 300
+
     public static let onDemandFloor: TimeInterval = 30
+
+    public static let tick: TimeInterval = 15
+
+    public static func gap(for activity: DiffRefreshSchedule.Activity, isPanelOpen: Bool) -> TimeInterval {
+        activity == .foreground || isPanelOpen ? interval : backgroundInterval
+    }
 
     public static func isDue(lastAskedAt: Date?, at now: Date, after gap: TimeInterval) -> Bool {
         guard let lastAskedAt else { return true }
@@ -24,6 +32,8 @@ public struct QuotaStanding: Sendable, Equatable {
 public protocol AgentQuotaSource: Sendable {
     static var provider: AgentKind { get }
 
+    var holder: QuotaHolder { get }
+
     func read() async -> Data?
 
     func standing() async -> QuotaStanding
@@ -32,6 +42,8 @@ public protocol AgentQuotaSource: Sendable {
 }
 
 extension AgentQuotaSource {
+    public var holder: QuotaHolder { QuotaHolder(provider: Self.provider, account: nil) }
+
     public func standing() async -> QuotaStanding { QuotaStanding(isInstalled: true) }
 
     public func account(from payload: Data, at now: Date) -> AgentAccount? {
@@ -97,7 +109,9 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
     private let accountPath: String
     private let credentialPath: String
     private let clock: @Sendable () -> Date
+    private let activity: ClaudeAccountActivity
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
+    private let loginShellReady: @Sendable () async -> Void
 
     public init(
         executable: String = AgentRunner.executable,
@@ -107,8 +121,12 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
         accountPath: String? = nil,
         credentialPath: String? = nil,
         clock: @escaping @Sendable () -> Date = Date.init,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = AgentRunner.spawn
+        activity: ClaudeAccountActivity = .shared,
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = AgentRunner.spawn,
+        loginShellReady: @escaping @Sendable () async -> Void = LoginShellPath.readiness
     ) {
+        self.activity = activity
+        self.loginShellReady = loginShellReady
         self.executable = executable
         self.cwd = cwd
         self.environment = environment
@@ -120,8 +138,10 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
         self.makeProcess = makeProcess
     }
 
+    public var holder: QuotaHolder { QuotaHolder(provider: Self.provider, home: account) }
+
     public func standing() async -> QuotaStanding {
-        await LoginShellPath.ready()
+        await loginShellReady()
         return QuotaStanding(
             isInstalled: Shell.which(executable) != nil,
             lastReportedAt: ClaudeUsageCache.fetchedAt(in: accountFile(), at: clock())
@@ -164,8 +184,12 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
     }
 
     private func ask() async -> Data? {
+        await loginShellReady()
+        return await activity.holding(account) { await askHoldingTheAccount() }.flatMap(\.self)
+    }
+
+    private func askHoldingTheAccount() async -> Data? {
         let id = "unifieddev-usage-\(UUID().uuidString)"
-        await LoginShellPath.ready()
         let process = makeProcess(Self.launch(
             executable: executable,
             cwd: cwd,
@@ -186,7 +210,7 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
         } catch {
             answer = nil
         }
-        process.terminate()
+        await process.end(within: ClaudeAccountActivity.exitGrace)
         return answer
     }
 }
@@ -201,28 +225,33 @@ public struct CodexQuotaSource: AgentQuotaSource {
     private let environment: [String: String]?
     private let account: AgentAccountHome?
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
+    private let loginShellReady: @Sendable () async -> Void
 
     public init(
         executable: String = CodexClient.executable,
         cwd: String = AgentScratchDirectory.current(),
         environment: [String: String]? = nil,
         account: AgentAccountHome? = nil,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = CodexClient.spawn
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = CodexClient.spawn,
+        loginShellReady: @escaping @Sendable () async -> Void = LoginShellPath.readiness
     ) {
         self.executable = executable
         self.cwd = cwd
         self.environment = environment
         self.account = account
         self.makeProcess = makeProcess
+        self.loginShellReady = loginShellReady
     }
 
+    public var holder: QuotaHolder { QuotaHolder(provider: Self.provider, home: account) }
+
     public func standing() async -> QuotaStanding {
-        await LoginShellPath.ready()
+        await loginShellReady()
         return QuotaStanding(isInstalled: Shell.which(executable) != nil)
     }
 
     public func read() async -> Data? {
-        await LoginShellPath.ready()
+        await loginShellReady()
         let configuration = CodexClient.Configuration(
             executable: executable,
             cwd: cwd,
@@ -238,78 +267,5 @@ public struct CodexQuotaSource: AgentQuotaSource {
         } catch {
             return nil
         }
-    }
-}
-
-public enum AgentQuotaSources {
-    public static func all(accounts: [AgentKind: AgentAccountHome] = [:]) -> [any AgentQuotaSource] {
-        [
-            ClaudeCodeQuotaSource(account: accounts[.claudeCode]),
-            CodexQuotaSource(account: accounts[.codex]),
-            GrokQuotaSource(account: accounts[.grok]),
-        ]
-    }
-
-    public static func readAll(
-        _ sources: [any AgentQuotaSource] = AgentQuotaSources.all(),
-        at now: Date = Date()
-    ) async -> [AgentQuota] {
-        await report(sources, at: now).quotas
-    }
-
-    public static func report(
-        _ sources: [any AgentQuotaSource] = AgentQuotaSources.all(),
-        at now: Date = Date()
-    ) async -> QuotaReport {
-        await withTaskGroup(of: QuotaReport.self) { group in
-            for source in sources {
-                group.addTask {
-                    let provider = type(of: source).provider
-                    let standing = await source.standing()
-                    guard standing.isInstalled else { return QuotaReport() }
-
-                    var report = QuotaReport()
-                    if let reportedAt = standing.lastReportedAt { report.lastReported[provider] = reportedAt }
-
-                    guard let payload = await source.read() else {
-                        report.unanswered = [provider]
-                        return report
-                    }
-                    report.quotas = AgentQuotaAdapters.quotas(fromRateLimitEvent: payload, at: now)
-                    report.accounts = source.account(from: payload, at: now).map { [$0] } ?? []
-                    if ClaudeCodeUsageAdapter.declinesLimits(payload) { report.withoutLimits = [provider] }
-                    return report
-                }
-            }
-            return await group.reduce(into: QuotaReport()) { total, next in
-                total.quotas += next.quotas
-                total.accounts += next.accounts
-                total.unanswered += next.unanswered
-                total.withoutLimits += next.withoutLimits
-                total.lastReported.merge(next.lastReported) { _, later in later }
-            }
-        }
-    }
-}
-
-public struct QuotaReport: Sendable {
-    public var quotas: [AgentQuota]
-    public var accounts: [AgentAccount]
-    public var unanswered: [AgentKind]
-    public var withoutLimits: [AgentKind]
-    public var lastReported: [AgentKind: Date]
-
-    public init(
-        quotas: [AgentQuota] = [],
-        accounts: [AgentAccount] = [],
-        unanswered: [AgentKind] = [],
-        withoutLimits: [AgentKind] = [],
-        lastReported: [AgentKind: Date] = [:]
-    ) {
-        self.quotas = quotas
-        self.accounts = accounts
-        self.unanswered = unanswered
-        self.withoutLimits = withoutLimits
-        self.lastReported = lastReported
     }
 }

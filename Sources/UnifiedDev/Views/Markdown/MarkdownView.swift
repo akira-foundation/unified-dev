@@ -32,15 +32,6 @@ private enum MarkdownParseCache {
         values.setObject(box, forKey: key, cost: text.utf8.count)
         return box
     }
-
-    @MainActor private static var streamed: (text: String, box: MarkdownBlockBox)?
-
-    @MainActor static func streamingParsed(for text: String) -> MarkdownBlockBox {
-        if let streamed, streamed.text == text { return streamed.box }
-        let box = MarkdownBlockBox(MarkdownParser.parse(text), addresses: [])
-        streamed = (text, box)
-        return box
-    }
 }
 
 enum MarkdownPrime {
@@ -69,10 +60,17 @@ public struct MarkdownView: View {
         self.isStreaming = isStreaming
     }
 
+    private var parsed: (blocks: [MarkdownBlock], addresses: [String]) {
+        guard isStreaming else {
+            streamSlot.forgetStream()
+            let box = MarkdownParseCache.parsed(for: text)
+            return (box.blocks, box.addresses)
+        }
+        return (streamSlot.blocks(streaming: text), [])
+    }
+
     public var body: some View {
-        let parsed = isStreaming
-            ? MarkdownParseCache.streamingParsed(for: text)
-            : MarkdownParseCache.parsed(for: text)
+        let parsed = self.parsed
         let style = MarkdownTextStyle(
             scale: fontScale, face: chatFont, lineHeight: chatLineHeight, ambientLeading: ambientLeading
         )

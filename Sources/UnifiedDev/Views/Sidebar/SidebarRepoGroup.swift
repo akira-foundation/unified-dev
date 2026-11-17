@@ -1,6 +1,6 @@
 import Core
 
-struct SidebarRepoGroup: Identifiable {
+struct SidebarRepoGroup: Identifiable, Equatable {
     var repo: Repo
     var workspaces: [Workspace]
     var hasUnreadWork: Bool

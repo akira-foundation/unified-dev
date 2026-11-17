@@ -23,7 +23,9 @@ extension Store {
         at date: Date = Date()
     ) throws -> [Session] {
         var told: [Session] = []
-        for watch in try unspentWorkspaceDoneWatches(targetWorkspaceID: workspaceID) {
+        for stored in try unspentWorkspaceDoneWatches(targetWorkspaceID: workspaceID) {
+            var watch = stored
+            watch.target.profile = try crossedProfileName(of: workspaceID, from: watch.watcherSessionID)
             switch watch.verdict(on: ending, in: sessionID, isSubagentChat: isSubagentChat) {
             case .ignore:
                 continue
@@ -40,6 +42,18 @@ extension Store {
             }
         }
         return told
+    }
+
+    public func crossedProfileName(of target: WorkspaceID, from watcher: SessionID) throws -> String? {
+        guard let targetRow = try workspace(id: target),
+              let targetRepo = try repo(id: targetRow.repoID),
+              let chat = try session(id: watcher),
+              let workspaceID = chat.workspaceID,
+              let watcherRow = try workspace(id: workspaceID),
+              let watcherRepo = try repo(id: watcherRow.repoID),
+              targetRepo.profileID != watcherRepo.profileID
+        else { return nil }
+        return try profile(id: targetRepo.profileID)?.name ?? ""
     }
 
     private func liveWatcher(_ id: SessionID) throws -> Session? {

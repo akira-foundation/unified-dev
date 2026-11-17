@@ -4,11 +4,11 @@ import CoreGraphics
 
 @Suite("ToolbarTabsWidth")
 struct ToolbarTabsWidthTests {
-    @Test("the profile mark takes its room out of the strip, down to the minimum")
+    @Test("the collapsed profile switcher takes its room out of the strip, down to the minimum")
     func profileMarkRoom() {
-        #expect(ToolbarTabsWidth.width(inColumn: 900, showingProfileMark: true) == 694)
-        #expect(ToolbarTabsWidth.width(inColumn: 900, showingProfileMark: false) == 730)
-        #expect(ToolbarTabsWidth.width(inColumn: 300, showingProfileMark: true) == 240)
+        #expect(ToolbarTabsWidth.width(inColumn: 900, besideCollapsedSwitcher: true) == 686)
+        #expect(ToolbarTabsWidth.width(inColumn: 900, besideCollapsedSwitcher: false) == 730)
+        #expect(ToolbarTabsWidth.width(inColumn: 300, besideCollapsedSwitcher: true) == 240)
     }
 
     @Test("the tabs take the centre column less the room the toolbar actions need")

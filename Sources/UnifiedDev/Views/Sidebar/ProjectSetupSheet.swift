@@ -27,6 +27,7 @@ struct ProjectSetupSheet: View {
     @State private var phase: Phase = .choosing
     @State private var signIn: GitHubSignIn.Request?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(AppModel.self) private var app
 
     @State private var isShowingExcluded = false
     @State private var availabilityCheck: Task<Void, Never>?
@@ -274,7 +275,7 @@ struct ProjectSetupSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     Button(access == .notInstalled ? "Install the GitHub CLI" : "Connect GitHub") {
-                        signIn = GitHubSignIn.Request(access: access, directory: request.path)
+                        signIn = GitHubSignIn.Request(access: access, directory: request.path, login: app.activeGitHubLogin)
                     }
                     .controlSize(.small)
                 }
@@ -565,13 +566,15 @@ struct ProjectSetupSheet: View {
     }
 
     private func probeGitHub() async {
-        access = await GitHubAvailability.shared.check()
+        let login = app.activeGitHubLogin
+        access = await GitHubAvailability.shared.check(login: login)
         guard access == .ready else { return }
         guard owners.isEmpty else { return }
 
         isLoadingOwners = true
         defer { isLoadingOwners = false }
-        guard let found = try? await GitHub.owners(), !found.isEmpty else { return }
+        guard let found = try? await GitHub.$login.withValue(login, operation: { try await GitHub.owners() }),
+              !found.isEmpty else { return }
         owners = found
         if owner.isEmpty { owner = found[0].login }
         if choice == .gitHub { scheduleAvailabilityCheck() }
@@ -589,10 +592,13 @@ struct ProjectSetupSheet: View {
         }
 
         availability = .checking
+        let login = app.activeGitHubLogin
         availabilityCheck = Task {
             try? await Task.sleep(for: Self.availabilityDelay)
             guard !Task.isCancelled else { return }
-            let answer = await GitHub.repositoryAvailability(owner: account, name: candidate)
+            let answer = await GitHub.$login.withValue(login) {
+                await GitHub.repositoryAvailability(owner: account, name: candidate)
+            }
             guard !Task.isCancelled else { return }
             guard candidate == trimmedName, account == owner else { return }
             availability = answer
@@ -605,14 +611,17 @@ struct ProjectSetupSheet: View {
         phase = .working(RepositoryStartStep.steps(for: target).first ?? .initialise)
 
         startTask?.cancel()
+        let login = app.activeGitHubLogin
         startTask = Task {
             do {
-                let outcome = try await RepositoryStarter.start(
-                    at: request.path,
-                    destination: target,
-                    completed: completed
-                ) { step in
-                    phase = .working(step)
+                let outcome = try await GitHub.$login.withValue(login) {
+                    try await RepositoryStarter.start(
+                        at: request.path,
+                        destination: target,
+                        completed: completed
+                    ) { step in
+                        phase = .working(step)
+                    }
                 }
                 guard !Task.isCancelled else { return }
                 if target.isGitHub || !outcome.excluded.isEmpty || outcome.commitWasUnsigned {

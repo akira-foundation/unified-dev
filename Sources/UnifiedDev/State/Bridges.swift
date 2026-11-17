@@ -4,14 +4,25 @@ import Core
 
 enum GitHubBridge {
     static func readPullRequest(for workspace: Workspace, maxAge: Duration = .zero) async -> PullRequestRead {
-        let availability = await GitHubAvailability.shared.check()
+        await readPullRequestAndChecks(for: workspace, maxAge: maxAge).pullRequest
+    }
+
+    static func readPullRequestAndChecks(for workspace: Workspace, maxAge: Duration) async -> PullRequestReading {
+        if let reading = await Bitbucket.readingIfHosted(for: workspace, maxAge: maxAge) { return reading }
+        let availability = await GitHubAvailability.shared.check(directory: workspace.path)
         if availability == .notInstalled {
-            return .unavailable(GitHubReadFailure(reason: .unavailable, message: "Install the GitHub CLI to refresh pull requests."))
+            return PullRequestReading(
+                pullRequest: .unavailable(GitHubReadFailure(reason: .unavailable, message: "Install the GitHub CLI to refresh pull requests.")),
+                checks: nil
+            )
         }
         guard availability == .ready else {
-            return .unavailable(GitHubReadFailure(reason: .authentication, message: "Connect GitHub to refresh pull requests."))
+            return PullRequestReading(
+                pullRequest: .unavailable(GitHubReadFailure(reason: .authentication, message: "Connect GitHub to refresh pull requests.")),
+                checks: nil
+            )
         }
-        return await GitHub.readPullRequest(for: workspace, maxAge: maxAge)
+        return await GitHub.readPullRequestAndChecks(for: workspace, maxAge: maxAge)
     }
 
     static func pullRequest(
@@ -19,14 +30,6 @@ enum GitHubBridge {
     ) async -> PullRequest? {
         guard case .current(let pullRequest) = await readPullRequest(for: workspace, maxAge: maxAge) else { return nil }
         return pullRequest
-    }
-
-    static func checks(for workspace: Workspace) async -> [CheckRun]? {
-        do {
-            return try await GitHub.checks(for: workspace)
-        } catch {
-            return []
-        }
     }
 
     static func open(_ url: String) {

@@ -6,8 +6,8 @@ import Foundation
 struct GrokTranslationTests {
     @Test("prompt errors retain their explanation when stored and decoded")
     func promptErrorSurvivesStorage() throws {
-        var translation = GrokTranslation()
-        let events = translation.translate(.promptCompleted(GrokPromptResult(
+        var translation = ACPTranslation(context: ACPTranslation.Context(agentKind: .grok))
+        let events = translation.translate(.promptCompleted(ACPPromptResult(
             requestID: .number(1),
             sessionID: "s",
             stopReason: "refusal",
@@ -29,12 +29,13 @@ struct GrokTranslationTests {
 
     @Test("session ready becomes a stored init line naming Grok")
     func sessionReadyIsInit() {
-        var translation = GrokTranslation(context: GrokTranslation.Context(
+        var translation = ACPTranslation(context: ACPTranslation.Context(
+            agentKind: .grok,
             model: "grok-4.6",
             cwd: "/tmp/w",
             permissionMode: "auto"
         ))
-        let events = translation.translate(.sessionReady(GrokSession(
+        let events = translation.translate(.sessionReady(ACPSession(
             id: "sess-1",
             currentModelID: "grok-4.6"
         )))
@@ -52,12 +53,13 @@ struct GrokTranslationTests {
 
     @Test("the model the owner chose survives a session that opens on the CLI's own default")
     func chosenModelSurvivesTheSessionDefault() {
-        var translation = GrokTranslation(context: GrokTranslation.Context(
+        var translation = ACPTranslation(context: ACPTranslation.Context(
+            agentKind: .grok,
             model: "grok-4.6",
             cwd: "/tmp/w",
             permissionMode: "auto"
         ))
-        let events = translation.translate(.sessionReady(GrokSession(
+        let events = translation.translate(.sessionReady(ACPSession(
             id: "sess-1",
             currentModelID: "grok-4.7"
         )))
@@ -71,8 +73,8 @@ struct GrokTranslationTests {
 
     @Test("a session with no model of ours is named by the one the CLI opened on")
     func theSessionDefaultNamesATurnWeAskedNothingOf() {
-        var translation = GrokTranslation(context: GrokTranslation.Context(cwd: "/tmp/w"))
-        let events = translation.translate(.sessionReady(GrokSession(
+        var translation = ACPTranslation(context: ACPTranslation.Context(agentKind: .grok, cwd: "/tmp/w"))
+        let events = translation.translate(.sessionReady(ACPSession(
             id: "sess-1",
             currentModelID: "grok-4.7"
         )))
@@ -85,21 +87,21 @@ struct GrokTranslationTests {
 
     @Test("text chunks stream live and flush as one assistant row")
     func textChunksFlush() {
-        var translation = GrokTranslation(context: GrokTranslation.Context(model: "grok-4.6"))
-        _ = translation.translate(.sessionReady(GrokSession(id: "sess-1")))
-        let first = translation.translate(.update(GrokSessionUpdate(
+        var translation = ACPTranslation(context: ACPTranslation.Context(agentKind: .grok, model: "grok-4.6"))
+        _ = translation.translate(.sessionReady(ACPSession(id: "sess-1")))
+        let first = translation.translate(.update(ACPSessionUpdate(
             sessionID: "sess-1",
             kind: .text("Hel"),
             raw: .object([:])
         )))
         #expect(first.contains { if case .streamDelta(.text("Hel")) = $0 { return true }; return false })
-        let second = translation.translate(.update(GrokSessionUpdate(
+        let second = translation.translate(.update(ACPSessionUpdate(
             sessionID: "sess-1",
             kind: .text("lo"),
             raw: .object([:])
         )))
         #expect(second.contains { if case .streamDelta(.text("lo")) = $0 { return true }; return false })
-        let done = translation.translate(.promptCompleted(GrokPromptResult(
+        let done = translation.translate(.promptCompleted(ACPPromptResult(
             requestID: .number(1),
             sessionID: "sess-1",
             stopReason: "end_turn",
@@ -118,9 +120,9 @@ struct GrokTranslationTests {
 
     @Test("a tool call maps onto Read and carries the path Unified Dev already looks for")
     func toolCallMapsToRead() {
-        var translation = GrokTranslation(context: GrokTranslation.Context(model: "grok-4.6"))
-        _ = translation.translate(.sessionReady(GrokSession(id: "sess-1")))
-        let call = GrokToolCall.decode(.object([
+        var translation = ACPTranslation(context: ACPTranslation.Context(agentKind: .grok, model: "grok-4.6"))
+        _ = translation.translate(.sessionReady(ACPSession(id: "sess-1")))
+        let call = ACPToolCall.decode(.object([
             "toolCallId": .string("call_1"),
             "title": .string("Read"),
             "kind": .string("read"),
@@ -128,7 +130,7 @@ struct GrokTranslationTests {
             "toolName": .string("read_file"),
             "rawInput": .object(["path": .string("src/main.rs")]),
         ]), isUpdate: false)
-        let events = translation.translate(.update(GrokSessionUpdate(
+        let events = translation.translate(.update(ACPSessionUpdate(
             sessionID: "sess-1",
             kind: .toolCall(call),
             raw: .object([:])
@@ -140,25 +142,25 @@ struct GrokTranslationTests {
         #expect(use.id == "call_1")
         #expect(use.name == "Read")
         #expect(use.filePath == "src/main.rs")
-        #expect(GrokTranslation.isGrokCall(use.input))
+        #expect(ACPTranslation.isACPCall(use.input))
     }
 
     @Test("a finished tool update becomes a result row")
     func toolUpdateCompletes() {
-        var translation = GrokTranslation(context: GrokTranslation.Context(model: "grok-4.6"))
-        _ = translation.translate(.sessionReady(GrokSession(id: "sess-1")))
-        let started = GrokToolCall.decode(.object([
+        var translation = ACPTranslation(context: ACPTranslation.Context(agentKind: .grok, model: "grok-4.6"))
+        _ = translation.translate(.sessionReady(ACPSession(id: "sess-1")))
+        let started = ACPToolCall.decode(.object([
             "toolCallId": .string("call_1"),
             "toolName": .string("run_terminal_cmd"),
             "status": .string("in_progress"),
             "rawInput": .object(["command": .string("echo hi")]),
         ]), isUpdate: false)
-        _ = translation.translate(.update(GrokSessionUpdate(
+        _ = translation.translate(.update(ACPSessionUpdate(
             sessionID: "sess-1",
             kind: .toolCall(started),
             raw: .object([:])
         )))
-        let finished = GrokToolCall.decode(.object([
+        let finished = ACPToolCall.decode(.object([
             "toolCallId": .string("call_1"),
             "status": .string("completed"),
             "content": .array([.object([
@@ -166,7 +168,7 @@ struct GrokTranslationTests {
                 "content": .object(["type": .string("text"), "text": .string("hi\n")]),
             ])]),
         ]), isUpdate: true)
-        let events = translation.translate(.update(GrokSessionUpdate(
+        let events = translation.translate(.update(ACPSessionUpdate(
             sessionID: "sess-1",
             kind: .toolCallUpdate(finished),
             raw: .object([:])
@@ -182,28 +184,28 @@ struct GrokTranslationTests {
 
     @Test("permission options map allow_once onto Unified Dev's once")
     func permissionOptions() {
-        let request = GrokPermissionRequest(
+        let request = ACPPermissionRequest(
             id: .number(3),
             sessionID: "sess-1",
-            toolCall: GrokToolCall.decode(.object([
+            toolCall: ACPToolCall.decode(.object([
                 "toolCallId": .string("call_1"),
                 "toolName": .string("run_terminal_cmd"),
                 "rawInput": .object(["command": .string("ls")]),
             ]), isUpdate: false),
             options: [
-                GrokPermissionOption(id: "allow-once", name: "Allow once", kind: "allow_once"),
-                GrokPermissionOption(id: "reject-once", name: "Reject", kind: "reject_once"),
+                ACPPermissionOption(id: "allow-once", name: "Allow once", kind: "allow_once"),
+                ACPPermissionOption(id: "reject-once", name: "Reject", kind: "reject_once"),
             ],
             raw: Data()
         )
-        let ask = GrokPermission.ask(for: request)
+        let ask = ACPPermission.ask(for: request, kind: .grok)
         #expect(ask.requestID.hasPrefix("grok:"))
         #expect(ask.toolName == "Bash")
         #expect(ask.input["command"]?.stringValue == "ls")
         #expect(ask.suppressesAlwaysAllow)
         #expect(PermissionAsk.decode(payload: ask.raw)?.suppressesAlwaysAllow == true)
-        #expect(GrokPermission.optionID(for: .allow(scope: .once), in: request) == "allow-once")
-        #expect(GrokPermission.optionID(
+        #expect(ACPPermission.optionID(for: .allow(scope: .once), in: request) == "allow-once")
+        #expect(ACPPermission.optionID(
             for: .deny(message: "no", endsTurn: false),
             in: request
         ) == "reject-once")
@@ -211,24 +213,24 @@ struct GrokTranslationTests {
 
     @Test("reject_always without allow_always does not offer Unified Dev's persistent grant")
     func rejectAlwaysDoesNotOfferAlwaysAllow() {
-        let request = GrokPermissionRequest(
+        let request = ACPPermissionRequest(
             id: .number(3),
             sessionID: "sess-1",
-            toolCall: GrokToolCall.decode(.object([
+            toolCall: ACPToolCall.decode(.object([
                 "toolCallId": .string("call_1"),
                 "toolName": .string("read_file"),
                 "rawInput": .object(["path": .string("a.rs")]),
             ]), isUpdate: false),
             options: [
-                GrokPermissionOption(id: "allow-once", name: "Allow once", kind: "allow_once"),
-                GrokPermissionOption(id: "reject-once", name: "Reject", kind: "reject_once"),
-                GrokPermissionOption(id: "reject-always", name: "Always reject", kind: "reject_always"),
+                ACPPermissionOption(id: "allow-once", name: "Allow once", kind: "allow_once"),
+                ACPPermissionOption(id: "reject-once", name: "Reject", kind: "reject_once"),
+                ACPPermissionOption(id: "reject-always", name: "Always reject", kind: "reject_always"),
             ],
             raw: Data()
         )
-        let ask = GrokPermission.ask(for: request)
+        let ask = ACPPermission.ask(for: request, kind: .grok)
         #expect(ask.suppressesAlwaysAllow)
         #expect(ask.suggestions.isEmpty)
-        #expect(GrokPermission.optionID(for: .allow(scope: .session), in: request) == "allow-once")
+        #expect(ACPPermission.optionID(for: .allow(scope: .session), in: request) == "allow-once")
     }
 }

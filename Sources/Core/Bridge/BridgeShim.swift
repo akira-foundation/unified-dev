@@ -11,8 +11,12 @@ public enum BridgeShim {
 
     public static func run(
         environment: [String: String] = ProcessInfo.processInfo.environment,
-        shim: String? = CommandLine.arguments.first
+        shim: String? = CommandLine.arguments.first,
+        arguments: [String] = Array(CommandLine.arguments.dropFirst())
     ) async -> Int32 {
+        if arguments.first == BitbucketCredentialHelper.command {
+            return await BitbucketCredentialHelper.run(arguments: Array(arguments.dropFirst()), environment: environment)
+        }
         if let complaint = missingEnvironment(environment) {
             complain(complaint)
             return Exit.notConfigured

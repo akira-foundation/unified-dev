@@ -36,13 +36,20 @@ struct StartProjectActions: View {
                 Button("Stop", role: .cancel, action: onStop)
                     .keyboardShortcut(.cancelAction)
 
-            case .failed:
+            case .failed(let fault):
                 Button("Close", role: .cancel, action: onClose)
                     .keyboardShortcut(.cancelAction)
-                Button("Try again") { model.leave() }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Palette.controlAccent)
-                    .keyboardShortcut(.defaultAction)
+                if fault.hostOffer != nil {
+                    Button("Back") { model.leave() }
+                    Button("Trust and try again") { model.trustHostAndClone() }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Palette.controlAccent)
+                } else {
+                    Button("Try again") { model.leave() }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Palette.controlAccent)
+                        .keyboardShortcut(.defaultAction)
+                }
             }
         }
         .padding(.horizontal, Metrics.gutter)

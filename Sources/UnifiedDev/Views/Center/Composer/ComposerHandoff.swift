@@ -48,20 +48,6 @@ enum ComposerHandoff {
         return Outcome(failure: added.failures.first, paths: added.paths)
     }
 
-    @discardableResult
-    static func write(_ sentence: String, to model: WorkspaceModel) async -> Outcome {
-        guard let session = model.activeSession else {
-            return Outcome(failure: "This workspace has no conversation to write to yet.")
-        }
-        model.prepareTranscript(for: session.id)
-        guard let transcript = model.existingTranscript(for: session.id) else {
-            return Outcome(failure: "This workspace's conversation could not be opened.")
-        }
-        append(sentence, to: transcript)
-        WorkspaceTabsStore.shared.reveal(.chat(session.id), in: model)
-        return Outcome()
-    }
-
     private static func append(_ addition: String, to transcript: TranscriptModel) {
         guard !addition.isEmpty else { return }
         let draft = transcript.draft

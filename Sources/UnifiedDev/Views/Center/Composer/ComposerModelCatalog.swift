@@ -126,7 +126,12 @@ final class ComposerModelCatalog {
         return AgentKind.allCases.filter(\.canRunWorkspaces).compactMap { backend in
             let options = self.options(for: backend, including: backend == owner ? current : "")
             guard !options.isEmpty else { return nil }
-            return ComposerModelSection(kind: backend, options: options)
+            let tagged = options.map { option in
+                var option = option
+                option.id = ModelSectionTag.tag(option.id, in: backend, running: kind, models: models)
+                return option
+            }
+            return ComposerModelSection(kind: backend, options: tagged)
         }
     }
 
@@ -139,6 +144,10 @@ final class ComposerModelCatalog {
         }
         let options = ComposerOption.options(known)
         return current.isEmpty ? options : ComposerOption.adding([current], to: options)
+    }
+
+    func choice(_ tag: String, current: AgentKind) -> (kind: AgentKind, model: String) {
+        ModelSectionTag.choice(tag, running: current, models: models)
     }
 
     func backend(ofModel id: String, current: AgentKind) -> AgentKind {

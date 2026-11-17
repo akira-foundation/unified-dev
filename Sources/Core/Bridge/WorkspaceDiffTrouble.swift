@@ -59,4 +59,9 @@ public enum WorkspaceDiffTrouble: Error, Sendable, Equatable {
             return "Unified Dev could not complete workspace_diff: \(message)"
         }
     }
+
+    var sentenceAcrossProfiles: String {
+        guard case .gitFailed(let workspaceID, _) = self else { return sentence }
+        return "Unified Dev could not read the changes in the workspace with the id '\(workspaceID.rawValue)' from git."
+    }
 }

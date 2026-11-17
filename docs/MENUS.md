@@ -80,12 +80,12 @@ contribute for free.
 | Go Back in Files / Go Forward in Files, worded Go Back / Go Forward on a browser pane | `⌘[` `⌘]` | the focused review or browser pane has somewhere to go |
 | Reload Page, worded Stop Loading while a page loads | `⌘R` | a browser pane with a page is focused and no review is open |
 | Responsive Preview | `⌥⌘R` | a browser pane is focused and no review is open |
-| Restore Full Browser Size | `⌥⌘0` | a browser pane at a set size is focused and no review is open |
+| Restore Full Browser Size | `⌥⇧⌘0` | a browser pane at a set size is focused and no review is open |
 | Send a Screenshot to the Agent | `⌥⌘S` | a browser pane with a page is focused and nothing is being captured |
 | Comment on an Area, worded Finish Reviewing Page during a review | `⌥⌘C` | a browser pane with a page is focused, and no review is being saved and no comment is being typed |
 | Open in Default Browser | `⌥⌘O` | a browser pane with a web address is focused |
 | Toggle Sidebar | `⌃⌘S` | always |
-| Toggle Inspector | `⌥⌘I` | a workspace is selected |
+| Hide Inspector, worded Show Inspector while it is hidden | `⌥⌘0` | always; with no workspace selected it sets what the next workspace opens with |
 | Next / Previous Workspace | `⌥⌘↓` `⌥⌘↑` | any workspace exists |
 | Next Unread | `⇧⌘U` | something is unread |
 | Go to Home | `⇧⌘H` | not already on Home |
@@ -247,7 +247,7 @@ loud somewhere a user can read it.
 | Jump back or forward several pages | right click on an arrow | **no** | none |
 | Reload / Stop | toolbar | yes, View | `⌘R` |
 | Responsive Preview | toolbar, and the page menu | yes, View | `⌥⌘R` |
-| Restore Full Browser Size | toolbar, and the page menu | yes, View | `⌥⌘0` |
+| Restore Full Browser Size | toolbar, and the page menu | yes, View | `⌥⇧⌘0` |
 | Send a Screenshot to the Agent | toolbar, and the page menu | yes, View | `⌥⌘S` |
 | Comment on an Area | labelled Comment button in the toolbar, and the page menu | yes, View | `⌥⌘C` |
 | Add selected area and comment to the draft | inline review-comment editor | **no** | `Return` or `⌘Return` |
@@ -266,6 +266,7 @@ A toolbar button with a key names that key in its tooltip, read from `MenuBarCat
 
 | Action | Where it lives | In the menu bar | Key |
 | --- | --- | --- | --- |
+| Hide or show the inspector | the trailing button of the inspector's toolbar section, which moves to the end of the centre's section while the inspector is hidden | yes, View | `⌥⌘0` |
 | Changes / Files / Pull Request tabs | segmented picker | **no** | none |
 | What the changes are measured from (`DiffScopeMenuItems`) | toolbar menu | **no** | none |
 | Copy Branch Name, Reveal Worktree in Finder, Open in… (`WorktreeMenuItems`) | overflow menu | partly | `⇧⌘C`, `⇧⌘R` |
@@ -317,6 +318,12 @@ in its own doc comment.
 | Answer an agent's question | question card | **no** | `↩` on the default |
 | Run this repository's setup script again | failed or ignored setup row | yes | none |
 | Ignore a failed setup, keeping its log | failed setup row | **no** | none |
+| Start a side chat, Reply | bar over a selection in a message | **no** | none |
+| Copy, Copy message, Copy message as Markdown | message menu | Copy only, in Edit | `⌘C` on Copy |
+| Attach selection as context | message menu | **no** | `⇧⌘L` |
+| Pin as chapter, Unpin chapter | message menu | **no** | none |
+| Go to a chapter | chapters button, top right of a chat pane, shown once one is pinned | **no** | none |
+| Fork from here | message menu, in an active workspace's own chat | **no** | none |
 
 ### Home and the sidebar
 

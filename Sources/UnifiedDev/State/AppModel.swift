@@ -25,11 +25,11 @@ final class AppModel {
     private(set) var workspaces: [Workspace] = []
     var projectActivity: [RepoID: Date] = [:]
     private(set) var isLoaded = false
-    private(set) var quotas: [AgentQuota] = []
-    private(set) var accounts: [AgentKind: AgentAccount] = [:]
-    private(set) var unansweredQuotaProviders: Set<AgentKind> = []
-    private(set) var quotalessProviders: Set<AgentKind> = []
-    private(set) var lastReportedQuotas: [AgentKind: Date] = [:]
+    private(set) var storedQuotas: [AgentQuota] = []
+    private(set) var quotaReadings = QuotaReadings()
+    private(set) var quotaScope: QuotaScope?
+    private(set) var quotaLedger = QuotaAskLedger()
+    private(set) var seededQuotaSilence: (silent: Set<AgentKind>, declining: Set<AgentKind>) = ([], [])
 
     var selection: SidebarSelection {
         get { storedSelection }
@@ -45,11 +45,13 @@ final class AppModel {
             seaDiscoveries.leave(vacated, for: newValue.workspaceID)
             leaveDraft(from: previous, to: newValue)
             rememberInActiveProfile(newValue)
+            notificationInbox.noteOnScreen()
             Task { [weak self] in await self?.adoptSelectedAccounts() }
             for id in Set([vacated, newValue.workspaceID].compactMap { $0 }) {
                 noteSubagentsChanged(workspaceID: id)
             }
             SwitchTrace.mark("selection.set")
+            scheduleTranscriptRelease()
             if let id = newValue.workspaceID { workspaceModels[id]?.refreshSettings() }
             guard let id = newValue.workspaceID, workspaceModels[id] == nil,
                   let workspace = workspaces.first(where: { $0.id == id }) else {
@@ -77,7 +79,14 @@ final class AppModel {
         if profiles != loaded { profiles = loaded }
     }
 
-    var isInspectorVisible = FrameProbe.wantsInspector
+    var inspectorVisibility = InspectorVisibility(
+        isVisible: FrameProbe.wantsInspector && InspectorDefaults.stored.isVisible
+    )
+
+    var isInspectorVisible: Bool {
+        get { inspectorVisibility.isVisible }
+        set { inspectorVisibility.isVisible = newValue }
+    }
 
     var isSidebarHidden = false
 
@@ -100,6 +109,7 @@ final class AppModel {
     @ObservationIgnored var spendAccountsSpan: SpendSpan?
     @ObservationIgnored var spendIndexTask: Task<Void, Never>?
     @ObservationIgnored var archiveRetentionTask: Task<Void, Never>?
+    @ObservationIgnored var transcriptReleaseTask: Task<Void, Never>?
     @ObservationIgnored var spendIndexer: SpendIndexer?
     @ObservationIgnored var lastSpendReadAt: Date?
     var homeFilter = HomeFilter(scope: .archived)
@@ -171,6 +181,7 @@ final class AppModel {
     private var refreshTask: Task<Void, Never>?
     @ObservationIgnored var pullRequestTrackTask: Task<Void, Never>?
     @ObservationIgnored private var lastDiffRefresh: [WorkspaceID: Date] = [:]
+    @ObservationIgnored private var diffRefreshFailures: [WorkspaceID: DiffRefreshSchedule.Failure] = [:]
 
     @ObservationIgnored private var diffInvalidations = DiffRefreshInvalidations()
 
@@ -178,8 +189,10 @@ final class AppModel {
         Task { @MainActor in self?.noteWorktreesChanged(paths) }
     }
     private var storeObservationTask: Task<Void, Never>?
+    @ObservationIgnored private var diffStatReads = 0
     private var sessionObservationTask: Task<Void, Never>?
     private var quotaObservationTask: Task<Void, Never>?
+    @ObservationIgnored var pullRequestAutoFixesUnderWay: Set<WorkspaceID> = []
     private var workspaceMessageObservationTask: Task<Void, Never>?
 
     private(set) var workspaceMessagesRevision = 0
@@ -188,13 +201,14 @@ final class AppModel {
     var seaDiscoveries = SeaDiscoveries()
     private var workSuggestionObservationTask: Task<Void, Never>?
     private var quotaPollTask: Task<Void, Never>?
-    private(set) var lastQuotaAskAt: Date?
+    private var quotaActivationTask: Task<Void, Never>?
+    @ObservationIgnored var isMenuBarPanelOpen: @MainActor () -> Bool = { false }
     @ObservationIgnored var accountSyncKey: AccountFingerprint?
     private(set) var accountChoices = AgentAccountChoiceBook()
     @ObservationIgnored var selectedAccountHomes: [AgentKind: AgentAccountHome] = [:]
     let agentAccounts = AgentAccountsModel()
+    let notificationInbox = NotificationInboxModel()
     var accountMarks = AgentAccountMarks()
-    private(set) var isAskingForQuotas = false
     private var identityTask: Task<Void, Never>?
     @ObservationIgnored var iconSearchTask: Task<Void, Never>?
 
@@ -214,6 +228,7 @@ final class AppModel {
             }.value
             Log.launchStep("store open")
             self.store = store
+            GitHub.adoptLoginResolver { [store] directory in await store.gitHubLogin(forDirectory: directory) }
             ComposerModelCatalog.shared.configure(store: store)
             let manager = WorkspaceManager(store: store)
             self.manager = manager
@@ -226,7 +241,11 @@ final class AppModel {
                 Log.permissions.info("closed \(abandoned, privacy: .public) questions left by the last launch")
             }
             try await store.recoverInterruptedSetups()
-            if let trouble = await PreviewScenarioLaunch.seed(with: manager) { alert = trouble }
+            switch await PreviewScenarioLaunch.seed(with: manager) {
+            case .alert(let trouble): alert = trouble
+            case .notice(let ignored): notice = ignored
+            case nil: break
+            }
             Log.launchStep("scenario seeded")
             await CenterTabStore.shared.adoptTerminalTabs(from: store)
             _ = WorkspaceTabsStore.shared
@@ -243,6 +262,7 @@ final class AppModel {
             }
             WorkspacePullRequests.shared.onCurrentRead = { [weak self] workspaceID, pullRequest in
                 await self?.noteCurrentPullRequest(pullRequest, for: workspaceID)
+                await self?.considerPullRequestAutoFix(pullRequest, for: workspaceID)
             }
             TerminalSessionStore.shared.useStore(store)
             BottomPanelDefaults.forget()
@@ -275,6 +295,7 @@ final class AppModel {
         startObservingSessions()
         startObservingWorkspaceMessages()
         startObservingWorkSuggestions()
+        if let store { notificationInbox.start(app: self, store: store) }
         adoptSeededQuotaSilence()
         startObservingQuotas()
         startPollingQuotas()
@@ -335,8 +356,11 @@ final class AppModel {
         workspaceMessageObservationTask = nil
         workSuggestionObservationTask?.cancel()
         workSuggestionObservationTask = nil
+        notificationInbox.stop()
         quotaPollTask?.cancel()
         quotaPollTask = nil
+        quotaActivationTask?.cancel()
+        quotaActivationTask = nil
         identityTask?.cancel()
         identityTask = nil
         iconSearchTask?.cancel()
@@ -358,6 +382,9 @@ final class AppModel {
 
     func reload() async {
         guard let store else { return }
+        #if DEBUG
+        ActivityTally.reloads += 1
+        #endif
         let known = Set(workspaces.map(\.id))
         do {
             try await reloadProfiles()
@@ -379,7 +406,14 @@ final class AppModel {
                 let landed = Set(reconciled.map(\.id))
                 pendingWorkspaces.removeAll { landed.contains($0.id) }
             }
-            worktreeWatcher.watch(roots: workspaces.map(\.path))
+            worktreeWatcher.watch(
+                roots: workspaces.map(\.path),
+                branches: Dictionary(
+                    workspaces.map {
+                        ($0.path, WorktreeWatcher.concernedBranches(branch: $0.branch, base: $0.baseBranch))
+                    }, uniquingKeysWith: { $0.union($1) }
+                )
+            )
             for workspace in workspaces {
                 CenterTabStore.shared.load(workspaceID: workspace.id)
                 if let existing = workspaceModels[workspace.id], existing.workspace != workspace {
@@ -389,6 +423,7 @@ final class AppModel {
             if let crew { applyCrew(crew) }
             await refreshProjectActivity()
             await adoptSelectedAccounts()
+            await adoptDiffStats()
         } catch {
             alert = AppAlert(
                 title: "Could not read workspaces",
@@ -405,53 +440,62 @@ final class AppModel {
 
     func recordQuotas(_ reported: [AgentQuota]) async {
         guard let store, !reported.isEmpty else { return }
-        let quotas = QuotaMerge.resolved(reported, against: self.quotas)
+        let quotas = QuotaMerge.resolved(reported, against: storedQuotas)
         try? await store.recordQuotas(quotas)
     }
 
     func reloadQuotas() async {
         guard let store else { return }
         let loaded = (try? await store.quotas()) ?? []
-        if quotas != loaded { quotas = loaded }
+        if storedQuotas != loaded { storedQuotas = loaded }
     }
 
-    func refreshQuotas(after gap: TimeInterval = QuotaPollSchedule.interval) async {
-        guard store != nil,
-              !isAskingForQuotas,
-              !UserDefaults.standard.bool(forKey: PreviewScenario.holdsQuotasKey),
-              QuotaPollSchedule.isDue(lastAskedAt: lastQuotaAskAt, at: Date(), after: gap)
-        else { return }
-        isAskingForQuotas = true
-        defer { isAskingForQuotas = false }
+    func adoptQuotaScope(_ scope: QuotaScope) {
+        guard quotaScope != scope else { return }
+        quotaScope = scope
+        Task { [weak self] in await self?.refreshQuotas(after: QuotaPollSchedule.onDemandFloor) }
+    }
+
+    func refreshQuotas(after gap: TimeInterval) async {
+        guard store != nil, !UserDefaults.standard.bool(forKey: PreviewScenario.holdsQuotasKey) else { return }
+        if let quotaScope, quotaLedger.due(quotaScope.holders.values, at: Date(), after: gap).isEmpty { return }
         guard let resolution = await accountResolution(for: selectedAccountScope) else { return }
-        lastQuotaAskAt = Date()
-        let report = await AgentQuotaSources.report(AgentQuotaSources.all(accounts: resolution.homes))
-        for account in report.accounts where accounts[account.provider] != account {
-            accounts[account.provider] = account
-        }
-        let unanswered = Set(report.unanswered)
-        if unansweredQuotaProviders != unanswered { unansweredQuotaProviders = unanswered }
-        let quotaless = Set(report.withoutLimits)
-        if quotalessProviders != quotaless { quotalessProviders = quotaless }
-        if lastReportedQuotas != report.lastReported { lastReportedQuotas = report.lastReported }
+        let sources = AgentQuotaSources.all(accounts: resolution.homes)
+        let due = quotaLedger.due(sources.map(\.holder), at: Date(), after: gap)
+        guard !due.isEmpty else { return }
+        quotaLedger.begin(due, at: Date())
+        defer { quotaLedger.end(due) }
+        let report = await AgentQuotaSources.report(sources.filter { due.contains($0.holder) })
+        var readings = quotaReadings
+        readings.adopt(report)
+        if readings != quotaReadings { quotaReadings = readings }
         await recordQuotas(report.quotas)
     }
 
     private func adoptSeededQuotaSilence() {
         let silent = UserDefaults.standard.stringArray(forKey: PreviewScenario.silentAgentsKey) ?? []
         let quotaless = UserDefaults.standard.stringArray(forKey: PreviewScenario.agentsWithoutLimitsKey) ?? []
-        let silenced = PreviewScenario.agents(storedAs: silent)
-        let declining = PreviewScenario.agents(storedAs: quotaless)
-        if unansweredQuotaProviders != silenced { unansweredQuotaProviders = silenced }
-        if quotalessProviders != declining { quotalessProviders = declining }
+        seededQuotaSilence = (PreviewScenario.agents(storedAs: silent), PreviewScenario.agents(storedAs: quotaless))
+    }
+
+    private func refreshQuotasIfDue() async {
+        let activity: DiffRefreshSchedule.Activity = NSApp?.isActive ?? true ? .foreground : .background
+        await refreshQuotas(after: QuotaPollSchedule.gap(for: activity, isPanelOpen: isMenuBarPanelOpen()))
     }
 
     private func startPollingQuotas() {
         quotaPollTask?.cancel()
         quotaPollTask = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.refreshQuotas()
-                try? await Task.sleep(for: .seconds(QuotaPollSchedule.interval))
+                await self?.refreshQuotasIfDue()
+                try? await Task.sleep(for: .seconds(QuotaPollSchedule.tick))
+            }
+        }
+        quotaActivationTask?.cancel()
+        quotaActivationTask = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                guard let self else { return }
+                await self.refreshQuotas(after: QuotaPollSchedule.gap(for: .foreground, isPanelOpen: false))
             }
         }
     }
@@ -460,10 +504,30 @@ final class AppModel {
         guard let store else { return }
         storeObservationTask?.cancel()
         storeObservationTask = Task { [weak self] in
-            for await _ in store.changes(of: StoreDomain.projectsWorkspacesAndTheirAccounts) {
+            for await batch in store.changes(of: StoreDomain.projectListFeed) {
                 guard let self else { return }
-                await self.reload()
+                switch ProjectListRefresh(answering: batch) {
+                case .reload: await self.reload()
+                case .diffStatsOnly: await self.adoptDiffStats()
+                }
             }
+        }
+    }
+
+    private func adoptDiffStats() async {
+        diffStatReads &+= 1
+        let read = diffStatReads
+        guard let store, let stats = try? await store.diffStats(), read == diffStatReads else { return }
+        let moved = WorkspaceDiffStat.changes(stats, to: workspaces)
+        guard !moved.isEmpty else { return }
+        var updated = workspaces
+        for index in updated.indices {
+            moved[updated[index].id]?.apply(to: &updated[index])
+        }
+        workspaces = updated
+        for (id, stat) in moved {
+            guard let model = workspaceModels[id], stat != WorkspaceDiffStat(of: model.workspace) else { continue }
+            stat.apply(to: &model.workspace)
         }
     }
 
@@ -536,12 +600,16 @@ final class AppModel {
                 guard DiffRefreshSchedule.isDue(activity: activity, lastRun: lastRun, now: now)
                 else { continue }
                 lastRun = now
-                await self.noteMissingWorktrees(exempt: self.archivingWorkspaceIDs.union(self.restoring))
-                let refreshed = await self.refreshDiffStats(activity: activity)
-                if let selected = self.selection.workspaceID, refreshed.contains(selected) {
-                    await self.refreshSelectedChangedFiles(activity: activity)
-                }
+                await self.runDiffRefreshTick(activity: activity)
             }
+        }
+    }
+
+    func runDiffRefreshTick(activity: DiffRefreshSchedule.Activity) async {
+        await noteMissingWorktrees(exempt: archivingWorkspaceIDs.union(restoring))
+        let refreshed = await refreshDiffStats(activity: activity)
+        if let selected = selection.workspaceID, refreshed.contains(selected) {
+            await refreshSelectedChangedFiles(activity: activity)
         }
     }
 
@@ -571,12 +639,15 @@ final class AppModel {
             busy: busy,
             selected: selection.workspaceID,
             activity: activity,
+            shown: Set(profileWorkspaces.map(\.id)),
+            failures: diffRefreshFailures,
             lastRefreshed: lastDiffRefresh,
             now: Date()
         ))
 
         let present = Set(workspaces.map(\.id))
         lastDiffRefresh = lastDiffRefresh.filter { present.contains($0.key) }
+        diffRefreshFailures = diffRefreshFailures.filter { present.contains($0.key) }
         diffInvalidations.retain(present)
 
         let pending = workspaces.filter {
@@ -605,7 +676,12 @@ final class AppModel {
                 diffInvalidations.finish(id, generation: generation, succeeded: succeeded)
                 if succeeded {
                     lastDiffRefresh[id] = Date()
+                    diffRefreshFailures[id] = nil
                     refreshed.insert(id)
+                }
+                if !succeeded, !Task.isCancelled {
+                    let previous = diffRefreshFailures[id] ?? DiffRefreshSchedule.Failure(count: 0, at: Date())
+                    diffRefreshFailures[id] = previous.after(another: Date())
                 }
                 if Task.isCancelled {
                     group.cancelAll()
@@ -663,7 +739,20 @@ final class AppModel {
     }
 
     var isInspectorPresented: Bool {
-        isInspectorVisible && selectedWorkspace != nil
+        inspectorVisibility.isPresented(hasWorkspace: selectedWorkspace != nil)
+    }
+
+    func setInspectorVisible(_ isVisible: Bool) {
+        remember(InspectorVisibility(isVisible: isVisible))
+    }
+
+    func toggleInspector() {
+        remember(inspectorVisibility.toggled())
+    }
+
+    private func remember(_ visibility: InspectorVisibility) {
+        inspectorVisibility = visibility
+        InspectorDefaults.remember(visibility)
     }
 
     var selectedArchivedWorkspace: Workspace? {
@@ -791,7 +880,12 @@ final class AppModel {
         let now = Date()
         let rows = SubagentRetention.rows(roster, now: now, opened: selection.subagentID)
         let shownRows = rows.isEmpty ? nil : rows
-        if subagentRows[workspaceID] != shownRows { subagentRows[workspaceID] = shownRows }
+        if subagentRows[workspaceID] != shownRows {
+            subagentRows[workspaceID] = shownRows
+            #if DEBUG
+            ActivityTally.subagentRowWrites += 1
+            #endif
+        }
 
         let failures = SubagentRetention.failureCount(roster)
         let shownFailures = failures == 0 ? nil : failures

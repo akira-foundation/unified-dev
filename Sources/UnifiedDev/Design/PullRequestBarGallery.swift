@@ -96,7 +96,8 @@ struct PullRequestBarGallery: View {
         ahead: Int = 3,
         localWork: LocalWork? = nil,
         hasRemote: Bool = true,
-        branch: String = branch
+        branch: String = branch,
+        checkRuns: [CheckRun] = []
     ) -> PullRequestStanding {
         PullRequestStanding.of(
             branch: branch,
@@ -104,7 +105,8 @@ struct PullRequestBarGallery: View {
             ahead: ahead,
             pullRequest: pullRequest,
             localWork: localWork,
-            hasRemote: hasRemote
+            hasRemote: hasRemote,
+            checkRuns: checkRuns
         )
     }
 
@@ -136,6 +138,28 @@ struct PullRequestBarGallery: View {
                 standing(pullRequest(checks: .pending, checksSummary: "3 of 12 checks running"))
             ),
             (
+                "One job running, one queued",
+                standing(
+                    pullRequest(checks: .pending, checksSummary: "1 check running"),
+                    checkRuns: [CheckRun(name: "test", status: "IN_PROGRESS"), CheckRun(name: "lint", status: "QUEUED")]
+                )
+            ),
+            (
+                "Several jobs running",
+                standing(
+                    pullRequest(checks: .pending, checksSummary: "5 checks running"),
+                    checkRuns: ["house rules", "build", "core suite", "browser scripts", "swiftlint"]
+                        .map { CheckRun(name: $0, status: "IN_PROGRESS") }
+                )
+            ),
+            (
+                "Nothing started yet",
+                standing(
+                    pullRequest(checks: .pending, checksSummary: "2 checks queued"),
+                    checkRuns: [CheckRun(name: "lint", status: "QUEUED"), CheckRun(name: "test", status: "QUEUED")]
+                )
+            ),
+            (
                 "A check failed",
                 standing(pullRequest(checks: .failing, checksSummary: "1 of 12 checks failed"))
             ),
@@ -156,7 +180,7 @@ extension Gallery {
     static let pullRequestBar = Gallery(
         name: "pull-request-bar",
         title: "Pull request bar",
-        size: CGSize(width: 760, height: 1_320),
+        size: CGSize(width: 760, height: 1_600),
         needsFocus: false,
         view: { app in AnyView(PullRequestBarGallery(app: app)) }
     )

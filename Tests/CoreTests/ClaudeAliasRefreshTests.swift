@@ -150,6 +150,7 @@ struct ClaudeAliasRefreshTests {
         let subject = ClaudeAliasRefresh(
             probe: { _ in scriptedProbe(launches, timeout: .seconds(30)) { _ in [] } },
             installedVersion: { _ in "2.1.322" },
+            activity: ClaudeAccountActivity(),
             now: { clock.now }
         )
 
@@ -178,7 +179,7 @@ struct ClaudeAliasRefreshTests {
         let lease = await activity.beginRun(work.id)
         await subject.refresh(account: work, in: store)
         let launchedWhileRunning = launches.launches.count
-        lease.end()
+        lease?.end()
         clock.advance(by: ClaudeAliasRefresh.recheckInterval)
         await subject.refresh(account: work, in: store)
 

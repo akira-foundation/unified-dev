@@ -201,6 +201,15 @@ public actor AgentCatalog {
                 version: version,
                 apiKeyIsSet: !(key ?? "").isEmpty
             )
+        case .antigravity:
+            let result = try? await Shell.run(
+                executablePath,
+                AntigravityModelList.arguments,
+                cwd: AgentScratchDirectory.current(),
+                env: ACPDialect.antigravity.quietEnvironment,
+                timeout: AntigravityModelList.timeout
+            )
+            details = antigravityDetails(reading: result.map(AntigravityModelList.read), version: version)
         case .cursor, .openCode:
             details = []
         }
@@ -399,6 +408,18 @@ public actor AgentCatalog {
         if apiKeyIsSet, account != nil {
             details.append(AgentDetail(label: "API key", value: "Set"))
         }
+        return details
+    }
+
+    public static func antigravityDetails(reading: AntigravityModelList.Reading?, version: String?) -> [AgentDetail] {
+        if reading == .signedOut { return [] }
+        var details = [
+            AgentDetail(label: "Version", value: version ?? unknown),
+            AgentDetail(label: "Provider", value: "Google"),
+            AgentDetail(label: "Login method", value: "Google sign in"),
+        ]
+        if case .models = reading { return details }
+        details.append(AgentDetail(label: "Session", value: "Could not be checked, `agy models` did not answer"))
         return details
     }
 

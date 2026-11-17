@@ -6,7 +6,12 @@ struct PullRequestBarLine: View {
     var branchActions: BranchActionAvailability
     var worktree: String
 
-    private var github: GitHubAvailability.State { GitHubAvailability.shared.state }
+    @State private var login: GitHubLogin?
+    @State private var forge: ForgeKind?
+
+    private var github: GitHubAvailability.State {
+        login.map { GitHubAvailability.shared.state(for: $0) } ?? .unknown
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.spacingTight) {
@@ -17,7 +22,13 @@ struct PullRequestBarLine: View {
         .help(helpText)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityText)
-        .task { await GitHubAvailability.shared.check() }
+        .task(id: worktree) {
+            forge = nil
+            forge = await Forge.kind(forDirectory: worktree)
+            let resolved = await GitHub.login(forDirectory: worktree)
+            login = resolved
+            await GitHubAvailability.shared.check(login: resolved)
+        }
     }
 
     private var headline: some View {
@@ -34,8 +45,8 @@ struct PullRequestBarLine: View {
                     .font(Typo.caption)
                     .monospacedDigit()
                     .fixedSize()
-                    .help("Open #\(number) on GitHub: \(standing.headline)")
-                    .accessibilityHint("Opens on GitHub")
+                    .help("Open #\(number) on \(standing.hostName): \(standing.headline)")
+                    .accessibilityHint("Opens on \(standing.hostName)")
             }
         }
     }
@@ -72,7 +83,9 @@ struct PullRequestBarLine: View {
 
     private var aside: Aside {
         if let note = branchActions.note { return .sentence(note) }
-        if standing.number == nil, !standing.path.isEmpty, !github.isUsable { return .connectGitHub }
+        if forge == .gitHub, standing.number == nil, !standing.path.isEmpty, !github.isUsable {
+            return .connectGitHub
+        }
         return .sentence(standing.secondary)
     }
 

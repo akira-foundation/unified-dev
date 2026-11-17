@@ -36,6 +36,8 @@ public enum Shell {
         spawns.add(1, ordering: .relaxed)
     }
 
+    @TaskLocal public static var spawnTally: SpawnTally?
+
     public static var spawnCount: Int {
         spawns.load(ordering: .relaxed)
     }
@@ -183,6 +185,7 @@ public enum Shell {
         guard let path = which(executable) else {
             throw ShellError(command: executable, status: 127, stderr: "\(executable) not found on PATH")
         }
+        spawnTally?.add()
         return try await CapturedProcess(
             executable: path, arguments: arguments, cwd: cwd, environment: environment,
             input: stdin, timeout: timeout, outputLimit: outputLimit

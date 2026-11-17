@@ -65,7 +65,7 @@ struct BrowserCommandTests {
             .forward: MenuShortcut("]", .command),
             .reload: MenuShortcut("r", .command),
             .responsivePreview: MenuShortcut("r", .command, .option),
-            .fullSize: MenuShortcut("0", .command, .option),
+            .fullSize: MenuShortcut("0", .command, .option, .shift),
             .screenshot: MenuShortcut("s", .command, .option),
             .comment: MenuShortcut("c", .command, .option),
             .openInDefaultBrowser: MenuShortcut("o", .command, .option)

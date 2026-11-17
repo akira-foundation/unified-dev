@@ -9,6 +9,8 @@ public enum SearchPanelResults {
         transcripts: [TranscriptWorkspaceMatches],
         scope: HomeScope,
         commands: [MenuBarItem] = MenuBarCatalogue.commands,
+        profiles: [Profile] = [],
+        activeProfile: ProfileID = .initial,
         reach: SearchPanelReach = .live
     ) -> SearchPanelListing {
         let needle = WorkspaceSearch.needle(query)
@@ -103,6 +105,9 @@ public enum SearchPanelResults {
             }
 
         let shownCommands = inlineCommands(needle, scope: scope, commands: commands)
+        let matchedProfiles = SearchPanelProfiles.hits(needle, in: profiles, active: activeProfile)
+        counts.profiles = matchedProfiles.count
+        let shownProfiles = scope == .all ? matchedProfiles : []
 
         var sections: [SearchPanelSection] = []
         if !shownWorkspaces.isEmpty {
@@ -112,6 +117,14 @@ public enum SearchPanelResults {
                     rows: shownWorkspaces.map { .workspace($0) }
                 )
             )
+        }
+        if !shownProfiles.isEmpty {
+            let section = SearchPanelSection(
+                id: "profiles", title: "Profiles",
+                rows: shownProfiles.map { .profile($0) }
+            )
+            let leads = SearchPanelProfiles.lead(shownProfiles, over: shownWorkspaces)
+            sections.insert(section, at: leads ? 0 : sections.count)
         }
         if !shownCommands.isEmpty {
             sections.append(

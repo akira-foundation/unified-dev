@@ -10,6 +10,7 @@ struct TerminalLaunchScriptTests {
         #expect(AgentKind.codex.loginArguments == ["login"])
         #expect(AgentKind.cursor.loginArguments == ["login"])
         #expect(AgentKind.openCode.loginArguments == ["auth", "login"])
+        #expect(AgentKind.antigravity.loginArguments.isEmpty)
         for kind in AgentKind.allCases {
             #expect(kind.loginCommand == ([kind.executableName] + kind.loginArguments).joined(separator: " "))
         }
@@ -21,8 +22,8 @@ struct TerminalLaunchScriptTests {
         let command = TerminalLaunchScript.shellCommand(
             directory: "/tmp/agent scratch", executable: executable, arguments: kind.loginArguments
         )
-        let arguments = kind.loginArguments.map { "'\($0)'" }.joined(separator: " ")
-        #expect(command == "cd '/tmp/agent scratch' && '\(executable)' \(arguments)")
+        let invocation = (["'\(executable)'"] + kind.loginArguments.map { "'\($0)'" }).joined(separator: " ")
+        #expect(command == "cd '/tmp/agent scratch' && \(invocation)")
     }
 
     @Test("Shell metacharacters in a path or argument remain literal")

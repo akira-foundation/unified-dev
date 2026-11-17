@@ -6,7 +6,7 @@ import Foundation
 struct GrokClientTests {
     @Test("launch is ACP stdio, never the user's leader, and never always-approve by default")
     func launchShape() {
-        let launch = GrokClient.launch(GrokClient.Configuration(cwd: "/tmp/w", environment: [:]))
+        let launch = ACPClient.launch(ACPClient.Configuration(dialect: .grok, executable: "grok", cwd: "/tmp/w", environment: [:]))
         #expect(launch.executable == "grok")
         #expect(launch.arguments == ["agent", "--no-leader", "stdio"])
         #expect(launch.cwd == "/tmp/w")
@@ -16,8 +16,7 @@ struct GrokClientTests {
 
     @Test("bypass permissions adds always-approve at process start")
     func alwaysApproveArgv() {
-        let launch = GrokClient.launch(GrokClient.Configuration(
-            cwd: "/tmp/w",
+        let launch = ACPClient.launch(ACPClient.Configuration(dialect: .grok, executable: "grok", cwd: "/tmp/w",
             environment: [:],
             alwaysApprove: true
         ))
@@ -29,24 +28,24 @@ struct GrokClientTests {
     @Test("a frame with method and id is a server request")
     func permissionFrame() {
         let line = #"{"jsonrpc":"2.0","id":5,"method":"session/request_permission","params":{"sessionId":"s","toolCall":{"toolCallId":"c1"},"options":[]}}"#
-        let frame = GrokFrame.decode(line: line)
+        let frame = ACPFrame.decode(line: line)
         guard case .request(let request) = frame else {
             Issue.record("expected request")
             return
         }
         #expect(request.method == "session/request_permission")
-        #expect(GrokPermissionRequest.decode(request)?.toolCall.id == "c1")
+        #expect(ACPPermissionRequest.decode(request)?.toolCall.id == "c1")
     }
 
     @Test("session/update notifications decode text chunks")
     func updateNotification() {
         let line = #"{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"s","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Hi"}}}}"#
-        let frame = GrokFrame.decode(line: line)
+        let frame = ACPFrame.decode(line: line)
         guard case .notification(let note) = frame else {
             Issue.record("expected notification")
             return
         }
-        let update = GrokSessionUpdate.decode(params: note.params)
+        let update = ACPSessionUpdate.decode(params: note.params)
         guard case .text("Hi") = update?.kind else {
             Issue.record("expected text")
             return
@@ -86,8 +85,8 @@ struct GrokClientTests {
                 ]),
             ]),
         ]))
-        let client = GrokClient(
-            configuration: GrokClient.Configuration(cwd: "/tmp/w", environment: [:]),
+        let client = ACPClient(
+            configuration: ACPClient.Configuration(dialect: .grok, executable: "grok", cwd: "/tmp/w", environment: [:]),
             makeProcess: box.factory
         )
         try await client.start()
@@ -104,8 +103,8 @@ struct GrokClientTests {
     func beginPromptThrowsAfterClose() async throws {
         let box = ProcessBox()
         box.reply(to: "initialize", with: .object(["_meta": .object([:])]))
-        let client = GrokClient(
-            configuration: GrokClient.Configuration(cwd: "/tmp/w", environment: [:]),
+        let client = ACPClient(
+            configuration: ACPClient.Configuration(dialect: .grok, executable: "grok", cwd: "/tmp/w", environment: [:]),
             makeProcess: box.factory
         )
         try await client.start()
@@ -113,7 +112,7 @@ struct GrokClientTests {
         do {
             _ = try await client.beginPrompt(sessionID: "sess-1", text: "hello")
             Issue.record("expected connectionClosed")
-        } catch let error as GrokClientError {
+        } catch let error as ACPClientError {
             guard case .connectionClosed = error else {
                 Issue.record("expected connectionClosed, got \(error)")
                 return
@@ -129,8 +128,8 @@ struct GrokModelRankTests {
     @Test("newer versions lead, and a prefix is enough to recognise Grok")
     func orderAndRecognition() {
         let models = [
-            GrokModel(id: "grok-4.5", displayName: "Grok 4.5"),
-            GrokModel(id: "grok-4.6", displayName: "Grok 4.6"),
+            ACPModel(id: "grok-4.5", displayName: "Grok 4.5"),
+            ACPModel(id: "grok-4.6", displayName: "Grok 4.6"),
         ]
         #expect(GrokModelRank.ordered(models).map(\.id) == ["grok-4.6", "grok-4.5"])
         #expect(GrokModelRank.recognises("grok-4.6"))

@@ -7,13 +7,16 @@ struct ProfileCommands: Commands {
 
     var body: some Commands {
         CommandMenu("Profile") {
-            ForEach(1...9, id: \.self) { digit in
+            ForEach(ProfileShortcut.digits, id: \.self) { digit in
                 if let id = ProfileShortcut.profile(at: digit, among: model.profiles),
                    let profile = model.profiles.first(where: { $0.id == id }) {
                     Toggle(isOn: isActive(id)) {
                         ProfileMenuLabel(profile: profile)
                     }
-                    .keyboardShortcut(KeyEquivalent(Character("\(digit)")), modifiers: [.command, .control])
+                    .keyboardShortcut(
+                        ProfileShortcut.key(at: digit).equivalent,
+                        modifiers: ProfileShortcut.key(at: digit).eventModifiers
+                    )
                 }
             }
 

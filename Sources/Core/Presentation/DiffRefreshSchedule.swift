@@ -16,6 +16,42 @@ public enum DiffRefreshSchedule {
 
     public static let selectedMaxAge: TimeInterval = 30
 
+    public static let busyShownMaxAge: TimeInterval = 12
+
+    public static let busyHiddenMaxAge: TimeInterval = 30
+
+    public static let failureBackoffCeiling: TimeInterval = 60
+
+    public struct Failure: Sendable, Equatable {
+        public var count: Int
+        public var at: Date
+
+        public init(count: Int, at: Date) {
+            self.count = count
+            self.at = at
+        }
+
+        public func after(another moment: Date) -> Failure {
+            Failure(count: count + 1, at: moment)
+        }
+    }
+
+    public static func retryDelay(afterFailures count: Int, tick: TimeInterval = tick) -> TimeInterval {
+        guard count > 0 else { return 0 }
+        return min(tick * pow(2, Double(min(count, 16))), failureBackoffCeiling)
+    }
+
+    static func isBackingOff(_ failure: Failure?, now: Date, tick: TimeInterval) -> Bool {
+        guard let failure else { return false }
+        return now.timeIntervalSince(failure.at) + tick / 2 < retryDelay(afterFailures: failure.count, tick: tick)
+    }
+
+    static func busyMaxAge(_ id: WorkspaceID, selected: WorkspaceID?, shown: Set<WorkspaceID>?) -> TimeInterval {
+        if id == selected { return 0 }
+        guard let shown, !shown.contains(id) else { return busyShownMaxAge }
+        return busyHiddenMaxAge
+    }
+
     public static func tick(for activity: Activity) -> TimeInterval {
         switch activity {
         case .foreground: tick
@@ -42,6 +78,8 @@ public enum DiffRefreshSchedule {
         busy: Set<WorkspaceID>,
         selected: WorkspaceID? = nil,
         activity: Activity = .foreground,
+        shown: Set<WorkspaceID>? = nil,
+        failures: [WorkspaceID: Failure] = [:],
         lastRefreshed: [WorkspaceID: Date],
         now: Date,
         tick: TimeInterval = tick,
@@ -49,7 +87,8 @@ public enum DiffRefreshSchedule {
         selectedMaxAge: TimeInterval = selectedMaxAge
     ) -> [WorkspaceID] {
         if activity == .background {
-            guard let selected, workspaces.contains(selected) else { return [] }
+            guard let selected, workspaces.contains(selected),
+                  !isBackingOff(failures[selected], now: now, tick: backgroundTick) else { return [] }
             return [selected]
         }
 
@@ -57,8 +96,10 @@ public enum DiffRefreshSchedule {
         var stale: [(id: WorkspaceID, age: TimeInterval, place: Int)] = []
 
         for (place, id) in workspaces.enumerated() {
+            guard !isBackingOff(failures[id], now: now, tick: tick) else { continue }
             if busy.contains(id) {
-                due.append(id)
+                let age = lastRefreshed[id].map { now.timeIntervalSince($0) } ?? .infinity
+                if age + tick / 2 >= busyMaxAge(id, selected: selected, shown: shown) { due.append(id) }
                 continue
             }
             guard let last = lastRefreshed[id] else {

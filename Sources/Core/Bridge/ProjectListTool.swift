@@ -28,12 +28,17 @@ public struct ProjectListTool: BridgeToolHandling {
             Call it before naming a project in any other tool, workspace_start included, because \
             Unified Dev will only act on repositories it already has and this is the list of them. Every project here can be \
             worked in, hidden or not: hidden is a view preference of the owner's sidebar and \
-            says nothing about whether the project is finished with. Takes no arguments, reads \
+            says nothing about whether the project is finished with. Reads \
             nothing but Unified Dev's own database, changes nothing and costs nothing.
 
-            Only the projects in the caller's profile are listed.
+            Only the projects in the caller's profile are listed, unless profile names another \
+            this connection can reach.
             """,
-        inputSchema: BridgeTool.noArguments
+        inputSchema: .object([
+            "type": .string("object"),
+            "properties": .object([BridgeProfileReach.argument: BridgeProfileReach.listSchemaProperty]),
+            "required": .array([]),
+        ])
     )
 
     public func call(
@@ -42,6 +47,11 @@ public struct ProjectListTool: BridgeToolHandling {
         store: Store
     ) async -> BridgeToolResult {
         do {
+            switch try await BridgeProfileReach.choice(request, allowsEvery: true, for: .talk, as: identity, store: store) {
+            case .failure(let trouble): return .failure(trouble.sentence)
+            case .success(.own): break
+            case .success(let choice): return try await across(choice.profiles, store: store)
+            }
             let projects = try await BridgeProfileScope.repos(for: identity, store: store)
             guard !projects.isEmpty else {
                 let register = identity.role == .owner
@@ -57,18 +67,7 @@ public struct ProjectListTool: BridgeToolHandling {
 
             var rows: [JSONValue] = []
             for project in projects {
-                let counts = census.counts(repoID: project.id)
-                rows.append(.object([
-                    "id": .string(project.id.rawValue),
-                    "name": .string(project.name),
-                    "path": .string(project.path),
-                    "default_branch": .string(project.defaultBranch),
-                    "workspaces": .integer(counts.workspaces),
-                    "agents_running": .integer(counts.agentsRunning),
-                    "awaiting_permission": .integer(counts.awaitingPermission),
-                    "on_disk": .bool(FileManager.default.fileExists(atPath: project.path)),
-                    "hidden": .bool(project.hidden),
-                ]))
+                rows.append(Self.row(project, census: census))
             }
 
             let hidden = ProjectVisibility.hiddenCount(projects)
@@ -88,5 +87,34 @@ public struct ProjectListTool: BridgeToolHandling {
         } catch {
             return .failure("Unified Dev could not read its projects: \(error.readableMessage)")
         }
+    }
+
+    private func across(_ profiles: [Profile], store: Store) async throws -> BridgeToolResult {
+        let census = try await BridgeWorkspaceCensus.read(in: profiles, from: store)
+        let every = try await store.repos()
+        var rows: [JSONValue] = []
+        for profile in profiles {
+            for project in ProfileScope.repos(every, in: profile.id) {
+                rows.append(BridgeProfileReach.tagged(Self.row(project, census: census), profile: profile))
+            }
+        }
+        return BridgeWorkspaceQuote.answer(
+            .object(["projects": .array(rows)]), preamble: BridgeWorkspaceQuote.lists("projects")
+        )
+    }
+
+    private static func row(_ project: Repo, census: BridgeWorkspaceCensus) -> JSONValue {
+        let counts = census.counts(repoID: project.id)
+        return .object([
+            "id": .string(project.id.rawValue),
+            "name": .string(project.name),
+            "path": .string(project.path),
+            "default_branch": .string(project.defaultBranch),
+            "workspaces": .integer(counts.workspaces),
+            "agents_running": .integer(counts.agentsRunning),
+            "awaiting_permission": .integer(counts.awaitingPermission),
+            "on_disk": .bool(FileManager.default.fileExists(atPath: project.path)),
+            "hidden": .bool(project.hidden),
+        ])
     }
 }

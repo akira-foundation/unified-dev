@@ -44,9 +44,11 @@ public struct WorkspaceNamer: Sendable {
     public static let taskLimit = 4_000
 
     private let run: Run
+    private let activity: ClaudeAccountActivity
 
-    public init(run: @escaping Run = WorkspaceNamer.shell) {
+    public init(run: @escaping Run = WorkspaceNamer.shell, activity: ClaudeAccountActivity = .shared) {
         self.run = run
+        self.activity = activity
     }
 
     public static let shell: Run = { launch in
@@ -129,7 +131,9 @@ public struct WorkspaceNamer: Sendable {
         let rendered = Self.prompt(task: task, project: project, template: template)
         guard !rendered.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
-        guard let output = try? await run(Self.launch(prompt: rendered, account: account)) else { return nil }
+        let launch = Self.launch(prompt: rendered, account: account)
+        let ran = await activity.holding(account) { [run] in try? await run(launch) }
+        guard let output = ran.flatMap(\.self) else { return nil }
         guard let decoded = WorkspaceNaming.decode(cliOutput: output) else { return nil }
 
         return WorkspaceNaming.suggestion(

@@ -91,13 +91,19 @@ enum InspectorToolbar {
             )
         }
 
-        private func merge(_ method: GitHub.MergeMethod) {
+        private func merge(_ method: GitHub.MergeMethod, confirmed: InstructionAuthority) {
             guard let pullRequest = model.pullRequest else { return }
             isWorking = true
             model.pullRequestNotice = nil
             Task {
                 defer { isWorking = false }
-                _ = await model.requestMerge(pullRequest, method: method)
+                if let refusal = await model.requestMerge(
+                    pullRequest, method: method, from: .inspectorToolbar, confirmed: confirmed
+                ) {
+                    model.pullRequestNotice = PullRequestNotice(
+                        tone: .info, title: "Nothing was sent", message: refusal
+                    )
+                }
             }
         }
     }
@@ -112,7 +118,7 @@ enum InspectorToolbar {
                 isWorking = true
                 Task {
                     defer { isWorking = false }
-                    _ = await model.requestPush()
+                    _ = await model.requestPush(from: .inspectorToolbar)
                 }
             } label: {
                 Label("Push", systemImage: "arrow.up.circle")

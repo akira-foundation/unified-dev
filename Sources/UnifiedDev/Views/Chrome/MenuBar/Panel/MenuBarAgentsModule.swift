@@ -10,9 +10,6 @@ struct MenuBarAgentsModule: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.spacingSmall) {
-            Text(MenuBarPanelContent.agentsTitle)
-                .font(Typo.title)
-                .accessibilityAddTraits(.isHeader)
             if agents.isEmpty {
                 Text(MenuBarPanelContent.noAgentsLine)
                     .font(Typo.caption)
@@ -27,7 +24,7 @@ struct MenuBarAgentsModule: View {
                     .panelFocus(focus, .moreAgents)
             }
         }
-        .menuBarModule(MenuBarPanelContent.agentsTitle)
+        .menuBarModule(MenuBarPanelContent.agentsTitle, inset: Metrics.inset)
     }
 
     private func row(_ agent: MenuBarPanelContent.Agent) -> some View {
@@ -38,7 +35,8 @@ struct MenuBarAgentsModule: View {
                 Image(systemName: agent.symbolName)
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(agent.isWaiting ? Palette.warning : Palette.running)
-                    .frame(width: 14)
+                    .frame(width: MenuBarModuleStyle.chip, height: MenuBarModuleStyle.chip)
+                    .background(Circle().fill((agent.isWaiting ? Palette.warning : Palette.running).opacity(0.18)))
                 Text(agent.workspace.name)
                     .font(Typo.label)
                     .lineLimit(1)

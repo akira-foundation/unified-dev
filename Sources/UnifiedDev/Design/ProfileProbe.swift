@@ -37,14 +37,6 @@ enum ProfileProbe {
     private static let akira = Profile(
         id: ProfileID("akira"), name: "Akira", folder: "akira", colour: Accent.all[2], symbol: "leaf"
     )
-    private static let longNamed = Profile(
-        id: ProfileID("long"),
-        name: "A client whose name goes on far longer than any sidebar is wide",
-        folder: "long",
-        colour: Accent.all[3],
-        symbol: "building.2"
-    )
-
     private static func run() async {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         let missing = ProfileChoices.symbols.filter {
@@ -59,14 +51,9 @@ enum ProfileProbe {
                 if await shoot(scene, scheme: scheme) { written += 1 }
             }
         }
-        for scheme in [ColorScheme.light, .dark] {
-            wanted += 1
-            if await shootToolbar(scheme: scheme) { written += 1 }
-        }
         report([
             "wrote \(written) of \(wanted)",
             "unknown symbols: \(missing.map(\.name))",
-            "switcher height at 200pt: short \(fittingHeight(of: akira, width: 200)), long \(fittingHeight(of: longNamed, width: 200))",
             "menu: \(menu.items.map(describe))",
             "active=\(NSApp.isActive) policy=\(NSApp.activationPolicy().rawValue) "
                 + "visibleWindows=\(NSApp.windows.filter(\.isVisible).count)",
@@ -88,35 +75,6 @@ enum ProfileProbe {
         ProfileSwitcherItems(
             profiles: [unified, akira], activeID: akira.id, onSwitch: { _ in }, onNew: {}, onSettings: {}
         )
-    }
-
-    private static func switcher(_ profiles: [Profile], active: ProfileID) -> some View {
-        ProfileSwitcherBody(
-            profiles: profiles, activeID: active, onSwitch: { _ in }, onNew: {}, onSettings: {}
-        )
-    }
-
-    private static func sidebar(_ profiles: [Profile], active: ProfileID) -> AnyView {
-        AnyView(
-            List(selection: .constant(SidebarSelection?.some(.home))) {
-                Section {
-                    SidebarNavRow(title: "Home", icon: "house")
-                        .tag(SidebarSelection.home)
-                    SidebarNavRow(title: AskConversation.title, icon: PaneGlyph.chat)
-                        .tag(SidebarSelection.ask)
-                }
-            }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                switcher(profiles, active: active)
-            }
-        )
-    }
-
-    private static func fittingHeight(of profile: Profile, width: CGFloat) -> CGFloat {
-        let host = NSHostingController(rootView: switcher([unified, profile], active: profile.id))
-        return host.sizeThatFits(in: CGSize(width: width, height: 100_000)).height
     }
 
     private static func sheet(
@@ -202,7 +160,6 @@ enum ProfileProbe {
         var switching = ProfileDraft(editing: akira, accounts: .own)
         switching.accounts = .inherits
         blank.name = "  "
-        let sidebarSize = CGSize(width: 260, height: 170)
         let sheets: [(String, SceneBody)] = [
             ("sheet-new", sheet(.new(among: [unified, akira]), isNew: true)),
             ("sheet-new-named", sheet(named, isNew: true)),
@@ -214,47 +171,34 @@ enum ProfileProbe {
             ("sheet-blank-name", sheet(blank)),
         ]
         return [
-            Scene(name: "switcher-two", size: sidebarSize, view: sidebar([unified, akira], active: akira.id)),
-            Scene(name: "switcher-long", size: sidebarSize, view: sidebar([unified, longNamed], active: longNamed.id)),
-            Scene(name: "window-mark", size: CGSize(width: 120, height: 52), view: AnyView(
-                ProfileWindowMark(profile: akira)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            )),
             Scene(name: "switcher-menu", size: CGSize(width: 260, height: 170), view: menuRows(menu)),
             Scene(name: "menubar-header", size: CGSize(width: 360, height: 130), view: statusModule(akira)),
-        ] + sheets.map { Scene(name: $0.0, size: $0.1.size, view: $0.1.view) }
+            Scene(name: "bridge-section", size: CGSize(width: ProfileSheetMetrics.width, height: 210), view: AnyView(
+                Form { ProfileBridgeRows(isOn: .constant(true), isEnabled: true, failure: nil) }.settingsForm()
+            )),
+        ] + bitbucketScenes + sheets.map { Scene(name: $0.0, size: $0.1.size, view: $0.1.view) }
     }
 
-    private static func shootToolbar(scheme: ColorScheme) async -> Bool {
-        let size = CGSize(width: 480, height: 160)
-        let host = NSHostingController(rootView: NavigationStack {
-            Color.clear
-                .toolbar {
-                    ToolbarItem(placement: .navigation) {
-                        ProfileWindowMark(profile: akira)
-                    }
-                    .sharedBackgroundVisibility(.hidden)
-                }
-                .navigationTitle("Workspace")
+    private static var bitbucketScenes: [Scene] {
+        let signedIn = BitbucketAccount(user: "kid", method: "oauth")
+        let signedOut = BitbucketAccount(user: nil, method: nil)
+        let cases: [(String, Profile, ProfileGitHubSource, BitbucketAccount?, Bool)] = [
+            ("bitbucket-own-signed-out", akira, .own, signedOut, true),
+            ("bitbucket-own-signed-in", akira, .own, signedIn, true),
+            ("bitbucket-inherits", akira, .inherits, signedIn, true),
+            ("bitbucket-initial", unified, .inherits, signedOut, true),
+            ("bitbucket-not-installed", akira, .own, nil, false),
+        ]
+        return cases.map { name, profile, source, account, installed in
+            Scene(name: name, size: CGSize(width: ProfileSheetMetrics.width, height: 220), view: AnyView(
+                Form {
+                    ProfileBitbucketRows(
+                        profile: profile, source: source, account: account, installed: installed,
+                        isChecking: false, onSignIn: { _ in }
+                    )
+                }.settingsForm()
+            ))
         }
-        .environment(\.colorScheme, scheme)
-        .frame(width: size.width, height: size.height))
-        host.sizingOptions = []
-        let window = NSWindow(
-            contentRect: CGRect(origin: .zero, size: size),
-            styleMask: [.titled, .fullSizeContentView], backing: .buffered, defer: false
-        )
-        window.appearance = NSAppearance(named: scheme == .dark ? .darkAqua : .aqua)
-        window.contentViewController = host
-        window.setContentSize(size)
-        try? await Task.sleep(for: .milliseconds(600))
-        guard let frame = window.contentView?.superview else { return false }
-        frame.layoutSubtreeIfNeeded()
-        frame.displayIfNeeded()
-        guard let bitmap = frame.bitmapImageRepForCachingDisplay(in: frame.bounds) else { return false }
-        frame.cacheDisplay(in: frame.bounds, to: bitmap)
-        guard let png = bitmap.representation(using: .png, properties: [:]) else { return false }
-        return (try? png.write(to: URL(filePath: "\(directory)/window-toolbar-\(scheme).png"))) != nil
     }
 
     private static func shoot(_ scene: Scene, scheme: ColorScheme) async -> Bool {

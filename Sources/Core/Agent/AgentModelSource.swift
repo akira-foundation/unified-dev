@@ -5,10 +5,12 @@ public struct AgentModelSource: Sendable {
     public let invalidate: @Sendable () async -> Void
     public let isInstalled: @Sendable () async -> Bool
 
+    public static let alwaysInstalled: @Sendable () async -> Bool = { true }
+
     public init(
         models: @escaping @Sendable () async throws -> [AgentModel],
         invalidate: @escaping @Sendable () async -> Void,
-        isInstalled: @escaping @Sendable () async -> Bool = { true }
+        isInstalled: @escaping @Sendable () async -> Bool = AgentModelSource.alwaysInstalled
     ) {
         self.models = models
         self.invalidate = invalidate
@@ -33,6 +35,7 @@ public struct AgentModelSource: Sendable {
         let claude = ClaudeModelSource.live(path: accounts[.claudeCode]?.identityPath.path)
         let codex = CodexModelCatalog.live(account: accounts[.codex])
         let grok = GrokModelCatalog.live(store: store, account: accounts[.grok])
+        let antigravity = AntigravityModelCatalog.live(store: store)
         return [
             .claudeCode: AgentModelSource(
                 models: { try await claude.models() },
@@ -48,7 +51,19 @@ public struct AgentModelSource: Sendable {
                 invalidate: { await grok.invalidate() },
                 isInstalled: { await isInstalled(.grok, store: store) }
             ),
+            .antigravity: AgentModelSource(
+                models: { try await antigravity.models() },
+                invalidate: { await antigravity.invalidate() },
+                isInstalled: { await isInstalled(.antigravity, store: store) }
+            ),
         ]
+    }
+
+    public static func followsExecutablePath(_ kind: AgentKind) -> Bool {
+        switch kind {
+        case .grok, .antigravity: true
+        case .claudeCode, .codex, .cursor, .openCode: false
+        }
     }
 
     private static func isInstalled(_ kind: AgentKind, store: Store?) async -> Bool {

@@ -4,14 +4,16 @@ import Testing
 
 @Suite("What a card says when it cannot start")
 struct WorkSuggestionWordingTests {
-    @Test("a workspace at its ceiling is told to try again once one of its workspaces is archived")
+    @Test("a workspace at its ceiling is told the ceiling it has and that archiving brings it back under")
     func ceiling() {
         let text = WorkSuggestionWording.sentence(
-            for: .overAllowance("agent sentence", retry: .whenAWorkspaceIsArchived(limit: 8))
+            for: .overAllowance("agent sentence", retry: .whenAWorkspaceIsArchived(limit: 16))
         )
 
-        #expect(text.contains("8 workspaces"))
-        #expect(text.contains("once one of them is archived"))
+        #expect(text.contains("16 workspaces"))
+        #expect(text.contains("not archived"))
+        #expect(text.contains("below 16"))
+        #expect(!text.localizedCaseInsensitiveContains("running"))
     }
 
     @Test("the owner's rate names the time a start is free again")

@@ -15,7 +15,7 @@ struct WorkspaceMessageOrigin: View {
     private var resolved: WorkspaceMessageEnd { end ?? .ownerClient }
 
     private var detail: String {
-        [resolved.project, resolved.chat].filter { !$0.isEmpty }.joined(separator: " · ")
+        [resolved.profile ?? "", resolved.project, resolved.chat].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     var body: some View {

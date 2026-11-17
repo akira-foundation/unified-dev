@@ -8,30 +8,44 @@ public struct AgentSessionSettlement: Sendable, Equatable {
 
     public let recordedAccount: AgentAccountID?
     public let switchTarget: SessionSegmentTarget?
+    public var leavesARemovedAccount = false
 
     public static let nothing = AgentSessionSettlement(recordedAccount: nil, switchTarget: nil)
+
+    public static let lostAccountKeyPrefix = "chat.lostAccount."
+
+    public static func lostAccountKey(sessionID: SessionID) -> String {
+        lostAccountKeyPrefix + sessionID.rawValue
+    }
 
     public var changesNothing: Bool { self == .nothing }
 
     public static func decide(
         session: Session,
         account: AgentAccountHome?,
-        purpose: Purpose
+        purpose: Purpose,
+        lostItsAccount: Bool = false
     ) -> AgentSessionSettlement {
         guard purpose == .sending, let account, session.accountID != account.id else { return .nothing }
         let hasHistory = !(session.agentSessionID ?? "").isEmpty
+        let target = SessionSegmentTarget(
+            agentKind: session.agentKind, accountID: account.id, model: session.model, effort: session.effort
+        )
         if session.accountID != nil {
-            return AgentSessionSettlement(recordedAccount: nil, switchTarget: SessionSegmentTarget(
-                agentKind: session.agentKind, accountID: account.id, model: session.model, effort: session.effort
-            ))
+            return AgentSessionSettlement(recordedAccount: nil, switchTarget: target)
+        }
+        if lostItsAccount {
+            return AgentSessionSettlement(recordedAccount: nil, switchTarget: target, leavesARemovedAccount: true)
         }
         return hasHistory ? .nothing : AgentSessionSettlement(recordedAccount: account.id, switchTarget: nil)
     }
 
     public func notice(on account: AgentAccountHome?, among standings: [AgentAccountStanding], besides other: String?) -> String? {
         guard switchTarget != nil, let account else { return other }
-        let name = AgentAccountNames.title(of: account, among: standings) ?? account.directory.lastPathComponent
-        let moved = "This chat moved to \(name), the account it is set to run under, and its history went with it."
+        let name = AgentAccountNames.spoken(of: account, among: standings)
+        let moved = leavesARemovedAccount
+            ? "The account this chat ran under was removed, so it moved to \(name) and its history went with it."
+            : "This chat moved to \(name), the account it is set to run under, and its history went with it."
         return [moved, other].compactMap(\.self).joined(separator: " ")
     }
 

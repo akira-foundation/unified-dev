@@ -25,7 +25,7 @@ struct ProfileScopeWorld {
             repoID: homeProject.id, name: "Home Workspace", branch: "home",
             path: TestScratch.unique("home-tree"), baseBranch: "main"
         ))
-        let homeChat = try await store.upsert(Session(workspaceID: homeWorkspace.id, title: "Home Chat"))
+        let homeChat = try await store.upsert(Session(workspaceID: homeWorkspace.id, title: "Home Chat", permissionMode: .acceptEdits))
 
         let farProject = try await store.upsert(Repo(
             name: farProjectName, path: TestScratch.unique("far"), profileID: akira
@@ -41,7 +41,9 @@ struct ProfileScopeWorld {
             akira: akira,
             homeProject: homeProject,
             homeWorkspace: homeWorkspace,
-            homeAgent: BridgeIdentity(sessionID: homeChat.id, workspaceID: homeWorkspace.id, role: .workspace),
+            homeAgent: BridgeIdentity(
+                sessionID: homeChat.id, workspaceID: homeWorkspace.id, role: .workspace, launchedAsking: true
+            ),
             farProject: farProject,
             farWorkspace: farWorkspace,
             farAgent: BridgeIdentity(sessionID: farSession.id, workspaceID: farWorkspace.id, role: .workspace)

@@ -9,14 +9,16 @@ public enum WorkspaceStartAllowance: Sendable, Equatable {
 
     public static let maximumChildren = 8
 
+    public static let maximumOrchestratorChildren = 16
+
     public static let maximumOwnerStarts = 6
 
     public static let ownerWindow: TimeInterval = 15 * 60
 
-    public static func of(_ origin: WorkspaceOrigin) -> WorkspaceStartAllowance {
+    public static func of(_ origin: WorkspaceOrigin, parent: Workspace?) -> WorkspaceStartAllowance {
         switch origin {
         case .user: .unlimited
-        case .agent: .running(limit: maximumChildren)
+        case .agent: .running(limit: parent?.isOrchestrator == true ? maximumOrchestratorChildren : maximumChildren)
         case .ownerClient: .rate(limit: maximumOwnerStarts, window: ownerWindow)
         }
     }
@@ -36,9 +38,14 @@ public enum WorkspaceStartAllowance: Sendable, Equatable {
         case .unlimited:
             return nil
 
-        case .running:
-            return "You already have \(count) workspaces running, which is Unified Dev's limit. "
-                + "Wait for some to be reviewed and archived before starting more."
+        case .running(let limit):
+            return """
+                You have started \(count) workspaces that are not archived, and Unified Dev's limit \
+                is \(limit) at once. A workspace counts until it is archived, whether or not an agent \
+                is still working in it, so you can start another only when the number of those is \
+                below \(limit). Archive the ones that are finished with workspace_archive, or wait for \
+                them to be reviewed and archived.
+                """
 
         case .rate(_, let window):
             let minutes = Int(window / 60)

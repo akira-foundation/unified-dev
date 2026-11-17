@@ -4,6 +4,8 @@ import Core
 struct AgentAccountsSection: View {
     let panel: AgentAccountPanel
     let activity: AgentAccountsModel.Activity
+    var removalNotice: AgentAccountRemovalNotice?
+    var onDismissRemovalNotice: () -> Void = {}
     let canSignIn: Bool
     let onAdd: () -> Void
     let onRemove: (AgentAccountPanel.Row) -> Void
@@ -13,7 +15,9 @@ struct AgentAccountsSection: View {
         ForEach(panel.rows) { row in
             AgentAccountRowSection(
                 row: row,
+                refusal: removalNotice.flatMap { $0.belongs(to: row) ? $0.message : nil },
                 canSignIn: canSignIn && activity != .confirmingSignIn,
+                onDismissRefusal: onDismissRemovalNotice,
                 onRemove: onRemove,
                 onSignInAgain: onSignInAgain
             )
@@ -67,7 +71,9 @@ struct AgentAccountsSection: View {
 
 private struct AgentAccountRowSection: View {
     let row: AgentAccountPanel.Row
+    let refusal: String?
     let canSignIn: Bool
+    let onDismissRefusal: () -> Void
     let onRemove: (AgentAccountPanel.Row) -> Void
     let onSignInAgain: (AgentAccountPanel.Row) -> Void
 
@@ -97,6 +103,21 @@ private struct AgentAccountRowSection: View {
 
             if let removal = row.removal {
                 Button("\(removal.actionTitle)…", role: .destructive) { onRemove(row) }
+            }
+
+            if let refusal {
+                HStack(alignment: .firstTextBaseline, spacing: Metrics.spacing) {
+                    Label(refusal, systemImage: "exclamationmark.triangle.fill")
+                        .font(Typo.caption)
+                        .foregroundStyle(Palette.negative)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                    Button("Dismiss", systemImage: "xmark.circle.fill", action: onDismissRefusal)
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(Palette.textTertiary)
+                }
             }
         } header: {
             Text(row.title)

@@ -11,13 +11,22 @@ public struct UsageMetric: Sendable, Hashable, Identifiable {
     public var title: String
     public var content: Content
     public var isSession: Bool
+    public var headerPhrase: String?
 
-    public init(id: UsageMetricID, provider: AgentKind, title: String, content: Content, isSession: Bool = false) {
+    public init(
+        id: UsageMetricID,
+        provider: AgentKind,
+        title: String,
+        content: Content,
+        isSession: Bool = false,
+        headerPhrase: String? = nil
+    ) {
         self.id = id
         self.provider = provider
         self.title = title
         self.content = content
         self.isSession = isSession
+        self.headerPhrase = headerPhrase
     }
 
     public var quota: AgentQuota? {
@@ -56,9 +65,11 @@ public enum UsageCatalogue {
     public static func metric(for quota: AgentQuota) -> UsageMetric {
         let key = key(for: quota)
         let content: UsageMetric.Content
+        var headerPhrase: String?
         if case .counted(let used, nil, let unit) = quota.measure {
-            let spent = UsageFormat.money(used, code: unit)
-            content = .value("\(spent) spent", tray: UsageFormat.trayMoney(used, code: unit), tooltip: nil)
+            let spent = "\(UsageFormat.money(used, code: unit)) spent"
+            content = .value(spent, tray: UsageFormat.trayMoney(used, code: unit), tooltip: nil)
+            headerPhrase = spent
         } else {
             content = .meter(quota)
         }
@@ -67,7 +78,8 @@ public enum UsageCatalogue {
             provider: quota.provider,
             title: title(for: quota),
             content: content,
-            isSession: kind(of: quota) == .session
+            isSession: kind(of: quota) == .session,
+            headerPhrase: headerPhrase
         )
     }
 
@@ -79,7 +91,8 @@ public enum UsageCatalogue {
                 id: UsageMetricID("\(account.provider.rawValue)/credits"),
                 provider: account.provider,
                 title: "Credits",
-                content: .value(text, tray: credits.isUnlimited ? nil : UsageFormat.count(credits.balance), tooltip: nil)
+                content: .value(text, tray: credits.isUnlimited ? nil : UsageFormat.count(credits.balance), tooltip: nil),
+                headerPhrase: credits.isUnlimited ? "Unlimited credits" : text
             ))
         }
         if let resets = account.resetCredits {
@@ -90,7 +103,8 @@ public enum UsageCatalogue {
                 id: UsageMetricID("\(account.provider.rawValue)/reset_credits"),
                 provider: account.provider,
                 title: "Rate Limit Resets",
-                content: .value("\(resets.available) available", tray: "\(resets.available)", tooltip: tooltip)
+                content: .value("\(resets.available) available", tray: "\(resets.available)", tooltip: tooltip),
+                headerPhrase: Counted.of(resets.available, "reset")
             ))
         }
         return metrics
@@ -153,7 +167,7 @@ public enum UsageCatalogue {
             case .weekly: return name.map { "\($0) Weekly" } ?? "Weekly"
             case .other: return name.map { "\($0) \(window.label)" } ?? window.label
             }
-        case .grok, .cursor, .openCode:
+        case .grok, .antigravity, .cursor, .openCode:
             return window.label
         }
     }

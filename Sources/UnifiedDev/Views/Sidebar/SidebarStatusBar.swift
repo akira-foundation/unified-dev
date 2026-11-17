@@ -12,16 +12,22 @@ struct SidebarStatusBar: View {
     var onStartProject: () -> Void
 
     @State private var isShowingLegend = false
+    @State private var fixedWidth: CGFloat = 0
 
     var body: some View {
         HStack(spacing: Metrics.spacing) {
-            filterMenu
-            newWorkspaceButton
-            startProjectButton
-            legendButton
+            HStack(spacing: Metrics.spacing) {
+                filterMenu
+                newWorkspaceButton
+                startProjectButton
+                legendButton
+            }
+            .fixedSize()
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { fixedWidth = $0 }
 
             notePill
         }
+        .preference(key: SidebarFooterWidth.self, value: fixedWidth + 2 * Metrics.spacing)
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Metrics.spacing)
@@ -123,5 +129,13 @@ struct SidebarStatusBar: View {
     private var filterValue: String {
         let shown = showsHiddenProjects ? "\(filter.rawValue), hidden projects showing" : filter.rawValue
         return SidebarGrouping.resolve(storedGrouping) == .status ? shown + ", grouped by status" : shown
+    }
+}
+
+struct SidebarFooterWidth: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

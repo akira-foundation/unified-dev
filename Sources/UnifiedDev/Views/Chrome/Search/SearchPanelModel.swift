@@ -121,6 +121,8 @@ final class SearchPanelModel {
                     archived: app.inActiveProfile(archived),
                     transcripts: app.transcriptResults,
                     scope: scope,
+                    profiles: app.profiles,
+                    activeProfile: app.activeProfileID,
                     reach: reach
                 )
         case .commands:

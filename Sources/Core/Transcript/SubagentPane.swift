@@ -44,7 +44,7 @@ public enum SubagentPane: Sendable {
     }
 
     public static func status(_ subagent: Subagent, now: Date = Date()) -> String {
-        subagent.state == .running ? "Running" : SubagentRow(subagent, now: now).mark.word
+        subagent.state == .running ? "Running" : SubagentRow(subagent).mark.word
     }
 
     public static func facts(_ subagent: Subagent, now: Date = Date()) -> [Fact] {

@@ -563,9 +563,10 @@ struct AgentRunnerCancellationRaceTests {
     func sendWaitsForTheDyingProcess() async throws {
         let store = try makeTestStore("runtime")
         let session = try await makeSession(store)
-        let recorder = ProcessRecorder(shutdown: .milliseconds(300))
+        let recorder = ProcessRecorder(shutdown: nil)
         let runner = AgentRunner(
-            workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session), makeProcess: recorder.factory
+            workspacePath: "/tmp/w", session: session, store: store, segmentID: try await activeSegmentID(store, session),
+            shutdownBudget: .seconds(50), makeProcess: recorder.factory
         )
 
         try await runner.send("one")
@@ -573,7 +574,13 @@ struct AgentRunnerCancellationRaceTests {
         #expect(recorder.all[0].wasTerminated)
         #expect(recorder.all[0].isRunning)
 
-        try await runner.send("two")
+        let second = Task { try await runner.send("two") }
+        await waitUntil("the second turn is waiting for the first process") {
+            await runner.isWaitingForCancelledRun
+        }
+        #expect(recorder.all.count == 1)
+        recorder.all[0].endOutput()
+        try await second.value
 
         #expect(recorder.all.count == 2)
         #expect(recorder.all[0].stdin.map(turnText) == ["one"])

@@ -91,4 +91,10 @@ public protocol BridgeToolHandling: Sendable {
     var roles: Set<BridgeRole> { get }
 
     func call(_ request: MCPRequest, as identity: BridgeIdentity, store: Store) async -> BridgeToolResult
+
+    func isServed(to identity: BridgeIdentity, store: Store) async -> Bool
+}
+
+extension BridgeToolHandling {
+    public func isServed(to identity: BridgeIdentity, store: Store) async -> Bool { true }
 }

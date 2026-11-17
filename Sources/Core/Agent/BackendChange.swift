@@ -34,7 +34,8 @@ public enum BackendChange: Sendable, Equatable {
         firstOffered: String? = nil
     ) -> ComposerControls? {
         let visible = (models[wanted] ?? []).filter { !$0.hidden }
-        guard let model = visible.first(where: \.isDefault)?.id ?? visible.first?.id ?? firstOffered else {
+        guard let model = visible.first(where: \.isDefault)?.id ?? visible.first?.id
+            ?? firstOffered.map({ ModelIdentifier.resolve($0, models: models).model }) else {
             return nil
         }
         var opening = controls

@@ -29,6 +29,7 @@ enum FrameProbe {
 
     private static func run() async {
         let (window, contentView) = await harness.window()
+        ProbeHarness.appModel?.isInspectorVisible = wantsInspector
 
         if let selection {
             OpenWorkspaceNotification.post(WorkspaceID(selection))
@@ -246,7 +247,7 @@ enum FrameProbe {
             "pane": .string(requestedPane?.rawValue ?? "whatever was open"),
             "selection": .string(selection ?? "home"),
             "drawnRows": .integer(TranscriptDrawn.rows),
-            "inspector": .bool(wantsInspector),
+            "inspector": .bool(ProbeHarness.appModel?.isInspectorPresented ?? false),
             "restoredWorkspace": .string(
                 UserDefaults.standard.string(forKey: "sidebar.lastWorkspaceID") ?? "none"
             ),

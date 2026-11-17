@@ -59,6 +59,7 @@ enum ArchivedColumnsProbe {
         }
         let (window, content) = await harness.window()
         guard let app = ProbeHarness.appModel, let store = app.store else { harness.fail("no app store") }
+        app.isInspectorVisible = true
         for _ in 0..<200 where !app.isLoaded { try? await Task.sleep(for: .milliseconds(100)) }
 
         var failures: [String] = []

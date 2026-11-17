@@ -26,6 +26,9 @@ struct ChatSegmentsGallery: View {
                         Text("I read what Claude Code did, and src/lamp.txt is there.")
                             .font(Typo.body)
                         HandoffDividerView(mark: .continued(agent: .claudeCode, model: "opus", from: .codex))
+                        HandoffDividerView(mark: .continued(
+                            agent: .claudeCode, model: "opus", from: .claudeCode, account: "ada@client.example"
+                        ))
                     }
                     .frame(width: 560, alignment: .leading)
                 }

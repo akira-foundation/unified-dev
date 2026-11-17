@@ -29,10 +29,14 @@ public enum PullRequestOwnership {
 public struct PullRequestHeadMatch: Sendable, Hashable {
     public let number: Int
     public let closedAt: Date?
+    public let isOpen: Bool
+    public let headCommit: String?
 
-    public init(number: Int, closedAt: Date?) {
+    public init(number: Int, closedAt: Date?, isOpen: Bool, headCommit: String? = nil) {
         self.number = number
         self.closedAt = closedAt
+        self.isOpen = isOpen
+        self.headCommit = headCommit
     }
 }
 
@@ -57,9 +61,7 @@ public extension GitHub {
     static func pullRequest(
         for workspace: Workspace, maxAge: Duration = .zero
     ) async throws -> PullRequest? {
-        try await pullRequest(
-            for: workspace, onBranch: await headBranch(of: workspace), maxAge: maxAge
-        )
+        try await snapshot(for: workspace, maxAge: maxAge)?.pullRequest
     }
 
     static func headBranch(of workspace: Workspace) async -> String {
@@ -67,12 +69,6 @@ public extension GitHub {
         return PullRequestHead.branch(
             recorded: workspace.branch, checkedOut: checkedOut, base: workspace.baseBranch
         )
-    }
-
-    private static func pullRequest(
-        for workspace: Workspace, onBranch head: String, maxAge: Duration
-    ) async throws -> PullRequest? {
-        try await snapshot(for: workspace, onBranch: head, maxAge: maxAge)?.pullRequest
     }
 
     internal static func snapshot(
@@ -104,11 +100,15 @@ public extension GitHub {
     }
 
     static func checks(for workspace: Workspace, maxAge: Duration = .zero) async throws -> [CheckRun]? {
-        let head = await headBranch(of: workspace)
-        guard let found = try await snapshot(
-            for: workspace, onBranch: head, maxAge: maxAge
-        ) else { return [] }
+        guard let found = try await snapshot(for: workspace, maxAge: maxAge) else { return [] }
         return found.pullRequest.checks == .unavailable ? nil : found.runs
+    }
+
+    static func headAndChecks(for workspace: Workspace) async throws -> (head: String?, runs: [CheckRun])? {
+        guard let found = try await snapshot(for: workspace, maxAge: .zero),
+              found.pullRequest.checks != .unavailable
+        else { return nil }
+        return (found.pullRequest.headCommit, found.runs)
     }
 
     private static func owns(

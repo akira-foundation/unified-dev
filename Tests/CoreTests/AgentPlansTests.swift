@@ -327,4 +327,19 @@ struct AgentPlansTests {
         #expect(ReproduciblePaths.canBeRebuilt(".superpowers/"))
         #expect(ReproduciblePaths.canBeRebuilt("docs/superpowers/") == false)
     }
+
+    @Test("a project git cannot answer for refuses to keep the plans rather than dropping them")
+    func unanswerableProjectThrows() async throws {
+        let (repo, _, _, workspace) = try await makeWorkspace()
+        defer { repo.cleanUp() }
+        let worktree = TempRepo(existing: workspace.path)
+        try worktree.write(Self.plan, "the plan\n")
+        let elsewhere = TestScratch.unique("not-a-repository")
+        try FileManager.default.createDirectory(atPath: elsewhere, withIntermediateDirectories: true)
+
+        await #expect(throws: ShellError.self) {
+            try await AgentPlans.keep(worktree: workspace.path, repo: elsewhere, acceptingLoss: true)
+        }
+        #expect(worktree.read(Self.plan) == "the plan\n")
+    }
 }

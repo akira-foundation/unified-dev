@@ -78,6 +78,7 @@ enum WorkSuggestionColumns {
         case .project(let id): ("project", id.rawValue)
         case .folder(let path): ("folder", path)
         case .remote(let slug): ("remote", slug)
+        case .orchestrator(let id): ("orchestrator", id.rawValue)
         }
     }
 
@@ -116,6 +117,7 @@ enum WorkSuggestionColumns {
         case "project": .project(RepoID(value))
         case "folder": .folder(value)
         case "remote": .remote(value)
+        case "orchestrator": .orchestrator(RepoID(value))
         default: .sameProject
         }
     }

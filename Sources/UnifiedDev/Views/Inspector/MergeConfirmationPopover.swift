@@ -6,7 +6,7 @@ struct MergeConfirmationPopover: View {
     let baseBranch: String
     let localWork: LocalWork?
     let method: GitHub.MergeMethod
-    let deletesBranch: Bool
+    let authority: InstructionAuthority
     let canMerge: Bool
     let tint: Color
     let onConfirm: () -> Void
@@ -28,7 +28,7 @@ struct MergeConfirmationPopover: View {
 
             Text(pullRequest.mergeConfirmationMessage)
 
-            if let deletion = pullRequest.mergeBranchDeletionMessage(deletesBranch: deletesBranch) {
+            if let deletion = pullRequest.mergeBranchDeletionMessage(authority: authority) {
                 Text(deletion)
                     .foregroundStyle(.secondary)
             }
@@ -41,30 +41,39 @@ private struct MergeConfirmationModifier: ViewModifier {
     let model: WorkspaceModel
     let canConfirm: Bool
     let arrowEdge: Edge
-    let onConfirm: (GitHub.MergeMethod) -> Void
+    let onConfirm: (GitHub.MergeMethod, InstructionAuthority) -> Void
+
+    @State private var authority: InstructionAuthority?
 
     func body(content: Content) -> some View {
         content
             .popover(isPresented: Binding(
-                get: { pending != nil },
+                get: { pending != nil && authority != nil },
                 set: { if !$0 { pending = nil } }
             ), arrowEdge: arrowEdge) {
-                if let method = pending, let pullRequest = model.pullRequest {
+                if let method = pending, let authority, let pullRequest = model.pullRequest {
                     MergeConfirmationPopover(
                         pullRequest: pullRequest,
                         baseBranch: pullRequest.targetBranch(or: model.workspace.baseBranch),
                         localWork: model.localWork,
                         method: method,
-                        deletesBranch: true,
+                        authority: authority,
                         canMerge: canConfirm,
                         tint: model.pullRequestStanding.tone.pathColour,
                         onConfirm: {
                             pending = nil
-                            onConfirm(method)
+                            onConfirm(method, authority)
                         },
                         onCancel: { pending = nil }
                     )
                 }
+            }
+            .task(id: pending) {
+                authority = nil
+                guard pending != nil else { return }
+                let read = await model.instructionAuthority(for: model.pullRequest)
+                guard !Task.isCancelled else { return }
+                authority = read
             }
             .onChange(of: model.workspace.id) { _, _ in pending = nil }
             .onChange(of: model.pullRequest?.url) { _, _ in pending = nil }
@@ -81,7 +90,7 @@ extension View {
         model: WorkspaceModel,
         canConfirm: Bool,
         arrowEdge: Edge,
-        onConfirm: @escaping (GitHub.MergeMethod) -> Void
+        onConfirm: @escaping (GitHub.MergeMethod, InstructionAuthority) -> Void
     ) -> some View {
         modifier(MergeConfirmationModifier(
             pending: pending, model: model, canConfirm: canConfirm, arrowEdge: arrowEdge, onConfirm: onConfirm

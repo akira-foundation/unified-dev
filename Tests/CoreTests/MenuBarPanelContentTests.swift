@@ -6,7 +6,7 @@ import Testing
 struct MenuBarPanelContentTests {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
-    private func workspace(_ name: String, unread: Bool = false) -> Workspace {
+    func workspace(_ name: String, unread: Bool = false) -> Workspace {
         Workspace(
             repoID: RepoID("repo"),
             name: name,
@@ -18,7 +18,7 @@ struct MenuBarPanelContentTests {
         )
     }
 
-    private func quota(
+    func quota(
         _ provider: AgentKind,
         _ window: QuotaWindow,
         _ fraction: Double?,
@@ -36,9 +36,9 @@ struct MenuBarPanelContentTests {
     private let codexWeek = QuotaWindow.lasting(604_800, key: "primary")
     private let fable = QuotaWindow(key: "seven_day_model_fable", label: "Week (Fable)", duration: 604_800)
 
-    private var calmCodex: AgentQuota { quota(.codex, codexWeek, 0.2) }
+    var calmCodex: AgentQuota { quota(.codex, codexWeek, 0.2) }
 
-    private func input(
+    func input(
         workspaces: [Workspace] = [],
         running: [Workspace] = [],
         waiting: [Workspace] = [],

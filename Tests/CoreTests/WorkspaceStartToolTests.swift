@@ -373,7 +373,7 @@ struct WorkspaceStartToolTests {
         #expect(result.text.contains("no longer in Unified Dev's database"))
     }
 
-    @Test("a caller that already has the limit running is refused")
+    @Test("a caller that already holds the limit is refused")
     func limit() async throws {
         let fixture = try await fixture()
         let recorder = Recorder()
@@ -394,7 +394,7 @@ struct WorkspaceStartToolTests {
         )
 
         #expect(result.isError)
-        #expect(result.text.contains("limit"))
+        #expect(result.text.contains("not archived"))
         #expect(recorder.orders.isEmpty)
     }
 
@@ -435,7 +435,7 @@ struct WorkspaceStartToolTests {
         #expect(recorder.orders.isEmpty)
     }
 
-    @Test("archived children do not count against the limit, because the limit is on what runs")
+    @Test("archived children do not count against the limit, because it counts what is not archived")
     func archivedChildrenDoNotCount() async throws {
         let fixture = try await fixture()
         let recorder = Recorder()

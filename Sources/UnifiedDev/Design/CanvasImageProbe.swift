@@ -10,15 +10,14 @@ enum CanvasImageProbe {
 
     static func run(in directory: String) -> [String] {
         let root = directory + "/image-probe"
-        try? FileManager.default.removeItem(atPath: root)
-        guard (try? FileManager.default.createDirectory(atPath: root, withIntermediateDirectories: true)) != nil else { return ["images: could not seed"] }
+        if let failure = ProbeFolder.failureToRenew(root) { return ["images: \(failure)"] }
         var failures: [String] = []
         failures += aPictureIsWhole(root: root)
         failures += picturesReachTheScreen(root: root)
         failures += fiftyElementsDoNotStall(root: root)
         failures += playbackDrawsAPictureSharp(root: root)
         failures += aRenderOverItsCapDrawsAndNamesAPlaceholder(root: root)
-        try? FileManager.default.removeItem(atPath: root)
+        ProbeFolder.discard(URL(filePath: root, directoryHint: .isDirectory))
         return failures
     }
 

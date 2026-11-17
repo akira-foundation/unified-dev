@@ -10,6 +10,16 @@ struct SubagentSidebarRow: View {
     private var isOnSelection: Bool { prominence == .increased }
 
     var body: some View {
+        if let since = row.detail.workingSince {
+            TimelineView(.periodic(from: since, by: 1)) { context in
+                label(at: context.date)
+            }
+        } else {
+            label(at: Date())
+        }
+    }
+
+    private func label(at now: Date) -> some View {
         Label {
             HStack(spacing: Metrics.spacingSmall) {
                 Text(row.title)
@@ -20,8 +30,8 @@ struct SubagentSidebarRow: View {
 
                 Spacer(minLength: Metrics.spacingSmall)
 
-                if !row.detail.text.isEmpty {
-                    Text(row.detail.text)
+                if !row.detail.text(at: now).isEmpty {
+                    Text(row.detail.text(at: now))
                         .font(Typo.micro)
                         .monospacedDigit()
                         .foregroundStyle(
@@ -39,9 +49,9 @@ struct SubagentSidebarRow: View {
         .padding(.leading, rowIndent + SidebarMetrics.subagentIndent)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(row.title))
-        .accessibilityValue(Text(row.spokenValue))
+        .accessibilityValue(Text(row.spokenValue(at: now)))
         .accessibilityCustomContent(Text("Subagent"), Text(row.title), importance: .high)
-        .help(row.spokenValue)
+        .help(row.spokenValue(at: now))
     }
 }
 

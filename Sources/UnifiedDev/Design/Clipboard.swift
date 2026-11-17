@@ -1,9 +1,17 @@
 import AppKit
+import Core
 
 enum Clipboard {
     static func copy(_ text: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        copy(.plain(text))
+    }
+
+    static func copy(_ content: ClipboardContent) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        for representation in content.representations {
+            pasteboard.setData(representation.data, forType: NSPasteboard.PasteboardType(representation.type))
+        }
     }
 
     static let flashDuration: Duration = .seconds(1.5)

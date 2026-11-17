@@ -9,6 +9,8 @@ struct PullRequestBadge: View {
 
     private var ink: Color { tint ?? Palette.textSecondary }
 
+    private var host: String { ForgeRepository.kind(ofRemote: url).displayName }
+
     var body: some View {
         Button(action: open) {
             HStack(spacing: Metrics.spacingSmall) {
@@ -27,8 +29,8 @@ struct PullRequestBadge: View {
         .accessibilityElement(children: .ignore)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel("Pull request \(number), \(title)")
-        .accessibilityHint("Opens on GitHub")
-        .help("Open #\(number) on GitHub: \(title)")
+        .accessibilityHint("Opens on \(host)")
+        .help("Open #\(number) on \(host): \(title)")
     }
 
     private func open() {

@@ -81,7 +81,8 @@ public struct CrewMessage: Sendable, Equatable, Codable {
         )
     }
 
-    public static func cancelled(to workspace: String, text: String) -> CrewMessage {
+    public static func cancelled(to named: String, text: String, acrossProfilesID: WorkspaceID? = nil) -> CrewMessage {
+        let workspace = acrossProfilesID?.rawValue ?? WorkspaceMessage.oneLine(named)
         let excerpt = text.count > 120 ? String(text.prefix(120)) + "…" : text
         return CrewMessage(
             event: .cancelled, sender: .unifieddev, from: workspace,

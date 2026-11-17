@@ -17,11 +17,13 @@ extension AppModel {
             store: store
         )
         let isNewCommandWait = decision.map {
-            mergeArchiveWaits.record($0, for: id, pullRequest: pullRequest.number)
+            mergeArchiveWaits.record(
+                $0, for: id, pullRequest: pullRequest.number, mergedHead: pullRequest.headCommit
+            )
         } ?? false
         switch decision {
         case .archiveNow:
-            await archiveOnMerge(workspace)
+            await archiveOnMerge(workspace, mergedHead: pullRequest.headCommit)
         case .archiveAfterTurn:
             Log.archive.info(
                 "\(workspace.name, privacy: .public) merged mid turn and will be archived when the turn ends"
@@ -41,6 +43,7 @@ extension AppModel {
 
     func archiveIfMergeWaiting(_ workspace: Workspace, wasStopped: Bool) async {
         let isCommandRunning = wasStopped ? false : await isRunningCommand(in: workspace.id)
+        let mergedHead = mergeArchiveWaits.mergedHeads[workspace.id]
         let settlement = mergeArchiveWaits.settle(
             workspace.id,
             isAgentMidTurn: isAgentMidTurn(workspace),
@@ -65,7 +68,7 @@ extension AppModel {
                   SettingsLoader.load(repo: repo.path).archiveOnMerge,
                   (try? await store.takePullRequestSeenOpen(number, workspaceID: workspace.id)) == true
             else { return }
-            await archiveOnMerge(workspace)
+            await archiveOnMerge(workspace, mergedHead: mergedHead)
         }
     }
 
@@ -109,10 +112,19 @@ extension AppModel {
         }
     }
 
-    private func archiveOnMerge(_ workspace: Workspace) async {
+    private func archiveOnMerge(_ workspace: Workspace, mergedHead: String?) async {
         guard let store, !isArchiving(workspace.id) else { return }
         if let objection = await WorkspaceArchiveSafety.objection(to: workspace, excusing: nil, store: store) {
             refuseArchiveOnMerge(workspace, because: objection)
+            return
+        }
+        let inFlight = await MergeArchiveInFlightRead.objection(worktree: workspace.path, mergedHead: mergedHead)
+        guard !isArchiving(workspace.id) else { return }
+        if let inFlight {
+            Log.archive.info(
+                "\(workspace.name, privacy: .public) merged and was held back: \(inFlight, privacy: .private)"
+            )
+            refuseArchiveOnMerge(workspace, because: inFlight)
             return
         }
         Log.archive.info("\(workspace.name, privacy: .public) merged and is being archived")

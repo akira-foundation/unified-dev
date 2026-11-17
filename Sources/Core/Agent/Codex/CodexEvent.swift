@@ -428,6 +428,7 @@ public struct CodexTurn: Sendable, Hashable {
     public let status: Status
     public let items: [CodexItem]
     public let errorMessage: String?
+    public let errorCode: String?
     public let durationMS: Int?
     public let raw: Data
 
@@ -437,6 +438,7 @@ public struct CodexTurn: Sendable, Hashable {
         status: Status,
         items: [CodexItem] = [],
         errorMessage: String? = nil,
+        errorCode: String? = nil,
         durationMS: Int? = nil,
         raw: Data = Data()
     ) {
@@ -445,6 +447,7 @@ public struct CodexTurn: Sendable, Hashable {
         self.status = status
         self.items = items
         self.errorMessage = errorMessage
+        self.errorCode = errorCode
         self.durationMS = durationMS
         self.raw = raw
     }
@@ -458,6 +461,7 @@ public struct CodexTurn: Sendable, Hashable {
             status: Status(rawValue: json["status"]?.stringValue ?? "") ?? .unknown,
             items: (json["items"]?.arrayValue ?? []).compactMap(CodexItem.decode),
             errorMessage: json["error"]?["message"]?.stringValue,
+            errorCode: json["error"]?["codexErrorInfo"]?.stringValue,
             durationMS: json["durationMs"]?.intValue,
             raw: raw
         )

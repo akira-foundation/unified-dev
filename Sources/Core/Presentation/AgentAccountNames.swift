@@ -35,6 +35,11 @@ public enum AgentAccountNames {
             .map { title(of: $0, among: standings) }
     }
 
+    public static func spoken(of home: AgentAccountHome, among standings: [AgentAccountStanding]) -> String {
+        if isGenericDefault(home, among: standings) { return "the default account" }
+        return title(of: home, among: standings) ?? home.directory.lastPathComponent
+    }
+
     public static func isGenericDefault(_ standing: AgentAccountStanding) -> Bool {
         isGenericDefault(entry(standing))
     }

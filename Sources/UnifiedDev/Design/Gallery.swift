@@ -52,6 +52,7 @@ extension Snapshot {
         .notes,
         .notices,
         .pullRequestBar,
+        .cloneFailure,
     ]
 
     static func gallery(named name: String?) -> Gallery {

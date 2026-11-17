@@ -40,6 +40,7 @@ public actor AgentRunner {
     private let shutdownBudget: Duration
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
     private let sink = AgentPresentationFeed()
+    private let announced = StoredMessageRelay()
     private var sendsInFlight = 0
     private var wasEvicted = false
     private let handle = ProcessHandle()
@@ -52,10 +53,14 @@ public actor AgentRunner {
     private var launchedCommand = ""
     private let mcpConfigPath: String?
     private let account: AgentAccountHome?
+    private let gitHub: GitHubLogin
     private let inheritedEnvironment: [String: String]?
     private var isFastMode = false
     private var configuredExecutable = AgentKind.claudeCode.executableName
     private var outputStyle: String?
+    private let usesChrome: Bool
+    private var launchedWithChrome = false
+    private var chromeNoticeGiven = false
     private var awaitingSideContextAcknowledgement = false
     private let segment: RunnerSegment
     private var promptedGeneration: Int?
@@ -85,6 +90,8 @@ public actor AgentRunner {
         segmentID: SessionSegmentID,
         mcpConfigPath: String? = nil,
         account: AgentAccountHome? = nil,
+        gitHub: GitHubLogin = .thisMac,
+        usesChrome: Bool = false,
         inheritedEnvironment: [String: String]? = nil,
         shutdownBudget: Duration = AgentRunner.defaultShutdownBudget,
         activity: ClaudeAccountActivity = .shared,
@@ -98,6 +105,8 @@ public actor AgentRunner {
         self.mcpConfigPath = mcpConfigPath
         self.account = account
         self.segment = RunnerSegment(sessionID: session.id, store: store, id: segmentID)
+        self.gitHub = gitHub
+        self.usesChrome = usesChrome
         self.inheritedEnvironment = inheritedEnvironment
         self.shutdownBudget = shutdownBudget
         self.makeProcess = makeProcess
@@ -122,7 +131,8 @@ public actor AgentRunner {
         isFastMode: Bool = false,
         outputStyle: String? = nil,
         mcpConfigPath: String? = nil,
-        orchestrates: Bool = false
+        orchestrates: Bool = false,
+        chrome: Bool = false
     ) -> [String] {
         let orchestrating = orchestrates && session.workspaceID != nil
         var arguments = [
@@ -147,12 +157,16 @@ public actor AgentRunner {
         if isFastMode {
             arguments += ["--thinking", "disabled"]
         }
-        if let settings = settingsJSON(outputStyle: outputStyle, orchestrates: orchestrating) {
+        if let settings = settingsJSON(
+            outputStyle: outputStyle, orchestrates: orchestrating,
+            guardsCrossing: session.workspaceID != nil && BridgeProfileReach.asksTheOwner(session.permissionMode)
+        ) {
             arguments += ["--settings", settings]
         }
         if let mcpConfigPath, !mcpConfigPath.isEmpty {
             arguments += BridgeRegistration.claudeArguments(configPath: mcpConfigPath)
         }
+        if chrome, !orchestrating { arguments.append(ClaudeChrome.flag) }
         if let resume, !resume.isEmpty {
             arguments += ["--resume", resume]
         }
@@ -165,12 +179,16 @@ public actor AgentRunner {
         return arguments
     }
 
-    public static func settingsJSON(outputStyle: String?, orchestrates: Bool = false) -> String? {
+    public static func settingsJSON(outputStyle: String?, orchestrates: Bool = false, guardsCrossing: Bool = false) -> String? {
         var object: [String: Any] = [:]
         if let outputStyle, !OutputStyle.isDefault(outputStyle) {
             object["outputStyle"] = outputStyle.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if orchestrates { object["permissions"] = OrchestratorToolGuard.claudePermissions }
+        if orchestrates {
+            object["permissions"] = OrchestratorToolGuard.claudePermissions
+            object["env"] = OrchestratorToolGuard.claudeEnvironment
+        }
+        if !orchestrates, guardsCrossing { object["permissions"] = BridgeToolApproval.claudeCrossingPermissions }
         guard !object.isEmpty,
               let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else { return nil }
         return String(decoding: data, as: UTF8.self)
@@ -185,10 +203,15 @@ public actor AgentRunner {
                 isFastMode: isFastMode,
                 outputStyle: outputStyle,
                 mcpConfigPath: mcpConfigPath,
-                orchestrates: orchestrates
+                orchestrates: orchestrates,
+                chrome: usesChrome
             ),
             cwd: workspacePath,
-            environment: AgentAccountEnvironment.apply(account, to: inheritedEnvironment ?? Shell.environment())
+            environment: AgentAccountEnvironment.apply(
+                account, to: BitbucketCredentialHelper.environment(
+                    over: gitHub.everySignIn(appliedTo: inheritedEnvironment ?? Shell.environment())
+                )
+            )
         )
     }
 
@@ -206,6 +229,7 @@ public actor AgentRunner {
 
     public nonisolated var events: AsyncStream<AgentEvent> { sink.stream() }
     public nonisolated var presentationFeed: AgentPresentationFeed? { sink }
+    public nonisolated var storedMessages: StoredMessageRelay? { announced }
 
     public func setPersistsStreamDeltas(_ value: Bool) {
         persistsStreamDeltas = value
@@ -217,7 +241,8 @@ public actor AgentRunner {
 
     public func evictIfIdle(for duration: Duration) async -> Bool {
         guard !wasEvicted, sendsInFlight == 0, !session.state.isMidTurn,
-              session.agentSessionID != nil, pending.isEmpty, !sink.hasBackgroundWork else { return false }
+              session.agentSessionID != nil || promptedGeneration != handle.generation,
+              pending.isEmpty, !sink.hasBackgroundWork else { return false }
         let lastActivity = sink.lastActivity
         guard lastActivity.duration(to: .now) >= duration,
               let waiting = try? await store.pendingDeliveries(sessionID: session.id), waiting.isEmpty else { return false }
@@ -322,9 +347,12 @@ public actor AgentRunner {
 
     private func admitRun(_ admission: Int) async throws {
         guard handle.current == nil, runLease == nil else { return }
-        let lease = await activity.beginRun(ClaudeResolvedModel.accountID(account))
-        guard !handle.wasStopped(during: admission) else {
-            lease.end()
+        let ticket = ClaudeRunTicket()
+        guard handle.hold(ticket, for: admission) else { throw CancellationError() }
+        let admitted = await activity.beginRun(ClaudeResolvedModel.accountID(account), ticket: ticket)
+        handle.release(admission)
+        guard let lease = admitted, !handle.wasStopped(during: admission) else {
+            admitted?.end()
             throw CancellationError()
         }
         guard runLease == nil, handle.current == nil else { return lease.end() }
@@ -337,6 +365,8 @@ public actor AgentRunner {
         cancelled = false
         stderrTail = []
         let spec = launch()
+        launchedWithChrome = spec.arguments.contains(ClaudeChrome.flag)
+        chromeNoticeGiven = false
         requestedResume = AgentSessionSettlement.resumable(session: session, account: account)
         launchedCommand = Shell.which(spec.executable) ?? spec.executable
         let process = makeProcess(spec)
@@ -386,7 +416,9 @@ public actor AgentRunner {
 
     func ingest(_ event: AgentEvent) async {
         var event = event
-        if case .permissionAsk(let ask) = event, BridgeToolApproval.isSelfApproved(toolName: ask.toolName) {
+        if case .permissionAsk(let ask) = event, BridgeToolApproval.isSelfApproved(
+            toolName: ask.toolName, input: ask.input, inWorkspace: session.workspaceID != nil
+        ) {
             await persist(kind: .system, payload: event.raw)
             await write(answerTo: ask, decision: .allow(scope: .once))
             return
@@ -431,6 +463,7 @@ public actor AgentRunner {
 
         switch event {
         case .initialized(let info):
+            await noteChromeMissing(from: info)
             await ClaudeResolvedModel.record(
                 requested: ModelAlias.cliValue(for: session.model),
                 reported: info.model,
@@ -488,6 +521,7 @@ public actor AgentRunner {
             break
         }
 
+        if let storedMessage { announced.deposit(storedMessage) }
         sink.yield(event, messageSeq: storedMessage?.seq)
 
         if case .permissionAsk(let ask) = event {
@@ -506,6 +540,12 @@ public actor AgentRunner {
         } catch {
             await report("could not mark the conversation for a full handoff", error)
         }
+    }
+
+    private func noteChromeMissing(from info: AgentInit) async {
+        guard !chromeNoticeGiven,
+              let notice = ClaudeChromeNotice.missing(requested: launchedWithChrome, initEvent: info.raw) else { return }
+        chromeNoticeGiven = await persist(kind: .notice, payload: notice.payload) != nil
     }
 
     @discardableResult
@@ -728,6 +768,7 @@ public actor AgentRunner {
     func cancel(generation: Int, admission: Int? = nil) {
         guard generation == handle.generation else { return }
         let request = handle.requestCancel(generation, admission: admission ?? handle.admission)
+        request.waiting.forEach(activity.withdraw)
 
         let wasCancelled = cancelled
         markCancelled()
@@ -770,6 +811,7 @@ public actor AgentRunner {
         let generation = handle.generation
         let admission = handle.admission
         let request = handle.requestCancel(generation, admission: admission)
+        request.waiting.forEach(activity.withdraw)
         let denied = denyPendingAsks(PermissionDecision.stoppedMessage)
         if request.accepted { request.process?.terminate() }
         Task { [weak self] in
@@ -818,6 +860,7 @@ private final class ProcessHandle: Sendable {
         var run = 0
         var admission = 0
         var stoppedThrough = 0
+        var waiting: [Int: ClaudeRunTicket] = [:]
     }
 
     private let state = Mutex(State())
@@ -837,6 +880,18 @@ private final class ProcessHandle: Sendable {
 
     func wasStopped(during admission: Int) -> Bool {
         state.withLock { admission <= $0.stoppedThrough }
+    }
+
+    func hold(_ ticket: ClaudeRunTicket, for admission: Int) -> Bool {
+        state.withLock { state in
+            guard admission > state.stoppedThrough else { return false }
+            state.waiting[admission] = ticket
+            return true
+        }
+    }
+
+    func release(_ admission: Int) {
+        state.withLock { _ = $0.waiting.removeValue(forKey: admission) }
     }
 
     func beginRun(_ process: any AgentProcessing) -> Int {
@@ -863,14 +918,22 @@ private final class ProcessHandle: Sendable {
         state.withLock { $0.process != nil && $0.cancelled }
     }
 
-    func requestCancel(_ generation: Int, admission: Int) -> (accepted: Bool, process: (any AgentProcessing)?) {
-        state.withLock { state -> (accepted: Bool, process: (any AgentProcessing)?) in
-            guard generation == state.run else { return (false, nil) }
+    func requestCancel(_ generation: Int, admission: Int) -> CancelRequest {
+        state.withLock { state -> CancelRequest in
+            guard generation == state.run else { return CancelRequest(accepted: false, process: nil, waiting: []) }
             state.stoppedThrough = max(state.stoppedThrough, admission)
             let accepted = !state.cancelled
             state.cancelled = true
-            return (accepted, state.process)
+            let stopped = state.waiting.filter { $0.key <= state.stoppedThrough }
+            for key in stopped.keys { state.waiting[key] = nil }
+            return CancelRequest(accepted: accepted, process: state.process, waiting: Array(stopped.values))
         }
+    }
+
+    struct CancelRequest {
+        let accepted: Bool
+        let process: (any AgentProcessing)?
+        let waiting: [ClaudeRunTicket]
     }
 }
 

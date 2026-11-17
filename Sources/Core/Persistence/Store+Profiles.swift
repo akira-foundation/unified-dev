@@ -95,6 +95,7 @@ extension Store {
             try returnAccountsToInitial(from: id)
             try removeProfileRow(id: id)
         }
+        try refreshGitHubLogins()
     }
 
     public func workSuggestionSource(_ suggestion: WorkSuggestion) throws -> WorkSuggestionProfile.Source {

@@ -23,7 +23,7 @@ public struct AgentAccountLiveness: Sendable {
             switch provider {
             case .claudeCode: self = .claudeAuthStatus
             case .codex: self = .codexLoginStatus
-            case .grok, .cursor, .openCode: return nil
+            case .grok, .antigravity, .cursor, .openCode: return nil
             }
         }
 
@@ -45,6 +45,7 @@ public struct AgentAccountLiveness: Sendable {
     private let cwd: String
     private let environment: [String: String]?
     private let timeout: Duration
+    private let activity: ClaudeAccountActivity
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
 
     init(
@@ -53,8 +54,10 @@ public struct AgentAccountLiveness: Sendable {
         cwd: String = AgentScratchDirectory.current(),
         environment: [String: String]? = nil,
         timeout: Duration = AgentAccountLiveness.timeout,
+        activity: ClaudeAccountActivity = .shared,
         makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = AgentRunner.spawn
     ) {
+        self.activity = activity
         self.executable = executable
         self.codexExecutable = codexExecutable
         self.cwd = cwd
@@ -81,6 +84,11 @@ public struct AgentAccountLiveness: Sendable {
     public func report(for home: AgentAccountHome) async -> CliReport {
         guard let command = Command(home.provider) else { return .unanswered }
         await LoginShellPath.ready()
+        guard command == .claudeAuthStatus else { return await ask(command, about: home) }
+        return await activity.holding(home) { await ask(command, about: home) } ?? .unanswered
+    }
+
+    private func ask(_ command: Command, about home: AgentAccountHome) async -> CliReport {
         let process = makeProcess(AgentLaunch(
             executable: command == .claudeAuthStatus ? executable : codexExecutable,
             arguments: command.arguments,
@@ -108,6 +116,7 @@ public struct AgentAccountLiveness: Sendable {
             process.terminate()
             return first
         }
+        if command == .claudeAuthStatus { await process.killUnlessExited(within: ClaudeAccountActivity.exitGrace) }
         guard case .answered(let answer) = outcome else { return .unanswered }
         return answer ?? .unanswered
     }

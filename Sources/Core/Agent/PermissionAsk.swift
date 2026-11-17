@@ -151,6 +151,7 @@ public struct PermissionAsk: Sendable, Hashable, Identifiable {
 
     public var canWiden: Bool {
         !isQuestion && !isPlanApproval && !rules.isEmpty && !suppressesAlwaysAllow && !requiresUserInteraction
+            && !BridgeToolApproval.crossesProfile(toolName: toolName, input: input)
     }
 
     public var subject: String {
@@ -307,7 +308,7 @@ public enum PermissionAnswer {
         case .allow(let scope):
             response["behavior"] = .string("allow")
             response["updatedInput"] = ask.input
-            if scope != .once, let suggestion = ask.allowSuggestion {
+            if scope != .once, ask.canWiden, let suggestion = ask.allowSuggestion {
                 response["updatedPermissions"] = .array([suggestion.aimed(at: .session).raw])
             }
             response["decision"] = .string(scope == .once ? "user_temporary" : "user_permanent")
@@ -336,13 +337,14 @@ public enum PermissionAnswer {
 }
 
 public extension PermissionAsk {
-    func standing(in decisions: [String: String]) -> String? {
+    func standing(in decisions: [String: String], inWorkspace: Bool) -> String? {
         if let decision = decisions[requestID] { return decision }
-        return wasAnsweredByTheRunner ? PermissionAskOutcome.selfApproved : nil
+        return wasAnsweredByTheRunner(inWorkspace: inWorkspace) ? PermissionAskOutcome.selfApproved : nil
     }
 
-    private var wasAnsweredByTheRunner: Bool {
-        guard BridgeToolApproval.isSelfApproved(toolName: toolName) else { return false }
+    private func wasAnsweredByTheRunner(inWorkspace: Bool) -> Bool {
+        guard BridgeToolApproval.isSelfApproved(toolName: toolName, input: input, inWorkspace: inWorkspace)
+        else { return false }
         return JSONValue.parse(raw)?["agent_kind"] == nil
     }
 }

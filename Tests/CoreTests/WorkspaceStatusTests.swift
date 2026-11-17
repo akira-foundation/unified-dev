@@ -259,7 +259,7 @@ struct WorkspaceStatusTests {
         #expect(pullRequest.mergeConfirmationTitle(base: "main")
             == "Merge #42 into main?")
 
-        let text = pullRequest.mergeConfirmation(base: "main", deletesBranch: true)
+        let text = pullRequest.mergeConfirmation(base: "main", authority: .project)
         #expect(text.contains("feature/glyphs"))
         #expect(text.contains("1 required check failed"))
         #expect(text.contains("agent"))
@@ -274,18 +274,65 @@ struct WorkspaceStatusTests {
         #expect(pullRequest.mergeWarnings(base: "main").isEmpty)
         #expect(pullRequest.mergeConfirmationMessage
             == "Your agent will merge this pull request in the chat, where you can follow its progress.")
-        #expect(pullRequest.mergeBranchDeletionMessage(deletesBranch: true)
+        #expect(pullRequest.mergeBranchDeletionMessage(authority: .project)
             == "After merging, feature/glyphs will be deleted on GitHub. Your local branch stays.")
     }
 
-    @Test("a confirmation that does not delete the branch does not claim to")
+    @Test("a confirmation whose instructions delete no branch says the branch is left as it is")
     func confirmationWithoutBranchDeletion() throws {
-        let text = try decode(json(state: "OPEN")).mergeConfirmation(
-            base: "main", deletesBranch: false
-        )
+        let text = try decode(json(state: "OPEN")).mergeConfirmation(base: "main", authority: .appOnly)
         #expect(!text.contains("deleted on GitHub"))
         #expect(text.contains("agent will merge this pull request in the chat"))
-        #expect(try decode(json(state: "OPEN")).mergeBranchDeletionMessage(deletesBranch: false) == nil)
+        #expect(try decode(json(state: "OPEN")).mergeBranchDeletionMessage(authority: .appOnly)
+            == "After merging, the agent leaves feature/glyphs on GitHub, unless the repository deletes merged"
+                + " branches itself. Your local branch stays.")
+    }
+
+    @Test("a pull request with no branch is promised nothing about one", arguments: [InstructionAuthority.project, .appOnly])
+    func noBranchNoPromise(authority: InstructionAuthority) throws {
+        var pullRequest = try decode(json(state: "OPEN"))
+        pullRequest.branch = ""
+        #expect(pullRequest.mergeBranchDeletionMessage(authority: authority) == nil)
+    }
+
+    @Test("a merge whose instructions changed after the confirmation is not sent")
+    func changedAuthorityRefusesTheMerge() {
+        #expect(InstructionAuthority.mergeRefusal(confirmed: .appOnly, sending: .project)?
+            .contains("Nothing was sent") == true)
+        #expect(InstructionAuthority.mergeRefusal(confirmed: .project, sending: .appOnly) != nil)
+        #expect(InstructionAuthority.mergeRefusal(confirmed: .project, sending: .project) == nil)
+        #expect(InstructionAuthority.mergeRefusal(confirmed: .appOnly, sending: .appOnly) == nil)
+        #expect(InstructionAuthority.mergeRefusal(confirmed: nil, sending: .project) == nil)
+    }
+
+    @Test(
+        "a fork or another person's pull request is not promised a deletion",
+        arguments: [(true, "ada"), (false, "grace"), (nil, "ada")] as [(Bool?, String)]
+    )
+    func foreignPullRequestKeepsItsBranch(isFromFork: Bool?, author: String) throws {
+        var pullRequest = try decode(json(state: "OPEN"))
+        pullRequest.isFromFork = isFromFork
+        pullRequest.author = author
+        pullRequest.headCommit = "abc123"
+        let authority = InstructionAuthority.forPullRequest(
+            pullRequest, checkedOutBranch: pullRequest.branch, checkedOutCommit: "abc123", viewer: "ada"
+        )
+        let text = pullRequest.mergeConfirmation(base: "main", authority: authority)
+        #expect(!text.contains("will be deleted"))
+        #expect(text.contains("the agent leaves feature/glyphs on GitHub"))
+    }
+
+    @Test("the person's own pull request on its checked out head is promised the deletion")
+    func ownPullRequestDeletesItsBranch() throws {
+        var pullRequest = try decode(json(state: "OPEN"))
+        pullRequest.isFromFork = false
+        pullRequest.author = "Ada"
+        pullRequest.headCommit = "abc123"
+        let authority = InstructionAuthority.forPullRequest(
+            pullRequest, checkedOutBranch: pullRequest.branch, checkedOutCommit: "abc123", viewer: "ada"
+        )
+        #expect(pullRequest.mergeConfirmation(base: "main", authority: authority)
+            .contains("feature/glyphs will be deleted on GitHub"))
     }
 
     @Test("every state is classified, and nothing a bare worktree produces reaches for GitHub")

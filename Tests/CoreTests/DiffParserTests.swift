@@ -39,9 +39,9 @@ private struct GitFixture {
         let pipe = Pipe()
         process.standardOutput = pipe
         process.standardError = Pipe()
-        try process.run()
+        let child = try ChildProcess(process)
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
+        child.waitForExit()
         return String(decoding: data, as: UTF8.self)
     }
 

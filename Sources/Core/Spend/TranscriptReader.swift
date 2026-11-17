@@ -77,7 +77,7 @@ public enum TranscriptReader {
 
             drain(&pending, &searched, &pendingStart, file: file, into: &result)
 
-            if pending.count > ceiling {
+            if pending.count > ceiling || (consumed >= budget && pending.count >= ceiling) {
                 result.abandonedLines += 1
                 pendingStart += pending.count
                 pending.removeAll(keepingCapacity: false)

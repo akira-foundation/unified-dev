@@ -57,7 +57,7 @@ final class SessionGrants: Sendable {
     }
 
     func record(_ decision: PermissionDecision, from ask: PermissionAsk) async {
-        guard let repoID = await repoID() else { return }
+        guard ask.canWiden, let repoID = await repoID() else { return }
         for grant in PermissionGrant.all(granting: decision, from: ask, repoID: repoID) {
             _ = try? await store.upsert(grant)
         }

@@ -66,14 +66,14 @@ struct ClaudeAliasProbeIsolationTests {
         #expect(!stillAlive)
     }
 
-    @Test("the address gets no answer and every proxied request is refused, as the CLI would see them")
+    @Test("the address the CLI is given gets no answer and every proxy it is given refuses, while the CLI runs")
     func nothingTheCLISendsGetsAnAnswer() async throws {
         let record = TestScratch.path("record")
         try FileManager.default.createDirectory(atPath: record, withIntermediateDirectories: true)
         let cli = try fakeCLI("""
-        /usr/bin/curl -s -o /dev/null -m 1 "$ANTHROPIC_BASE_URL/v1/messages"; echo $? > "$PROBE_RECORD/base"
-        /usr/bin/curl -s -o /dev/null -m 2 https://192.0.2.1/; echo $? > "$PROBE_RECORD/https"
-        /usr/bin/curl -s -o /dev/null -m 2 http://192.0.2.1/; echo $? > "$PROBE_RECORD/http"
+        printf '%s\\0' "$@" > "$PROBE_RECORD/args"
+        env > "$PROBE_RECORD/env.partial" && mv "$PROBE_RECORD/env.partial" "$PROBE_RECORD/env"
+        while [ ! -e "$PROBE_RECORD/go" ]; do /bin/sleep 0.05; done
         echo '{"type":"system","subtype":"init","model":"claude-opus-5-5"}'
         exec /bin/sleep 30
         """)
@@ -83,16 +83,43 @@ struct ClaudeAliasProbeIsolationTests {
             "HTTPS_PROXY": "http://proxy.example:8080",
         ]
 
-        let answers = await resolve(realProbe(cli, inherited: inherited), ["opus"], account: probeAccount(), upTo: .seconds(45))
-        func code(_ name: String) -> Int? {
-            (try? String(contentsOfFile: (record as NSString).appendingPathComponent(name), encoding: .utf8))
-                .flatMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
-        }
+        let answers = AwaitedAnswer<ClaudeAliasAnswers>()
+        let probe = realProbe(cli, inherited: inherited)
+        Task { answers.set(await probe.resolve(["opus"], account: probeAccount())) }
+        await waitUntil("the CLI wrote what it was given") { FileManager.default.fileExists(atPath: record + "/env") }
+        let environment = try String(contentsOfFile: record + "/env", encoding: .utf8)
+            .split(separator: "\n")
+            .reduce(into: [String: String]()) { found, line in
+                guard let equals = line.firstIndex(of: "=") else { return }
+                found[String(line[..<equals])] = String(line[line.index(after: equals)...])
+            }
+        let arguments = try String(contentsOfFile: record + "/args", encoding: .utf8).split(separator: "\0").map(String.init)
+        let settingsAt = try #require(arguments.firstIndex(of: "--settings"))
+        let settings = try JSONDecoder().decode(SettingsEnvironment.self, from: Data(arguments[settingsAt + 1].utf8)).env
+        let named = ["ANTHROPIC_BASE_URL"] + Self.proxyNames
+        let base = try #require(environment["ANTHROPIC_BASE_URL"].flatMap(LoopbackExchange.port(of:)))
+        let proxies = Self.proxyNames.map { environment[$0].flatMap(LoopbackExchange.port(of:)) }
+        let modelRequest = LoopbackExchange.send(
+            "POST /v1/messages HTTP/1.1\r\nHost: api.anthropic.com\r\n\r\n", to: base, waiting: .seconds(2)
+        )
+        let proxied = await LoopbackExchange.sendAtOnce(
+            "CONNECT api.anthropic.com:443 HTTP/1.1\r\n\r\n", to: proxies.compactMap(\.self), waiting: .seconds(15)
+        )
+        try "".write(toFile: record + "/go", atomically: true, encoding: .utf8)
+        let resolved = await answers.wait(upTo: .seconds(20))
 
-        #expect(answers?.probed == ["opus": "claude-opus-5-5"])
-        #expect(code("base") == 28)
-        #expect([52, 55, 56].contains(code("https") ?? 28))
-        #expect([52, 55, 56].contains(code("http") ?? 28))
+        #expect(resolved?.probed == ["opus": "claude-opus-5-5"])
+        #expect(modelRequest?.isStillWaiting == true, "\(String(describing: modelRequest))")
+        #expect(proxies.allSatisfy { $0 != nil && $0 != base })
+        #expect(proxied.count == Self.proxyNames.count)
+        #expect(proxied.allSatisfy { $0?.wasClosedUnanswered == true }, "\(proxied)")
+        #expect(named.allSatisfy { settings[$0] != nil && settings[$0] == environment[$0] })
+    }
+
+    private static let proxyNames = ["ALL_PROXY", "HTTPS_PROXY", "HTTP_PROXY", "all_proxy", "http_proxy", "https_proxy"]
+
+    private struct SettingsEnvironment: Decodable {
+        let env: [String: String]
     }
 
     @Test("each probe runs in a directory of its own, found empty and removed afterwards")
@@ -201,7 +228,7 @@ struct ClaudeAliasProbeRestraintTests {
 
         let held = await probe.resolve(["opus"], account: work)
         let free = await probe.resolve(["opus"], account: client)
-        lease.end()
+        lease?.end()
         let afterwards = await probe.resolve(["opus"], account: work)
 
         #expect(held.all.isEmpty)
@@ -219,19 +246,18 @@ struct ClaudeAliasProbeRestraintTests {
 
         let answers = AwaitedAnswer<ClaudeAliasAnswers>()
         Task { answers.set(await probe.resolve(["opus", "sonnet"], account: work)) }
-        while launches.launches.isEmpty { try await Task.sleep(for: .milliseconds(5)) }
-        let admitted = AwaitedAnswer<Bool>()
-        Task {
-            let lease = await activity.beginRun(work.id)
-            admitted.set(true)
-            withExtendedLifetime(lease) {}
-        }
-        try await Task.sleep(for: .milliseconds(100))
+        await waitUntil("the probe launched") { !launches.launches.isEmpty }
+        let admitted = AwaitedAnswer<ClaudeRunLease>()
+        Task { if let lease = await activity.beginRun(work.id) { admitted.set(lease) } }
+        await waitUntil("the turn waits for the launch") { activity.waitingRuns(work.id) == 1 }
         let admittedDuringLaunch = admitted.answer != nil
         launches.processes.first?.terminate()
+        let lease = await admitted.wait(upTo: .seconds(5))
+        let finished = await answers.wait(upTo: .seconds(5))
+        lease?.end()
 
-        #expect(await admitted.wait(upTo: .seconds(5)) == true)
-        #expect(await answers.wait(upTo: .seconds(5)) != nil)
+        #expect(lease != nil)
+        #expect(finished != nil)
         #expect(!admittedDuringLaunch)
         #expect(launches.launches.count == 1)
     }
@@ -310,10 +336,9 @@ struct ClaudeAliasProbeRestraintTests {
         #expect(activity.beginProbe(account))
         let first = AwaitedAnswer<ClaudeRunLease>()
         let second = AwaitedAnswer<ClaudeRunLease>()
-        Task { first.set(await activity.beginRun(account)) }
-        Task { second.set(await activity.beginRun(account)) }
-        while !activity.isRunning(account) { try await Task.sleep(for: .milliseconds(5)) }
-        try await Task.sleep(for: .milliseconds(50))
+        Task { if let lease = await activity.beginRun(account) { first.set(lease) } }
+        Task { if let lease = await activity.beginRun(account) { second.set(lease) } }
+        await waitUntil("both turns wait for the probe") { activity.waitingRuns(account) == 2 }
 
         activity.endProbe(account)
         let leases = [await first.wait(upTo: .seconds(5)), await second.wait(upTo: .seconds(5))].compactMap(\.self)
@@ -325,6 +350,49 @@ struct ClaudeAliasProbeRestraintTests {
         #expect(leases.count == 2)
         #expect(heldByTheSecond)
         #expect(activity.beginProbe(account))
+    }
+
+    @Test("a turn waiting on a probe gives its place back when its task is cancelled, and the probe is not ended")
+    func aCancelledWaitLeaves() async {
+        let activity = ClaudeAccountActivity()
+        let account = AgentAccountID("work")
+        #expect(activity.beginProbe(account))
+        let answered = AwaitedAnswer<Bool>()
+        let waiting = Task {
+            let lease = await activity.beginRun(account)
+            answered.set(lease != nil)
+        }
+        await waitUntil("the turn waits for the probe") { activity.waitingRuns(account) == 1 }
+
+        waiting.cancel()
+        let admitted = await answered.wait(upTo: .seconds(5))
+        let heldAfterwards = activity.isRunning(account)
+        let probeStillHeld = !activity.beginProbe(account)
+        activity.endProbe(account)
+
+        #expect(admitted == false)
+        #expect(!heldAfterwards)
+        #expect(probeStillHeld)
+    }
+
+    @Test("a ticket withdrawn before it is presented is never admitted, and one withdrawn after admission keeps its lease")
+    func aWithdrawnTicketIsRefused() async {
+        let activity = ClaudeAccountActivity()
+        let account = AgentAccountID("work")
+        let early = ClaudeRunTicket()
+        activity.withdraw(early)
+        let late = ClaudeRunTicket()
+
+        let refused = await activity.beginRun(account, ticket: early)
+        let lease = await activity.beginRun(account, ticket: late)
+        activity.withdraw(late)
+        let heldAfterLateWithdrawal = activity.isRunning(account)
+        lease?.end()
+
+        #expect(refused == nil)
+        #expect(lease != nil)
+        #expect(heldAfterLateWithdrawal)
+        #expect(!activity.isRunning(account))
     }
 
     @Test("a lease dropped without being ended still frees its account")

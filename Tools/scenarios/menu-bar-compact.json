@@ -1,0 +1,28 @@
+{
+  "welcome": false,
+  "projects": [
+    {
+      "name": "harbour",
+      "files": { "src/pier.txt": "wood\n" },
+      "commits": ["Lay the pier"],
+      "workspaces": [
+        { "name": "Lighthouse", "branch": "lighthouse" },
+        { "name": "Bell", "branch": "bell" }
+      ]
+    }
+  ],
+  "accounts": [
+    { "provider": "claudeCode", "email": "owner@example.com", "plan": "max", "rateLimitTier": "default_claude_max_20x" }
+  ],
+  "quotas": [
+    { "provider": "claudeCode", "window": "seven_day", "used": 0.03, "resetsInMinutes": 10020 },
+    { "provider": "claudeCode", "window": "seven_day_model_opus", "label": "Week (Opus)", "used": 0.62, "resetsInMinutes": 10020 },
+    { "provider": "claudeCode", "window": "seven_day_model_sonnet", "label": "Week (Sonnet)", "used": 0.48, "resetsInMinutes": 10020 },
+    { "provider": "claudeCode", "window": "seven_day_model_haiku", "label": "Week (Haiku)", "used": 0.12, "resetsInMinutes": 10020 },
+    { "provider": "claudeCode", "window": "seven_day_model_fable", "label": "Week (Fable)", "used": 0.0, "resetsInMinutes": 10020 },
+    { "provider": "claudeCode", "window": "seven_day_model_opus_1m", "label": "Week (Opus 1M)", "used": 0.05, "resetsInMinutes": 10020 },
+    { "provider": "claudeCode", "window": "seven_day_model_sonnet_1m", "label": "Week (Sonnet 1M)", "used": 0.02, "resetsInMinutes": 10020 },
+    { "provider": "codex", "window": "primary", "hours": 720, "used": 0.11, "resetsInMinutes": 28140 },
+    { "provider": "grok", "window": "weekly", "label": "Week", "hours": 168, "used": 0.53, "resetsInMinutes": 5160 }
+  ]
+}

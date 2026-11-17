@@ -58,8 +58,15 @@ extension UnboundedHeightProbe {
             NotificationSettingsView().environment(staging.app)
         case "approval-provenance":
             ApprovalSettingsStand().environment(staging.app)
-        case "menu-bar-status-sentence":
-            MenuBarStatusModule(content: longPanelContent(in: staging, saying: text), focus: nil, openSettings: {})
+        case "menu-bar-provider-note":
+            MenuBarProviderModule(
+                provider: .init(kind: .claudeCode, reading: .unavailable, note: text),
+                plan: nil,
+                options: UsageDisplayOptions(),
+                now: Date(),
+                retry: {},
+                toggleFold: {}
+            )
         case "welcome-command":
             WelcomeCommandStand(text: text)
         case "workspace-hover-title":
@@ -138,33 +145,6 @@ extension UnboundedHeightProbe {
                 ]),
             ])])
         )
-    }
-
-    private static func longPanelContent(in staging: Staging, saying text: String) -> MenuBarPanelContent {
-        let now = Date()
-        let quotas = [AgentKind.claudeCode, .codex].map { provider in
-            AgentQuota(
-                provider: provider,
-                window: QuotaWindow.named("five_hour"),
-                measure: .fraction(1),
-                resetsAt: now.addingTimeInterval(3_600),
-                observedAt: now
-            )
-        }
-        return MenuBarPanelContent.make(MenuBarPanelContent.Input(
-            workspaces: staging.app.workspaces,
-            running: Set(staging.app.workspaces.map(\.id)),
-            waiting: Set(staging.app.workspaces.map(\.id)),
-            agentsByWorkspace: Dictionary(uniqueKeysWithValues: staging.app.workspaces.map { ($0.id, 1) }),
-            quotas: quotas,
-            accounts: [:],
-            unanswered: [],
-            withoutLimits: [],
-            lastReported: [:],
-            layout: UsageLayout(),
-            hold: .indefinitely,
-            now: now
-        ))
     }
 
     private static func longHoverCard(saying text: String) -> WorkspaceHoverCard {

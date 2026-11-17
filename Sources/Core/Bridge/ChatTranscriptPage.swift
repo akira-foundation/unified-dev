@@ -78,6 +78,9 @@ enum ChatTranscriptPage {
             if !text.isEmpty { return text }
         }
         if message.kind == .crew, let crew = CrewMessage.decode(message.payload) { return crew.text }
+        if message.kind == .handoff, let mark = HandoffMark.decode(message.payload) {
+            return mark.withoutAccount.sentence
+        }
         let raw = String(decoding: message.payload, as: UTF8.self)
         if message.kind == .assistantText || message.kind == .thinking,
            JSONValue.parse(message.payload)?["message"]?["content"]?.arrayValue?.count == 1 {

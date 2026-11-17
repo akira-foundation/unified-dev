@@ -60,9 +60,9 @@ struct MergedPullRequestTests {
     @Test("the newest pull request that could be this workspace's is chosen")
     func choosesTheNewestPlausibleMatch() {
         let matches = [
-            PullRequestHeadMatch(number: 11, closedAt: started.addingTimeInterval(-604_800)),
-            PullRequestHeadMatch(number: 175, closedAt: started.addingTimeInterval(3_600)),
-            PullRequestHeadMatch(number: 207, closedAt: started.addingTimeInterval(-86_400)),
+            PullRequestHeadMatch(number: 11, closedAt: started.addingTimeInterval(-604_800), isOpen: false),
+            PullRequestHeadMatch(number: 175, closedAt: started.addingTimeInterval(3_600), isOpen: false),
+            PullRequestHeadMatch(number: 207, closedAt: started.addingTimeInterval(-86_400), isOpen: false),
         ]
         #expect(
             PullRequestOwnership.choose(from: matches, startedAt: started, checkedOutAs: nil) == 175
@@ -71,7 +71,9 @@ struct MergedPullRequestTests {
 
     @Test("a pull request that ended before the workspace existed is not chosen")
     func refusesAnEarlierLifeOfTheName() {
-        let matches = [PullRequestHeadMatch(number: 371, closedAt: started.addingTimeInterval(-86_400))]
+        let matches = [
+            PullRequestHeadMatch(number: 371, closedAt: started.addingTimeInterval(-86_400), isOpen: false)
+        ]
         #expect(
             PullRequestOwnership.choose(from: matches, startedAt: started, checkedOutAs: nil) == nil
         )
@@ -79,7 +81,7 @@ struct MergedPullRequestTests {
 
     @Test("an open one is chosen whenever the workspace was created")
     func acceptsAnOpenMatch() {
-        let matches = [PullRequestHeadMatch(number: 412, closedAt: nil)]
+        let matches = [PullRequestHeadMatch(number: 412, closedAt: nil, isOpen: false)]
         #expect(
             PullRequestOwnership.choose(from: matches, startedAt: started, checkedOutAs: nil) == 412
         )
@@ -87,7 +89,9 @@ struct MergedPullRequestTests {
 
     @Test("what the worktree was checked out from outranks the dates")
     func keepsTheCheckedOutNumber() {
-        let matches = [PullRequestHeadMatch(number: 222, closedAt: started.addingTimeInterval(-604_800))]
+        let matches = [
+            PullRequestHeadMatch(number: 222, closedAt: started.addingTimeInterval(-604_800), isOpen: false)
+        ]
         #expect(
             PullRequestOwnership.choose(from: matches, startedAt: started, checkedOutAs: 222) == 222
         )

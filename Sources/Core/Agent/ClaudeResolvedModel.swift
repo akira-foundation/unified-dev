@@ -40,9 +40,8 @@ public enum ClaudeResolvedModel {
     ) async {
         guard version(of: model, alias: alias) != nil else { return }
         let key = settingKey(alias: alias, account: accountID(account))
-        let observed = comparable(cliVersion)
-        if (try? await store.setting(key)) != model { try? await store.setSetting(key, model) }
-        if (try? await store.setting(turnKey(key))) != observed { try? await store.setSetting(turnKey(key), observed) }
+        let observed = comparable(cliVersion) ?? unversionedTurn
+        try? await store.changeSettings([key, turnKey(key)]) { _ in [key: model, turnKey(key): observed] }
     }
 
     static func record(
@@ -52,17 +51,25 @@ public enum ClaudeResolvedModel {
         in store: Store
     ) async {
         let id = accountID(account)
-        let current = cliVersion.flatMap(comparable)
+        let installed = cliVersion.flatMap(comparable)
         for (alias, model) in answers.all.sorted(by: { $0.key < $1.key }) {
             let pinned = answers.pinned[alias] != nil
             guard pinned || version(of: model, alias: alias) != nil else { continue }
             let key = settingKey(alias: alias, account: id)
-            let turn = try? await store.setting(turnKey(key))
-            if !pinned, let turn, current == nil || turn == current { continue }
-            if (try? await store.setting(key)) != model { try? await store.setSetting(key, model) }
-            if turn != nil { try? await store.setSetting(turnKey(key), nil) }
+            let marker = turnKey(key)
+            try? await store.changeSettings([key, marker]) { current in
+                guard pinned || !turnOutranksProbe(current[marker], installed: installed) else { return [:] }
+                return [key: model, marker: nil]
+            }
         }
     }
+
+    static func turnOutranksProbe(_ turn: String?, installed: String?) -> Bool {
+        guard let turn else { return false }
+        return installed == nil || turn == installed || turn == unversionedTurn
+    }
+
+    static let unversionedTurn = "unversioned"
 
     static func comparable(_ cliVersion: String) -> String? {
         let token = cliVersion.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? ""

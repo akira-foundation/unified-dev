@@ -17,15 +17,19 @@ public typealias WorkspaceMergeRequesting =
 
 public struct WorkspaceMergeTool: BridgeToolHandling {
     public typealias Reading = @Sendable (Workspace) async -> WorkspacePullRequestReading
+    public typealias Hosting = @Sendable (Workspace) async -> ForgeKind
 
     private let merge: WorkspaceMergeRequesting
     private let read: Reading
+    private let host: Hosting
 
     public init(
         read: @escaping Reading = WorkspaceMergeTool.ask,
+        host: @escaping Hosting = WorkspaceMergeTool.hostOf,
         merge: @escaping WorkspaceMergeRequesting
     ) {
         self.read = read
+        self.host = host
         self.merge = merge
     }
 
@@ -38,20 +42,22 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
 
             This does not merge anything. It composes the request Unified Dev's own Merge button \
             composes, with the project's merge instructions attached, and sends it into that \
-            workspace's chat as an ordinary message. The agent runs `gh pr merge` there, in front \
-            of the owner, under whatever permission mode they set. If GitHub refuses for a \
-            conflict or a failed check, the agent fixes it, pushes to the pull request's branch \
+            workspace's chat as an ordinary message. The agent runs `gh pr merge` there, or \
+            `bkt pr merge` for a repository on Bitbucket, in front of the owner, under whatever \
+            permission mode they set. If the host refuses for a conflict or a failed check, the \
+            agent fixes it, pushes to the pull request's branch \
             and merges again, three times at most; any other refusal it reports.
 
             So it returns once the turn has begun, and the merging happens inside that turn, after \
-            this call is over. Nothing has landed on GitHub when this answers, and the merge may \
-            still not happen. Do not report a pull request as merged on the strength of this call. \
+            this call is over. Nothing has landed on GitHub or Bitbucket when this answers, and the \
+            merge may still not happen. Do not report a pull request as merged on the strength of this call. \
             Call workspace_list with include_github afterwards and read the state.
 
-            It refuses a pull request GitHub will not take, a worktree holding work GitHub has not \
-            got, and a workspace whose agent is busy. When it refuses, do not run `gh pr merge` \
-            yourself and do not ask another agent to. Merging publishes to a server other people \
-            share, and Unified Dev only does it where the owner can watch it happen.
+            It refuses a pull request its host will not take, a worktree holding work the host has \
+            not got, and a workspace whose agent is busy. When it refuses, do not run `gh pr merge` \
+            or `bkt pr merge` yourself and do not ask another agent to. Merging publishes to a \
+            server other people share, and Unified Dev only does it where the owner can watch it \
+            happen.
 
             Name the workspace by the id workspace_list reports, not by its name. It merges with the \
             method the project's Merge button shows unless you say otherwise.
@@ -138,16 +144,17 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
             return .failure("Unified Dev could not read that workspace's chats: \(error.readableMessage)")
         }
 
+        let forge = await host(workspace)
         let pullRequest: PullRequest
         let local: LocalWork?
         switch await read(workspace) {
         case .unavailable(let access):
-            return .failure(WorkspaceMergeTrouble.githubUnavailable(access).sentence)
+            return .failure(WorkspaceMergeTrouble.forgeUnavailable(access, on: forge).sentence)
         case .failed(let message):
-            return .failure(WorkspaceMergeTrouble.githubSilent(message).sentence)
+            return .failure(WorkspaceMergeTrouble.forgeSilent(message, on: forge).sentence)
         case .noPullRequest:
             return .failure(WorkspaceMergeTrouble.noPullRequest(
-                workspace: workspace.name, branch: workspace.branch
+                workspace: workspace.name, branch: workspace.branch, on: forge
             ).sentence)
         case let .found(found, foundLocal):
             pullRequest = found
@@ -161,7 +168,8 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
                 workspace: workspace.name,
                 number: pullRequest.number,
                 headline: status.text,
-                reason: status.blockedReason ?? "GitHub will not take it in this state."
+                reason: status.blockedReason ?? "\(forge.displayName) will not take it in this state.",
+                on: forge
             ).sentence)
         }
 
@@ -170,7 +178,8 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
                 workspace: workspace.name,
                 number: pullRequest.number,
                 detail: PullRequest.localDetail(local),
-                needsCommit: status.remedy == .commitAndPush
+                needsCommit: status.remedy == .commitAndPush,
+                on: forge
             ).sentence)
         }
 
@@ -188,6 +197,7 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
             return .json(answer(
                 workspace: workspace,
                 pullRequest: pullRequest,
+                forge: forge,
                 method: method,
                 chat: chat
             ))
@@ -197,6 +207,7 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
     private func answer(
         workspace: Workspace,
         pullRequest: PullRequest,
+        forge: ForgeKind,
         method: GitHub.MergeMethod,
         chat: String
     ) -> JSONValue {
@@ -210,18 +221,18 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
             "base_branch": .string(pullRequest.targetBranch(or: workspace.baseBranch)),
             "method": .string(method.phrase),
             "note": .string(note(
-                workspace: workspace, pullRequest: pullRequest, chat: chat
+                workspace: workspace, pullRequest: pullRequest, forge: forge, chat: chat
             )),
         ])
     }
 
-    private func note(workspace: Workspace, pullRequest: PullRequest, chat: String) -> String {
+    private func note(workspace: Workspace, pullRequest: PullRequest, forge: ForgeKind, chat: String) -> String {
         """
         Nothing is merged. A turn has begun in '\(workspace.name)', in the chat '\(chat)': its \
-        agent has been asked to merge #\(pullRequest.number) and it runs `gh pr merge` itself, \
+        agent has been asked to merge #\(pullRequest.number) and it runs `\(forge.cli) pr merge` itself, \
         where the owner can watch it and answer anything it asks. Unified Dev does not wait for that \
         turn and there is no way to wait for it from here, so do not sit idle. The merge may still \
-        not happen: GitHub is allowed to refuse. The agent is told to fix a conflict or a failed \
+        not happen: \(forge.displayName) is allowed to refuse. The agent is told to fix a conflict or a failed \
         check and push it to the pull request's branch before merging again, three times at \
         most, and to stop and report any other refusal rather than force it. To find out what became of it, call workspace_list with \
         include_github and read the pull request's state.
@@ -264,26 +275,43 @@ public struct WorkspaceMergeTool: BridgeToolHandling {
         return held == .none ? nil : held
     }
 
+    public static let hostOf: Hosting = { workspace in await Forge.kind(forDirectory: workspace.path) }
+
     public static let ask: Reading = { workspace in
+        if await Forge.kind(forDirectory: workspace.path) == .bitbucket { return await askBitbucket(workspace) }
         do {
             guard let pullRequest = try await GitHub.pullRequest(
                 forBranch: workspace.branch, worktree: workspace.path
             ) else {
-                let access = await GitHub.access()
+                let access = await GitHub.access(directory: workspace.path)
                 return access == .ready ? .noPullRequest : .unavailable(access)
             }
             let local = try? await Git.localWork(worktree: workspace.path)
             return .found(pullRequest, local: local)
         } catch {
-            let access = await GitHub.access()
-            return access == .ready ? .failed(plainly(error)) : .unavailable(access)
+            let access = await GitHub.access(directory: workspace.path)
+            return access == .ready ? .failed(plainly(error, on: .gitHub)) : .unavailable(access)
         }
     }
 
-    static func plainly(_ error: any Error) -> String {
+    static func askBitbucket(_ workspace: Workspace) async -> WorkspacePullRequestReading {
+        do {
+            guard let pullRequest = try await Bitbucket.snapshot(for: workspace, maxAge: .zero)?.pullRequest else {
+                let access = await Bitbucket.access(directory: workspace.path)
+                return access == .ready ? .noPullRequest : .unavailable(access)
+            }
+            let local = try? await Git.localWork(worktree: workspace.path)
+            return .found(pullRequest, local: local)
+        } catch {
+            let access = await Bitbucket.access(directory: workspace.path)
+            return access == .ready ? .failed(plainly(error, on: .bitbucket)) : .unavailable(access)
+        }
+    }
+
+    static func plainly(_ error: any Error, on forge: ForgeKind) -> String {
         guard let shell = error as? ShellError else { return error.readableMessage }
         let stderr = shell.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !stderr.isEmpty else { return "gh exited \(shell.status) without saying why." }
+        guard !stderr.isEmpty else { return "\(forge.cli) exited \(shell.status) without saying why." }
         return stderr.hasSuffix(".") ? stderr : stderr + "."
     }
 }

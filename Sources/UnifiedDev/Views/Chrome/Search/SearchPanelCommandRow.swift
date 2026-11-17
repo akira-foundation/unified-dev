@@ -8,7 +8,6 @@ struct SearchPanelCommandRow: View {
     var onPick: @MainActor () -> Void
     var onHover: @MainActor () -> Void
 
-    @Environment(\.controlActiveState) private var activeState
     @State private var isHovered = false
 
     var body: some View {
@@ -22,13 +21,13 @@ struct SearchPanelCommandRow: View {
 
                 Text(hit.item.keyText)
                     .font(Typo.caption)
-                    .foregroundStyle(keyColour)
+                    .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected, isEnabled: isEnabled).colour)
                     .lineLimit(1)
             }
             .searchPanelRowPadding()
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SearchPanelUndimmedButtonStyle())
         .disabled(!isEnabled)
         .accessibilityLabel(hit.item.title)
         .accessibilityValue(hit.item.keyText)
@@ -40,24 +39,7 @@ struct SearchPanelCommandRow: View {
     }
 
     private var title: Text {
-        MatchedRuns.text(hit.item.title, highlights: hit.highlights, loud: loud, quiet: quiet)
-    }
-
-    private var loud: Color {
-        if !isEnabled { return Palette.textDisabled }
-        return isEmphasized ? Palette.selectedEmphasizedText : Palette.textPrimary
-    }
-
-    private var quiet: Color {
-        if !isEnabled { return Palette.textDisabled }
-        return isEmphasized ? Palette.selectedEmphasizedText.opacity(0.76) : Palette.textSecondary
-    }
-
-    private var keyColour: Color {
-        isEnabled ? quiet : Palette.textDisabled
-    }
-
-    private var isEmphasized: Bool {
-        isSelected && activeState != .inactive
+        let ink = SearchPanelRowInk.title(isEnabled: isEnabled).colour
+        return MatchedRuns.text(hit.item.title, highlights: hit.highlights, loud: ink, quiet: ink)
     }
 }

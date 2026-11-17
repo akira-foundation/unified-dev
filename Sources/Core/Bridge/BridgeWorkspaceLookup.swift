@@ -36,6 +36,19 @@ public enum BridgeWorkspaceLookup: Sendable {
         _ given: String, as identity: BridgeIdentity, store: Store
     ) async throws -> ActiveTarget {
         let all = try await BridgeProfileScope.workspaces(for: identity, store: store, includeArchived: true)
+        return activeTarget(given, among: all, label: \.name)
+    }
+
+    static func activeTarget(_ given: String, in profile: Profile, store: Store) async throws -> ActiveTarget {
+        let all = ProfileScope.workspaces(
+            try await store.workspaces(includeArchived: true), repos: try await store.repos(), in: profile.id
+        )
+        return activeTarget(given, among: all, label: \.id.rawValue)
+    }
+
+    private static func activeTarget(
+        _ given: String, among all: [Workspace], label: KeyPath<Workspace, String>
+    ) -> ActiveTarget {
         let active = all.filter { $0.state != .archived }
         switch find(given, among: active) {
         case .found(let workspace):
@@ -43,8 +56,8 @@ public enum BridgeWorkspaceLookup: Sendable {
         case .ambiguous(let matches):
             return .ambiguous(ids: matches.map(\.id.rawValue))
         case .unknown:
-            if case .found(let archived) = find(given, among: all) { return .archived(name: archived.name) }
-            return .unknown(known: active.map(\.name))
+            if case .found(let archived) = find(given, among: all) { return .archived(name: archived[keyPath: label]) }
+            return .unknown(known: active.map { $0[keyPath: label] })
         }
     }
 

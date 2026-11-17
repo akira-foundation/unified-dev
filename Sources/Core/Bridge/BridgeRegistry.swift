@@ -24,7 +24,13 @@ public final class BridgeRegistry: Sendable {
     }
 
     @discardableResult
-    public func mint(sessionID: SessionID, workspaceID: WorkspaceID, role: BridgeRole) -> String {
+    public func mint(
+        sessionID: SessionID,
+        workspaceID: WorkspaceID,
+        role: BridgeRole,
+        launchedOrchestrating: Bool = false,
+        launchedAsking: Bool = false
+    ) -> String {
         let token = makeToken()
         state.withLock { state in
             if let previous = state.tokens[sessionID] { state.identities[previous] = nil }
@@ -32,7 +38,9 @@ public final class BridgeRegistry: Sendable {
             state.identities[token] = BridgeIdentity(
                 sessionID: sessionID,
                 workspaceID: workspaceID,
-                role: role
+                role: role,
+                launchedOrchestrating: launchedOrchestrating,
+                launchedAsking: launchedAsking
             )
         }
         return token

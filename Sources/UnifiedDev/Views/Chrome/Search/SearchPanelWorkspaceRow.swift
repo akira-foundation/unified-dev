@@ -7,7 +7,6 @@ struct SearchPanelWorkspaceRow: View {
     var onPick: @MainActor () -> Void
     var onHover: @MainActor () -> Void
 
-    @Environment(\.controlActiveState) private var activeState
     @State private var isHovered = false
 
     var body: some View {
@@ -21,7 +20,7 @@ struct SearchPanelWorkspaceRow: View {
                         .lineLimit(1)
                     detail
                         .font(Typo.caption)
-                        .foregroundStyle(quiet)
+                        .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected).colour)
                         .lineLimit(1)
                 }
 
@@ -40,7 +39,8 @@ struct SearchPanelWorkspaceRow: View {
     }
 
     private var name: Text {
-        MatchedRuns.text(hit.workspace.name, highlights: hit.highlights, loud: loud, quiet: quiet)
+        let ink = SearchPanelRowInk.title(isEnabled: true).colour
+        return MatchedRuns.text(hit.workspace.name, highlights: hit.highlights, loud: ink, quiet: ink)
     }
 
     private var detail: Text {
@@ -63,17 +63,5 @@ struct SearchPanelWorkspaceRow: View {
         if let waiting = hit.waiting { parts.append(waiting.label) }
         if let match = hit.match { parts.append("matched \(match)") }
         return parts.joined(separator: ", ")
-    }
-
-    private var loud: Color {
-        isEmphasized ? Palette.selectedEmphasizedText : Palette.textPrimary
-    }
-
-    private var quiet: Color {
-        isEmphasized ? Palette.selectedEmphasizedText.opacity(0.76) : Palette.textSecondary
-    }
-
-    private var isEmphasized: Bool {
-        isSelected && activeState != .inactive
     }
 }

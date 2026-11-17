@@ -15,6 +15,7 @@ extension PreviewScenario {
         public var used: Double?
         public var resetsInMinutes: Double?
         public var readMinutesAgo: Double?
+        public var account: String?
 
         public init(
             provider: AgentKind,
@@ -23,7 +24,8 @@ extension PreviewScenario {
             hours: Double? = nil,
             used: Double? = nil,
             resetsInMinutes: Double? = nil,
-            readMinutesAgo: Double? = nil
+            readMinutesAgo: Double? = nil,
+            account: String? = nil
         ) {
             self.provider = provider
             self.window = window
@@ -32,9 +34,13 @@ extension PreviewScenario {
             self.used = used
             self.resetsInMinutes = resetsInMinutes
             self.readMinutesAgo = readMinutesAgo
+            self.account = account
         }
 
-        public var id: String { "\(provider.rawValue)/\(window)" }
+        public var id: String {
+            guard let account else { return "\(provider.rawValue)/\(window)" }
+            return "\(provider.rawValue)/\(account)/\(window)"
+        }
 
         public func quota(at now: Date) -> AgentQuota {
             let named = QuotaWindow.named(window)
@@ -45,7 +51,8 @@ extension PreviewScenario {
                 window: QuotaWindow(key: window, label: label ?? fallback, duration: duration),
                 measure: used.map { .fraction($0) } ?? .unknown,
                 resetsAt: resetsInMinutes.map { now.addingTimeInterval($0 * 60) },
-                observedAt: readMinutesAgo.map { now.addingTimeInterval(-$0 * 60) } ?? now
+                observedAt: readMinutesAgo.map { now.addingTimeInterval(-$0 * 60) } ?? now,
+                account: QuotaHolder(provider: provider, account: account.map(AgentAccountID.init)).account
             )
         }
     }

@@ -92,6 +92,7 @@ public struct HomeScopeCounts: Sendable, Equatable {
     public var workspaces = 0
     public var transcripts = 0
     public var transcriptWorkspaces = 0
+    public var profiles = 0
     public var projects = 0
     public var liveProjects = 0
     public var archivedProjects = 0
@@ -106,7 +107,7 @@ public struct HomeScopeCounts: Sendable, Equatable {
 
     public func count(of scope: HomeScope, searching: Bool) -> Int {
         switch scope {
-        case .all: searching ? workspaces + transcripts : live + archived
+        case .all: searching ? workspaces + transcripts + profiles : live + archived
         case .needsYou: needsYou
         case .running: running
         case .live: live

@@ -22,7 +22,7 @@ struct WorkSuggestionCardView: View {
 
     private func card(_ suggestion: WorkSuggestion, in context: WorkSuggestionCard.Context) -> some View {
         VStack(alignment: .leading, spacing: TranscriptLayout.tight) {
-            Label(WorkSuggestionCard.heading, systemImage: WorkSuggestionSidebarMark.symbol)
+            Label(WorkSuggestionCard.heading(for: suggestion), systemImage: WorkSuggestionSidebarMark.symbol)
                 .font(Typo.micro)
                 .foregroundStyle(Palette.textTertiary)
 
@@ -52,7 +52,7 @@ struct WorkSuggestionCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } label: {
-                Text("Prompt")
+                Text(WorkSuggestionCard.promptLabel(for: suggestion))
                     .font(Typo.caption)
                     .foregroundStyle(Palette.textSecondary)
             }

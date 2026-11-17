@@ -165,6 +165,50 @@ struct QuotaPollScheduleTests {
         #expect(QuotaPollSchedule.onDemandFloor > 0)
     }
 
+    @Test func asksEveryMinuteWhileTheAppIsInFront() {
+        #expect(QuotaPollSchedule.gap(for: .foreground, isPanelOpen: false) == 60)
+    }
+
+    @Test func asksEveryMinuteWhileThePanelIsOpenWithTheAppBehind() {
+        #expect(QuotaPollSchedule.gap(for: .background, isPanelOpen: true) == 60)
+    }
+
+    @Test func asksNoMoreThanEveryFiveMinutesInTheBackground() {
+        #expect(QuotaPollSchedule.gap(for: .background, isPanelOpen: false) >= 300)
+    }
+
+    @Test("an hour of ticks asks as often as the attention allows", arguments: [
+        (DiffRefreshSchedule.Activity.background, false, 12), (.foreground, false, 60), (.background, true, 60),
+    ])
+    func anHourOfTicks(activity: DiffRefreshSchedule.Activity, isPanelOpen: Bool, expected: Int) {
+        let gap = QuotaPollSchedule.gap(for: activity, isPanelOpen: isPanelOpen)
+        var lastAskedAt: Date?
+        var asks = 0
+        for second in stride(from: 0, to: 3_600, by: QuotaPollSchedule.tick) {
+            let at = now + second
+            guard QuotaPollSchedule.isDue(lastAskedAt: lastAskedAt, at: at, after: gap) else { continue }
+            lastAskedAt = at
+            asks += 1
+        }
+        #expect(asks == expected)
+    }
+
+    @Test func comingForwardAsksAtOnceWhenTheBackgroundAnswerIsOlderThanAMinute() {
+        let backgroundAsk = now - 90
+        #expect(!QuotaPollSchedule.isDue(
+            lastAskedAt: backgroundAsk, at: now,
+            after: QuotaPollSchedule.gap(for: .background, isPanelOpen: false)
+        ))
+        #expect(QuotaPollSchedule.isDue(
+            lastAskedAt: backgroundAsk, at: now,
+            after: QuotaPollSchedule.gap(for: .foreground, isPanelOpen: false)
+        ))
+    }
+
+    @Test func theTickNeverOutrunsTheOnDemandFloor() {
+        #expect(QuotaPollSchedule.tick <= QuotaPollSchedule.onDemandFloor)
+    }
+
     @Test func staysWellInsideTheShortestWindowEitherProviderPublishes() {
         #expect(QuotaPollSchedule.interval / 18_000 < 0.05)
     }

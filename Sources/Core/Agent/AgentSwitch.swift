@@ -87,12 +87,13 @@ public enum AgentSwitch {
     @discardableResult
     public static func retireAndSwitch(
         runner: (any SessionRunner)?, store: Store, sessionID: SessionID,
-        controls: ComposerControls, account: AgentAccountHome?
+        controls: ComposerControls, account: AgentAccountHome?, standings: [AgentAccountStanding]
     ) async throws -> Session {
         runner?.terminateNow()
         try await AgentAccountAssignment.remember(account, in: store)
         let switched = try await store.switchSegment(sessionID: sessionID, to: SessionSegmentTarget(
-            agentKind: controls.agentKind, accountID: account?.id, model: controls.model, effort: controls.effort
+            agentKind: controls.agentKind, accountID: account?.id, model: controls.model, effort: controls.effort,
+            accountName: account.map { AgentAccountNames.spoken(of: $0, among: standings) }
         ))
         runner?.terminateNow()
         try await store.updateSessionPreferences(
@@ -107,10 +108,12 @@ public enum AgentSwitch {
         }
     }
 
+    public static let exitPollPause: @Sendable () async -> Void = { try? await Task.sleep(for: .milliseconds(25)) }
+
     public static func waitForExit(
         of runner: any SessionRunner,
         budget: Duration = AgentRunner.defaultShutdownBudget,
-        pause: @Sendable () async -> Void = { try? await Task.sleep(for: .milliseconds(25)) }
+        pause: @Sendable () async -> Void = AgentSwitch.exitPollPause
     ) async -> Bool {
         let deadline = ContinuousClock.now + budget
         while await !runner.hasStoppedWriting {

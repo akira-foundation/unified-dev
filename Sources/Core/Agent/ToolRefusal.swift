@@ -74,8 +74,14 @@ public struct ToolResultSummary: Sendable, Hashable {
     }
 
     public static func decode(_ payload: Data) -> ToolResultSummary {
-        guard let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any],
-              let message = object["message"] as? [String: Any],
+        guard let object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] else {
+            return ToolResultSummary()
+        }
+        return decode(object: object)
+    }
+
+    static func decode(object: [String: Any]) -> ToolResultSummary {
+        guard let message = object["message"] as? [String: Any],
               let content = message["content"] as? [[String: Any]]
         else {
             return ToolResultSummary()

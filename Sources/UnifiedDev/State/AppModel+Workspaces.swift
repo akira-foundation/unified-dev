@@ -370,7 +370,7 @@ extension AppModel {
 
         guard let session = await continuationSession(in: model) else { return }
         model.activeSessionID = session.id
-        await model.transcript(for: session).submit(render.text)
+        await model.transcript(for: session).submitAppRequest(render.text)
     }
 
     private func continuationSession(in model: WorkspaceModel) async -> Session? {

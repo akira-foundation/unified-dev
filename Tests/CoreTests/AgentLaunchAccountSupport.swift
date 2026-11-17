@@ -127,3 +127,7 @@ enum LaunchAccountFixture {
         return (store, made)
     }
 }
+
+final class SeenEnvironment: Sendable {
+    let value = Mutex<[String: String]>([:])
+}

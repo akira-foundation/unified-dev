@@ -101,7 +101,7 @@ struct PreviewScenarioSeederTests {
     func seedsOnce() async throws {
         let (seeder, _) = try makeSeeder()
         _ = try await seeder.seed(scenario)
-        await #expect(throws: PreviewScenarioError.alreadySeeded) { try await seeder.seed(scenario) }
+        await #expect(throws: PreviewScenarioError.alreadySeeded(projects: ["harbour", "quay"])) { try await seeder.seed(scenario) }
         #expect(try await seeder.manager.store.repos().count == 2)
     }
 
@@ -180,8 +180,21 @@ struct PreviewScenarioSeederTests {
         let outcome = try await seeder.seed(scenario, at: now)
         #expect(outcome.quotas == 1)
         let stored = try await seeder.manager.store.quotas(at: now)
-        #expect(stored.map(\.id) == ["codex/primary"])
+        #expect(stored.map(\.window.key) == ["primary"])
+        #expect(stored.first?.holder == QuotaHolder(provider: .codex, account: AgentAccountHome.defaultID(for: .codex)))
         #expect(stored.first?.fraction == 1)
         #expect(stored.first?.resetsAt == now.addingTimeInterval(140_400))
+    }
+
+    @Test("a project whose name looks like an option still gets a folder of its own", arguments: [
+        PreviewScenario.RemoteAnswer.absent, .promptly,
+    ])
+    func optionLikeNameIsAFolder(remote: PreviewScenario.RemoteAnswer) async throws {
+        let (seeder, _) = try makeSeeder()
+        let path = try await seeder.makeRepository(PreviewScenario.Project(name: "--bare", remote: remote))
+
+        #expect(path == seeder.projectsRoot + "/--bare")
+        #expect(FileManager.default.fileExists(atPath: path + "/.git/HEAD"))
+        #expect(!FileManager.default.fileExists(atPath: seeder.projectsRoot + "/HEAD"))
     }
 }

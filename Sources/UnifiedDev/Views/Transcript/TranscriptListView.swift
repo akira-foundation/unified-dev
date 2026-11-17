@@ -555,12 +555,21 @@ struct TranscriptListView: View {
                 .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { topInset = $0 }
         }
         .overlay(alignment: .top) {
-            if let pinnedQuestion {
-                PinnedQuestionView(
-                    question: pinnedQuestion,
-                    onOpen: { show(seq: pinnedQuestion.seq) }
-                )
-                .transition(.opacity)
+            HStack(alignment: .top, spacing: 0) {
+                if let pinnedQuestion {
+                    PinnedQuestionView(
+                        question: pinnedQuestion,
+                        onOpen: { show(seq: pinnedQuestion.seq) }
+                    )
+                    .transition(.opacity)
+                } else {
+                    Spacer(minLength: 0)
+                }
+                if !transcript.chapters.isEmpty {
+                    TranscriptChaptersMenu(chapters: transcript.chapters, onOpen: show(seq:))
+                        .padding(.top, Metrics.spacingWide)
+                        .padding(.trailing, Metrics.spacingWide)
+                }
             }
         }
         .animation(reduceMotion ? nil : Motion.hover, value: pinnedQuestion?.seq)
@@ -663,6 +672,11 @@ struct TranscriptListView: View {
             seen.value = nil
             atLiveEnd.value = true
             arrivalSession = nil
+        }
+        .task(id: ObjectIdentifier(transcript)) { [transcript] in
+            transcript.beginShowing()
+            while !Task.isCancelled { try? await Task.sleep(for: .seconds(3_600)) }
+            transcript.endShowing()
         }
         .task(id: transcript.session.id) {
             follower.onStart = { [controller] in controller.followerTookOver() }
@@ -785,6 +799,10 @@ struct TranscriptListView: View {
     }
 
     private var sideChatModel: WorkspaceModel? {
+        Self.branchingModel(of: transcript, in: app)
+    }
+
+    private static func branchingModel(of transcript: TranscriptModel, in app: AppModel) -> WorkspaceModel? {
         let model = transcript.workspace.flatMap { app.existingModel(for: $0.id) }
         let canBranch = SelectionActions.canBranch(
             isAsk: model == nil,
@@ -798,9 +816,14 @@ struct TranscriptListView: View {
         selection.accepts = { [transcript] seq in
             transcript.rows.last(where: { $0.seq == seq }).map { SelectionActions.accepts($0.kind) } ?? false
         }
-        selection.onContextMenu = { [transcript] seq, text, event, view in
+        selection.onContextMenu = { [transcript, app] seq, text, event, view in
             guard let row = transcript.rows.last(where: { $0.seq == seq }) else { return }
-            MessageContextMenu.present(for: row, selection: text, transcript: transcript, event: event, in: view)
+            let forking = Self.branchingModel(of: transcript, in: app).map { model in
+                { (seq: Int) in model.fork(transcript, through: seq) }
+            }
+            MessageContextMenu.present(
+                for: row, selection: text, transcript: transcript, onFork: forking, event: event, in: view
+            )
         }
         selection.onAttach = { [transcript] in transcript.reply(with: $0, from: $1) }
         selection.start(controller: controller)

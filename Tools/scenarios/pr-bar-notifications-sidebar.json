@@ -1,0 +1,337 @@
+{
+  "welcome": false,
+  "activeProfile": "Unified",
+  "profiles": [
+    {
+      "name": "Akira",
+      "colour": "4C8DF6",
+      "symbol": "building.2",
+      "accounts": "own",
+      "github": "own"
+    },
+    {
+      "name": "Debtges",
+      "colour": "E06C2A",
+      "symbol": "briefcase",
+      "accounts": "inherits"
+    },
+    {
+      "name": "akira-foundation",
+      "colour": "34A853",
+      "symbol": "leaf",
+      "accounts": "inherits"
+    }
+  ],
+  "projects": [
+    {
+      "name": "almanac",
+      "files": {
+        "README.md": "# almanac\n\nA scratch project in the Unified profile.\n"
+      },
+      "commits": [
+        "Start almanac"
+      ],
+      "workspaces": [
+        {
+          "name": "Tide tables",
+          "branch": "tide-tables",
+          "lastActive": 1,
+          "chats": [
+            {
+              "title": "Tide tables",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Add the tide tables to the almanac."
+                },
+                {
+                  "from": "agent",
+                  "text": "Tide tables are in. Each entry carries its station and the hour of high water."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "Unified"
+    },
+    {
+      "name": "compass",
+      "files": {
+        "README.md": "# compass\n\nA second project in the Unified profile, left without a profile on purpose.\n"
+      },
+      "commits": [
+        "Start compass"
+      ],
+      "workspaces": [
+        {
+          "name": "Magnetic north",
+          "branch": "magnetic-north",
+          "lastActive": 2,
+          "chats": [
+            {
+              "title": "Magnetic north",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Correct the compass for magnetic declination."
+                },
+                {
+                  "from": "agent",
+                  "text": "Declination is applied before the bearing is shown."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "ledger",
+      "files": {
+        "README.md": "# ledger\n\nA scratch project in the Akira profile.\n"
+      },
+      "commits": [
+        "Start ledger"
+      ],
+      "workspaces": [
+        {
+          "name": "Quarterly close",
+          "branch": "quarterly-close",
+          "lastActive": 0.5,
+          "chats": [
+            {
+              "title": "Quarterly close",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Close the quarter and list what is left open."
+                },
+                {
+                  "from": "agent",
+                  "text": "The quarter is closed. Three entries are still open and are listed in NOTES.md."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "Akira"
+    },
+    {
+      "name": "invoices",
+      "files": {
+        "README.md": "# invoices\n\nA second project in the Akira profile.\n"
+      },
+      "commits": [
+        "Start invoices"
+      ],
+      "workspaces": [
+        {
+          "name": "Late fees",
+          "branch": "late-fees",
+          "lastActive": 3,
+          "chats": [
+            {
+              "title": "Late fees",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Add a late fee after thirty days."
+                },
+                {
+                  "from": "agent",
+                  "text": "The fee is added on day thirty-one and shown on its own line."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "Akira"
+    },
+    {
+      "name": "arrears",
+      "files": {
+        "README.md": "# arrears\n\nA scratch project in the Debtges profile.\n"
+      },
+      "commits": [
+        "Start arrears"
+      ],
+      "workspaces": [
+        {
+          "name": "Reminder letters",
+          "branch": "reminder-letters",
+          "lastActive": 0.2,
+          "chats": [
+            {
+              "title": "Reminder letters",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Draft the reminder letters for overdue accounts."
+                },
+                {
+                  "from": "agent",
+                  "text": "Three letters are drafted, one per stage of arrears."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "Debtges"
+    },
+    {
+      "name": "settlements",
+      "files": {
+        "README.md": "# settlements\n\nA second project in the Debtges profile.\n"
+      },
+      "commits": [
+        "Start settlements"
+      ],
+      "workspaces": [
+        {
+          "name": "Payment plans",
+          "branch": "payment-plans",
+          "lastActive": 4,
+          "chats": [
+            {
+              "title": "Payment plans",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Split a debt into monthly instalments."
+                },
+                {
+                  "from": "agent",
+                  "text": "Instalments are split evenly and the last one takes the remainder."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Old statements",
+          "branch": "old-statements",
+          "state": "archived",
+          "archivedAgo": 6,
+          "chats": [
+            {
+              "title": "Old statements",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Close the old statements."
+                },
+                {
+                  "from": "agent",
+                  "text": "Closed them and kept the totals."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "profile": "Debtges"
+    }
+  ],
+  "accounts": [
+    {
+      "email": "ada@home.invalid",
+      "organisation": "Unified",
+      "plan": "Max"
+    },
+    {
+      "email": "ada@client.invalid",
+      "organisation": "Client",
+      "plan": "Pro",
+      "label": "client"
+    },
+    {
+      "email": "ada@akira.invalid",
+      "organisation": "Akira",
+      "plan": "Max",
+      "label": "akira",
+      "profile": "Akira",
+      "isProfileDefault": true
+    },
+    {
+      "email": "ops@akira.invalid",
+      "organisation": "Akira",
+      "plan": "Pro",
+      "label": "akira-ops",
+      "profile": "Akira"
+    },
+    {
+      "provider": "codex",
+      "email": "ada@home.invalid",
+      "plan": "plus"
+    },
+    {
+      "provider": "codex",
+      "email": "ada@akira.invalid",
+      "plan": "pro",
+      "label": "akira-codex",
+      "profile": "Akira"
+    }
+  ],
+  "notifications": [
+    {
+      "event": "needsInput",
+      "project": "almanac",
+      "workspace": "Tide tables",
+      "detail": "Seeded for the bell popover.",
+      "minutesAgo": 5,
+      "read": false
+    },
+    {
+      "event": "turnFinished",
+      "project": "compass",
+      "workspace": "Magnetic north",
+      "detail": "Seeded for the bell popover.",
+      "minutesAgo": 22,
+      "read": false
+    },
+    {
+      "event": "checksFinished",
+      "project": "ledger",
+      "workspace": "Quarterly close",
+      "detail": "Seeded for the bell popover.",
+      "minutesAgo": 39,
+      "read": false
+    },
+    {
+      "event": "agentFailed",
+      "project": "invoices",
+      "workspace": "Late fees",
+      "detail": "Seeded for the bell popover.",
+      "minutesAgo": 56,
+      "read": true
+    },
+    {
+      "event": "needsInput",
+      "project": "arrears",
+      "workspace": "Reminder letters",
+      "detail": "Seeded for the bell popover.",
+      "minutesAgo": 73,
+      "read": true
+    },
+    {
+      "event": "turnFinished",
+      "project": "settlements",
+      "workspace": "Payment plans",
+      "detail": "Seeded for the bell popover.",
+      "minutesAgo": 90,
+      "read": true
+    },
+    {
+      "event": "checksFinished",
+      "project": "settlements",
+      "workspace": "Old statements",
+      "detail": "Seeded for the bell popover.",
+      "minutesAgo": 107,
+      "read": true
+    }
+  ]
+}

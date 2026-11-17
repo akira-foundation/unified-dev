@@ -136,12 +136,10 @@ public final class AgentPresentationFeed: Sendable {
 
     public func snapshot() -> AgentPresentationBatch {
         state.withLock { value in
-            AgentPresentationBatch(revision: value.revision, events: [], eventRevisions: [], messageSequences: [], failure: value.failure, recovery: AgentPresentationRecovery(
-                text: value.text, thinking: value.thinking, toolName: value.toolName,
-                status: value.status, thinkingTokens: value.thinkingTokens,
-                subagents: value.subagents, stateEvent: value.stateEvent,
-                stateRevision: value.stateRevision, retry: value.retry, quota: value.quota
-            ))
+            AgentPresentationBatch(
+                revision: value.revision, events: [], eventRevisions: [], messageSequences: [],
+                failure: value.failure, recovery: Self.recovery(of: value)
+            )
         }
     }
 
@@ -149,18 +147,33 @@ public final class AgentPresentationFeed: Sendable {
         state.withLock { value in
             let first = value.entries.first?.revision ?? (value.revision + 1)
             let missed = cursor < value.revision && cursor + 1 < first
-            let recovery = missed ? AgentPresentationRecovery(
-                text: value.text, thinking: value.thinking, toolName: value.toolName,
-                status: value.status, thinkingTokens: value.thinkingTokens,
-                subagents: value.subagents, stateEvent: value.stateEvent,
-                stateRevision: value.stateRevision, retry: value.retry, quota: value.quota
-            ) : nil
-            return AgentPresentationBatch(revision: value.revision,
-                events: missed ? [] : value.entries.filter { $0.revision > cursor }.map(\.event),
-                eventRevisions: missed ? [] : value.entries.filter { $0.revision > cursor }.map(\.revision),
-                messageSequences: missed ? [] : value.entries.filter { $0.revision > cursor }.map(\.messageSeq),
-                failure: value.failure, recovery: recovery)
+            let start = missed ? value.entries.endIndex
+                : value.entries.firstIndex { $0.revision > cursor } ?? value.entries.endIndex
+            let pending = value.entries[start...]
+            return AgentPresentationBatch(
+                revision: value.revision,
+                events: pending.map(\.event),
+                eventRevisions: pending.map(\.revision),
+                messageSequences: pending.map(\.messageSeq),
+                failure: value.failure, recovery: missed ? Self.recovery(of: value) : nil
+            )
         }
+    }
+
+    private static func recovery(of value: State) -> AgentPresentationRecovery {
+        AgentPresentationRecovery(
+            text: value.text, thinking: value.thinking, toolName: value.toolName,
+            status: value.status, thinkingTokens: value.thinkingTokens,
+            subagents: value.subagents, stateEvent: value.stateEvent,
+            stateRevision: value.stateRevision, retry: value.retry, quota: value.quota
+        )
+    }
+
+    private static func dropEntries(through revision: UInt64, from value: inout State) {
+        let kept = value.entries.firstIndex { $0.revision > revision } ?? value.entries.endIndex
+        guard kept > 0 else { return }
+        value.bytes -= value.entries[..<kept].reduce(0) { $0 + $1.bytes }
+        value.entries.removeFirst(kept)
     }
 
     public func lifecycleEvents(after cursor: UInt64, through revision: UInt64, limit: Int = 32) throws -> [AgentLifecycleEntry] {
@@ -181,7 +194,9 @@ public final class AgentPresentationFeed: Sendable {
         let cursor = state.withLock { value -> UInt64? in
             guard let current = value.acknowledged[id] else { return nil }
             value.acknowledged[id] = max(current, revision)
-            return value.acknowledged.values.min()
+            guard let lowest = value.acknowledged.values.min() else { return nil }
+            Self.dropEntries(through: lowest, from: &value)
+            return lowest
         }
         if let cursor { reclaim(through: cursor) }
     }
@@ -192,7 +207,9 @@ public final class AgentPresentationFeed: Sendable {
         let cursor = state.withLock { value in
             value.subscribers[id] = nil
             value.acknowledged[id] = nil
-            return value.acknowledged.values.min() ?? value.revision
+            let lowest = value.acknowledged.values.min() ?? value.revision
+            Self.dropEntries(through: lowest, from: &value)
+            return lowest
         }
         reclaim(through: cursor)
         if state.withLock({ $0.finished && $0.acknowledged.isEmpty }) { lifecycle.close() }

@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Darwin
 import Observation
 import Core
@@ -24,7 +24,6 @@ final class RunScriptActivityMonitor {
 
     @ObservationIgnored var onRunning: @MainActor (String) -> Void = { _ in }
 
-    private static let interval: Duration = .seconds(1)
     private static let tmuxEvery = 2
 
     func state(inPane pane: String) -> RunScriptActivity.State {
@@ -56,9 +55,15 @@ final class RunScriptActivityMonitor {
     func ensurePolling() {
         guard pollTask == nil, !probes().isEmpty else { return }
         pollTask = Task { [weak self] in
+            var lastPoll = ContinuousClock.now
             while !Task.isCancelled {
-                try? await Task.sleep(for: Self.interval)
+                try? await Task.sleep(for: TerminalActivitySchedule.tick)
                 guard !Task.isCancelled, let self else { return }
+                let now = ContinuousClock.now
+                let activity: DiffRefreshSchedule.Activity = NSApp?.isActive ?? true ? .foreground : .background
+                let interval = TerminalActivitySchedule.runScriptInterval(for: activity)
+                guard TerminalActivitySchedule.isDue(lastRun: lastPoll, now: now, interval: interval) else { continue }
+                lastPoll = now
                 guard await self.poll() else {
                     self.pollTask = nil
                     return
@@ -73,7 +78,7 @@ final class RunScriptActivityMonitor {
         tick += 1
 
         let readTmux = tick % Self.tmuxEvery == 0
-        let readings = await read(probes, includingTmux: readTmux)
+        let readings = await read(probes, includingTmux: readTmux, notOlderThan: TerminalActivitySchedule.readingMaxAge)
         apply(readings) { activity, busy, moment in activity.observe(busy: busy, at: moment) }
         return true
     }
@@ -81,12 +86,14 @@ final class RunScriptActivityMonitor {
     func readNow(panes: [String]) async {
         let probes = probes().filter { panes.contains($0.key) }
         guard !probes.isEmpty else { return }
-        let readings = await read(probes, includingTmux: true)
+        let readings = await read(probes, includingTmux: true, notOlderThan: .zero)
         apply(readings) { activity, busy, moment in activity.adopt(busy: busy, at: moment) }
         ensurePolling()
     }
 
-    private func read(_ probes: [String: Probe], includingTmux: Bool) async -> [String: Bool] {
+    private func read(
+        _ probes: [String: Probe], includingTmux: Bool, notOlderThan maxAge: Duration
+    ) async -> [String: Bool] {
         var readings: [String: Bool] = [:]
         var sessions: [String: String] = [:]
 
@@ -100,8 +107,8 @@ final class RunScriptActivityMonitor {
         }
 
         guard !sessions.isEmpty, let persistence = persistence() else { return readings }
-        let pids = await persistence.panePIDs()
-        guard let table = await ProcessTable.current() else { return readings }
+        let pids = await persistence.panePIDs(notOlderThan: maxAge)
+        guard let table = await ProcessTable.recent(notOlderThan: maxAge) else { return readings }
         for (pane, session) in sessions {
             readings[pane] = pids[session].flatMap { table.isBusy(shell: $0) } ?? false
         }

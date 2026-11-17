@@ -57,6 +57,24 @@ extension AppModel {
         }
     }
 
+    var activeGitHubLogin: GitHubLogin {
+        store?.gitHubLogin(for: activeProfileID) ?? .thisMac
+    }
+
+    func gitHubSource(of id: ProfileID) -> ProfileGitHubSource {
+        store?.gitHubLogins().source(of: id) ?? .inherits
+    }
+
+    func setGitHubSource(_ source: ProfileGitHubSource, for id: ProfileID) async -> Bool {
+        guard let store else { return false }
+        do {
+            try await store.setGitHubSource(source, for: id)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     func setAccountSource(_ source: ProfileAccountSource, for id: ProfileID) async {
         guard let store else { return }
         do {

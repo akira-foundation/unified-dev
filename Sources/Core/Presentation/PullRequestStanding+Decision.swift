@@ -10,7 +10,8 @@ public extension PullRequestStanding {
         pullRequest: PullRequest?,
         localWork: LocalWork? = nil,
         hasRemote: Bool = true,
-        continued: ContinuedBranch? = nil
+        continued: ContinuedBranch? = nil,
+        checkRuns: [CheckRun] = []
     ) -> PullRequestStanding {
         let count = aheadSentence(ahead, base: baseBranch, isCapped: aheadIsCapped)
 
@@ -37,7 +38,7 @@ public extension PullRequestStanding {
         if pullRequest.isMerged { return merged(pullRequest, baseBranch: target) }
         if pullRequest.isClosed { return closed(pullRequest) }
 
-        return open(pullRequest, baseBranch: target, localWork: localWork)
+        return open(pullRequest, baseBranch: target, localWork: localWork, checkRuns: checkRuns)
     }
 
     private static func withoutPullRequest(
@@ -60,6 +61,7 @@ public extension PullRequestStanding {
                     act: .openPullRequest,
                     sentence: "Ask this workspace's agent to push \(branch) and open a pull request"
                         + " against \(baseBranch), following this project's pull request instructions."
+                        + " \(sentWithoutABubble)"
                 )
                 : nil,
             current: .commits,
@@ -107,7 +109,8 @@ public extension PullRequestStanding {
     private static func open(
         _ pullRequest: PullRequest,
         baseBranch: String,
-        localWork: LocalWork?
+        localWork: LocalWork?,
+        checkRuns: [CheckRun]
     ) -> PullRequestStanding {
         let status = pullRequest.status(local: localWork)
         let act = act(for: status.remedy, checks: pullRequest.checks)
@@ -118,7 +121,7 @@ public extension PullRequestStanding {
 
         return PullRequestStanding(
             headline: pullRequest.title,
-            secondary: secondary(status, pullRequest, baseBranch: baseBranch),
+            secondary: secondary(status, pullRequest, baseBranch: baseBranch, checkRuns: checkRuns),
             number: pullRequest.number,
             url: pullRequest.url,
             state: status.text,
@@ -144,22 +147,25 @@ public extension PullRequestStanding {
     }
 
     private static func secondary(
-        _ status: PullRequestStatus, _ pullRequest: PullRequest, baseBranch: String
+        _ status: PullRequestStatus, _ pullRequest: PullRequest, baseBranch: String, checkRuns: [CheckRun]
     ) -> String {
         if pullRequest.hasConflicts { return "This branch conflicts with \(baseBranch)" }
 
         let detail = status.detail.flatMap { $0.isEmpty ? nil : $0 }
+        let inFlight = pullRequest.checks == .pending ? ChecksInFlight.line(checkRuns) : nil
         switch status.remedy {
         case .push, .commitAndPush:
             return detail ?? status.text
         case .markReadyForReview:
-            return ["Draft", detail].compactMap { $0 }.joined(separator: ", ")
+            return ["Draft", inFlight ?? detail].compactMap { $0 }.joined(separator: ", ")
         case .fixConflicts, .merge:
             break
         }
 
         switch pullRequest.checks {
-        case .failing, .pending, .unavailable:
+        case .pending:
+            return inFlight ?? detail ?? status.text
+        case .failing, .unavailable:
             return detail ?? status.text
         case .passing, .none:
             return [detail, status.text == "Ready to merge"
@@ -198,7 +204,7 @@ public extension PullRequestStanding {
         }
     }
 
-    private static func act(
+    internal static func act(
         for remedy: PullRequestStatus.Remedy, checks: PullRequest.Checks
     ) -> Act? {
         switch remedy {
@@ -210,6 +216,9 @@ public extension PullRequestStanding {
         }
     }
 
+    static let sentWithoutABubble =
+        "The request goes as soon as you click and does not appear in the conversation."
+
     private static func sentence(
         for act: Act, _ pullRequest: PullRequest, baseBranch: String
     ) -> String {
@@ -217,23 +226,23 @@ public extension PullRequestStanding {
         let branch = pullRequest.branch.isEmpty ? "this branch" : pullRequest.branch
         switch act {
         case .askToFixConflicts:
-            return "Write a request into this workspace's composer asking its agent to bring"
-                + " \(baseBranch) into this worktree and resolve the conflicts here. Nothing is sent"
-                + " until you send it, and #\(number) is not merged."
+            return "Ask this workspace's agent to bring \(baseBranch) into this worktree, resolve the"
+                + " conflicts here and push \(branch). \(sentWithoutABubble) #\(number) is not merged."
         case .askToFixChecks:
             return "Ask this workspace's agent, with the failing check's log, to fix what #\(number)"
-                + " broke and push the fix to \(branch). The request goes as soon as you click and"
-                + " does not appear in the conversation. #\(number) is not merged."
+                + " broke and push the fix to \(branch). \(sentWithoutABubble) #\(number) is not merged."
         case .push, .commitAndPush:
             let what = act == .push ? "push" : "commit what is here and push"
             return "Ask this workspace's agent to \(what) on \(branch), so #\(number) is what is on"
-                + " this disk."
+                + " this disk. \(sentWithoutABubble)"
         case .markReadyForReview:
-            return "Ask this workspace's agent to mark #\(number) ready for review on GitHub."
+            return "Ask this workspace's agent to mark #\(number) ready for review on \(pullRequest.hostName)."
+                + " \(sentWithoutABubble)"
         case .merge:
             return "Merge #\(number) into \(baseBranch), or choose another method from the chevron."
+                + " Once you confirm, the request goes without appearing in the conversation."
         case .openPullRequest:
-            return "Ask this workspace's agent to open a pull request for #\(number)."
+            return "Ask this workspace's agent to open a pull request for #\(number). \(sentWithoutABubble)"
         case .archive:
             return "Remove this workspace's worktree."
         }
@@ -249,7 +258,7 @@ public extension PullRequestStanding {
         PullRequestStepLink(
             step: .pullRequest,
             reach: .pullRequestPage(pullRequest.url),
-            announcement: "Opens #\(pullRequest.number) on GitHub"
+            announcement: "Opens #\(pullRequest.number) on \(pullRequest.hostName)"
         )
     }
 

@@ -19,6 +19,9 @@ public struct ModelIdentifier: Equatable, Sendable {
         guard !trimmed.isEmpty else { return ModelIdentifier(model: raw) }
 
         guard let (named, rest) = namespaced(trimmed) else {
+            if ClaudeModelRank.recognises(trimmed) {
+                return ModelIdentifier(model: trimmed, kind: .claudeCode)
+            }
             for kind in AgentKind.runnable where kind != .claudeCode {
                 if let match = model(named: trimmed, in: models[kind] ?? []) {
                     return ModelIdentifier(model: match, kind: kind)
@@ -26,9 +29,6 @@ public struct ModelIdentifier: Equatable, Sendable {
             }
             if GrokModelRank.recognises(trimmed) {
                 return ModelIdentifier(model: trimmed, kind: .grok)
-            }
-            if ClaudeModelRank.recognises(trimmed) {
-                return ModelIdentifier(model: trimmed, kind: .claudeCode)
             }
             return ModelIdentifier(model: trimmed)
         }

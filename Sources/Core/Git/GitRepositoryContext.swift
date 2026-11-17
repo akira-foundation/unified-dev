@@ -156,7 +156,7 @@ extension Git {
         ).lines
         return candidates.first(where: { names.contains($0) }) ?? (current == "HEAD" ? "main" : current)
     }
-    private static func headBranch(in directory: String) -> String? {
+    public static func headBranch(in directory: String) -> String? {
         guard let paths = repositoryPaths(in: directory),
               let head = try? String(contentsOfFile: (paths.gitDirectory as NSString).appendingPathComponent("HEAD"), encoding: .utf8)
         else { return nil }

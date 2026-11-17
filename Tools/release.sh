@@ -40,7 +40,7 @@
 #
 # Then set the identity, once, in your shell profile:
 #
-#   export UD_CODESIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
+#   export UD_CODESIGN_IDENTITY=<the SHA-1 fingerprint security find-identity prints>
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

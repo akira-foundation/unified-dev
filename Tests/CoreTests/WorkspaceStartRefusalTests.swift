@@ -4,7 +4,7 @@ import Testing
 
 @Suite("A start refused after the worktree was cut", .tags(.git, .destructive), .scratchDirectory)
 struct WorkspaceStartRefusalTests {
-    @Test("a second orchestrator arriving during the cut leaves nothing behind")
+    @Test("a second orchestrator arriving before the cut is refused after it and leaves nothing behind")
     func aRefusalLeavesNoWorktreeBranchOrRow() async throws {
         let repo = try await TempRepo()
         defer { repo.cleanUp() }

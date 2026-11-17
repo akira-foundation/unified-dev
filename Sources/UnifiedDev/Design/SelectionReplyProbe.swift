@@ -129,13 +129,30 @@ enum SelectionReplyProbe {
             try? await Task.sleep(for: .milliseconds(120))
         }
         guard reader.replying != nil else { harness.fail("a click on Reply did not open the card") }
+        check(window.firstResponder !== view, "the transcript kept the keyboard after Reply")
+        check((window.firstResponder as? NSTextView)?.delegate is NSTextField, "the reply field did not take the keyboard when the card opened: \(String(describing: window.firstResponder))")
+        await key("a", 0, in: window)
+        check((window.firstResponder as? NSTextView)?.string == "a", "typing without a click did not reach the reply field: \(String(describing: window.firstResponder))")
         await click(inWindow(CGPoint(x: reader.replyFrame.minX + 40, y: reader.replyFrame.maxY - 24)), in: window)
         check(reader.replying != nil, "a click in the reply field closed the card")
-        await key("a", 0, in: window)
-        check((window.firstResponder as? NSTextView)?.string == "a", "typing did not reach the reply field: \(String(describing: window.firstResponder))")
         await key("\r", 36, in: window)
         check(log.replied == ["answer|a"], "Return replied with \(log.replied)")
         check(reader.replying == nil, "the card stayed open after Return")
+
+        window.makeFirstResponder(view)
+        view.setSelectedRange(NSRange(location: 3, length: 6))
+        await pressOnText(at: from, reader: reader, in: window)
+        guard let again = reader.current else { harness.fail("the selection did not raise the bar a third time") }
+        reader.beginReply(to: again)
+        check(window.firstResponder !== view, "the transcript still held the keyboard when the card was asked for, so the card's focus request races it")
+        for _ in 0..<4 {
+            host.layoutSubtreeIfNeeded()
+            try? await Task.sleep(for: .milliseconds(120))
+        }
+        check((window.firstResponder as? NSTextView)?.delegate is NSTextField, "the reopened card did not take the keyboard")
+        await key("\u{1b}", 53, in: window)
+        check(reader.replying == nil, "Escape did not close the card")
+        check(log.replied == ["answer|a"], "Escape replied with \(log.replied)")
 
         harness.write(.object(["passed": .bool(failures.isEmpty), "failures": .array(failures.map(JSONValue.string))]))
         exit(failures.isEmpty ? 0 : 1)

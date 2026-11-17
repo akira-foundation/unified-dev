@@ -90,6 +90,8 @@ final class SQLiteDatabase: @unchecked Sendable {
 
     private let uncommitted = Mutex<Set<StoreDomain>>([])
 
+    private let relabelled = Mutex<[StoreDomain: StoreDomain]>([:])
+
     init(path: String) throws {
         self.changes = StoreChangeHub.shared(forPath: path)
         var handle: OpaquePointer?
@@ -120,12 +122,17 @@ final class SQLiteDatabase: @unchecked Sendable {
             { context, _, _, table, _ in
                 guard let context, let table,
                       let domain = StoreDomain(rawValue: String(cString: table)) else { return }
-                _ = Unmanaged<SQLiteDatabase>.fromOpaque(context)
+                Unmanaged<SQLiteDatabase>.fromOpaque(context)
                     .takeUnretainedValue()
-                    .uncommitted.withLock { $0.insert(domain) }
+                    .record(domain)
             },
             Unmanaged.passUnretained(self).toOpaque()
         )
+    }
+
+    private func record(_ domain: StoreDomain) {
+        let published = relabelled.withLock { $0[domain] } ?? domain
+        uncommitted.withLock { _ = $0.insert(published) }
     }
 
     private func flushChanges() {
@@ -232,6 +239,13 @@ final class SQLiteDatabase: @unchecked Sendable {
         guard step == SQLITE_DONE || step == SQLITE_ROW else { throw fail(sql) }
         flushChanges()
         return sqlite3_last_insert_rowid(handle)
+    }
+
+    @discardableResult
+    func run(_ sql: String, _ bindings: [SQLValue] = [], publishing renames: [StoreDomain: StoreDomain]) throws -> Int64 {
+        relabelled.withLock { $0 = renames }
+        defer { relabelled.withLock { $0 = [:] } }
+        return try run(sql, bindings)
     }
 
     func transaction<T>(_ body: () throws -> T) throws -> T {

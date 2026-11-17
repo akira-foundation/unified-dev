@@ -278,6 +278,88 @@ struct AppRequestTests {
         }
     }
 
+    private static let conflictRequest = FixConflictsPromptContext(
+        workspaceName: "Glyphs", number: 42, branch: "feature/glyphs", baseBranch: "main"
+    ).request(template: PromptRegistry.definition(for: .fixConflicts).defaultTemplate)
+
+    @Test(
+        "every request of the bar stays hidden after a reload, whichever agent runs the chat",
+        arguments: [
+            PromptID.createPullRequest, .pushLocalWork, .markReadyForReview,
+            .mergePullRequest, .fixConflicts, .continueAfterMerge,
+        ],
+        [AgentKind.claudeCode, .codex, .grok]
+    )
+    func everyBarRequestSurvivesAReload(prompt: PromptID, agent: AgentKind) async throws {
+        let text = PromptRegistry.definition(for: prompt).defaultTemplate
+        let path = TestScratch.unique("app-request-bar") + ".sqlite"
+        let store = try Store(path: path)
+        let session = try await makeSession(store, agent: agent)
+        _ = try await claim(AppRequest.delivery(to: session.id, text: text, interactionMode: nil), in: store)
+
+        let reopened = try Store(path: path)
+        let row = try #require(await reopened.messages(sessionID: session.id).last)
+
+        #expect(row.kind == .crew)
+        #expect(AppRequest.sentText(kind: row.kind, payload: row.payload) == text)
+    }
+
+    @Test("only the pull request bar hides its turn: an agent's merge and the toolbar stay in front of the owner")
+    func onlyTheBarHides() {
+        #expect(AppRequest.Source.pullRequestBar.hidesTurn)
+        #expect(!AppRequest.Source.agentThroughBridge.hidesTurn)
+        #expect(!AppRequest.Source.inspectorToolbar.hidesTurn)
+        #expect(AppRequest.Source.allCases.filter(\.hidesTurn) == [.pullRequestBar])
+    }
+
+    @Test("a merge from the bar is refused while the agent is busy, because it would wait out of sight")
+    func aHiddenMergeWaitsForTheTurn() {
+        #expect(AppRequest.mergeRefusal(from: .pullRequestBar, agentIsBusy: true)
+            == "The agent is still working here, so the merge was not queued out of sight."
+                + " Merge again when it finishes.")
+        #expect(AppRequest.mergeRefusal(from: .pullRequestBar, agentIsBusy: false) == nil)
+    }
+
+    @Test("a merge that stays visible may wait in the queue, where the owner can delete it")
+    func aVisibleMergeMayQueue() {
+        #expect(AppRequest.mergeRefusal(from: .agentThroughBridge, agentIsBusy: true) == nil)
+        #expect(AppRequest.mergeRefusal(from: .inspectorToolbar, agentIsBusy: true) == nil)
+    }
+
+    @Test("the same conflict request pasted by the owner stays the owner's bubble")
+    func thePastedConflictRequestStaysVisible() async throws {
+        let store = try makeTestStore("app-request-conflicts-lookalike")
+        let session = try await makeSession(store)
+        let row = try await claim(Delivery(targetSessionID: session.id, body: Self.conflictRequest), in: store)
+
+        #expect(row.kind == .user)
+        #expect(!AppRequest.isHidden(kind: row.kind, payload: row.payload))
+    }
+
+    @Test("a conflict request waiting behind a running turn draws nothing and returns to no composer")
+    func aQueuedConflictRequestStaysOutOfTheComposer() {
+        let queued = AppRequest.delivery(to: SessionID("s"), text: Self.conflictRequest, interactionMode: nil)
+
+        #expect(SendingSlot.drawing(of: queued) == nil)
+        #expect(!PendingMessageEdit.canEdit(queued))
+        #expect(PendingMessageReturn.returning(from: [queued]).isEmpty)
+        #expect(PendingMessageReturn.draft(taking: PendingMessageReturn.returning(from: [queued]), into: "mine") == "mine")
+    }
+
+    @Test("a conflict request that cannot be confirmed is drawn, so the queue it holds can be released")
+    func anUnconfirmedConflictRequestShows() async throws {
+        let store = try makeTestStore("app-request-conflicts-uncertain")
+        let session = try await makeSession(store)
+        let delivery = AppRequest.delivery(to: session.id, text: Self.conflictRequest, interactionMode: nil)
+        _ = try await claim(delivery, in: store)
+        try await store.beginDeliveryDispatch(id: delivery.id)
+
+        let stuck = try #require(await store.pendingDeliveries(sessionID: session.id).first)
+
+        #expect(SendingSlot.drawing(of: stuck) == .stuckRequest)
+        #expect(PendingMessageDiscard.canDiscard(stuck))
+    }
+
     @Test("a preview scenario seeds it as the same hidden row")
     func aScenarioSeedsTheSameRow() async throws {
         let store = try makeTestStore("app-request-seed")

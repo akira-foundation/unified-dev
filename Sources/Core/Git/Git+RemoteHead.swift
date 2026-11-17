@@ -8,7 +8,7 @@ extension Git {
         let current = (try? await currentBranch(of: directory)) ?? "HEAD"
         guard let remote = GitRepositoryContext.resolve(config: config, base: "main", branch: current).baseRemote,
               (try? validate(ref: remote, label: "remote")) != nil,
-              let result = try? await run(
+              let result = try? await runAgainstRemote(
                   ["ls-remote", "--symref", "--", remote, "HEAD"], in: directory, timeout: timeout
               ),
               result.ok,

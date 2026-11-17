@@ -6,6 +6,7 @@ public struct WorkSuggestion: Identifiable, Sendable, Hashable {
         case project(RepoID)
         case folder(String)
         case remote(String)
+        case orchestrator(RepoID)
     }
 
     public enum State: Sendable, Hashable {

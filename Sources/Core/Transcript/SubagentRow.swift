@@ -18,14 +18,19 @@ public struct SubagentRow: Sendable, Hashable, Identifiable {
     }
 
     public enum Detail: Sendable, Hashable {
-        case elapsed(seconds: Int)
+        case elapsed(since: Date)
         case retrying(AgentRetry)
         case summary(String)
         case none
 
-        public var text: String {
+        public var workingSince: Date? {
+            guard case .elapsed(let since) = self else { return nil }
+            return since
+        }
+
+        public func text(at now: Date) -> String {
             switch self {
-            case .elapsed(let seconds): SubagentRow.duration(seconds)
+            case .elapsed(let since): SubagentRow.duration(max(0, Int(now.timeIntervalSince(since))))
             case .retrying(let retry): retry.readout
             case .summary(let summary): summary
             case .none: ""
@@ -38,15 +43,15 @@ public struct SubagentRow: Sendable, Hashable, Identifiable {
     public let mark: Mark
     public let detail: Detail
     public let opensOutput: Bool
-    public let spokenValue: String
+    let spokenState: String
 
     static let detailLimit = 28
 
-    public static func rows(_ roster: SubagentRoster, now: Date = Date()) -> [SubagentRow] {
-        roster.subagents.map { SubagentRow($0, now: now) }
+    public static func rows(_ roster: SubagentRoster) -> [SubagentRow] {
+        roster.subagents.map { SubagentRow($0) }
     }
 
-    public init(_ subagent: Subagent, now: Date = Date()) {
+    public init(_ subagent: Subagent) {
         id = subagent.id
         title = Self.title(of: subagent)
         mark = switch subagent.state {
@@ -55,9 +60,14 @@ public struct SubagentRow: Sendable, Hashable, Identifiable {
         case .failed: .failed
         case .stopped: .stopped
         }
-        detail = Self.detail(of: subagent, now: now)
+        detail = Self.detail(of: subagent)
         opensOutput = subagent.kind == .agent || subagent.hasOutput
-        spokenValue = Self.spoken(subagent, detail: detail)
+        spokenState = Self.spokenState(of: subagent)
+    }
+
+    public func spokenValue(at now: Date) -> String {
+        let text = detail.text(at: now)
+        return text.isEmpty ? spokenState : "\(spokenState), \(text)"
     }
 
     public static func title(of subagent: Subagent) -> String {
@@ -67,11 +77,11 @@ public struct SubagentRow: Sendable, Hashable, Identifiable {
         return type.isEmpty ? "Subagent" : type
     }
 
-    static func detail(of subagent: Subagent, now: Date = Date()) -> Detail {
+    static func detail(of subagent: Subagent) -> Detail {
         switch subagent.state {
         case .running:
             if let retry = subagent.retry { return .retrying(retry) }
-            return .elapsed(seconds: subagent.secondsElapsed(at: now))
+            return .elapsed(since: subagent.workingSince)
         case .completed, .failed, .stopped:
             let summary = shorten(subagent.summary)
             return summary.isEmpty ? .none : .summary(summary)
@@ -101,14 +111,12 @@ public struct SubagentRow: Sendable, Hashable, Identifiable {
         return "\(minutes)m \(seconds % 60)s"
     }
 
-    static func spoken(_ subagent: Subagent, detail: Detail) -> String {
-        let state = switch subagent.state {
+    static func spokenState(of subagent: Subagent) -> String {
+        switch subagent.state {
         case .running: subagent.retry == nil ? "working" : "working, being retried"
         case .completed: "finished"
         case .failed: "failed"
         case .stopped: "stopped"
         }
-        let text = detail.text
-        return text.isEmpty ? state : "\(state), \(text)"
     }
 }

@@ -8,49 +8,52 @@ struct MenuBarStatusModule: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Metrics.spacingWide) {
-            if let profile = content.profile {
-                header(profile)
-            }
-            HStack(alignment: .firstTextBaseline, spacing: Metrics.spacingWide) {
-                Text(MenuBarPanelContent.statusTitle)
-                    .font(Typo.title)
-                    .accessibilityAddTraits(.isHeader)
+            HStack(spacing: Metrics.spacingWide) {
+                Circle()
+                    .fill(dot)
+                    .frame(width: 8, height: 8)
+                    .frame(width: MenuBarModuleStyle.chip)
+                    .accessibilityHidden(true)
+                Text(content.headline)
+                    .font(Typo.label)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Spacer(minLength: Metrics.spacingWide)
-                badges
+                if let profile = content.profile {
+                    profilePill(profile)
+                }
             }
-            Text(content.sentence)
-                .font(Typo.body)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            .help(content.sentence)
             if content.needsSetup {
                 Button(MenuBarPanelContent.setupAction, action: openSettings)
                     .linkButton()
                     .panelFocus(focus, .setup)
             }
         }
-        .menuBarModule(MenuBarPanelContent.statusTitle)
+        .menuBarModule(MenuBarPanelContent.statusTitle, inset: Metrics.inset)
+        .accessibilityValue(content.sentence)
     }
 
-    private func header(_ profile: Profile) -> some View {
+    private var dot: Color {
+        switch content.activity {
+        case .running: Palette.running
+        case .waiting: Palette.warning
+        case .idle: Palette.textSecondary.opacity(0.5)
+        }
+    }
+
+    private func profilePill(_ profile: Profile) -> some View {
         Label {
             Text(profile.name)
                 .lineLimit(1)
         } icon: {
             ProfileMark(symbol: profile.symbol, colour: profile.colour)
         }
-        .font(Typo.caption)
-        .foregroundStyle(Palette.textSecondary)
+        .font(Typo.captionEmphasis)
+        .padding(.horizontal, Metrics.spacingWide)
+        .padding(.vertical, Metrics.spacingTight)
+        .background(Capsule().fill(Palette.textPrimary.opacity(0.1)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(profile.activeLabel)
-    }
-
-    private var badges: some View {
-        HStack(spacing: Metrics.spacing) {
-            ForEach(content.badges, id: \.self) { badge in
-                Image(systemName: badge.symbolName)
-                    .foregroundStyle(Palette.textSecondary)
-                    .help(badge.label)
-                    .accessibilityLabel(badge.label)
-            }
-        }
     }
 }

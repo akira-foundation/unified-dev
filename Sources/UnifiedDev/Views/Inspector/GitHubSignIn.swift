@@ -11,9 +11,17 @@ final class GitHubSignIn {
         let id = UUID()
         var access: GitHubAvailability.State
         var directory: String
+        var login: GitHubLogin
 
         static func == (lhs: Request, rhs: Request) -> Bool { lhs.id == rhs.id }
     }
+
+    struct BitbucketRefusal: Identifiable {
+        let id = UUID()
+        var access: GitHubAccess
+    }
+
+    var bitbucketRefusal: BitbucketRefusal?
 
     var request: Request? {
         didSet {
@@ -26,13 +34,23 @@ final class GitHubSignIn {
 
     func run(directory: String, action: @escaping @MainActor () -> Void) {
         Task {
-            let state = await GitHubAvailability.shared.check()
+            if await Forge.kind(forDirectory: directory) == .bitbucket {
+                let access = await Bitbucket.access(directory: directory)
+                guard access == .ready else {
+                    bitbucketRefusal = BitbucketRefusal(access: access)
+                    return
+                }
+                action()
+                return
+            }
+            let login = await GitHub.login(forDirectory: directory)
+            let state = await GitHubAvailability.shared.check(login: login)
             guard state != .ready else {
                 action()
                 return
             }
             pending = action
-            request = Request(access: state, directory: directory)
+            request = Request(access: state, directory: directory, login: login)
         }
     }
 

@@ -7,7 +7,6 @@ struct SearchPanelTranscriptRow: View {
     var onPick: @MainActor () -> Void
     var onHover: @MainActor () -> Void
 
-    @Environment(\.controlActiveState) private var activeState
     @State private var isHovered = false
 
     var body: some View {
@@ -19,19 +18,19 @@ struct SearchPanelTranscriptRow: View {
                     HStack(spacing: Metrics.spacingSmall) {
                         Text(hit.workspace?.name ?? "Unknown workspace")
                             .font(Typo.bodyEmphasis)
-                            .foregroundStyle(loud)
+                            .foregroundStyle(SearchPanelRowInk.title(isEnabled: true).colour)
                             .lineLimit(1)
 
                         Text(detail)
                             .font(Typo.caption)
-                            .foregroundStyle(quiet)
+                            .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected).colour)
                             .lineLimit(1)
                     }
 
                     if let snippet = hit.result.best?.snippet, !snippet.isEmpty {
                         Text(marked(snippet))
                             .font(Typo.caption)
-                            .foregroundStyle(quiet)
+                            .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected).colour)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                     }
@@ -69,22 +68,10 @@ struct SearchPanelTranscriptRow: View {
             var run = AttributedString(segment.text)
             if segment.isMatch {
                 run.inlinePresentationIntent = .stronglyEmphasized
-                run.foregroundColor = loud
+                run.foregroundColor = SearchPanelRowInk.title(isEnabled: true).colour
             }
             built.append(run)
         }
         return built
-    }
-
-    private var loud: Color {
-        isEmphasized ? Palette.selectedEmphasizedText : Palette.textPrimary
-    }
-
-    private var quiet: Color {
-        isEmphasized ? Palette.selectedEmphasizedText.opacity(0.76) : Palette.textSecondary
-    }
-
-    private var isEmphasized: Bool {
-        isSelected && activeState != .inactive
     }
 }

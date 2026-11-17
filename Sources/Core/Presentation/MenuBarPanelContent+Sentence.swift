@@ -17,7 +17,7 @@ extension MenuBarPanelContent {
         needsSetup: Bool,
         now: Date
     ) -> String {
-        let isHeldFromElsewhere = hold == .whileAgentsRun && running == 0 && hasAgentsElsewhere
+        let isHeldFromElsewhere = isHeldFromElsewhere(hold: hold, running: running, hasAgentsElsewhere: hasAgentsElsewhere)
         var parts: [String] = []
         if running > 0 { parts.append(runningPhrase(agents: running, workspaces: workspaces)) }
         if waiting > 0 { parts.append("\(Counted.of(waiting, "agent")) waiting on you.") }
@@ -28,6 +28,34 @@ extension MenuBarPanelContent {
         }
         if needsSetup { parts.append(setupSentence) }
         return parts.joined(separator: " ")
+    }
+
+    static let noAgentsInProfileHeadline = "No agents in this profile"
+    static let awakeSuffix = "awake"
+
+    static func headline(
+        running: Int,
+        workspaces: Int,
+        waiting: Int,
+        hold: KeepAwake.Hold,
+        hasAgentsElsewhere: Bool = false
+    ) -> String {
+        var parts: [String] = []
+        if running > 0 {
+            let count = Counted.of(running, "agent")
+            parts.append(workspaces > 0 ? "\(count) in \(Counted.of(workspaces, "workspace"))" : "\(count) running")
+        }
+        if waiting > 0 { parts.append("\(waiting.formatted()) waiting on you") }
+        if parts.isEmpty {
+            let held = isHeldFromElsewhere(hold: hold, running: running, hasAgentsElsewhere: hasAgentsElsewhere)
+            parts.append(held ? noAgentsInProfileHeadline : noAgentsLine)
+        }
+        if hold.isOn { parts.append(awakeSuffix) }
+        return parts.joined(separator: ", ")
+    }
+
+    static func isHeldFromElsewhere(hold: KeepAwake.Hold, running: Int, hasAgentsElsewhere: Bool) -> Bool {
+        hold == .whileAgentsRun && running == 0 && hasAgentsElsewhere
     }
 
     static func runningPhrase(agents: Int, workspaces: Int) -> String {

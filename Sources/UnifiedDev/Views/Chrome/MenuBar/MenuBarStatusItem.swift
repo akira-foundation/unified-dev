@@ -23,6 +23,7 @@ final class MenuBarStatusItem: NSObject {
 
     func setEnabled(_ isEnabled: Bool, app: AppModel) {
         self.app = app
+        app.isMenuBarPanelOpen = { [weak self] in self?.panel.isOpen ?? false }
         model.refresh = { [weak app] in
             guard let app else { return }
             Task { await app.refreshQuotas(after: 0) }

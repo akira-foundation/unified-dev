@@ -82,6 +82,8 @@ public struct PullRequestStanding: Sendable, Hashable {
         self.sentence = sentence
     }
 
+    public var hostName: String { ForgeRepository.kind(ofRemote: url).displayName }
+
     public func isReached(_ step: PullRequestStep) -> Bool {
         guard let current, let standing = path.firstIndex(of: current),
               let asked = path.firstIndex(of: step)

@@ -154,7 +154,7 @@ struct ArchiveStaleMeasureTests {
         archive = '''
         git push -q origin --delete "$(git rev-parse --abbrev-ref HEAD)"
         folder="$PWD"
-        (while [ -d "$folder/.git" ] || [ -f "$folder/.git" ]; do :; done; mkdir -p "$folder") >/dev/null 2>&1 &
+        (SECONDS=0; while { [ -d "$folder/.git" ] || [ -f "$folder/.git" ]; } && [ $SECONDS -lt 30 ]; do :; done; mkdir -p "$folder") >/dev/null 2>&1 &
         '''
         """)
         defer { repo.cleanUp() }

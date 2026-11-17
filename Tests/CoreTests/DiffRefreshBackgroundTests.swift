@@ -17,7 +17,7 @@ struct DiffRefreshBackgroundTests {
         let all = ids(20)
         let now = Date()
         let busy: Set<WorkspaceID> = [all[3], all[7], all[11]]
-        let last = justRefreshed(all, at: now)
+        let last = justRefreshed(all, at: now.addingTimeInterval(-DiffRefreshSchedule.busyShownMaxAge))
 
         let front = DiffRefreshSchedule.due(
             workspaces: all, busy: busy, selected: all[5], lastRefreshed: last, now: now

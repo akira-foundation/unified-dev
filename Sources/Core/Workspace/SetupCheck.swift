@@ -5,7 +5,9 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
     case claudeCode
     case codex
     case grok
+    case antigravity
     case gitHub
+    case bitbucket
 
     public var id: String { rawValue }
 
@@ -14,7 +16,8 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
         case .claudeCode: .claudeCode
         case .codex: .codex
         case .grok: .grok
-        case .git, .gitHub: nil
+        case .antigravity: .antigravity
+        case .git, .gitHub, .bitbucket: nil
         }
     }
 
@@ -24,14 +27,17 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
         case .claudeCode: "Claude Code"
         case .codex: "Codex"
         case .grok: "Grok"
+        case .antigravity: "Antigravity"
         case .gitHub: "GitHub CLI"
+        case .bitbucket: "Bitbucket CLI"
         }
     }
 
     public var sentenceName: String {
         switch self {
         case .gitHub: "the GitHub CLI"
-        case .git, .claudeCode, .codex, .grok: title
+        case .bitbucket: "the Bitbucket CLI"
+        case .git, .claudeCode, .codex, .grok, .antigravity: title
         }
     }
 
@@ -45,20 +51,27 @@ public enum SetupTool: String, Sendable, Hashable, CaseIterable, Identifiable, C
             "OpenAI's agent. Unified Dev can drive a workspace with it instead of Claude Code."
         case .grok:
             "xAI's agent. Unified Dev can drive a workspace with it instead of Claude Code or Codex."
+        case .antigravity:
+            "Google's agent, with Gemini and other models. Unified Dev can drive a workspace with it too."
         case .gitHub:
             "Pull requests, checks and merges. Everything else in Unified Dev works without it."
+        case .bitbucket:
+            "Pull requests and builds for repositories on Bitbucket. Only needed if you use Bitbucket."
         }
     }
 
     public var executableName: String {
         switch self {
         case .git: "git"
-        case .claudeCode, .codex, .grok: agentKind?.executableName ?? rawValue
+        case .claudeCode, .codex, .grok, .antigravity: agentKind?.executableName ?? rawValue
         case .gitHub: "gh"
+        case .bitbucket: Bitbucket.executable
         }
     }
 
-    public static let displayOrder: [SetupTool] = [.git, .claudeCode, .codex, .grok, .gitHub]
+    public var isOptional: Bool { self == .bitbucket }
+
+    public static let displayOrder: [SetupTool] = [.git, .claudeCode, .codex, .grok, .antigravity, .gitHub, .bitbucket]
 }
 
 public enum SetupOutcome: Sendable, Hashable {
@@ -117,82 +130,6 @@ public struct SetupFix: Sendable, Hashable {
     }
 }
 
-public extension SetupCheck {
-    var fix: SetupFix? {
-        switch (tool, outcome) {
-        case (_, .pending), (_, .ready):
-            return nil
-
-        case (.git, _):
-            return SetupFix(
-                summary: "Install Apple's command line tools, which include git",
-                command: "xcode-select --install",
-                url: URL(string: "https://git-scm.com/download/mac")
-            )
-
-        case (.claudeCode, .missing):
-            return SetupFix(
-                summary: "Install Claude Code",
-                command: "npm install -g @anthropic-ai/claude-code",
-                url: URL(string: "https://docs.claude.com/en/docs/claude-code/setup")
-            )
-
-        case (.claudeCode, .needsSignIn):
-            return SetupFix(
-                summary: "Sign in to Claude Code",
-                command: AgentKind.claudeCode.loginCommand,
-                url: nil,
-                isInteractive: true
-            )
-
-        case (.codex, .missing):
-            return SetupFix(
-                summary: "Install Codex",
-                command: "npm install -g @openai/codex",
-                url: URL(string: "https://developers.openai.com/codex/cli")
-            )
-
-        case (.codex, .needsSignIn):
-            return SetupFix(
-                summary: "Sign in to Codex",
-                command: AgentKind.codex.loginCommand,
-                url: nil,
-                isInteractive: true
-            )
-
-        case (.grok, .missing):
-            return SetupFix(
-                summary: "Install Grok",
-                command: "curl -fsSL https://x.ai/cli/install.sh | bash",
-                url: URL(string: "https://x.ai/cli")
-            )
-
-        case (.grok, .needsSignIn):
-            return SetupFix(
-                summary: "Sign in to Grok",
-                command: AgentKind.grok.loginCommand,
-                url: nil,
-                isInteractive: true
-            )
-
-        case (.gitHub, .missing):
-            return SetupFix(
-                summary: "Install the GitHub CLI",
-                command: "brew install gh",
-                url: URL(string: "https://cli.github.com")
-            )
-
-        case (.gitHub, .needsSignIn):
-            return SetupFix(
-                summary: "Sign in to GitHub",
-                command: "gh auth login",
-                url: nil,
-                isInteractive: true
-            )
-        }
-    }
-}
-
 public enum SetupVerdict: Sendable, Hashable {
     case checking
     case ready
@@ -247,10 +184,10 @@ public struct SetupReport: Sendable, Hashable {
         switch tool {
         case .git:
             return .problem
-        case .claudeCode, .codex, .grok:
+        case .claudeCode, .codex, .grok, .antigravity:
             if hasRunnableAgent || agentsAreStillChecking { return .note }
             return .problem
-        case .gitHub:
+        case .gitHub, .bitbucket:
             return .note
         }
     }
@@ -285,7 +222,7 @@ public extension SetupReport {
 
     private var readyWithNotesSentence: String {
         let quiet = checks
-            .filter { !$0.outcome.isReady && severity(for: $0.tool) == .note }
+            .filter { !$0.tool.isOptional && !$0.outcome.isReady && severity(for: $0.tool) == .note }
             .map(\.tool.sentenceName)
 
         guard !quiet.isEmpty else {

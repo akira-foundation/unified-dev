@@ -124,7 +124,7 @@ enum OrchestratorReadList {
         "worktree list": Form(flags: ["--porcelain"], positionals: .none),
     ]
 
-    private static let ghVerbs: [String: Set<String>] = [
+    static let ghVerbs: [String: Set<String>] = [
         "pr": ["view", "list", "diff", "checks", "status"],
         "issue": ["view", "list", "status"],
         "run": ["view", "list"],

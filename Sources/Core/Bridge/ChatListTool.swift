@@ -22,7 +22,10 @@ public struct ChatListTool: BridgeToolHandling {
             """,
         inputSchema: .object([
             "type": .string("object"),
-            "properties": .object([BridgeReadTarget.argument: BridgeReadTarget.schemaProperty]),
+            "properties": .object([
+                BridgeReadTarget.argument: BridgeReadTarget.schemaProperty,
+                BridgeProfileReach.argument: BridgeProfileReach.schemaProperty,
+            ]),
             "required": .array([]),
             "additionalProperties": .bool(false),
         ])
@@ -50,10 +53,14 @@ public struct ChatListTool: BridgeToolHandling {
                 ]))
             }
             var answer: [String: JSONValue] = ["chats": .array(chats), "count": .integer(chats.count)]
-            guard case .named(let workspace) = target else { return .json(.object(answer)) }
+            guard let workspace = target.other else { return .json(.object(answer)) }
             answer["workspace_id"] = .string(workspace.id.rawValue)
             answer["workspace"] = .string(workspace.name)
-            return BridgeWorkspaceQuote.answer(.object(answer), preamble: BridgeWorkspaceQuote.chats(in: workspace))
+            if let profile = target.profile { answer[BridgeProfileReach.argument] = .string(profile.name) }
+            return BridgeWorkspaceQuote.answer(
+                .object(answer),
+                preamble: BridgeWorkspaceQuote.preamble(BridgeWorkspaceQuote.chats(in: workspace), for: target)
+            )
         } catch {
             return .failure("Unified Dev could not list the chats: \(error.localizedDescription)")
         }

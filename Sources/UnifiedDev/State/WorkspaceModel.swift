@@ -13,7 +13,9 @@ final class WorkspaceModel {
     var workspace: Workspace
     private unowned let app: AppModel
 
-    var sessions: [Session] = []
+    var sessions: [Session] = [] {
+        didSet { app.noteSubagentsChanged(workspaceID: workspace.id) }
+    }
     var sideConversations: [SessionID: SideConversationState] = [:]
 
     private(set) var hasReadSessions = false
@@ -24,9 +26,11 @@ final class WorkspaceModel {
             if storedActiveSessionID != newValue {
                 storedActiveSessionID = newValue
                 tasksFocus.activeChatChanged()
+                sideFocus.activeChatChanged()
             }
             prepareActiveTranscript()
             app.noteSubagentsChanged(workspaceID: workspace.id)
+            app.notificationInbox.noteOnScreen()
         }
     }
 
@@ -49,10 +53,42 @@ final class WorkspaceModel {
     private(set) var branchCommits = BranchCommitList()
     private(set) var hasReadBranchCommits = false
 
-    private var chosenInspectorTab: InspectorTab = .changes
+    private var inspectorChoice = InspectorTabChoice()
+
+    private var sideFocus = SideConversationFocus()
+
+    private var inspectorSideParentID: SessionID? {
+        let present = Set(sideConversations.filter { $0.value.lifecycle.isPresent }.keys)
+        return sideFocus.parent(active: activeSession?.id, present: present)
+    }
+
+    var inspectorSideParent: TranscriptModel? {
+        inspectorSideParentID.flatMap { transcripts[$0] }
+    }
+
+    var inspectorSideConversation: SideConversationState? {
+        inspectorSideParent.flatMap { sideConversations[$0.session.id] }
+    }
+
+    func isShowingSideConversation(of parent: TranscriptModel) -> Bool {
+        inspectorTab == .side && inspectorSideParent === parent
+    }
 
     var availableInspectorTabs: [InspectorTab] {
-        InspectorTab.available(for: pullRequest, hasTasks: hasBackgroundTasks)
+        InspectorTab.available(
+            for: pullRequest, hasTasks: hasBackgroundTasks, hasSideConversation: inspectorSideConversation != nil
+        )
+    }
+
+    func showSideConversation(of parent: TranscriptModel) {
+        sideFocus.choose(parent.session.id, active: activeSession?.id)
+        inspectorChoice.sideConversationStarted()
+        app.setInspectorVisible(true)
+    }
+
+    func leaveSideConversation(of parent: TranscriptModel) {
+        guard inspectorSideParentID == parent.session.id else { return }
+        inspectorChoice.sideConversationLeft()
     }
 
     var hasBackgroundTasks: Bool {
@@ -63,7 +99,7 @@ final class WorkspaceModel {
         tasksTranscript?.clearFinishedTasks()
         guard !hasBackgroundTasks else { return }
         tasksFocus.activeChatChanged()
-        chosenInspectorTab = inspectorTab
+        inspectorChoice.choose(inspectorTab)
     }
 
     private var tasksFocus = BackgroundTasksFocus()
@@ -77,8 +113,8 @@ final class WorkspaceModel {
     }
 
     var inspectorTab: InspectorTab {
-        get { InspectorTab.resolve(chosenInspectorTab, available: availableInspectorTabs) }
-        set { chosenInspectorTab = newValue }
+        get { inspectorChoice.resolved(available: availableInspectorTabs) }
+        set { inspectorChoice.choose(newValue) }
     }
     var changedFiles: [ChangedFile] = [] {
         didSet { reviewFiles = ChangedFileTree.orderedFiles(from: changedFiles) }
@@ -88,7 +124,9 @@ final class WorkspaceModel {
     var isLoadingChanges = false
     private(set) var hasReadChanges = false
     private(set) var changesGeneration = 0
+    @ObservationIgnored private var changesRecord = ChangesGeneration()
     @ObservationIgnored private var patches = PatchCache()
+    @ObservationIgnored private var releasedHeldFiles = false
     @ObservationIgnored private var presentations = DiffPresentationCache()
     @ObservationIgnored private var panePositions: [TranscriptPaneState.Key: TranscriptPaneState] = [:]
     @ObservationIgnored private var transcriptPlaceWrite: Task<Void, Never>?
@@ -104,6 +142,7 @@ final class WorkspaceModel {
 
     var isLoadingPullRequest = false
     private(set) var hasReadPullRequest = false
+    private(set) var checkRuns: CheckRunsRead?
 
     private(set) var mergeMethod = MergeMethodChoice.fallback
     var pullRequestNotice: PullRequestNotice?
@@ -168,7 +207,7 @@ final class WorkspaceModel {
     private var arrivalTask: Task<Void, Never>?
 
     private var changesTask: Task<Result<ChangesAnswer, GitFailure>, Never>?
-    private var pullRequestTask: Task<PullRequestRead, Never>?
+    private var pullRequestTask: Task<PullRequestReading, Never>?
     @ObservationIgnored private var settingsRefresh = RefreshDemand()
     @ObservationIgnored private var settingsTask: Task<Void, Never>?
     private var setupTask: Task<Void, Never>?
@@ -187,6 +226,7 @@ final class WorkspaceModel {
     private(set) var settings = RepoSettings()
 
     func refreshSettings() {
+        releasedHeldFiles = false
         guard settingsRefresh.request() else { return }
         settingsTask = Task { [weak self] in await self?.drainSettingsRefreshes() }
     }
@@ -247,7 +287,8 @@ final class WorkspaceModel {
         title: String? = nil,
         controls: ComposerControls? = nil,
         draft: String = "",
-        seededFrom source: SessionID? = nil
+        seededFrom source: SessionID? = nil,
+        through seq: Int? = nil
     ) async -> Session? {
         guard !app.isArchiving(workspace.id), let store else { return nil }
         let openingControls: ComposerControls
@@ -271,10 +312,32 @@ final class WorkspaceModel {
         guard let stored = try? await store.upsert(session) else { return nil }
         await openingControls.store(sessionID: stored.id, in: store)
         if !draft.isEmpty { try? await store.saveDraft(sessionID: stored.id, body: draft) }
-        if let source { try? await store.seed(sessionID: stored.id, from: source) }
+        if let source {
+            do {
+                try await store.seed(sessionID: stored.id, from: source, through: seq)
+            } catch {
+                try? await store.deleteSession(id: stored.id)
+                return nil
+            }
+        }
         await reloadSessions()
         activeSessionID = stored.id
         return stored
+    }
+
+    func fork(_ transcript: TranscriptModel, through seq: Int) {
+        let source = transcript.session
+        Task { @MainActor in
+            guard let store, let controls = try? await ComposerControls.carried(from: source, in: store),
+                  let made = await createSession(
+                      title: MessageMenu.forkTitle(of: source.title), controls: controls,
+                      seededFrom: source.id, through: seq
+                  ) else {
+                app.notice = Notice(message: "Could not fork the conversation from that message.", tone: .error)
+                return
+            }
+            WorkspaceTabsStore.shared.reveal(.chat(made.id), in: self)
+        }
     }
 
     func createChat(title: String? = nil) async -> PaneContent? {
@@ -302,6 +365,7 @@ final class WorkspaceModel {
         do {
             let next = try await store.replaceWorkspaceConversation(id: previous.id, controls: controls)
             transcripts.removeValue(forKey: previous.id)?.teardown()
+            forgetSideConversation(of: previous.id)
             app.bridge?.retire(sessionID: previous.id)
             WorkspaceTabsStore.shared.replaceConversation(previous.id, with: next.id, in: self)
             if let index = sessions.firstIndex(where: { $0.id == previous.id }) { sessions[index] = next }
@@ -342,6 +406,7 @@ final class WorkspaceModel {
         do {
             let next = try await store.replaceWorkspaceConversation(id: session.id, controls: controls)
             transcripts.removeValue(forKey: session.id)?.teardown()
+            forgetSideConversation(of: session.id)
             app.bridge?.retire(sessionID: session.id)
             await reloadSessions()
             activeSessionID = next.id
@@ -350,6 +415,32 @@ final class WorkspaceModel {
         } catch {
             app.alert = AppAlert(title: "Could not start a fresh chat", message: error.readableMessage)
             return nil
+        }
+    }
+
+    func forgetSideConversation(of parentID: SessionID) {
+        let wasShown = inspectorSideParentID == parentID || activeSessionID == parentID
+        guard let state = sideConversations.removeValue(forKey: parentID) else { return }
+        state.task?.cancel()
+        if wasShown { inspectorChoice.sideConversationLeft() }
+    }
+
+    func endSideConversation(_ id: SessionID) -> Task<Void, Never>? {
+        guard let store else { return nil }
+        return Task {
+            do {
+                let closed = try await store.closeSideConversation(sessionID: id)
+                let livesOnAsChat = try await store.session(id: id).map { $0.archivedAt == nil } ?? false
+                if closed || !livesOnAsChat {
+                    transcripts.removeValue(forKey: id)?.teardown()
+                    app.bridge?.retire(sessionID: id)
+                }
+            } catch {
+                app.notice = Notice(
+                    message: "Could not close the side conversation: \(error.readableMessage)", tone: .error
+                )
+            }
+            await reloadSessions()
         }
     }
 
@@ -374,6 +465,7 @@ final class WorkspaceModel {
         }
         transcripts[session.id]?.teardown()
         transcripts[session.id] = nil
+        forgetSideConversation(of: session.id)
         app.bridge?.retire(sessionID: session.id)
         await reloadSessions()
         await settleOpenCanvasComments()
@@ -415,6 +507,19 @@ final class WorkspaceModel {
 
     func existingTranscript(for sessionID: SessionID) -> TranscriptModel? {
         transcripts[sessionID]
+    }
+
+    var openTranscripts: [TranscriptModel] {
+        Array(transcripts.values)
+    }
+
+    func releaseHeldFiles() {
+        guard !releasedHeldFiles else { return }
+        releasedHeldFiles = true
+        patches = PatchCache()
+        presentations = DiffPresentationCache()
+        let path = workspace.path
+        Task { await FileIndex.shared.invalidate(workspacePath: path) }
     }
 
     func prepareTranscript(for sessionID: SessionID) {
@@ -561,12 +666,19 @@ final class WorkspaceModel {
         guard let store, let sessionID = message.source.sessionID,
               let chat = try? await store.session(id: sessionID), chat.archivedAt == nil
         else { return }
+        var acrossProfilesID: WorkspaceID?
+        if let targetID = message.target.workspaceID,
+           (try? await store.crossedProfileName(of: targetID, from: sessionID)) != nil {
+            acrossProfilesID = targetID
+        }
         _ = try? await store.enqueueDelivery(
             Delivery(
                 targetSessionID: chat.id,
                 sourceWorkspaceID: message.target.workspaceID,
                 kind: .report,
-                crew: CrewMessage.cancelled(to: message.target.workspace, text: message.text)
+                crew: CrewMessage.cancelled(
+                    to: message.target.workspace, text: message.text, acrossProfilesID: acrossProfilesID
+                )
             )
         )
         let transcript = transcript(for: chat)
@@ -875,11 +987,13 @@ final class WorkspaceModel {
                 for: session.agentKind, in: AccountScope(workspaceID: workspace.id, repoID: workspace.repoID)
             )
             let orchestrates = await app.store?.orchestratesAtLaunch(workspaceID: workspace.id) ?? workspace.isOrchestrator
+            let chrome = await ClaudeChrome.launches(in: app.store, orchestrates: orchestrates)
             return try session.agentKind.prepareInteractiveCommand(
                 directory: workspace.path, prompt: prompt, sessionID: session.id,
                 model: session.model, effort: session.effort, permissionMode: session.permissionMode,
                 account: account,
-                orchestrates: orchestrates
+                orchestrates: orchestrates,
+                chrome: chrome
             )
         } catch {
             app.alert = AppAlert(title: "Could not launch the agent", message: error.readableMessage)
@@ -1109,17 +1223,25 @@ final class WorkspaceModel {
 
         guard changesTask == task, !task.isCancelled else { return }
         changesTask = nil
-        isLoadingChanges = false
+        if isLoadingChanges { isLoadingChanges = false }
+        if !hasReadChanges { hasReadChanges = true }
 
         switch outcome {
         case .failure(let failure):
-            hasReadChanges = true
-            changesError = failure.message
+            if changesError != failure.message { changesError = failure.message }
 
         case .success(let answer):
-            hasReadChanges = true
-            changesGeneration &+= 1
-            reconcileCanvasDocuments()
+            #if DEBUG
+            ActivityTally.changeReads += 1
+            #endif
+            let snapshot = ChangesSnapshot(files: answer.files, revisions: answer.revisions, scope: scope)
+            if changesRecord.record(snapshot) {
+                changesGeneration = changesRecord.value
+                #if DEBUG
+                ActivityTally.changeGenerations += 1
+                #endif
+                reconcileCanvasDocuments()
+            }
             if changesError != nil { changesError = nil }
             if changedFiles != answer.files { changedFiles = answer.files }
             if viewedRevisions != answer.revisions { viewedRevisions = answer.revisions }
@@ -1450,7 +1572,7 @@ final class WorkspaceModel {
         let asked = workspace
 
         let task = Task.detached(priority: .utility) {
-            await GitHubBridge.readPullRequest(for: asked, maxAge: maxAge)
+            await GitHubBridge.readPullRequestAndChecks(for: asked, maxAge: maxAge)
         }
         pullRequestTask = task
         if PullRequestProgress.announces(
@@ -1459,13 +1581,14 @@ final class WorkspaceModel {
             isLoadingPullRequest = true
         }
 
-        let read = await task.value
+        let reading = await task.value
 
         guard pullRequestTask == task, !task.isCancelled else { return }
         pullRequestTask = nil
         hasReadPullRequest = true
-        WorkspacePullRequests.shared.record(read, for: workspace.id)
-        guard case .current(let current) = read else {
+        if let checks = reading.checks, checks != checkRuns { checkRuns = checks }
+        WorkspacePullRequests.shared.record(reading.pullRequest, for: workspace.id)
+        guard case .current(let current) = reading.pullRequest else {
             isLoadingPullRequest = false
             return
         }

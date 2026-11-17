@@ -11,7 +11,6 @@ struct CommandLineOffer: View {
         VStack(alignment: .leading, spacing: Metrics.spacingSmall) {
             Text(command)
                 .font(Typo.codeSmall)
-                .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Metrics.spacing)
@@ -41,7 +40,7 @@ struct CommandLineOffer: View {
     }
 
     private func copy() {
-        Clipboard.copy(command)
+        Clipboard.copy(.command(command))
         didCopy = true
         Task {
             try? await Task.sleep(for: Clipboard.flashDuration)

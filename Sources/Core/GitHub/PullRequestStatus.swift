@@ -105,7 +105,22 @@ public extension PullRequest {
         return parts.joined(separator: ", ")
     }
 
+    static let unknownStateHeld = "Bitbucket reports a state Unified Dev does not know for this pull request."
+
+    var forge: ForgeKind { ForgeRepository.kind(ofRemote: url) }
+
+    var hostName: String { forge.displayName }
+
     var status: PullRequestStatus {
+        let decided = hostNeutralStatus
+        guard forge == .bitbucket, !isOpen, !isMerged, !isClosed else { return decided }
+        var held = decided
+        held.canMerge = false
+        held.blockedReason = Self.unknownStateHeld
+        return held
+    }
+
+    private var hostNeutralStatus: PullRequestStatus {
         if isMerged {
             return PullRequestStatus(
                 tone: .merged,
@@ -149,7 +164,7 @@ public extension PullRequest {
             detail: checksDetail,
             canMerge: !isMergeabilityUnknown,
             blockedReason: isMergeabilityUnknown
-                ? "GitHub is still checking this branch against the base branch."
+                ? "\(hostName) is still checking this branch against the base branch."
                 : nil
         )
     }
@@ -162,16 +177,22 @@ public extension PullRequest {
         "Your agent will merge this pull request in the chat, where you can follow its progress."
     }
 
-    func mergeBranchDeletionMessage(deletesBranch: Bool) -> String? {
-        guard deletesBranch, !branch.isEmpty else { return nil }
-        return "After merging, \(branch) will be deleted on GitHub. Your local branch stays."
+    func mergeBranchDeletionMessage(authority: InstructionAuthority) -> String? {
+        guard !branch.isEmpty else { return nil }
+        switch authority {
+        case .project:
+            return "After merging, \(branch) will be deleted on \(hostName). Your local branch stays."
+        case .appOnly:
+            return "After merging, the agent leaves \(branch) on \(hostName), unless the repository deletes merged branches"
+                + " itself. Your local branch stays."
+        }
     }
 
     func mergeWarnings(base: String, local: LocalWork? = nil) -> [String] {
         var warnings: [String] = []
         if let local, local.isAhead {
             warnings.append(
-                "GitHub does not have everything in this worktree: "
+                "\(hostName) does not have everything in this worktree: "
                     + Self.localDetail(local)
                     + ". None of that is part of what is merged, and the agent is told to leave it"
                     + " alone rather than commit it first."
@@ -187,12 +208,12 @@ public extension PullRequest {
 
     func mergeConfirmation(
         base: String,
-        deletesBranch: Bool,
+        authority: InstructionAuthority,
         local: LocalWork? = nil
     ) -> String {
         (mergeWarnings(base: base, local: local)
             + [mergeConfirmationMessage]
-            + [mergeBranchDeletionMessage(deletesBranch: deletesBranch)].compactMap { $0 })
+            + [mergeBranchDeletionMessage(authority: authority)].compactMap { $0 })
             .joined(separator: "\n\n")
     }
 
@@ -212,7 +233,7 @@ public extension PullRequest {
     }
 
     private var checksDetail: String? {
-        if checks == .unavailable { return "GitHub did not let this token read check runs" }
+        if checks == .unavailable { return "\(hostName) did not let this token read check runs" }
         guard checks != .none, !checksSummary.isEmpty else { return nil }
         return checksSummary
     }

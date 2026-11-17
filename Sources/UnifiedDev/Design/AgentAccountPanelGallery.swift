@@ -54,16 +54,23 @@ extension AgentAccountProbe {
         codex: CodexAuthStorageMode = .file,
         activity: AgentAccountsModel.Activity = .idle,
         orphans: [AgentAccountHome] = [],
+        refusing refused: AgentAccountID? = nil,
         height: CGFloat
     ) -> Scene {
         let panel = AgentAccountPanel.make(provider: provider, standings: standings, orphans: orphans, codexStorageMode: codex)
+        let notice = panel.rows.first { $0.id == refused }.map {
+            AgentAccountRemovalNotice.after(
+                AgentAccountError.folderInUse($0.home.directory.path), removing: $0
+            )
+        }
         return Scene(
             name: "pane-\(name)",
             size: CGSize(width: width, height: height),
             view: AnyView(
                 Form {
                     AgentAccountsSection(
-                        panel: panel, activity: activity, canSignIn: true, onAdd: {}, onRemove: { _ in }, onSignInAgain: { _ in }
+                        panel: panel, activity: activity, removalNotice: notice, canSignIn: true,
+                        onAdd: {}, onRemove: { _ in }, onSignInAgain: { _ in }
                     )
                 }
                 .settingsForm()
@@ -97,6 +104,8 @@ extension AgentAccountProbe {
             pane("zero", .claudeCode, defaultOnly, height: 420),
             pane("one", .claudeCode, one, height: 700),
             pane("three", .claudeCode, three, height: 1_160),
+            pane("refused", .claudeCode, three, refusing: AgentAccountID("old"), height: 1_260),
+            pane("refused-unfinished", .claudeCode, [claudeDefault], orphans: [home("client", .claudeCode)], refusing: AgentAccountID("client"), height: 900),
             pane("checking", .claudeCode, defaultOnly, activity: .checkingSessions, height: 420),
             pane("unfinished", .claudeCode, [claudeDefault, labelled], orphans: [home("client", .claudeCode)], height: 1_000),
             pane("folder-missing", .claudeCode, defaultOnly + [gone], height: 800),

@@ -35,8 +35,9 @@ public struct SetupProbe: Sendable {
     public func check(_ tool: SetupTool) async -> SetupCheck {
         switch tool {
         case .git: await SetupCheck(tool: tool, outcome: gitOutcome())
-        case .claudeCode, .codex, .grok: await SetupCheck(tool: tool, outcome: agentOutcome(tool))
+        case .claudeCode, .codex, .grok, .antigravity: await SetupCheck(tool: tool, outcome: agentOutcome(tool))
         case .gitHub: await SetupCheck(tool: tool, outcome: gitHubOutcome())
+        case .bitbucket: await SetupCheck(tool: tool, outcome: bitbucketOutcome())
         }
     }
 
@@ -82,5 +83,17 @@ public struct SetupProbe: Sendable {
         case .signedOut: return .needsSignIn(detail: nil)
         case .ready: return .ready(detail: "Signed in")
         }
+    }
+
+    private func bitbucketOutcome() async -> SetupOutcome {
+        await LoginShellPath.ready()
+        guard let path = Shell.which(Bitbucket.executable) else { return .missing }
+        return Self.bitbucketOutcome(status: try? await Shell.run(path, ["auth", "status", "--json"], timeout: .seconds(5)))
+    }
+
+    static func bitbucketOutcome(status: ShellResult?) -> SetupOutcome {
+        guard let status, status.ok, let decoded = BitbucketAuthStatus.decode(status.stdout),
+              decoded.isSignedInToCloud else { return .needsSignIn(detail: nil) }
+        return .ready(detail: "Signed in")
     }
 }

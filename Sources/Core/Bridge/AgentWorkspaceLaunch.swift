@@ -77,7 +77,7 @@ public struct AgentWorkspaceLaunch: Sendable {
     static func overAllowance(
         _ origin: WorkspaceOrigin, store: Store, now: Date
     ) async throws -> LaunchRefusal? {
-        let allowance = WorkspaceStartAllowance.of(origin)
+        let allowance = WorkspaceStartAllowance.of(origin, parent: try await parentRow(of: origin, store: store))
 
         switch allowance {
         case .unlimited:
@@ -95,5 +95,10 @@ public struct AgentWorkspaceLaunch: Sendable {
             let freed = (recent.map(\.createdAt).min() ?? now).addingTimeInterval(window)
             return allowance.refusal(count: recent.count).map { .overAllowance($0, retry: .after(freed)) }
         }
+    }
+
+    private static func parentRow(of origin: WorkspaceOrigin, store: Store) async throws -> Workspace? {
+        guard let parent = origin.parentWorkspaceID else { return nil }
+        return try await store.workspace(id: parent)
     }
 }

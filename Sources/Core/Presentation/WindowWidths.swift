@@ -25,6 +25,17 @@ public struct WindowWidths: Equatable, Sendable {
         self.divider = divider
     }
 
+    public func holding(sidebarContent widths: [CGFloat]) -> WindowWidths {
+        let widest = (widths.max() ?? 0).rounded(.up)
+        return WindowWidths(
+            sidebar: sidebar,
+            sidebarMinimum: min(max(sidebarMinimum, widest), sidebar),
+            detail: detail,
+            inspector: inspector,
+            divider: divider
+        )
+    }
+
     public func minimum(withInspector: Bool) -> CGFloat {
         sidebar + divider + detailHalf(withInspector: withInspector)
     }

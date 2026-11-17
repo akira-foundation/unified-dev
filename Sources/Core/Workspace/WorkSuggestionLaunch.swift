@@ -24,15 +24,18 @@ public struct WorkSuggestionLaunch: Sendable {
     private let workspaces: AgentWorkspaceLaunch
     private let startCrew: CrewStarting
     private let admit: ProjectAdmitting
+    private let orchestrate: OrchestratorRequestLaunch?
 
     public init(
         start: @escaping WorkspaceStarting,
         crew: @escaping CrewStarting,
-        admit: @escaping ProjectAdmitting
+        admit: @escaping ProjectAdmitting,
+        orchestrate: OrchestratorRequestLaunch? = nil
     ) {
         workspaces = AgentWorkspaceLaunch(start: start)
         startCrew = crew
         self.admit = admit
+        self.orchestrate = orchestrate
     }
 
     public func launch(
@@ -50,9 +53,12 @@ public struct WorkSuggestionLaunch: Sendable {
         }
 
         let result: Result<WorkSuggestion.State, WorkSuggestionRefusal>
-        switch choice {
-        case .newWorkspace: result = await newWorkspace(for: suggestion, store: store, now: now)
-        case .here: result = await here(for: suggestion, store: store)
+        switch (suggestion.target, choice) {
+        case (.orchestrator(let repoID), _):
+            result = await orchestrate?.launch(suggestion, for: repoID, store: store)
+                ?? .failure(WorkSuggestionRefusal(WorkSuggestionWording.gone))
+        case (_, .newWorkspace): result = await newWorkspace(for: suggestion, store: store, now: now)
+        case (_, .here): result = await here(for: suggestion, store: store)
         }
 
         switch result {
@@ -195,6 +201,9 @@ public struct WorkSuggestionLaunch: Sendable {
 
         case .remote(let slug):
             return .failure(WorkSuggestionRefusal(WorkSuggestionWording.cloneFirst(slug)))
+
+        case .orchestrator:
+            return .failure(WorkSuggestionRefusal(WorkSuggestionWording.gone))
         }
     }
 

@@ -4,6 +4,8 @@ import Core
 struct InspectorView: View {
     let model: WorkspaceModel
 
+    @Environment(AppModel.self) private var app
+
     @Bindable private var signIn = GitHubSignIn.shared
 
     @State private var fileQuery = ""
@@ -44,11 +46,24 @@ struct InspectorView: View {
                 signIn.finish(connected: connected)
             }
         }
+        .alert(
+            signIn.bitbucketRefusal.map { ProfileBitbucketWording.cannotReachTitle($0.access) } ?? "",
+            isPresented: $signIn.bitbucketRefusal.isPresent(),
+            presenting: signIn.bitbucketRefusal
+        ) { _ in
+        } message: { refusal in
+            Text(ProfileBitbucketWording.cannotReachMessage(refusal.access))
+        }
         .onGeometryChange(for: CGFloat.self) { $0.size.width.rounded() } action: { width in
             guard width >= Metrics.inspectorMinimum else { return }
             InspectorGeometry.shared.setInspectorWidth(width)
         }
         .onDisappear { InspectorGeometry.shared.setInspectorWidth(0) }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NotificationBellButton(inbox: app.notificationInbox, profiles: app.profiles)
+            }
+        }
         .searchable(text: $fileQuery, placement: .automatic, prompt: "Filter files")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -77,6 +92,10 @@ struct InspectorView: View {
                     InspectorToolbar.MergeButton(model: model)
                 }
             }
+
+            ToolbarItem(placement: .primaryAction) {
+                InspectorToggle(visibility: app.inspectorVisibility) { app.toggleInspector() }
+            }
         }
         .environment(\.openInRepoID, model.repo?.id)
     }
@@ -88,6 +107,10 @@ struct InspectorView: View {
             FileTreeView(model: model, query: $fileQuery)
         case .changes:
             ChangedFileList(model: model, query: $fileQuery)
+        case .side:
+            if let parent = model.inspectorSideParent, let state = model.inspectorSideConversation {
+                SideConversationView(parent: parent, state: state, model: model)
+            }
         case .tasks:
             BackgroundTasksView(model: model)
         case .checks:
@@ -102,62 +125,75 @@ private struct RefreshFailureRow: View {
     var onDismiss: @MainActor () -> Void
 
     @State private var isExpanded = false
-
     var body: some View {
-        DisclosureGroup(isExpanded: $isExpanded) {
-            VStack(alignment: .leading, spacing: InspectorLayout.gap) {
-                Text(failure.summary)
-                    .font(Typo.caption)
-                    .foregroundStyle(Palette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-
-                if let transcript = failure.transcript {
-                    ScrollView(.horizontal) {
-                        Text(transcript)
-                            .font(Typo.codeSmall)
-                            .foregroundStyle(Palette.textSecondary)
-                            .textSelection(.enabled)
-                    }
-                    .frame(maxHeight: 140)
-                    .padding(InspectorLayout.tight)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Palette.surfaceRaised, in: .rect(cornerRadius: Metrics.cornerSmall))
-                }
-
-                if let retryAt = failure.retryAt {
-                    Text("Next refresh after \(retryAt.formatted(date: .omitted, time: .shortened))")
-                        .font(Typo.micro)
-                        .foregroundStyle(Palette.textTertiary)
-                }
-            }
-            .padding(.top, InspectorLayout.tight)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            HStack(alignment: .firstTextBaseline, spacing: InspectorLayout.gap) {
-                Button {
-                    isExpanded.toggle()
-                } label: {
-                    Label(
-                        hasPullRequest ? "Showing the last GitHub update" : "GitHub could not refresh",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                    .font(Typo.caption)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-
-                Button("Dismiss", systemImage: "xmark", action: onDismiss)
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.borderless)
-                    .controlSize(.small)
-                    .foregroundStyle(Palette.textTertiary)
-                    .help("Dismiss")
+        VStack(alignment: .leading, spacing: InspectorLayout.tight) {
+            header
+            if isExpanded {
+                details
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, InspectorLayout.inset)
         .padding(.vertical, Metrics.spacing)
         .accessibilityElement(children: .contain)
+    }
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: InspectorLayout.gap) {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: InspectorLayout.tight) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .foregroundStyle(Palette.textTertiary)
+                        .accessibilityHidden(true)
+                    Label(failure.headline(hasPullRequest: hasPullRequest), systemImage: "exclamationmark.triangle")
+                    .lineLimit(1)
+                }
+                .font(Typo.caption)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+
+            Button("Dismiss", systemImage: "xmark", action: onDismiss)
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .foregroundStyle(Palette.textTertiary)
+                .help("Dismiss")
+        }
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: InspectorLayout.gap) {
+            Text(failure.summary)
+                .font(Typo.caption)
+                .foregroundStyle(Palette.textSecondary)
+                .lineLimit(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+
+            if let transcript = failure.transcript {
+                ScrollView(.horizontal) {
+                    Text(transcript)
+                        .font(Typo.codeSmall)
+                        .foregroundStyle(Palette.textSecondary)
+                        .textSelection(.enabled)
+                }
+                .frame(maxHeight: 140)
+                .padding(InspectorLayout.tight)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Palette.surfaceRaised, in: .rect(cornerRadius: Metrics.cornerSmall))
+            }
+
+            if let retryAt = failure.retryAt {
+                Text("Next refresh after \(retryAt.formatted(date: .omitted, time: .shortened))")
+                    .font(Typo.micro)
+                    .foregroundStyle(Palette.textTertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

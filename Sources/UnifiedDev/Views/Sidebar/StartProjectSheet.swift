@@ -23,7 +23,10 @@ struct StartProjectSheet: View {
         .frame(width: Self.width)
         .presentationBackground(Palette.surface)
         .overlay(alignment: .topLeading) { closeButton }
-        .task { await model.load(projectPaths: app.repos.map(\.path), store: app.store) }
+        .task {
+            model.gitHubLogin = app.activeGitHubLogin
+            await model.load(projectPaths: app.repos.map(\.path), store: app.store)
+        }
         .task(id: Draft(typed: model.typed, location: model.defaultLocation)) {
             try? await Task.sleep(for: StartProjectModel.inspectionDelay)
             guard !Task.isCancelled else { return }
@@ -102,16 +105,7 @@ struct StartProjectSheet: View {
                 .task { await model.watchForSlowness(RepositoryCloner.patience) }
 
         case .failed(let fault):
-            inset {
-                Text(fault.title)
-                    .font(Typo.bodyEmphasis)
-                    .foregroundStyle(Palette.textPrimary)
-                Callout(
-                    text: fault.message,
-                    symbol: "exclamationmark.triangle.fill",
-                    tone: .negative
-                )
-            }
+            inset { StartProjectFailure(fault: fault) }
         }
     }
 

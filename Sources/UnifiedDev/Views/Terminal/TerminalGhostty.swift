@@ -54,4 +54,12 @@ extension SwiftTerm.Color {
             blue8: UInt16(color.blue)
         )
     }
+
+    convenience init(rgb: UInt32) {
+        self.init(
+            red8: UInt16((rgb >> 16) & 0xFF),
+            green8: UInt16((rgb >> 8) & 0xFF),
+            blue8: UInt16(rgb & 0xFF)
+        )
+    }
 }

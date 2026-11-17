@@ -1,9 +1,8 @@
 import Foundation
-import Synchronization
 
 public struct ClaudeAliasProbe: Sendable {
     public static let timeout: Duration = .seconds(20)
-    static let exitGrace: Duration = .seconds(2)
+    static let exitGrace = ClaudeAccountActivity.exitGrace
 
     private let executable: String
     private let workRoot: String
@@ -148,21 +147,8 @@ public struct ClaudeAliasProbe: Sendable {
         let lines = process.lines
         process.closeStdin()
         let model = await Self.first(within: timeout) { await Self.firstInitModel(in: lines) }
-        process.terminate()
-        if await !Self.exits(process, within: exitGrace) {
-            process.kill()
-            _ = await Self.exits(process, within: exitGrace)
-        }
+        await process.end(within: exitGrace)
         return model
-    }
-
-    static func exits(_ process: any AgentProcessing, within deadline: Duration) async -> Bool {
-        let race = ExitRace()
-        return await withCheckedContinuation { continuation in
-            race.arm(continuation)
-            Task { _ = await process.exitStatus; race.settle(true) }
-            Task { try? await Task.sleep(for: deadline); race.settle(false) }
-        }
     }
 
     private static func first<Answer: Sendable>(
@@ -190,21 +176,5 @@ public struct ClaudeAliasProbe: Sendable {
             return nil
         }
         return nil
-    }
-}
-
-private final class ExitRace: Sendable {
-    private let waiting = Mutex<CheckedContinuation<Bool, Never>?>(nil)
-
-    func arm(_ continuation: CheckedContinuation<Bool, Never>) {
-        waiting.withLock { $0 = continuation }
-    }
-
-    func settle(_ exited: Bool) {
-        let continuation = waiting.withLock { held -> CheckedContinuation<Bool, Never>? in
-            defer { held = nil }
-            return held
-        }
-        continuation?.resume(returning: exited)
     }
 }

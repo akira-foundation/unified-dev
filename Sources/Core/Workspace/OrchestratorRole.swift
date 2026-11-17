@@ -53,6 +53,16 @@ public enum OrchestratorRole {
         requested || callerIsOrchestrator
     }
 
+    public static let newWorkspaceName = "Orchestrator"
+
+    public static func leads(_ workspace: Workspace) -> Bool {
+        workspace.isOrchestrator && workspace.state == .active
+    }
+
+    public static func orchestrator(of repoID: RepoID, among workspaces: [Workspace]) -> Workspace? {
+        workspaces.first { $0.repoID == repoID && leads($0) }
+    }
+
     public static func announcedOrchestrator(for started: Workspace, among workspaces: [Workspace]) -> Workspace? {
         guard !started.isOrchestrator,
               let orchestrator = workspaces.first(where: {

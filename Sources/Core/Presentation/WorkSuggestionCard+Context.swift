@@ -14,6 +14,7 @@ extension WorkSuggestionCard.Context {
         case .project: project?.name ?? "a project no longer in Unified Dev"
         case .folder(let path): URL(fileURLWithPath: path).lastPathComponent
         case .remote(let slug): slug
+        case .orchestrator: project?.name ?? "a project no longer in Unified Dev"
         }
         return Self(
             projectName: name,
@@ -29,7 +30,7 @@ extension WorkSuggestionCard {
     public static func project(of suggestion: WorkSuggestion, workspaces: [Workspace], repos: [Repo]) -> Repo? {
         let repoID: RepoID? = switch suggestion.target {
         case .sameProject: suggestion.workspaceID.flatMap { id in workspaces.first { $0.id == id }?.repoID }
-        case .project(let id): id
+        case .project(let id), .orchestrator(let id): id
         case .folder, .remote: nil
         }
         guard let repoID else { return nil }

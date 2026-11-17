@@ -85,7 +85,7 @@ struct SearchPanelView: View {
 
     private var placeholder: String {
         switch panel.field.mode {
-        case .things: "Search workspaces, transcripts and commands"
+        case .things: "Search workspaces, profiles, transcripts and commands"
         case .commands: "Run a command"
         case .actions: "Act on this workspace"
         }
@@ -175,6 +175,14 @@ struct SearchPanelView: View {
             SearchPanelCommandRow(
                 hit: hit,
                 isEnabled: isRunnable(hit),
+                isSelected: isSelected,
+                onPick: { open(row) },
+                onHover: { panel.highlighted = index }
+            )
+
+        case .profile(let hit):
+            SearchPanelProfileRow(
+                hit: hit,
                 isSelected: isSelected,
                 onPick: { open(row) },
                 onHover: { panel.highlighted = index }

@@ -309,9 +309,9 @@ id_type_allowed_files=(
   'Sources/Core/Agent/Codex/CodexEvent.swift'   # the Codex app-server protocol
   'Sources/Core/Agent/Codex/CodexTurnHandle.swift' # turn ids assigned by that server
   'Sources/Core/Agent/Codex/CodexClient.swift'  # the same protocol's request envelopes
-  'Sources/Core/Agent/Grok/GrokEvent.swift'     # Grok's ACP session and tool-call ids
-  'Sources/Core/Agent/Grok/GrokClient.swift'    # the same protocol's request envelopes
-  'Sources/Core/Agent/Grok/GrokRunner.swift'    # Grok session ids assigned by that server
+  'Sources/Core/Agent/ACP/ACPEvent.swift'       # ACP session and tool-call ids, Grok's and Antigravity's
+  'Sources/Core/Agent/ACP/ACPClient.swift'      # the same protocol's request envelopes
+  'Sources/Core/Agent/ACP/ACPRunner.swift'      # ACP session ids assigned by that server
   'Sources/Core/Agent/AgentRetry.swift'   # the same stream-json, one line of it
 )
 # Names that are never a Unified Dev row, wherever they appear. This list should only
@@ -340,7 +340,7 @@ id_type_allowed_lines=(
   'Sources/Core/Presentation/ChatFontCatalogue.swift'          # a font family, which macOS names
   'Sources/Core/Persistence/Settings.swift'                  # a run script named in settings
   'Sources/Core/Agent/Codex/CodexModelCatalog.swift'         # a model name the CLI offers
-  'Sources/Core/Agent/Grok/GrokModelCatalog.swift'           # a model name the CLI offers
+  'Sources/Core/Agent/ACP/ACPModel.swift'                    # a model name the CLI offers
   'Sources/Core/Agent/AgentModel.swift'                      # model and effort names the CLIs offer
   'Sources/Core/Presentation/ComposerEffort.swift'           # the same effort names, and the empty one that means none
   'Sources/Core/System/EditorCatalog.swift'             # an application, by bundle id
@@ -357,6 +357,7 @@ id_type_allowed_lines=(
 id_type_allowed_properties=(
   'Sources/Core/Agent/Delivery.swift:providerTurnID'             # the provider's accepted turn, used for recovery
   'Sources/Core/Transcript/TurnCheckpoint.swift:providerTurnID' # the same provider turn correlated with a snapshot
+  'Sources/Core/Forge/BitbucketPullRequestPayload.swift:accountID' # an Atlassian account id, read from Bitbucket's API
   'Sources/Core/Transcript/TurnCheckpoint.swift:providerThreadID' # the provider's thread that held the turn being rewound
   'Sources/Core/Agent/PlanArtefact.swift:sourceID'               # the provider's plan item or tool-use token
   'Sources/Core/Presentation/AgentQuestionDigest.swift:answerID'  # the same opaque question answer id, carried for the closed line
@@ -398,14 +399,21 @@ echo "==> Views do not run subprocesses"
 # Git.title, Git.countLines, Shell.which, Shell.environment) are synchronous and
 # fall out for free without having to be listed.
 #
+# A terminal starts its process synchronously, so `TerminalLaunch(` and
+# `startProcess(` are named too: a login terminal opened from a view is a process
+# started from a view, whatever the line says.
+#
 # A view that needs one of these gets a helper type beside it, which is what
-# FileRevert, FileIndex and TerminalPersistence are. Those live under Views/ and
+# FileRevert, FileIndex and TerminalPersistence are, with TerminalView and
+# LoginTerminal where a terminal's process starts. Those live under Views/ and
 # are the allowed list; they are not views, they are what a view calls instead of
 # reaching for a process itself.
 subprocess_allowed_files=(
   'Sources/UnifiedDev/Views/Inspector/FileRevert.swift'        # a helper type, not a view
   'Sources/UnifiedDev/Views/Center/Panes/FileIndex.swift'      # a helper type, not a view
   'Sources/UnifiedDev/Views/Terminal/TerminalPersistence.swift' # a helper type, not a view
+  'Sources/UnifiedDev/Views/Terminal/TerminalView.swift'       # the terminal that runs the process
+  'Sources/UnifiedDev/Views/Terminal/LoginTerminal.swift'      # the login session a view hands a parsed command
 )
 while IFS= read -r hit; do
   [ -n "$hit" ] || continue
@@ -419,7 +427,7 @@ while IFS= read -r hit; do
     report "$file runs a subprocess from the view layer. Put it on a store, a model or a helper type beside the view (FileRevert and FileIndex are the shape), or add it to the list in $0. A decision taken inside a View is a decision nothing can test, and a body that shells out is a body that runs it again on every redraw."
   fi
 done <<EOF
-$(git grep --untracked -n -I -E 'await (Git|Shell)\.' -- 'Sources/UnifiedDev/Views/*' || true)
+$(git grep --untracked -n -I -E 'await (Git|Shell)\.|TerminalLaunch\(|startProcess\(' -- 'Sources/UnifiedDev/Views/*' || true)
 EOF
 
 echo "==> a worktree is removed through the guard that protects an orchestrator"
@@ -663,9 +671,9 @@ echo "==> the store feed a reload watches is the set the core declares"
 # passes it.
 observer=Sources/UnifiedDev/State/AppModel.swift
 if [ -f "$observer" ] &&
-   ! grep -q 'store.changes(of: StoreDomain.projectsWorkspacesAndTheirAccounts)' "$observer"; then
+   ! grep -q 'store.changes(of: StoreDomain.projectListFeed)' "$observer"; then
   grep -n 'store.changes(of:' "$observer" | show || true
-  report "$observer must watch StoreDomain.projectsWorkspacesAndTheirAccounts, not a set written here. A domain dropped from a literal is a picker that keeps naming the account the agent stopped using, and nothing in Tests/ can see it."
+  report "$observer must watch StoreDomain.projectListFeed, not a set written here. A domain dropped from a literal is a picker that keeps naming the account the agent stopped using, and nothing in Tests/ can see it."
 fi
 
 echo "==> only the project's settings pane turns the orchestrator's switch"
@@ -675,6 +683,13 @@ echo "==> only the project's settings pane turns the orchestrator's switch"
 if hits="$(git grep --untracked -n -I -e 'OrchestratorUnaskedCommands\.save' -e 'OrchestratorUnaskedCommands\.key' -e 'orchestratorRunsCommandsUnasked' -- 'Sources' ':!Sources/Core/Agent/OrchestratorUnaskedCommands.swift' ':!Sources/UnifiedDev/Views/RepoSettings/RepoOrchestratorSection.swift' || true)" && [ -n "$hits" ]; then
   echo "$hits" | show
   report "OrchestratorUnaskedCommands is saved from RepoOrchestratorSection and nowhere else."
+fi
+echo "==> only the project's settings pane turns the pull request auto fix switch"
+# Sending a request built from CI output with nobody looking is what this switch
+# allows, so an agent must not be able to reach it either.
+if hits="$(git grep --untracked -n -I -e 'PullRequestAutoFixSetting\.save' -e 'PullRequestAutoFixSetting\.key' -e 'pullRequestAutoFix"' -- 'Sources' ':!Sources/Core/GitHub/PullRequestAutoFixSetting.swift' ':!Sources/UnifiedDev/Views/RepoSettings/RepoPullRequestAutoFixSection.swift' || true)" && [ -n "$hits" ]; then
+  echo "$hits" | show
+  report "PullRequestAutoFixSetting is saved from RepoPullRequestAutoFixSection and nowhere else."
 fi
 bridge_files="$(git grep --untracked -l -I -e 'ForBridge(' -e ': BridgeToolHandling' -e 'BridgeToolbox(' -- 'Sources' || true)"
 if hits="$( { git grep --untracked -n -I 'setSetting(' -- 'Sources/Core/Bridge' 'Sources/UnifiedDev/State/AppModel*.swift'; [ -z "$bridge_files" ] || echo "$bridge_files" | xargs grep -n -H 'setSetting(' ; } || true)" && [ -n "$hits" ]; then
@@ -694,6 +709,20 @@ if [ -f "$app_toolbox" ]; then
       report "$tool is served by the app and not built in $reach_handlers, so the reach suite never calls its handler."
     fi
   done < <(grep -oE '\b[A-Z][A-Za-z]*Tool\b' "$app_toolbox" | sort -u)
+fi
+
+echo "==> only the profile's settings section turns a profile's bridge switch"
+if hits="$(git grep --untracked -n -I -e 'ProfileBridgeSwitch\.save' -e 'ProfileBridgeSwitch\.key' -e 'reachableFromOtherProfiles' -- 'Sources' ':!Sources/Core/Workspace/ProfileBridgeSwitch.swift' ':!Sources/UnifiedDev/Views/Chrome/Settings/ProfileBridgeSection.swift' ':!Sources/Core/Preview/PreviewScenarioSeeder+Profiles.swift' || true)" && [ -n "$hits" ]; then
+  echo "$hits" | show
+  report "ProfileBridgeSwitch is saved from ProfileBridgeSection and, in a seeded preview, by the scenario seeder, and nowhere else."
+fi
+
+echo "==> no async closure literal is a default argument in the core"
+async_default='\)[[:space:]]*async([[:space:]]+throws)?([[:space:]]*->[^={]+)?[[:space:]]*=[[:space:]]*\{'
+stored='^[^:]+:[0-9]+:[[:space:]]*((public|private|fileprivate|internal|nonisolated|static|lazy)[[:space:]]+)*(let|var)[[:space:]]'
+if hits="$(git grep --untracked -n -I -E "$async_default" -- 'Sources/Core/*.swift' 'Sources/bridge/*.swift' | grep -vE "$stored" || true)" && [ -n "$hits" ]; then
+  echo "$hits" | show
+  report "An async closure literal as a default argument is copied into every client and can abort the test process (swiftlang/swift#92017). Name it as a static let and default to that."
 fi
 
 echo "==> an extension of a debug-only type is debug-only too"

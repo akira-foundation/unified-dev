@@ -11,6 +11,10 @@ extension MenuBarPanelContent {
         "\(provider.label) last reported its limits \(age(since: date, from: now)) ago."
     }
 
+    public static func readingLine(for provider: AgentKind) -> String {
+        "Reading \(provider.label) limits\u{2026}"
+    }
+
     public static func noLimitsLine(for provider: AgentKind) -> String {
         "\(provider.label) reports that plan limits do not apply to it."
     }

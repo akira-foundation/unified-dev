@@ -11,6 +11,7 @@ enum UsageScale {
 enum MenuInk {
     static var primary: Color { Color(nsColor: .labelColor) }
     static var secondary: Color { Color(nsColor: .secondaryLabelColor) }
+    static var tertiary: Color { Color(nsColor: .tertiaryLabelColor) }
     static var track: Color { Color(nsColor: .tertiaryLabelColor) }
 
     static var normal: Color { Color(nsColor: .systemBlue) }

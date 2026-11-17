@@ -44,7 +44,7 @@ struct AgentModelSourceTests {
     @Test("agents are asked in the order the runnable list gives them")
     func keepRunnableOrder() {
         let awaiting = AgentModelSource.kindsAwaitingModels(
-            sources: [.grok: source, .codex: source, .claudeCode: source],
+            sources: [.antigravity: source, .grok: source, .codex: source, .claudeCode: source],
             loaded: [:]
         )
         #expect(awaiting == AgentKind.runnable)

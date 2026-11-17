@@ -61,4 +61,11 @@ struct GitHubSelectorTests {
         #expect(GitHub.repositoryArguments(["pr", "checkout", "123"], context: context)
             == ["pr", "checkout", "123", "--repo", "github.com/person/project"])
     }
+
+    @Test("issue list names the repository and other issue commands are left alone")
+    func issueList() {
+        #expect(GitHub.repositoryArguments(["issue", "list", "--assignee", "@me"], context: context)
+            == ["issue", "list", "--assignee", "@me", "--repo", "github.com/person/project"])
+        #expect(GitHub.repositoryArguments(["issue", "view", "34"], context: context) == ["issue", "view", "34"])
+    }
 }

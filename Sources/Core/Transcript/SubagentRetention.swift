@@ -13,7 +13,7 @@ public enum SubagentRetention: Sendable {
             guard keeps(subagent, now: now, opened: opened, failuresKept: &failuresKept) else {
                 return nil
             }
-            return SubagentRow(subagent, now: now)
+            return SubagentRow(subagent)
         }
     }
 
@@ -26,18 +26,12 @@ public enum SubagentRetention: Sendable {
     ) -> Date? {
         var failuresKept = 0
         var earliest: Date?
-        var isAnyoneWorking = false
         for subagent in roster.subagents {
             guard keeps(subagent, now: now, opened: opened, failuresKept: &failuresKept) else {
                 continue
             }
-            if subagent.state == .running { isAnyoneWorking = true }
             guard let expiry = expiry(of: subagent, opened: opened) else { continue }
             earliest = min(earliest ?? expiry, expiry)
-        }
-        if isAnyoneWorking {
-            let tick = now.addingTimeInterval(1)
-            earliest = min(earliest ?? tick, tick)
         }
         return earliest
     }

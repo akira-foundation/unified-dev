@@ -3,10 +3,12 @@ import Foundation
 public struct NotificationContext: Sendable, Hashable {
     public var isAppActive: Bool
     public var selectedWorkspaceID: WorkspaceID?
+    public var selectedSessionID: SessionID?
 
-    public init(isAppActive: Bool, selectedWorkspaceID: WorkspaceID?) {
+    public init(isAppActive: Bool, selectedWorkspaceID: WorkspaceID?, selectedSessionID: SessionID? = nil) {
         self.isAppActive = isAppActive
         self.selectedWorkspaceID = selectedWorkspaceID
+        self.selectedSessionID = selectedSessionID
     }
 }
 

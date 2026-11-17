@@ -3,7 +3,12 @@ import Foundation
 public struct WorkspaceListTool: BridgeToolHandling {
     public init() {}
 
-    public let roles: Set<BridgeRole> = [.owner]
+    public let roles: Set<BridgeRole> = [.workspace, .owner]
+
+    public func isServed(to identity: BridgeIdentity, store: Store) async -> Bool {
+        guard identity.role == .workspace else { return true }
+        return (try? await BridgeProfileReach.mayLeaveOwnProfile(identity, for: .talk, store: store)) ?? false
+    }
 
     public let tool = BridgeTool(
         name: "workspace_list",
@@ -13,7 +18,10 @@ public struct WorkspaceListTool: BridgeToolHandling {
             started, since workspace_start answers before any work happens and nothing waits \
             for it.
 
-            Only the workspaces in the caller's profile are listed.
+            Only the workspaces in the caller's profile are listed, unless profile names another \
+            this connection can reach. A workspace that is not its project's orchestrator is shown \
+            the orchestrators alone, by id, name and project, since another profile is reached \
+            through them.
 
             Each one carries its id, name, branch, base branch and worktree path, its project, \
             whether it is active or archived, how far its setup script got, whether an agent is \
@@ -24,7 +32,8 @@ public struct WorkspaceListTool: BridgeToolHandling {
 
             The worktree path is the most useful thing here. It is an ordinary git checkout, so \
             read the diff, the log and the files in it with your own tools rather than asking \
-            Unified Dev for them.
+            Unified Dev for them. For a workspace in another profile, use chat_read and \
+            workspace_diff instead, whose answers are marked as coming from outside.
 
             agent_running is about right now, and a workspace with nothing running is still a \
             workspace: most of them sit idle most of the time, waiting to be read and merged. \
@@ -33,12 +42,12 @@ public struct WorkspaceListTool: BridgeToolHandling {
             agent_running. If the two ever look as though they disagree, one of them is being \
             read as the other's number.
 
-            By default it reads Unified Dev's database and nothing else, and at that price GitHub is \
-            not consulted at all: there is no pull request, no checks, and the status can never \
+            By default it reads Unified Dev's database and nothing else, and at that price neither \
+            GitHub nor Bitbucket is consulted at all: there is no pull request, no checks, and the status can never \
             say merged, closed, draft or anything about checks. A default call has not looked, so \
             do not report that a workspace has no pull request on the strength of one. Pass \
-            include_github to ask, which costs one gh call and one git call per workspace and is \
-            slow on a long list.
+            include_github to ask, which costs one git call per workspace and one gh call, or \
+            several bkt calls for a repository on Bitbucket, and is slow on a long list.
 
             The diff counts and the states come from Unified Dev's database, which a running Unified Dev \
             refreshes every few seconds. With Unified Dev closed they are as old as the last time it \
@@ -47,6 +56,7 @@ public struct WorkspaceListTool: BridgeToolHandling {
         inputSchema: .object([
             "type": .string("object"),
             "properties": .object([
+                BridgeProfileReach.argument: BridgeProfileReach.listSchemaProperty,
                 "project": .object([
                     "type": .string("string"),
                     "description": .string(
@@ -64,8 +74,9 @@ public struct WorkspaceListTool: BridgeToolHandling {
                 "include_github": .object([
                     "type": .string("boolean"),
                     "description": .string(
-                        "Include pull request and check state. Costs one gh call and one git "
-                            + "call per workspace, so it is slow on a long list. Off by default."
+                        "Include pull request and check state. Costs one git call per workspace and "
+                            + "one gh call, or several bkt calls on Bitbucket, so it is slow on a long "
+                            + "list. Off by default."
                     ),
                 ]),
             ]),
@@ -82,7 +93,22 @@ public struct WorkspaceListTool: BridgeToolHandling {
         let includeGitHub = request.param("include_github")?.boolValue ?? false
 
         do {
-            let projects = try await BridgeProfileScope.repos(for: identity, store: store)
+            let choice: BridgeProfileChoice
+            switch try await BridgeProfileReach.choice(request, allowsEvery: true, for: .talk, as: identity, store: store) {
+            case .failure(let trouble): return .failure(trouble.sentence)
+            case .success(let resolved): choice = resolved
+            }
+            let reached = choice.profiles
+            if includeGitHub, case .every = choice {
+                return .failure(
+                    "include_github cannot be used with profile 'all', because it starts gh or bkt and "
+                        + "git processes for every workspace. Name one profile to ask the host about it."
+                )
+            }
+            let every = try await store.repos()
+            let projects = reached.isEmpty
+                ? try await BridgeProfileScope.repos(for: identity, store: store)
+                : reached.flatMap { ProfileScope.repos(every, in: $0.id) }
             var project: Repo?
 
             if let named = named(request) {
@@ -90,7 +116,7 @@ public struct WorkspaceListTool: BridgeToolHandling {
                 if let refusal = BridgeProjectLookup.refusal(
                     for: named, outcome: outcome, projects: projects
                 ) {
-                    return .failure(refusal)
+                    return .failure(reached.isEmpty ? refusal : Self.noProjectThere(named))
                 }
                 guard case .found(let found) = outcome else {
                     return .failure("Unified Dev has no project called '\(named)'.")
@@ -98,24 +124,31 @@ public struct WorkspaceListTool: BridgeToolHandling {
                 project = found
             }
 
-            let census = try await BridgeWorkspaceCensus.read(for: identity, from: store)
-            let workspaces = census.listing(
-                repoID: project?.id, includeArchived: includeArchived
-            )
+            let census = reached.isEmpty
+                ? try await BridgeWorkspaceCensus.read(for: identity, from: store)
+                : try await BridgeWorkspaceCensus.read(in: reached, from: store)
+            let caller = try await BridgeProfileReach.caller(of: identity, store: store)
+            let briefly = caller == .workspace
+            let workspaces = census.listing(repoID: project?.id, includeArchived: includeArchived)
+                .filter { BridgeProfileReach.lists($0, to: caller) }
 
             let names = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0) })
             var rows: [JSONValue] = []
             for workspace in workspaces {
-                rows.append(await row(
-                    for: workspace,
-                    project: names[workspace.repoID],
-                    census: census,
-                    includeGitHub: includeGitHub,
-                    store: store
-                ))
+                let listed = briefly
+                    ? WorkspaceListBriefRow.row(workspace, project: names[workspace.repoID])
+                    : await row(
+                        for: workspace,
+                        project: names[workspace.repoID],
+                        census: census,
+                        includeGitHub: includeGitHub,
+                        store: store
+                    )
+                let owner = reached.first { $0.id == names[workspace.repoID]?.profileID }
+                rows.append(owner.map { BridgeProfileReach.tagged(listed, profile: $0) } ?? listed)
             }
 
-            return .json(.object([
+            let answer: JSONValue = .object([
                 "workspaces": .array(rows),
                 "count": .integer(rows.count),
                 "note": .string(note(
@@ -124,10 +157,17 @@ public struct WorkspaceListTool: BridgeToolHandling {
                     includeArchived: includeArchived,
                     includeGitHub: includeGitHub
                 )),
-            ]))
+            ])
+            guard !reached.isEmpty || identity.role == .workspace else { return .json(answer) }
+            return BridgeWorkspaceQuote.answer(answer, preamble: BridgeWorkspaceQuote.lists("workspaces"))
         } catch {
             return .failure("Unified Dev could not read its workspaces: \(error.readableMessage)")
         }
+    }
+
+    private static func noProjectThere(_ named: String) -> String {
+        "No project called '\(WorkspaceMessage.oneLine(named))' can be listed there, or the name is shared. "
+            + "Call project_list with the same profile for its ids."
     }
 
     private func note(
@@ -141,7 +181,7 @@ public struct WorkspaceListTool: BridgeToolHandling {
         if count == 0 {
             sentences.append(
                 project.map { "Unified Dev has no workspaces in '\($0.name)'." }
-                    ?? "This profile has no workspaces."
+                    ?? "There are no workspaces here."
             )
             if !includeArchived {
                 sentences.append("Archived ones were not counted. Pass include_archived to see them.")
@@ -152,11 +192,12 @@ public struct WorkspaceListTool: BridgeToolHandling {
 
         sentences.append(
             includeGitHub
-                ? "GitHub was asked about every workspace with a worktree still on disk. A "
-                    + "workspace with no pull_request has no pull request for its branch, or gh "
-                    + "is not installed or not signed in."
-                : "GitHub was not asked, so nothing here says anything about pull requests or "
-                    + "checks, and status cannot report either. Pass include_github to ask."
+                ? "GitHub, or Bitbucket for a repository hosted there, was asked about every "
+                    + "workspace with a worktree still on disk. A workspace with no pull_request "
+                    + "has no pull request for its branch, or gh, or bkt on Bitbucket, is not "
+                    + "installed or not signed in."
+                : "Neither GitHub nor Bitbucket was asked, so nothing here says anything about pull "
+                    + "requests or checks, and status cannot report either. Pass include_github to ask."
         )
 
         return sentences.joined(separator: " ")
@@ -293,7 +334,7 @@ public struct WorkspaceListTool: BridgeToolHandling {
 
     private func pullRequest(for workspace: Workspace, store: Store) async -> PullRequest? {
         guard FileManager.default.fileExists(atPath: workspace.path) else { return nil }
-        let found = try? await GitHub.pullRequest(for: workspace, maxAge: .seconds(60))
+        let found = try? await ForgePullRequests.pullRequest(for: workspace, maxAge: .seconds(60))
         await PullRequestNumber.record(found, for: workspace, in: store)
         return found
     }

@@ -23,7 +23,7 @@ struct NotificationSettingsView: View {
                     blockedNotice
                 }
             } footer: {
-                Text("Notifications are muted for the workspace you are viewing while Unified Dev is active.")
+                Text("Banners are muted for the workspace you are viewing while Unified Dev is active. The bell in the toolbar records whatever these switches say.")
                     .settingsFootnote()
             }
 

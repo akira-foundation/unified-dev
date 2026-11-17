@@ -3,11 +3,24 @@ import Foundation
 public enum BridgeReadTarget: Sendable, Equatable {
     case own(Workspace)
     case named(Workspace)
+    case crossed(Workspace, Profile)
 
     public var workspace: Workspace {
         switch self {
-        case .own(let workspace), .named(let workspace): workspace
+        case .own(let workspace), .named(let workspace), .crossed(let workspace, _): workspace
         }
+    }
+
+    var other: Workspace? {
+        switch self {
+        case .own: nil
+        case .named(let workspace), .crossed(let workspace, _): workspace
+        }
+    }
+
+    var profile: Profile? {
+        guard case .crossed(_, let profile) = self else { return nil }
+        return profile
     }
 
     public var workspaceID: WorkspaceID { workspace.id }
@@ -31,6 +44,15 @@ public enum BridgeReadTarget: Sendable, Equatable {
             guard let text = raw.stringValue else { return .failure(.notText) }
             given = AgentStartTool.text(text)
         }
+        let choice: BridgeProfileChoice
+        switch try await BridgeProfileReach.choice(request, allowsEvery: false, for: .read, as: identity, store: store) {
+        case .failure(let trouble): return .failure(.profile(trouble))
+        case .success(let resolved): choice = resolved
+        }
+        if case .other(let profile) = choice {
+            guard let given else { return .failure(.profileNeedsWorkspace) }
+            return crossed(try await BridgeWorkspaceLookup.activeTarget(given, in: profile, store: store), given, profile)
+        }
         guard let given else {
             guard let own = identity.workspaceID else { return .failure(.noWorkspaceNamed) }
             return try await ownWorkspace(own, store: store)
@@ -46,6 +68,17 @@ public enum BridgeReadTarget: Sendable, Equatable {
             return .failure(.archived(given: given))
         case .unknown(let known):
             return .failure(.unknown(given: given, known: known))
+        }
+    }
+
+    private static func crossed(
+        _ outcome: BridgeWorkspaceLookup.ActiveTarget, _ given: String, _ profile: Profile
+    ) -> Result<BridgeReadTarget, BridgeReadTrouble> {
+        switch outcome {
+        case .found(let workspace): .success(.crossed(workspace, profile))
+        case .ambiguous(let ids): .failure(.ambiguous(given: given, ids: ids))
+        case .archived: .failure(.archived(given: given))
+        case .unknown(let known): .failure(.unknown(given: given, known: known))
         }
     }
 

@@ -108,7 +108,7 @@ extension LoginShellAdoptionTests {
     func grokModelsWaitForTheProbe() async {
         let spawns = await spawnsAfterTheProbe { spawn in
             let catalog = GrokModelCatalog.live(cwd: "/tmp/w", makeClient: { configuration in
-                GrokClient(configuration: configuration, makeProcess: spawn)
+                ACPClient(configuration: configuration, makeProcess: spawn)
             })
             _ = try? await catalog.models()
         }
@@ -126,6 +126,13 @@ extension LoginShellAdoptionTests {
     @Test("a Codex quota source made before the probe answers asks with the adopted PATH")
     func codexQuotaAsksWithTheAdoptedPath() async {
         let asked = await quotaAskPath { spawn in CodexQuotaSource(makeProcess: spawn) }
+
+        #expect(asked.path?.components(separatedBy: ":").contains(asked.adopted) == true)
+    }
+
+    @Test("a Grok quota source made before the probe answers asks with the adopted PATH")
+    func grokQuotaAsksWithTheAdoptedPath() async {
+        let asked = await quotaAskPath { spawn in GrokQuotaSource(makeProcess: spawn) }
 
         #expect(asked.path?.components(separatedBy: ":").contains(asked.adopted) == true)
     }

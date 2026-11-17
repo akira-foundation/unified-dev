@@ -20,10 +20,23 @@ public enum StoreDomain: String, Sendable, Hashable, CaseIterable {
     case workSuggestions = "work_suggestions"
     case repoAgentAccounts = "repo_agent_accounts"
     case profileAgentAccounts = "profile_agent_accounts"
+    case inboxNotifications = "inbox_notifications"
+    case diffStats = "diff_stats"
 
     public static let projectsWorkspacesAndTheirAccounts: Set<StoreDomain> = [
         .repos, .workspaces, .repoAgentAccounts, .profileAgentAccounts,
     ]
+
+    public static let projectListFeed = projectsWorkspacesAndTheirAccounts.union([.diffStats])
+}
+
+public enum ProjectListRefresh: Sendable, Equatable {
+    case reload
+    case diffStatsOnly
+
+    public init(answering batch: Set<StoreDomain>) {
+        self = batch.isDisjoint(with: StoreDomain.projectsWorkspacesAndTheirAccounts) ? .diffStatsOnly : .reload
+    }
 }
 
 public final class StoreChangeHub: Sendable {

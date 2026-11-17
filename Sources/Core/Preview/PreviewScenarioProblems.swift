@@ -22,6 +22,9 @@ public extension PreviewScenario {
                 problems.append("project \"\(project.name)\" is in profile \"\(name)\", which the scenario does not declare")
             }
         }
+        for name in reachableProfiles where !declared.contains(name.lowercased()) {
+            problems.append("reachableProfiles names \(name), which is not a profile of this scenario")
+        }
         if let name = activeProfile, !declared.contains(name.lowercased()) {
             problems.append("the active profile \"\(name)\" is not declared by the scenario")
         }
@@ -143,6 +146,7 @@ public extension PreviewScenario {
         problems += suggestionProblems
         problems += quotaProblems
         problems += recentProblems
+        problems += notificationProblems
         problems += transcriptProblems
         problems += accountProblems
         problems += updateProblems
@@ -174,6 +178,17 @@ public extension PreviewScenario {
                 if !accounts.contains(where: { $0.provider == provider && $0.label == label }) {
                     found.append(
                         "project \"\(project.name)\" chooses \(provider.label) account \"\(label)\", "
+                            + "which the scenario does not declare"
+                    )
+                }
+            }
+            for chat in project.workspaces.flatMap(\.chats) {
+                for handoff in chat.messages.compactMap(\.handoff) {
+                    guard let label = handoff.account,
+                          !accounts.contains(where: { $0.provider == handoff.agent && $0.label == label })
+                    else { continue }
+                    found.append(
+                        "\"\(chat.title)\" moves to \(handoff.agent.label) account \"\(label)\", "
                             + "which the scenario does not declare"
                     )
                 }
@@ -216,6 +231,7 @@ public extension PreviewScenario {
     internal static func handoffProblems(in chat: Chat) -> [String] {
         var problems: [String] = []
         var running = chat.agent ?? .claudeCode
+        var runningAccount: String?
         for line in chat.messages {
             guard let handoff = line.handoff else { continue }
             if line.from == .user || !line.text.isEmpty || line.question != nil {
@@ -224,16 +240,17 @@ public extension PreviewScenario {
             if handoff.model.trimmingCharacters(in: .whitespaces).isEmpty {
                 problems.append("a move to \(handoff.agent.label) in \"\(chat.title)\" names no model")
             }
-            if handoff.agent == running {
+            if handoff.agent == running, handoff.account == runningAccount {
                 problems.append("\"\(chat.title)\" already runs under \(running.label) where it is moved to it")
             }
             running = handoff.agent
+            runningAccount = handoff.account
         }
         return problems
     }
 
     internal static func isFolderName(_ name: String) -> Bool {
-        guard !name.isEmpty, name.count <= 64, !name.hasPrefix(".") else { return false }
+        guard !name.isEmpty, name.count <= 64, !name.hasPrefix("."), !name.hasPrefix("-") else { return false }
         return name.unicodeScalars.allSatisfy {
             CharacterSet.alphanumerics.contains($0) && $0.isASCII || $0 == "-" || $0 == "_" || $0 == "."
         }

@@ -30,8 +30,7 @@ public enum InstructionAuthority: Sendable, Hashable {
               author.caseInsensitiveCompare(viewer) == .orderedSame,
               !pullRequest.branch.isEmpty,
               checkedOutBranch == pullRequest.branch,
-              let headCommit = pullRequest.headCommit, !headCommit.isEmpty,
-              checkedOutCommit == headCommit
+              CommitHash.same(pullRequest.headCommit, checkedOutCommit)
         else { return .appOnly }
         return .project
     }
@@ -50,6 +49,12 @@ public enum InstructionAuthority: Sendable, Hashable {
               staysInOnlyRemote
         else { return .appOnly }
         return .project
+    }
+
+    public static func mergeRefusal(confirmed: InstructionAuthority?, sending: InstructionAuthority) -> String? {
+        guard let confirmed, confirmed != sending else { return nil }
+        return "This pull request or its checkout changed after you confirmed, so what the confirmation said about"
+            + " its branch no longer holds. Nothing was sent: merge again to see what happens now."
     }
 
     static func staysInOnlyRemote(config: [String: String], branch: String) -> Bool {
@@ -72,11 +77,16 @@ public enum InstructionAuthority: Sendable, Hashable {
 }
 
 public extension GitHub {
-    static func viewerLogin(forPullRequestAt url: String) async -> String? {
+    static func viewerLogin(forPullRequestAt url: String, from directory: String? = nil) async -> String? {
+        if ForgeRepository.kind(ofRemote: url) == .bitbucket {
+            guard let directory else { return nil }
+            return await Bitbucket.viewer(in: directory)
+        }
+        let login = await login(forDirectory: directory)
         guard let host = repositoryHost(url),
-              let result = try? await run(
-                  "gh", ["api", "user", "--hostname", host, "--jq", ".login"], timeout: .seconds(10)
-              ),
+              let result = try? await $login.withValue(login, operation: {
+                  try await run("gh", ["api", "user", "--hostname", host, "--jq", ".login"], timeout: .seconds(10))
+              }),
               result.ok, !result.trimmed.isEmpty
         else { return nil }
         return result.trimmed
@@ -94,7 +104,7 @@ public extension GitHub {
                 pullRequest,
                 checkedOutBranch: checkedOut,
                 checkedOutCommit: try? await Git.headSHA(of: workspace.path),
-                viewer: await viewerLogin(forPullRequestAt: pullRequest.url)
+                viewer: await viewerLogin(forPullRequestAt: pullRequest.url, from: workspace.path)
             )
         }
 

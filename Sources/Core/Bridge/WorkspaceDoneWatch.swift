@@ -9,7 +9,7 @@ public struct WorkspaceDoneWatch: Identifiable, Sendable, Hashable {
     public let id: WorkspaceDoneWatchID
     public let cause: Cause
     public let watcherSessionID: SessionID
-    public let target: WorkspaceMessageEnd
+    public internal(set) var target: WorkspaceMessageEnd
     public let createdAt: Date
     public let notifiedAt: Date?
 

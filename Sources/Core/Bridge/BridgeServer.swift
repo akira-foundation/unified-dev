@@ -96,10 +96,14 @@ public final class BridgeServer: Sendable {
     public func attach(
         session: Session,
         workspace: Workspace,
-        shimPath: String
+        shimPath: String,
+        orchestrates: Bool = false
     ) -> BridgeAttachment {
         let role = BridgeRole.workspace
-        let token = registry.mint(sessionID: session.id, workspaceID: workspace.id, role: role)
+        let token = registry.mint(
+            sessionID: session.id, workspaceID: workspace.id, role: role, launchedOrchestrating: orchestrates,
+            launchedAsking: orchestrates || BridgeProfileReach.asksTheOwner(session.permissionMode)
+        )
         return BridgeAttachment(
             shimPath: shimPath,
             socketPath: socketPath,
@@ -108,12 +112,12 @@ public final class BridgeServer: Sendable {
         )
     }
 
-    public func register(session: Session, workspace: Workspace) -> BridgeHandle? {
+    public func register(session: Session, workspace: Workspace, orchestrates: Bool = false) -> BridgeHandle? {
         guard let shimPath = BridgeRegistration.shimPath() else {
             note("no bridge beside the running executable, so \(session.id) gets no bridge")
             return nil
         }
-        let attachment = attach(session: session, workspace: workspace, shimPath: shimPath)
+        let attachment = attach(session: session, workspace: workspace, shimPath: shimPath, orchestrates: orchestrates)
         switch session.agentKind {
         case .claudeCode, .cursor, .openCode:
             do {
@@ -128,7 +132,7 @@ public final class BridgeServer: Sendable {
                 note("could not write the bridge config for \(session.id): \(error.readableMessage)")
                 return nil
             }
-        case .codex, .grok:
+        case .codex, .grok, .antigravity:
             return BridgeHandle(attachment: attachment, mcpConfigPath: nil)
         }
     }

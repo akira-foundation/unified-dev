@@ -18,6 +18,7 @@ log, put on the pasteboard, or included in an error message. When a field is mis
 | Claude Code | `claude` | `claude --version` | `2.1.234 (Claude Code)` |
 | Codex | `codex` | `codex --version` | `codex-cli 0.147.0` |
 | Grok | `grok` | `grok --version` | `grok 1.0.24 (68e414c661e3) [alpha]` |
+| Antigravity | `agy` | `agy --version` | `1.5.9` |
 | Cursor | `cursor-agent` | `cursor-agent --version` | not installed here |
 | OpenCode | `opencode` | `opencode --version` | not installed here |
 
@@ -58,6 +59,35 @@ same `LoginTerminalSession` as GitHub sign-in. It launches the detected executab
 without controlling Terminal.app or requiring Automation permission. The sheet supports retry,
 cancellation, and copying the command to run elsewhere. Account details refresh when the command
 exits and when the sheet closes. Signing in with another account changes the CLI's shared login.
+
+### Claude in Chrome
+
+The CLI's Claude in Chrome integration drives the owner's own Chrome, with its sign ins, through
+the Claude extension. It is off unless `--chrome` is passed: with no flag the `system/init` event of
+CLI 2.1.322 lists no `mcp__claude-in-chrome__*` tool, even with `tengu_chrome_auto_enable` set in
+`~/.claude.json`. With the flag the same event lists twenty such tools and a `claude-in-chrome`
+entry in `mcp_servers` with `"status":"connected"`, under `-p`, under `--strict-mcp-config` and next
+to the bridge's `--mcp-config` alike. That was measured against an API endpoint that refuses every
+connection, so the init event arrived and no turn was paid for.
+
+When the integration cannot load the turn still runs and the server is simply missing from
+`mcp_servers`. Two cases were measured: an `ANTHROPIC_API_KEY` in the environment, because the
+integration needs a claude.ai sign in, and a `CLAUDE_CONFIG_DIR` with nothing in it. Whether the
+extension is installed cannot be read from disk instead: the CLI writes the native host manifest
+into every Chromium browser's `NativeMessagingHosts` whether or not the extension is there, and the
+Chrome profile holding the extensions is refused to other processes by privacy protection.
+
+So the switch is the owner's, in Settings > Agents on the Claude Code row, stored as
+`agent.claudeCode.chrome` and off by default, because these tools open tabs in the owner's browser.
+The choice is part of `AgentRunnerFingerprint`, so turning it either way retires a chat's running
+agent on the next message sent to it and starts one with or without `--chrome`. An orchestrator
+never receives the flag, because these tools would act in signed in tabs that its tool guard does
+not cover: `ClaudeChrome.launches` refuses it when the agent is built, reading the role the way
+`orchestratesAtLaunch` does, which counts an unreadable workspace as an orchestrator. The init event is the discovery: `ClaudeChromeNotice.missing` compares what the process
+was launched with against what loaded, and the runner stores one notice row per running agent saying why
+the tools are absent. A server still `pending` is not reported. A chat run in the terminal gets the
+same flag through `interactiveArguments`, read when the terminal launches it. A workspace an
+orchestrator starts is an ordinary workspace and gets the flag under its own permission mode.
 
 ## Codex
 
@@ -109,6 +139,23 @@ An `XAI_API_KEY` in the environment means API key auth instead, and takes preced
 displayed when no auth file is present. Config file to offer for opening: `~/.grok/config.toml`.
 
 Login command: `grok login`.
+
+## Antigravity
+
+Nothing under `~/.gemini` is read. Whether the CLI is signed in is asked of it instead: `agy models`
+prints the model list and exits 0 when it is, and exits 1 with "Please sign in to view available
+models" on stderr when it is not. `AntigravityModelList.read` makes that one decision, and the
+same command, read by the same function, is the model list the composer offers. They are two
+separate runs, so a network failure can reach one and not the other. The
+card says "Google sign in" and names no account, because nothing the CLI prints names one.
+
+Login command: `agy`, with no arguments, which is what the CLI's own signed out message asks for. Only the default account is offered: the login follows `HOME`
+and no narrower variable moves it, so a second directory cannot hold a second account. See
+`ANTIGRAVITY.md`.
+
+The usage panel and the menu bar show two weekly limits, Gemini and Claude (the group Claude shares with GPT-OSS), read from
+`agy -p /usage --output-format json`, which runs no turn. The mark is the silhouette of the
+official icon at antigravity.google/favicon.svg, without its colour fill.
 
 ## Cursor and OpenCode
 
@@ -203,10 +250,13 @@ no account it knows.
 
 ## What Unified Dev can actually run
 
-Claude Code, Codex and Grok. The stream-json protocol in `PROTOCOL.md` is Claude Code's and
-`AgentRunner` speaks it; the JSON-RPC app-server protocol in `CODEX.md` is Codex's and
-`CodexRunner` speaks it; ACP over `grok agent --no-leader stdio` in `GROK.md` is Grok's and
-`GrokRunner` speaks it. All three answer to `SessionRunner`, and `AgentKind.canRunWorkspaces` is
+Claude Code, Codex, Grok and Antigravity. The stream-json protocol in `PROTOCOL.md` is Claude
+Code's and `AgentRunner` speaks it; the JSON-RPC app-server protocol in `CODEX.md` is Codex's and
+`CodexRunner` speaks it; ACP is spoken by `ACPRunner` for the last two, over
+`grok agent --no-leader stdio` as `GROK.md` describes and over `agy acp` as `ANTIGRAVITY.md`
+describes. What differs between those two CLIs, the launch, the shape of a config value, the
+session `_meta` and the mode, is `ACPDialect`, and nothing else in the ACP client asks which agent
+it is talking to. All four answer to `SessionRunner`, and `AgentKind.canRunWorkspaces` is
 the one place that decides which backends a chat can be started on. Cursor and OpenCode are
 detected and configurable and neither has a runner, so neither is offered anywhere a chat is
 started. The UI must say so plainly rather than implying a connected CLI is a usable backend.

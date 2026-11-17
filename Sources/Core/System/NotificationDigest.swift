@@ -3,12 +3,20 @@ import Foundation
 public struct NotificationDraft: Sendable, Hashable {
     public var event: NotificationEvent
     public var workspaceID: WorkspaceID
+    public var sessionID: SessionID?
     public var workspaceName: String
     public var detail: String
 
-    public init(event: NotificationEvent, workspaceID: WorkspaceID, workspaceName: String, detail: String = "") {
+    public init(
+        event: NotificationEvent,
+        workspaceID: WorkspaceID,
+        sessionID: SessionID? = nil,
+        workspaceName: String,
+        detail: String = ""
+    ) {
         self.event = event
         self.workspaceID = workspaceID
+        self.sessionID = sessionID
         self.workspaceName = workspaceName
         self.detail = detail
     }
@@ -21,6 +29,7 @@ public struct PreparedNotification: Sendable, Hashable {
     public var body: String
     public var workspaceID: WorkspaceID
     public var workspaceIDs: [WorkspaceID]
+    public var sessionID: SessionID?
 
     public init(
         identifier: String,
@@ -28,7 +37,8 @@ public struct PreparedNotification: Sendable, Hashable {
         title: String,
         body: String,
         workspaceID: WorkspaceID,
-        workspaceIDs: [WorkspaceID]? = nil
+        workspaceIDs: [WorkspaceID]? = nil,
+        sessionID: SessionID? = nil
     ) {
         self.identifier = identifier
         self.threadIdentifier = threadIdentifier
@@ -36,6 +46,7 @@ public struct PreparedNotification: Sendable, Hashable {
         self.body = body
         self.workspaceID = workspaceID
         self.workspaceIDs = workspaceIDs ?? [workspaceID]
+        self.sessionID = sessionID
     }
 }
 
@@ -74,7 +85,8 @@ public struct NotificationDigest: Sendable {
                 threadIdentifier: first.workspaceID.rawValue,
                 title: first.workspaceName,
                 body: cap(detail.isEmpty ? first.event.fallbackDetail : detail),
-                workspaceID: first.workspaceID
+                workspaceID: first.workspaceID,
+                sessionID: first.sessionID
             )
         }
 
@@ -88,7 +100,7 @@ public struct NotificationDigest: Sendable {
         )
     }
 
-    private static func cap(_ text: String) -> String {
+    static func cap(_ text: String) -> String {
         let firstLine = text.split(separator: "\n", maxSplits: 1).first.map(String.init) ?? text
         guard firstLine.count > bodyLimit else { return firstLine }
         return String(firstLine.prefix(bodyLimit)).trimmingCharacters(in: .whitespaces) + "\u{2026}"

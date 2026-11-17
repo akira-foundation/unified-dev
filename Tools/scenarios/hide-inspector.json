@@ -1,0 +1,41 @@
+{
+  "welcome": false,
+  "projects": [
+    {
+      "name": "lighthouse",
+      "files": {
+        "README.md": "# Lighthouse\n",
+        "src/lamp.txt": "oil\n",
+        "src/lens.txt": "glass\n"
+      },
+      "commits": [
+        "Light the lamp"
+      ],
+      "workspaces": [
+        {
+          "name": "Brighter lamp",
+          "branch": "brighter-lamp",
+          "changes": {
+            "src/lamp.txt": "electric\n",
+            "src/lens.txt": "fresnel\n"
+          },
+          "chats": [
+            {
+              "title": "Lamp",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Make the lamp brighter."
+                },
+                {
+                  "from": "agent",
+                  "text": "Swapped the oil lamp for an electric one and fitted a Fresnel lens."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

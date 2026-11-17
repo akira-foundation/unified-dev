@@ -325,7 +325,7 @@ extension Git {
         if let local = await revision(of: commit, in: repo) { return local }
         for remote in (try? await remoteNames(of: repo)) ?? []
         where (try? validate(ref: remote, label: "remote")) != nil {
-            _ = try? await run(
+            _ = try? await runAgainstRemote(
                 ["fetch", "--no-tags", "--no-write-fetch-head", remote, commit], in: repo, timeout: timeout
             )
             if let fetched = await revision(of: commit, in: repo) { return fetched }
@@ -337,7 +337,7 @@ extension Git {
         for remote in (try? await remoteNames(of: repo)) ?? []
         where (try? validate(ref: remote, label: "remote")) != nil {
             guard await fetchesOnlyIntoRemoteRefs(remote, in: repo) else { continue }
-            _ = try? await run(["remote", "prune", remote], in: repo, timeout: timeout)
+            _ = try? await runAgainstRemote(["remote", "prune", remote], in: repo, timeout: timeout)
         }
     }
 

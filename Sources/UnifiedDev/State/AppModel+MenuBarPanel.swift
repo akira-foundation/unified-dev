@@ -8,16 +8,18 @@ extension AppModel {
         whileAgentsRun: Bool,
         at now: Date
     ) -> MenuBarPanelContent.Input {
-        MenuBarPanelContent.Input(
+        let shown = shownQuotas
+        return MenuBarPanelContent.Input(
             workspaces: workspaces,
             running: runningWorkspaceIDs,
             waiting: waitingWorkspaceIDs,
             agentsByWorkspace: workingAgentsByWorkspace,
-            quotas: quotas,
-            accounts: accounts,
-            unanswered: unansweredQuotaProviders,
-            withoutLimits: quotalessProviders,
-            lastReported: lastReportedQuotas,
+            quotas: shown.quotas,
+            accounts: shown.accounts,
+            unanswered: shown.unanswered,
+            withoutLimits: shown.withoutLimits,
+            lastReported: shown.lastReported,
+            pending: shown.pending,
             layout: layout,
             hold: KeepAwake.Hold.of(
                 session: session,

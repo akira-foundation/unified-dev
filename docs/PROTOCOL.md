@@ -19,7 +19,9 @@ claude
   --model <opus|sonnet|haiku|...>
   [--effort <level>]                 only when the session has one
   [--thinking disabled]              fast mode, and only when it is on
-  [--settings '{"outputStyle":"…"}'] only when a style was chosen
+  [--settings '{…}']                 an output style when one was chosen, and for a workspace chat
+                                     in acceptEdits, `ask` rules for the bridge tools that
+                                     can name another profile (see docs/BRIDGE.md)
   [--mcp-config <path>]              the workspace bridge, a file and never inline JSON
   [--resume <agent session id>]
 ```
@@ -180,11 +182,22 @@ alias rather than one it cannot vouch for.
 
 Each start writes the account's `~/.claude.json`. The CLI takes its own lock and writes through a
 temporary file, and twelve probes started at once in one directory left a file that parsed and no
-temporary file behind. The app also keeps the probe and a turn of the same account apart:
-`ClaudeAccountActivity` holds an account from the moment an `AgentRunner` starts its process until
-that process exits, a probe does not start a launch while the account is held, and a turn that
+temporary file behind. Inside the app, the probe is also kept apart from every other start of the
+CLI under the same account: `ClaudeAccountActivity` holds an account while an `AgentRunner` process
+runs, while the usage question of `ClaudeCodeQuotaSource` runs, while `AgentAccountLiveness` asks
+`claude auth status`, and while `WorkspaceNamer` names a workspace, in each case until the process
+has exited or been killed. A probe does not start a launch while the account is held, and a start that
 arrives during a launch waits for it to end, after which the probe asks nothing more. A stop pressed
-during that wait ends the turn before its process starts.
+during that wait ends the turn at once, without waiting for the probe, and so does cancelling the task
+that waits. A process that a failed send started and never wrote a turn to is kept, because a delivery retried
+a moment later uses it, but idle eviction ends it even though it has no agent session id yet: with no
+turn there is nothing to resume, and ending it is what gives the account back.
+
+What the app cannot hold is a start it does not make: a `claude` typed into one of the app's
+terminals, a second copy of the app, or the CLI started anywhere else on this Mac. Those can run
+while the probe does, and two processes can then write `.claude.json` and wait on the account's
+OAuth refresh lock at the same time. The CLI's own lock and its writes through a temporary file are
+what keep that file whole in that case, not the app.
 
 Measured on `claude 2.1.309`, the four built in aliases answered `claude-fable-5-1`, `claude-opus-5-5`,
 `claude-sonnet-5-5` and `claude-haiku-5-5`, under a second for all four. On `claude 2.1.322` the same
@@ -198,11 +211,14 @@ left for the next check. A probe that missed any alias is tried again after ten 
 every minute, because each attempt starts the CLI up to four times, and what it did answer is kept.
 
 The probe and a turn write the same setting per alias and account, and a turn writes beside it the
-version of the CLI that ran it, from `claude_code_version` in its `init`. A probe of that same version
-leaves the turn's answer alone, because a turn also sees what the probe cannot, such as a pin in the
-project's own settings, and so does a probe whose CLI version could not be read. A probe of another
+version of the CLI that ran it, from `claude_code_version` in its `init`, or `unversioned` when the
+`init` names none. A probe of that same version leaves the turn's answer alone, because a turn also
+sees what the probe cannot, such as a pin in the project's own settings, and so does a probe whose CLI
+version could not be read, and any probe after a turn that named no version. A probe of another
 version replaces it, and a pin read from the account's
-settings replaces anything. The model picker names the version of what is stored, and only with
+settings replaces anything. Each write is one transaction: a turn writes the model and its version
+together, and a probe reads the turn's version and writes its answer in the same step, so a turn
+recorded while a probe is being recorded can never end up with the probe's model under its version. The model picker names the version of what is stored, and only with
 nothing stored falls back to the newest usable entry of the account's `additionalModelOptionsCache`.
 The list comes last because it lags: it is what the server offered when the CLI last wrote the file,
 and it has been seen naming an older version than the alias runs. The picker is per account, so a pin

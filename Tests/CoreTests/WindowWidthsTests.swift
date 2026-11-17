@@ -90,4 +90,32 @@ import Testing
         #expect(widths.sidebarMaximum(sharing: 902, withInspector: true) == 200)
         #expect(widths.sidebarMaximum(sharing: 901, withInspector: true) == nil)
     }
+
+    @Test func theSidebarMinimumGrowsToHoldWhatItsTitleBarAndFooterNeed() {
+        let held = widths.holding(sidebarContent: [243, 228.4])
+        #expect(held.sidebarMinimum == 243)
+        #expect(widths.holding(sidebarContent: [180]).sidebarMinimum == 200)
+        #expect(widths.holding(sidebarContent: []).sidebarMinimum == 200)
+    }
+
+    @Test func theSidebarMinimumNeverPassesTheWidthItIsAllowed() {
+        #expect(widths.holding(sidebarContent: [900]).sidebarMinimum == widths.sidebar)
+    }
+
+    @Test func aWindowAtItsMinimumStillDrawsTheSidebarAtItsNewMinimum() {
+        let held = widths.holding(sidebarContent: [312])
+        for showing in [true, false] {
+            let window = held.minimum(withInspector: showing)
+            let room = held.sidebarMaximum(sharing: window, withInspector: showing)
+            #expect(room != nil)
+            #expect((room ?? 0) >= held.sidebarMinimum)
+        }
+    }
+
+    @Test func aSidebarHeldWiderFoldsSoonerRatherThanDrawingNarrowerThanItsContent() {
+        let held = widths.holding(sidebarContent: [300])
+        let room = held.detailHalf(withInspector: false) + held.divider + 250
+        #expect(widths.sidebarMaximum(sharing: room, withInspector: false) == 250)
+        #expect(held.sidebarMaximum(sharing: room, withInspector: false) == nil)
+    }
 }

@@ -6,6 +6,7 @@ public protocol SessionRunner: Actor {
 
     nonisolated var events: AsyncStream<AgentEvent> { get }
     nonisolated var presentationFeed: AgentPresentationFeed? { get }
+    nonisolated var storedMessages: StoredMessageRelay? { get }
 
     var isProcessAlive: Bool { get }
     var hasStoppedWriting: Bool { get }
@@ -35,6 +36,7 @@ extension SessionRunner {
     }
     public func evictIfIdle(for duration: Duration) async -> Bool { false }
     public nonisolated var presentationFeed: AgentPresentationFeed? { nil }
+    public nonisolated var storedMessages: StoredMessageRelay? { nil }
     public nonisolated var stopsBackgroundTasks: Bool { false }
     public func stopTask(_ id: SubagentID) async -> Bool { false }
     public func sendDelivery(_ delivery: Delivery) async throws {

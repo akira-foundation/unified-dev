@@ -78,6 +78,13 @@ enum SessionSegmentColumns {
         WHERE id = ?2
         """
 
+    static let seedThrough = """
+        UPDATE sessions SET
+            source_session_id = ?1,
+            source_through_seq = MIN(?3, COALESCE((SELECT MAX(seq) FROM messages WHERE session_id = ?1), -1))
+        WHERE id = ?2
+        """
+
     static let pendingSource = """
         SELECT s.source_session_id, s.source_through_seq FROM sessions s
         JOIN session_segments g ON g.session_id = s.id AND g.is_active = 1

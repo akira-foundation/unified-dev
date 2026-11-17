@@ -163,6 +163,14 @@ struct CodeBlockRunTests {
         #expect(message.contains("\u{1B}") == false)
     }
 
+    @Test("an operating system command is removed whole, whichever way it ends", arguments: [
+        "\u{1B}]0;title\u{07}kept",
+        "\u{1B}]8;;https://example.com\u{1B}\\kept",
+    ])
+    func operatingSystemCommandsGoWhole(output: String) {
+        #expect(CodeBlockReport.withoutTerminalEscapes(output) == "kept")
+    }
+
     @Test("a separator in the command cannot start an unprefixed line")
     func commandSeparators() throws {
         let run = CodeBlockRun.finished(status: 0, output: "x", duration: .zero)
@@ -237,19 +245,5 @@ struct CodeBlockRunTests {
 
     private func finished(_ output: String, after duration: Duration = .zero) -> CodeBlockRun {
         .finished(ShellResult(status: 0, stdout: output, stderr: ""), after: duration)
-    }
-
-    @Test("an orchestrator offers Run only for what its read list accepts")
-    func orchestratorRun() {
-        #expect(CodeBlockCommand.mayRun("git log -1", orchestrates: true))
-        #expect(CodeBlockCommand.mayRun("ls\ncat README.md", orchestrates: true))
-        #expect(!CodeBlockCommand.mayRun("rm -rf Sources", orchestrates: true))
-        #expect(!CodeBlockCommand.mayRun("echo hi > notes.txt", orchestrates: true))
-        #expect(!CodeBlockCommand.mayRun("git commit -am x", orchestrates: true))
-    }
-
-    @Test("an ordinary workspace runs whatever the reply showed")
-    func ordinaryRun() {
-        #expect(CodeBlockCommand.mayRun("rm -rf Sources", orchestrates: false))
     }
 }

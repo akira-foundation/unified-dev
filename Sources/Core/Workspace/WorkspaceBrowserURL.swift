@@ -3,6 +3,8 @@ import Foundation
 public enum WorkspaceBrowserURL {
     public static let file = "\(WorktreeScratch.generated)/url"
 
+    static let byteLimit = 65_536
+
     public static func path(inWorktree worktree: String) -> String {
         (worktree as NSString).appendingPathComponent(file)
     }
@@ -24,10 +26,24 @@ public enum WorkspaceBrowserURL {
     public static func read(
         worktree: String, settings: RepoSettings, environment: [String: String], port: Int
     ) -> String {
-        let written = try? String(contentsOfFile: path(inWorktree: worktree), encoding: .utf8)
-        return resolve(
-            written: written, stated: settings.browserURL, environment: environment, port: port
+        resolve(
+            written: written(atPath: path(inWorktree: worktree)), stated: settings.browserURL,
+            environment: environment, port: port
         )
+    }
+
+    static func written(atPath path: String) -> String? {
+        let descriptor = open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC)
+        guard descriptor >= 0 else { return nil }
+        let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        guard let data = try? handle.read(upToCount: byteLimit) else { return nil }
+        return String(data: completeLines(of: data), encoding: .utf8)
+    }
+
+    static func completeLines(of data: Data) -> Data {
+        guard data.count >= byteLimit else { return data }
+        guard let lastNewline = data.lastIndex(of: UInt8(ascii: "\n")) else { return Data() }
+        return data[..<lastNewline]
     }
 
     static func address(_ raw: String?) -> String? {

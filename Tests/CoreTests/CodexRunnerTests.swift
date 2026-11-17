@@ -25,14 +25,18 @@ private func makeCodexSession(
 private func makeRunner(
     store: Store,
     session: Session,
-    box: ProcessBox
+    box: ProcessBox,
+    gitHub: GitHubLogin = .thisMac,
+    seen: SeenEnvironment? = nil
 ) async throws -> CodexRunner {
     CodexRunner(
         workspacePath: "/tmp/w",
         session: session,
         store: store, segmentID: try await activeSegmentID(store, session),
+        gitHub: gitHub,
         makeClient: { configuration in
-            CodexClient(configuration: configuration, makeProcess: box.factory)
+            seen?.value.withLock { $0 = configuration.environment }
+            return CodexClient(configuration: configuration, makeProcess: box.factory)
         }
     )
 }
@@ -68,6 +72,21 @@ private func eventually(
 }
 
 @Suite(.scratchDirectory) struct CodexRunnerTests {
+    @Test func theServerStartsUnderTheProfilesGitHubLogin() async throws {
+        let store = try makeTestStore("codex-github-login")
+        let (session, _) = try await makeCodexSession(store)
+        let seen = SeenEnvironment()
+        let runner = try await makeRunner(
+            store: store, session: session, box: scriptedBox(),
+            gitHub: GitHubLogin.profile(ProfileID("debtges"), directory: URL(filePath: "/support/GitHubLogins/debtges")), seen: seen
+        )
+        defer { runner.terminateNow() }
+        try await runner.send("first turn")
+        let environment = seen.value.withLock { $0 }
+        #expect(environment["GH_CONFIG_DIR"] == "/support/GitHubLogins/debtges")
+        #expect(environment["GH_TOKEN"] == GitHubLogin.signedOutToken)
+    }
+
     @Test(arguments: [false, true])
     func lateStoppedCompletionCannotEndTheNextIntentionalTurn(delayStart: Bool) async throws {
         let store = try makeTestStore("codex-late-stop")
@@ -518,6 +537,7 @@ private func eventually(
         let store = try makeTestStore("codex-runner-orchestrator-read")
         let (session, _) = try await makeCodexSession(store, permissionMode: .bypassPermissions)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -548,6 +568,7 @@ private func eventually(
         let store = try makeTestStore("codex-runner-orchestrator-unasked")
         let (session, _) = try await makeCodexSession(store, permissionMode: .bypassPermissions)
         try await store.setOrchestrator(true, workspaceID: try #require(session.workspaceID))
+        try await OrchestratorUnaskedCommands.turn(false, for: session, in: store)
         let box = scriptedBox()
         let runner = try await makeRunner(store: store, session: session, box: box)
         defer { runner.terminateNow() }
@@ -555,8 +576,8 @@ private func eventually(
         @Sendable func decided(_ id: Int) -> String? {
             box.process.sentFrame { $0["id"]?.intValue == id && $0["result"] != nil }?["result"]?["decision"]?.stringValue
         }
-        let compound = "make build && echo a"
-        let wrapped = "/bin/zsh -lc 'make build && echo a'"
+        let compound = "rg x && echo a"
+        let wrapped = "/bin/zsh -lc 'rg x && echo a'"
 
         box.process.emit(commandStarted("off", compound))
         box.process.emit(commandApproval(71, "off", command: compound))
@@ -582,7 +603,7 @@ private func eventually(
         #expect(decided(74) == CodexApprovalDecision.decline.rawValue)
 
         box.process.emit(commandStarted("other", compound))
-        box.process.emit(commandApproval(75, "other", command: "make build && echo b"))
+        box.process.emit(commandApproval(75, "other", command: "rg x && echo b"))
         await eventually("the mismatched request to wait") {
             ((try? await store.pendingPermissionAsks(sessionID: session.id)) ?? []).count == 2
         }
@@ -1055,6 +1076,29 @@ extension CodexRunnerTests {
         await #expect(throws: ProviderIdleError.self) { try await runner.send("must use a new runner") }
         await runner.shutdown()
     }
+
+    @Test func theNextSendAfterAnIdleEvictionResumesTheSameThread() async throws {
+        let store = try makeTestStore("codex-idle-resume")
+        let (session, _) = try await makeCodexSession(store)
+        let first = scriptedBox()
+        let evicted = try await makeRunner(store: store, session: session, box: first)
+        try await evicted.send("first")
+        first.process.emit(#"{"method":"turn/completed","params":{"threadId":"01a02144-3b7e-7233-97f2-73ebd5105085","turn":{"id":"01a02144-3bab-7fe3-a92c-6eec594d84fd","status":"completed","items":[]}}}"#)
+        await eventually("idle turn") { await evicted.currentSession.state == .idle }
+        let wasEvicted = await evicted.evictIfIdle(for: .zero)
+        #expect(wasEvicted)
+
+        let reopened = try #require(try await store.session(id: session.id))
+        let second = scriptedBox()
+        let resumed = try await makeRunner(store: store, session: reopened, box: second)
+        try await resumed.send("second")
+
+        let resume = second.process.sentFrame { $0["method"]?.stringValue == "thread/resume" }
+        #expect(first.process.sentMethods.contains("thread/start"))
+        #expect(!second.process.sentMethods.contains("thread/start"))
+        #expect(resume?["params"]?["threadId"]?.stringValue == "01a02144-3b7e-7233-97f2-73ebd5105085")
+        await resumed.shutdown()
+    }
 }
 
 extension CodexRunnerTests {
@@ -1118,6 +1162,24 @@ extension CodexRunnerTests {
         await eventually("command ended") { runner.presentationFeed?.hasBackgroundWork == false }
         try await runner.rewind(beforeTurnID: Self.parentTurn)
         #expect(box.process.sentMethods.contains("thread/revert"))
+        await runner.shutdown()
+    }
+
+    @Test func aRewindForgetsTheRowsItWasHoldingForTheScreen() async throws {
+        let store = try makeTestStore("codex-rewind-forgets-held-rows")
+        let (session, _) = try await makeCodexSession(store)
+        let box = rewindableBox()
+        let runner = try await makeRunner(store: store, session: session, box: box)
+        let relay = try #require(runner.storedMessages)
+        relay.deposit(Message(sessionID: session.id, seq: 9, kind: .notice, payload: Data("{}".utf8)))
+        try await runner.send("Start")
+        box.process.emit(#"{"method":"turn/completed","params":{"threadId":"\#(Self.parentThread)","turn":{"id":"\#(Self.parentTurn)","status":"completed","items":[]}}}"#)
+        await eventually("idle turn") { await runner.currentSession.state == .idle }
+        #expect(relay.heldCount > 0)
+
+        try await runner.rewind(beforeTurnID: Self.parentTurn)
+
+        #expect(relay.heldCount == 0)
         await runner.shutdown()
     }
 }

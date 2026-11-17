@@ -197,10 +197,12 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
     public struct Handoff: Sendable, Equatable, Codable {
         public var agent: AgentKind
         public var model: String
+        public var account: String?
 
-        public init(agent: AgentKind, model: String) {
+        public init(agent: AgentKind, model: String, account: String? = nil) {
             self.agent = agent
             self.model = model
+            self.account = account
         }
     }
 
@@ -238,6 +240,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
     public var looseRepositories: [String]
     public var looseFolders: [String]
     public var recentFolders: [String]
+    public var notifications: [SeededNotification]
     public var silentAgents: [AgentKind]
     public var agentsWithoutLimits: [AgentKind]
     public var transcripts: [Transcript]
@@ -246,6 +249,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
     public var agentSettings: AgentSettings?
     public var profiles: [Profile]
     public var activeProfile: String?
+    public var reachableProfiles: [String]
 
     public init(
         welcome: Bool = true,
@@ -254,6 +258,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         looseRepositories: [String] = [],
         looseFolders: [String] = [],
         recentFolders: [String] = [],
+        notifications: [SeededNotification] = [],
         silentAgents: [AgentKind] = [],
         agentsWithoutLimits: [AgentKind] = [],
         transcripts: [Transcript] = [],
@@ -261,7 +266,8 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         update: Update? = nil,
         agentSettings: AgentSettings? = nil,
         profiles: [Profile] = [],
-        activeProfile: String? = nil
+        activeProfile: String? = nil,
+        reachableProfiles: [String] = []
     ) {
         self.welcome = welcome
         self.projects = projects
@@ -269,6 +275,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         self.looseRepositories = looseRepositories
         self.looseFolders = looseFolders
         self.recentFolders = recentFolders
+        self.notifications = notifications
         self.silentAgents = silentAgents
         self.agentsWithoutLimits = agentsWithoutLimits
         self.transcripts = transcripts
@@ -277,6 +284,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         self.agentSettings = agentSettings
         self.profiles = profiles
         self.activeProfile = activeProfile
+        self.reachableProfiles = reachableProfiles
     }
 
     public init(from decoder: Decoder) throws {
@@ -287,6 +295,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         looseRepositories = try container.decodeIfPresent([String].self, forKey: .looseRepositories) ?? []
         looseFolders = try container.decodeIfPresent([String].self, forKey: .looseFolders) ?? []
         recentFolders = try container.decodeIfPresent([String].self, forKey: .recentFolders) ?? []
+        notifications = try container.decodeIfPresent([SeededNotification].self, forKey: .notifications) ?? []
         silentAgents = try container.decodeIfPresent([AgentKind].self, forKey: .silentAgents) ?? []
         agentsWithoutLimits = try container.decodeIfPresent([AgentKind].self, forKey: .agentsWithoutLimits) ?? []
         transcripts = try container.decodeIfPresent([Transcript].self, forKey: .transcripts) ?? []
@@ -295,6 +304,7 @@ public struct PreviewScenario: Sendable, Equatable, Codable {
         agentSettings = try container.decodeIfPresent(AgentSettings.self, forKey: .agentSettings)
         profiles = try container.decodeIfPresent([Profile].self, forKey: .profiles) ?? []
         activeProfile = try container.decodeIfPresent(String.self, forKey: .activeProfile)
+        reachableProfiles = try container.decodeIfPresent([String].self, forKey: .reachableProfiles) ?? []
     }
 
     public static func read(_ data: Data) throws -> PreviewScenario {
@@ -322,7 +332,7 @@ public enum PreviewScenarioError: Error, CustomStringConvertible, Equatable {
     case invalid([String])
     case notAPreview
     case noTranscriptHome
-    case alreadySeeded
+    case alreadySeeded(projects: [String])
 
     public var description: String {
         switch self {
@@ -333,7 +343,8 @@ public enum PreviewScenarioError: Error, CustomStringConvertible, Equatable {
         case .noTranscriptHome:
             "The scenario seeds transcripts, and this copy has nowhere of its own to put them, "
                 + "so nothing was created."
-        case .alreadySeeded: "This preview already holds projects, so the scenario was not applied again."
+        case .alreadySeeded(let projects):
+            "This preview already holds \(PreviewScenarioIgnored.listed(projects)), so the scenario was not applied again."
         }
     }
 }

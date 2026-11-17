@@ -9,10 +9,6 @@ public enum CodeBlockCommand {
         return command.isEmpty ? nil : command
     }
 
-    public static func mayRun(_ command: String, orchestrates: Bool) -> Bool {
-        !orchestrates || OrchestratorShellJudge.reads(command)
-    }
-
     public static let outputLimit = 8 * 1_024 * 1_024
 
     public static func script(for command: String) -> String {

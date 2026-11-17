@@ -35,6 +35,7 @@ public struct WorkspaceDiffTool: BridgeToolHandling {
             "type": .string("object"),
             "properties": .object([
                 BridgeReadTarget.argument: BridgeReadTarget.schemaProperty,
+                BridgeProfileReach.argument: BridgeProfileReach.schemaProperty,
                 "path": .object([
                     "type": .string("string"),
                     "description": .string("One changed file, as the file list names it. Omit for every file."),
@@ -62,11 +63,12 @@ public struct WorkspaceDiffTool: BridgeToolHandling {
         }
 
         do {
-            let workspace: Workspace
-            switch try await Self.workspace(request, as: identity, store: store) {
+            let target: BridgeReadTarget
+            switch try await Self.target(request, as: identity, store: store) {
             case .failure(let trouble): return .failure(trouble.sentence)
-            case .success(let found): workspace = found
+            case .success(let found): target = found
             }
+            let workspace = target.workspace
             guard FileManager.default.fileExists(atPath: workspace.path) else {
                 return .failure(WorkspaceDiffTrouble.worktreeGone(workspaceID: workspace.id).sentence)
             }
@@ -81,7 +83,7 @@ public struct WorkspaceDiffTool: BridgeToolHandling {
 
             let reading: Reading
             switch await Self.read(workspace, path: path) {
-            case .failure(let trouble): return .failure(trouble.sentence)
+            case .failure(let trouble): return .failure(target.profile == nil ? trouble.sentence : trouble.sentenceAcrossProfiles)
             case .success(let read): reading = read
             }
 
@@ -97,20 +99,23 @@ public struct WorkspaceDiffTool: BridgeToolHandling {
                 workspace: workspace, project: project, files: reading.files, path: path, page: page,
                 omitted: reading.omitted
             )
-            return BridgeWorkspaceQuote.answer(answer.json, preamble: BridgeWorkspaceQuote.changes(in: workspace))
+            return BridgeWorkspaceQuote.answer(
+                target.profile.map { BridgeProfileReach.tagged(answer.json, profile: $0) } ?? answer.json,
+                preamble: BridgeWorkspaceQuote.preamble(BridgeWorkspaceQuote.changes(in: workspace), for: target)
+            )
         } catch {
             return .failure(WorkspaceDiffTrouble.unexplained(error.readableMessage).sentence)
         }
     }
 
-    static func workspace(
+    static func target(
         _ request: MCPRequest, as identity: BridgeIdentity, store: Store
-    ) async throws -> Result<Workspace, WorkspaceDiffTrouble> {
+    ) async throws -> Result<BridgeReadTarget, WorkspaceDiffTrouble> {
         switch try await BridgeReadTarget.resolve(request, as: identity, store: store) {
         case .failure(let trouble):
             return .failure(.target(trouble))
         case .success(let target):
-            return .success(target.workspace)
+            return .success(target)
         }
     }
 

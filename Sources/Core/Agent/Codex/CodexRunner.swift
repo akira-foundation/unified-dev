@@ -36,6 +36,7 @@ public actor CodexRunner: SessionRunner {
     private let pending = PendingAsks()
     private let handle = CodexTurnHandle()
     private let sink = AgentPresentationFeed()
+    private let announced = StoredMessageRelay()
     private var sendsInFlight = 0
     private var wasEvicted = false
 
@@ -43,6 +44,7 @@ public actor CodexRunner: SessionRunner {
 
     private let bridge: BridgeAttachment?
     private let account: AgentAccountHome?
+    private let gitHub: GitHubLogin
 
     public init(
         workspacePath: String,
@@ -51,6 +53,7 @@ public actor CodexRunner: SessionRunner {
         segmentID: SessionSegmentID,
         bridge: BridgeAttachment? = nil,
         account: AgentAccountHome? = nil,
+        gitHub: GitHubLogin = .thisMac,
         makeClient: @escaping @Sendable (CodexClient.Configuration) -> CodexClient = CodexRunner.spawn
     ) {
         self.workspacePath = workspacePath
@@ -59,6 +62,7 @@ public actor CodexRunner: SessionRunner {
         self.store = store
         self.bridge = bridge
         self.account = account
+        self.gitHub = gitHub
         self.segment = RunnerSegment(sessionID: session.id, store: store, id: segmentID)
         self.makeClient = makeClient
         self.grants = SessionGrants(store: store, workspaceID: session.workspaceID)
@@ -75,6 +79,7 @@ public actor CodexRunner: SessionRunner {
 
     public nonisolated var events: AsyncStream<AgentEvent> { sink.stream() }
     public nonisolated var presentationFeed: AgentPresentationFeed? { sink }
+    public nonisolated var storedMessages: StoredMessageRelay? { announced }
 
     public var isProcessAlive: Bool { connection.current?.isProcessAlive ?? false }
 
@@ -315,6 +320,7 @@ public actor CodexRunner: SessionRunner {
             account: account,
             clientName: "Unified Dev",
             clientVersion: Self.clientVersion,
+            environment: BitbucketCredentialHelper.environment(over: gitHub.everySignIn(appliedTo: Shell.environment())),
             bridge: bridge,
             contextWindow: contextWindow
         ))
@@ -441,6 +447,7 @@ public actor CodexRunner: SessionRunner {
         let thread = try await reopenStoredThread(on: connection)
         try await connection.rewindThread(threadID: thread, beforeTurnID: beforeTurnID)
         items.removeAll()
+        announced.clear()
     }
 
     public func turnPresence(_ turnID: String) async throws -> ConversationTurnPresence {
@@ -632,6 +639,7 @@ public actor CodexRunner: SessionRunner {
         }
 
         if let endingTurn, !handle.acceptsTerminal(turnID: endingTurn, intent: intent) { return }
+        if let storedMessage { announced.deposit(storedMessage) }
         sink.yield(event, messageSeq: storedMessage?.seq)
     }
 

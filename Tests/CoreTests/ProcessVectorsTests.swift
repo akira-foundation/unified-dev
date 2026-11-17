@@ -37,17 +37,13 @@ struct ProcessVectorsTests {
         #expect(Mirror(reflecting: vector).children.map(\.label) == ["pid"])
     }
 
-    @Test func aRunningProcessIsNotAZombieAndAReapedOneCountsAsGone() throws {
-        let process = Process()
-        process.executableURL = URL(filePath: "/bin/sleep")
-        process.arguments = ["30"]
-        try process.run()
-        let whileRunning = ProcessVectors.isZombie(process.processIdentifier)
-        process.terminate()
-        process.waitUntilExit()
+    @Test func aRunningProcessIsNotAZombieAndAReapedOneCountsAsGone() async throws {
+        let sleeper = try ChildProcess("/bin/sleep", ["30"])
+        let whileRunning = ProcessVectors.isZombie(sleeper.process.processIdentifier)
+        await sleeper.stop()
 
         #expect(!whileRunning)
-        #expect(ProcessVectors.isZombie(process.processIdentifier))
+        #expect(ProcessVectors.isZombie(sleeper.process.processIdentifier))
     }
 
     @Test func aChildNobodyHasWaitedForIsAZombie() async throws {

@@ -22,6 +22,10 @@ struct ComposerEditor: View {
 
     static let chatPlaceholder = "Ask to make changes, @mention files, run /commands"
 
+    static let minimumLines = 3
+
+    static let maximumLines = 10
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             if text.isEmpty {
@@ -38,8 +42,8 @@ struct ComposerEditor: View {
                 text: $text,
                 caret: $caret,
                 isFocused: $isFocused,
-                minLines: 3,
-                maxLines: 10,
+                minLines: Self.minimumLines,
+                maxLines: Self.maximumLines,
                 accessibilityLabel: accessibilityLabel,
                 onHeightChange: onContentHeightChange,
                 onKey: onKey,

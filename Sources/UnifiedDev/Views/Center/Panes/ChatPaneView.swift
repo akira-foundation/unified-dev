@@ -50,7 +50,7 @@ struct ChatPaneView: View {
                     BackgroundTasksPill(transcript: transcript) {
                         model.showTasks(of: transcript.session.id)
                         model.inspectorTab = .tasks
-                        app.isInspectorVisible = true
+                        app.setInspectorVisible(true)
                     }
                 }
                 ComposerView(transcript: transcript, model: model, room: room)
@@ -68,21 +68,6 @@ struct ChatPaneView: View {
                 .controlSize(.small)
                 .disabled(!model.sessions.contains { $0.id == origin.parentID })
                 .padding(8)
-            }
-        }
-        .overlay {
-            if let state = model.sideConversations[transcript.session.id], state.isVisible {
-                GeometryReader { geometry in
-                    let bottom = geometry.size.height - room.clearance >= 360 ? room.clearance + 8 : 8
-                    SideConversationView(parent: transcript, state: state, model: model)
-                        .frame(
-                            width: max(0, min(560, geometry.size.width - 24)),
-                            height: max(0, min(520, geometry.size.height - bottom - 12))
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                        .padding(.trailing, 12)
-                        .padding(.bottom, bottom)
-                }
             }
         }
         .task(id: transcript.session.id) {

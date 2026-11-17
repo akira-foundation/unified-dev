@@ -1,6 +1,6 @@
 import Core
 
-enum SidebarPaneRow: Identifiable {
+enum SidebarPaneRow: Identifiable, Equatable {
     case project(SidebarRepoGroup)
     case workspace(Workspace, projectName: String)
     case crew(CrewRow, workspaceID: WorkspaceID, repoID: RepoID)

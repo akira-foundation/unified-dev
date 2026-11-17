@@ -131,12 +131,12 @@ public extension UnboundedHeightSubject {
                 + "the grant came from."
         ),
         UnboundedHeightSubject(
-            key: "menu-bar-status-sentence",
-            file: "Sources/UnifiedDev/Views/Chrome/MenuBar/Panel/MenuBarStatusModule.swift",
-            line: 23,
+            key: "menu-bar-provider-note",
+            file: "Sources/UnifiedDev/Views/Chrome/MenuBar/Panel/MenuBarProviderModule.swift",
+            line: 115,
             host: .menuBarPanel,
-            path: "Run agents until a plan limit is reached, then open the menu bar panel: the "
-                + "sentence under the heading grows a clause for each."
+            path: "Sign out of an agent that reports usage, then open the menu bar panel: the reason "
+                + "it gives for drawing no limits wraps beside Try again."
         ),
         UnboundedHeightSubject(
             key: "welcome-command",

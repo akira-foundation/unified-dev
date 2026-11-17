@@ -16,10 +16,16 @@ public enum UsageFormat {
 
     public static let soonThreshold: TimeInterval = 5 * 60
 
+    public static let soonWord = "soon"
+
     public static func relative(_ prefix: String, until date: Date, from now: Date) -> String {
+        let left = countdown(until: date, from: now)
+        return left == soonWord ? "\(prefix) \(soonWord)" : "\(prefix) in \(left)"
+    }
+
+    public static func countdown(until date: Date, from now: Date) -> String {
         let remaining = date.timeIntervalSince(now)
-        guard remaining > soonThreshold else { return "\(prefix) soon" }
-        return "\(prefix) in \(compactDuration(remaining))"
+        return remaining > soonThreshold ? compactDuration(remaining) : soonWord
     }
 
     public static func absolute(

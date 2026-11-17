@@ -57,6 +57,7 @@ final class TranscriptSelectionReader {
 
     func beginReply(to selection: TranscriptSelection) {
         clear()
+        if responderIsInTable { controller?.tableView?.window?.makeFirstResponder(nil) }
         replying = selection
     }
 

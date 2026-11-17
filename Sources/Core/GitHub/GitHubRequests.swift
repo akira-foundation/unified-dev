@@ -1,10 +1,16 @@
 import Foundation
+import Synchronization
 
 actor GitHubRequests {
     struct Key: Hashable, Sendable {
         let host: String
         let directory: String?
         let arguments: [String]
+        var login: GitHubLogin = .thisMac
+
+        var limitedHost: String {
+            login.directory.map { host + "\n" + $0.path } ?? host
+        }
     }
     private struct Flight {
         let id: UUID
@@ -22,7 +28,7 @@ actor GitHubRequests {
         if !interactive, let flight = flights[key] {
             return try await wait(for: flight.task)
         }
-        let lease = try await limits.check(host: key.host, interactive: interactive)
+        let lease = try await limits.check(host: key.limitedHost, interactive: interactive)
         try Task.checkCancellation()
         if !interactive, let flight = flights[key] {
             return try await wait(for: flight.task)
@@ -32,7 +38,7 @@ actor GitHubRequests {
             let result = try await execute()
             if !result.ok && GitHubReadFailure.isRateLimit(result.stderr + result.stdout) {
                 let retryAt = await limits.limited(
-                    host: key.host, lease: lease,
+                    host: key.limitedHost, lease: lease,
                     retryAt: GitHubReadFailure.retryDate(from: result.stderr, now: Date())
                 )
                 throw GitHubReadFailure(
@@ -40,7 +46,7 @@ actor GitHubRequests {
                     retryAt: retryAt
                 )
             }
-            if result.ok { await limits.succeeded(host: key.host, lease: lease) }
+            if result.ok { await limits.succeeded(host: key.limitedHost, lease: lease) }
             return result
         }
         if !interactive {
@@ -67,13 +73,30 @@ actor GitHubRequests {
 extension GitHub {
     private static let requests = GitHubRequests()
     @TaskLocal static var commandOverride: (@Sendable ([String], String?) async throws -> ShellResult)?
+    @TaskLocal public static var login: GitHubLogin?
+    @TaskLocal static var loginResolverOverride: (@Sendable (String) async -> GitHubLogin?)?
+    private static let loginResolver = Mutex<(@Sendable (String) async -> GitHubLogin?)?>(nil)
+
+    public static func adoptLoginResolver(_ resolve: @escaping @Sendable (String) async -> GitHubLogin?) {
+        loginResolver.withLock { $0 = resolve }
+    }
+
+    public static func login(forDirectory directory: String?) async -> GitHubLogin {
+        if let login { return login }
+        guard let directory, let resolve = loginResolverOverride ?? loginResolver.withLock({ $0 }) else {
+            return .thisMac
+        }
+        return await resolve(directory) ?? .thisMac
+    }
 
     static func run(
         _ executable: String, _ arguments: [String] = [], cwd: String? = nil,
         timeout: Duration = .seconds(20), repositoryContext: GitRepositoryContext? = nil
     ) async throws -> ShellResult {
         guard executable == "gh" else {
-            return try await Shell.run(executable, arguments, cwd: cwd, timeout: timeout)
+            let login = await login(forDirectory: cwd)
+            let environment = executable == "git" ? BitbucketCredentialHelper.variables(signedInAs: login) : login.variables
+            return try await Shell.run(executable, arguments, cwd: cwd, env: environment, timeout: timeout)
         }
         let context: GitRepositoryContext?
         if let repositoryContext { context = repositoryContext } else {
@@ -84,11 +107,12 @@ extension GitHub {
         let resolved = repositoryArguments(arguments, context: context)
         let host = requestHost(arguments: resolved, context: context)
         let command = commandOverride
+        let login = await login(forDirectory: cwd)
         return try await requests.run(
-            key: .init(host: host, directory: cwd, arguments: resolved), interactive: interactive
+            key: .init(host: host, directory: cwd, arguments: resolved, login: login), interactive: interactive
         ) {
-            if let command { return try await command(resolved, cwd) }
-            return try await Shell.run(executable, resolved, cwd: cwd, timeout: timeout)
+            if let command { return try await $login.withValue(login) { try await command(resolved, cwd) } }
+            return try await Shell.run(executable, resolved, cwd: cwd, env: login.variables, timeout: timeout)
         }
     }
 
@@ -128,7 +152,7 @@ extension GitHub {
     static func repositoryArguments(_ arguments: [String], context: GitRepositoryContext?) -> [String] {
         let family = arguments.first ?? ""
         let action = arguments.dropFirst().first ?? ""
-        let acceptsRepo = family == "pr" || (family == "run" && action == "view")
+        let acceptsRepo = family == "pr" || (family == "run" && action == "view") || (family == "issue" && action == "list")
         guard acceptsRepo, !isUnselectedPullRequestView(arguments),
               repositoryOption(in: arguments) == nil,
               !arguments.contains("--repo"), !arguments.contains("-R"),
@@ -179,9 +203,5 @@ extension GitHub {
             return String(remote[remote.index(after: at)..<colon]).lowercased()
         }
         return nil
-    }
-
-    public static func readPullRequest(for workspace: Workspace, maxAge: Duration = .zero) async -> PullRequestRead {
-        do { return .current(try await pullRequest(for: workspace, maxAge: maxAge)) } catch { return .unavailable(.classify(error)) }
     }
 }

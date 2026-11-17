@@ -17,17 +17,26 @@ public struct StartProjectFault: Sendable, Equatable {
     public var message: String
     public var folderWasCreated: Bool
     public var half: StartProjectHalf
+    public var advice: String?
+    public var detail: String?
+    public var hostOffer: KnownHostOffer?
 
     public init(
         title: String,
         message: String,
         folderWasCreated: Bool,
-        half: StartProjectHalf
+        half: StartProjectHalf,
+        advice: String? = nil,
+        detail: String? = nil,
+        hostOffer: KnownHostOffer? = nil
     ) {
         self.title = title
         self.message = message
         self.folderWasCreated = folderWasCreated
         self.half = half
+        self.advice = advice
+        self.detail = detail
+        self.hostOffer = hostOffer
     }
 
     public init(_ failure: NewProjectFailure) {
@@ -44,7 +53,10 @@ public struct StartProjectFault: Sendable, Equatable {
             title: failure.title,
             message: failure.message,
             folderWasCreated: failure.folderWasCreated,
-            half: .cloning
+            half: .cloning,
+            advice: failure.advice,
+            detail: failure.detail,
+            hostOffer: failure.hostOffer
         )
     }
 }

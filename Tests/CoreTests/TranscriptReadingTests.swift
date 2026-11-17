@@ -189,6 +189,31 @@ struct TranscriptReadingTests {
         #expect(result.offset == file.size)
     }
 
+    @Test("a line as long as the whole budget is abandoned rather than read again for ever")
+    func lineAsLongAsTheBudgetMovesOn() throws {
+        let scratch = try Scratch()
+        let fat = String(repeating: "x", count: 2_000)
+        let file = try scratch.write([line(1), fat, line(2)].joined(separator: "\n") + "\n", to: "b.jsonl")
+
+        var offset = 0
+        var carry = TranscriptCarry()
+        var outputs: [Int] = []
+        var abandoned = 0
+        var reads = 0
+        while reads < 100 {
+            let result = try TranscriptReader.read(file, from: offset, carry: carry, budget: 512, chunkSize: 64)
+            outputs += result.records.map(\.usage.output)
+            abandoned += result.abandonedLines
+            offset = result.offset
+            carry = result.carry
+            reads += 1
+            if result.reachedEnd { break }
+        }
+        #expect(outputs == [1, 2])
+        #expect(abandoned == 1)
+        #expect(offset == file.size)
+    }
+
     @Test("a file never read before is read over from the start")
     func unknownFileStartsOver() throws {
         let scratch = try Scratch()

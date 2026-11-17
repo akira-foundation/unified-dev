@@ -1,31 +1,31 @@
-# Unified Dev
+<p align="center">
+  <img src="assets/banner.svg" alt="Unified Dev" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/akira-foundation/unified-dev-swift/releases/latest"><img src="https://img.shields.io/github/v/release/akira-foundation/unified-dev-swift" alt="Latest release"></a>
+  <a href="https://github.com/akira-foundation/unified-dev-swift/releases"><img src="https://img.shields.io/github/downloads/akira-foundation/unified-dev-swift/total" alt="Downloads"></a>
+  <a href="https://github.com/akira-foundation/unified-dev-swift/actions/workflows/test.yml"><img src="https://github.com/akira-foundation/unified-dev-swift/actions/workflows/test.yml/badge.svg" alt="tests"></a>
+  <img src="https://img.shields.io/badge/macOS-26-blue" alt="macOS 26">
+  <img src="https://img.shields.io/badge/Swift-6.2-orange" alt="Swift 6.2">
+  <img src="https://img.shields.io/github/license/akira-foundation/unified-dev-swift.svg" alt="license">
+</p>
 
 A native macOS app for running coding agents in git worktrees.
 
 Every piece of work gets a workspace, and a workspace is a real worktree on disk with its own
-branch. One agent runs in it, in its own window region, with its own terminal and its own diff,
-and nothing it does reaches the branch anybody else is on. Several run at once.
+branch. One agent runs in it, with its own terminal and its own diff, and nothing it does reaches
+the branch anybody else is on. Several run at once.
 
 One window holds all of it: a sidebar of projects and their workspaces, the agent's transcript in
 the centre, a terminal below it, and an inspector on the right with the diff, the files and the
 pull request.
 
-## What it runs
+It runs Claude Code, Codex, Grok, Cursor and OpenCode. The app finds the ones installed on the Mac
+and asks for nothing to be typed in. An agent can also call back into the app it is running
+inside, through an MCP bridge, to open a pane, read another workspace or ask for a review.
 
-Claude Code, Codex, Grok, Cursor and OpenCode. The app finds the ones installed on the Mac and
-asks for nothing to be typed in: [docs/AGENTS-INTEGRATION.md](docs/AGENTS-INTEGRATION.md) says how
-each is detected and what it needs.
-
-Each speaks its own protocol, and each is read rather than guessed at:
-[docs/PROTOCOL.md](docs/PROTOCOL.md) for Claude Code's stream-json,
-[docs/CODEX.md](docs/CODEX.md) for the Codex app-server protocol as measured, and
-[docs/GROK.md](docs/GROK.md) for Grok's ACP over stdio.
-
-An agent can also call back into the app it is running inside, through an MCP bridge, to open a
-pane, read another workspace or ask for a review. [docs/BRIDGE.md](docs/BRIDGE.md) has the tools
-and, more usefully, which callers may call what and why the line is drawn there.
-
-## Installing it
+## Install
 
 macOS 26 and an Apple silicon Mac. There is no Intel build.
 
@@ -35,72 +35,85 @@ Apple, so it opens without going into System Settings.
 
 It checks GitHub Releases for a newer version once a day, whether or not agents are running, and
 tells you rather than acting: nothing is downloaded or installed until you press Install, because
-installing restarts the app and this app holds agents in the middle of a turn. The alert shows
-what changes, and a version you skip is not offered again on its own. The check can be turned off in
-Settings.
+installing restarts the app and this app holds agents in the middle of a turn. The check can be
+turned off in Settings.
 
 The agent CLIs are not bundled. Install the ones you want and the app finds them.
 
-## Building it from source
+### Building from source
 
-macOS 26, and Xcode 26 for the toolchain. Swift 6.2, SwiftPM, language mode 6.
+macOS 26, Xcode 26 for the toolchain, Swift 6.2, SwiftPM, language mode 6. There is no Xcode
+project and that is deliberate, for reasons written out in [CLAUDE.md](CLAUDE.md). Open
+`Package.swift` in Xcode and it builds, runs, debugs and previews.
 
-There is no Xcode project and that is deliberate, for reasons written out in
-[CLAUDE.md](CLAUDE.md). Open `Package.swift` in Xcode and it builds, runs, debugs and previews.
+```sh
+git clone https://github.com/akira-foundation/unified-dev-swift.git
+cd unified-dev-swift
+make build
+make app
+```
 
-Everything real is a script in `Tools/`, and the `Makefile` is the index.
+Everything real is a script in `Tools/`, and `make` with no target lists them.
 
-    make            list every target
-    make build      compile every target, app included, the way CI does
-    make test       run the Core suite
-    make test-browser  run the browser scripts in a real page
-    make app        assemble a debug UnifiedDev.app
-    make lint       the house rules no off the shelf linter knows
-    make swiftlint  the rules SwiftLint knows, against .swiftlint.yml
+## Documentation
 
-Both linters have to pass, and they check different things. SwiftLint is not installed by
-anything here: `brew install swiftlint`, or take the binary from its releases page.
-
-## How it is laid out
-
-Five targets, and one line between the first three that the linter holds.
-
-`Sources/Core` is everything that is not a view: the store, git, the shell, the agent protocols,
-the parsers, the models. It never imports a UI framework, which is what makes it testable.
-`Sources/UnifiedDev` is the SwiftUI app and the only target allowed to import SwiftUI, AppKit or
-SwiftTerm. `Sources/bridge` is the stdio shim an agent CLI launches as a child process, which
-relays to the running app over a unix socket. The other two are small helpers: `preview`, which
-seeds a worktree's preview app, and `sleep-helper`.
-
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) goes further, and
-[docs/PLAN.md](docs/PLAN.md) says what was built and in what order.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): the boundaries between Core, the app and the bridge, state and concurrency, the database
+- [docs/AGENTS-INTEGRATION.md](docs/AGENTS-INTEGRATION.md): how each agent CLI is detected and what it needs
+- [docs/PROTOCOL.md](docs/PROTOCOL.md): Claude Code's stream-json
+- [docs/CODEX.md](docs/CODEX.md): the Codex app-server protocol as measured
+- [docs/GROK.md](docs/GROK.md): Grok's ACP over stdio
+- [docs/BRIDGE.md](docs/BRIDGE.md): the MCP bridge and which callers may call what
+- [docs/CHAT-SEGMENTS.md](docs/CHAT-SEGMENTS.md): one chat run by several agents in turn
+- [docs/SIDE-CONVERSATIONS.md](docs/SIDE-CONVERSATIONS.md): side conversations
+- [docs/PROFILES.md](docs/PROFILES.md): the groups of projects the window shows one at a time
+- [docs/PREVIEW-APPS.md](docs/PREVIEW-APPS.md): the preview app every worktree can build, and how it
+  and the `make dev` copy stay apart from the app you are running
+- [docs/EDITOR.md](docs/EDITOR.md): the code editor
+- [docs/MENUS.md](docs/MENUS.md): the menus
+- [docs/CRASH-REPORTING.md](docs/CRASH-REPORTING.md): crash reporting
+- [docs/PLAN.md](docs/PLAN.md): what was built and in what order
+- [RELEASING.md](RELEASING.md): signing, notarising and publishing a release
+- [CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md): the working agreement for anybody, human or
+  agent, changing this repository
 
 ## Testing
 
-`Tests/CoreTests` depends on `Core` alone, so a decision taken inside a view is a decision nothing
-can test. `make test` mirrors the core sources into a throwaway package with no app target, so one
-broken view cannot stop the suite.
+```sh
+make lint && make swiftlint && make build && make test && make test-browser
+```
 
-`Tests/BrowserScriptTests` is the second suite, and it exists because the browser tools inject
-JavaScript into a page and only a page can say what that does. It links WebKit, loads fixture HTML
-into an offscreen `WKWebView` and asserts what each script answers. `make test-browser` runs it.
+`Tests/CoreTests` depends on `Core` alone, which never imports a UI framework, so a decision
+that needs a test lives there rather than in a view. `Tests/BrowserScriptTests` loads fixture HTML
+into an offscreen `WKWebView` to check the scripts the browser tools inject.
 
-A green suite does not prove the app compiles, and neither suite compiles the other. Run
-`make build` as well, and `make test-browser` when the change is in the browser scripts.
+`make test` runs the Core suite through `./Tools/test-core.sh`, which mirrors the core sources
+into a package with no app target; pass a suite name to run one, as in
+`./Tools/test-core.sh DiffParser`. A green suite does not prove the app compiles, and neither
+suite compiles the other, which is why `make build` and `make test-browser` are in the line too.
 
-## Developing it in itself
+## Changelog
 
-Unified Dev is developed in Unified Dev, which means the copy you are editing and the copy you are
-running are different apps on purpose. `make dev` installs a second app with its own bundle id,
-its own database and its own notifications, and `make preview` builds a worktree's own copy that
-can reach neither. [docs/PREVIEW-APPS.md](docs/PREVIEW-APPS.md) has the rules and why they are
-what they are.
+Please see [CHANGELOG.md](CHANGELOG.md) for what has changed recently. The changelog is generated
+from conventional commits via [git-cliff](https://git-cliff.org) on every release tag.
 
-[CLAUDE.md](CLAUDE.md) and [AGENTS.md](AGENTS.md) are the working agreement for anybody, human or
-agent, changing this repository, and [RELEASING.md](RELEASING.md) is what signing, notarising and
-publishing a release takes.
+## Contributing
+
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## Security Vulnerabilities
+
+Please review [our security policy](SECURITY.md) on how to report security vulnerabilities.
+
+## Credits
+
+- [Kidiatoliny](https://github.com/kidiatoliny)
+- [All Contributors](https://github.com/akira-foundation/unified-dev-swift/graphs/contributors)
 
 ## Licence
 
 GNU Affero General Public License v3. See [LICENSE](LICENSE), and
 [LICENSE-THIRD-PARTY.md](LICENSE-THIRD-PARTY.md) for what is vendored.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in
+this project by you shall be licensed under the same terms, without any additional terms or
+conditions.

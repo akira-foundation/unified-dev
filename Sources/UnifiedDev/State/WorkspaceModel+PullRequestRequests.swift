@@ -12,7 +12,8 @@ extension WorkspaceModel {
             pullRequest: pullRequest,
             localWork: localWork,
             hasRemote: hasRemote ?? true,
-            continued: continued
+            continued: continued,
+            checkRuns: checkRuns?.runs ?? []
         )
     }
 
@@ -48,14 +49,17 @@ extension WorkspaceModel {
         activeSessionID = session.id
         isExpectingPullRequest = true
         let authority = await instructionAuthority(for: pullRequest)
+        let forge = await Forge.kind(forDirectory: workspace.path)
         let text = await PullRequestInstructions.turn(
-            render.text, in: workspace.path, authority: authority
+            render.text, in: workspace.path, authority: authority, forge: forge
         )
-        await transcript(for: session).submit(text)
-        return nil
+        return await deliver(text, to: session)
     }
 
-    func requestPush(overrides: PromptOverrides = PromptOverrides()) async -> String? {
+    func requestPush(
+        overrides: PromptOverrides = PromptOverrides(),
+        from source: AppRequest.Source
+    ) async -> String? {
         let template = overrides.template(for: .pushLocalWork)
         let wanted = Set(PromptTemplate.variableNames(in: template))
 
@@ -76,8 +80,7 @@ extension WorkspaceModel {
         ])
 
         activeSessionID = session.id
-        await transcript(for: session).submit(render.text)
-        return nil
+        return await send(render.text, to: session, from: source)
     }
 
     func requestMarkReadyForReview(
@@ -92,34 +95,38 @@ extension WorkspaceModel {
         }
 
         let render = PromptTemplate.render(
-            overrides.template(for: .markReadyForReview),
+            overrides.template(for: .markReadyForReview, forge: pullRequest.forge),
             values: [PromptRegistry.MarkReadyForReview.url: pullRequest.url]
         )
         activeSessionID = session.id
-        await transcript(for: session).submit(render.text)
-        return nil
+        return await deliver(render.text, to: session)
     }
 
     func requestMerge(
         _ pullRequest: PullRequest,
         method: GitHub.MergeMethod,
-        overrides: PromptOverrides = PromptOverrides()
+        overrides: PromptOverrides = PromptOverrides(),
+        from source: AppRequest.Source,
+        confirmed: InstructionAuthority? = nil
     ) async -> String? {
+        let authority = await instructionAuthority(for: pullRequest)
+        if let refusal = InstructionAuthority.mergeRefusal(confirmed: confirmed, sending: authority) { return refusal }
         guard let session = await sessionToWriteInto(titledIfNew: "Merge") else {
             return "Could not open a session in \(workspace.name) to send the request to."
         }
-        let authority = await instructionAuthority(for: pullRequest)
+        let chat = transcript(for: session)
+        let isBusy = chat.isRunning || chat.queuesNextMessage || chat.sending != nil
+        if let refusal = AppRequest.mergeRefusal(from: source, agentIsBusy: isBusy) { return refusal }
 
         let context = MergePromptContext(workspace: workspace, pullRequest: pullRequest, method: method)
         let render = context.render(template: overrides.template(for: .mergePullRequest))
 
-        let text = await turn(render.text, for: .merge, authority: authority)
+        let text = await turn(render.text, for: .merge, authority: authority, forge: pullRequest.forge)
         activeSessionID = session.id
-        await transcript(for: session).submit(text)
-        return nil
+        return await send(text, to: session, from: source)
     }
 
-    private func instructionAuthority(for pullRequest: PullRequest?) async -> InstructionAuthority {
+    func instructionAuthority(for pullRequest: PullRequest?) async -> InstructionAuthority {
         await GitHub.instructionAuthority(
             for: workspace,
             pullRequest: pullRequest,
@@ -129,7 +136,8 @@ extension WorkspaceModel {
     }
 
     private func turn(
-        _ text: String, for subject: ProjectInstructions.Subject, authority: InstructionAuthority
+        _ text: String, for subject: ProjectInstructions.Subject, authority: InstructionAuthority,
+        forge: ForgeKind = .gitHub
     ) async -> String {
         await reloadSettings()
         let stated = ProjectInstructions.stated(subject, in: settings)
@@ -137,28 +145,29 @@ extension WorkspaceModel {
         let extra = await Task.detached(priority: .userInitiated) {
             ProjectInstructions.resolve(subject, in: path, stated: stated, authority: authority)
         }.value
-        return ProjectInstructions.turn(text, for: subject, adding: extra, authority: authority)
+        return ProjectInstructions.turn(text, for: subject, adding: extra, authority: authority, forge: forge)
     }
 
-    func writeFixConflictsRequest(
+    func sendFixConflictsRequest(
         overrides: PromptOverrides = PromptOverrides()
     ) async -> String? {
         guard let pullRequest else { return "This branch has no pull request to resolve." }
         guard let session = await sessionToWriteInto(titledIfNew: "Fix merge conflicts") else {
-            return "Could not open a session in \(workspace.name) to write the request into."
+            return "Could not open a session in \(workspace.name) to send the request to."
         }
+        let chat = transcript(for: session)
+        guard chat.acceptsMessages else { return Self.cannotTakeRequest }
+        activeSessionID = session.id
 
         let context = FixConflictsPromptContext(workspace: workspace, pullRequest: pullRequest)
-        let render = context.render(template: overrides.template(for: .fixConflicts))
+        let request = context.request(template: overrides.template(for: .fixConflicts))
 
         let authority = await instructionAuthority(for: pullRequest)
         let path = workspace.path
-        let rendered = render.text
         let asked = await Task.detached(priority: .userInitiated) {
-            ConflictInstructions.asking(rendered, in: path, authority: authority)
+            ConflictInstructions.asking(request, in: path, authority: authority)
         }.value
-        activeSessionID = session.id
-        return await ComposerHandoff.write(await turn(asked, for: .fixConflicts, authority: authority), to: self).failure
+        return await deliver(await turn(asked, for: .fixConflicts, authority: authority), to: session)
     }
 
     func sendCheckFailureRequest() async -> String? {
@@ -166,15 +175,15 @@ extension WorkspaceModel {
 
         let asked = workspace
         let runs = await Task.detached(priority: .userInitiated) {
-            try? await GitHub.checks(for: asked)
+            try? await ForgePullRequests.checks(for: asked)
         }.value
         guard let runs else {
-            return "Unified Dev could not ask GitHub for the checks on #\(pullRequest.number)."
+            return "Unified Dev could not ask \(pullRequest.hostName) for the checks on #\(pullRequest.number)."
         }
 
         let failed = runs.filter { CheckState($0) == .failed }
         guard !failed.isEmpty else {
-            return "GitHub no longer reports a failed check on #\(pullRequest.number)."
+            return "\(pullRequest.hostName) no longer reports a failed check on #\(pullRequest.number)."
         }
         return await sendCheckFailureRequest(for: failed)
     }
@@ -185,19 +194,19 @@ extension WorkspaceModel {
             return "Could not open a session in \(workspace.name) to send the request to."
         }
         let chat = transcript(for: session)
-        guard chat.acceptsMessages else {
-            return "This agent runs in a terminal or its workspace is being archived, so it cannot take that request."
-        }
+        guard chat.acceptsMessages else { return Self.cannotTakeRequest }
         activeSessionID = session.id
+        return await deliver(await checkFailureRequest(for: failed, number: pullRequest.number), to: session)
+    }
 
+    func checkFailureRequest(for failed: [CheckRun], number: Int) async -> String {
         let carried = Array(failed.prefix(CheckFailureHandoff.mentionsCarried))
         var gathered: [CheckFailureHandoff.Mention] = []
         var logs: [AttachmentSource] = []
 
         for run in carried {
             var excerpt: CheckFailureHandoff.Excerpt?
-            if let target = CheckFailureHandoff.logTarget(detailsURL: run.detailsURL),
-               let log = try? await GitHub.checkRunLog(target, worktree: workspace.path) {
+            if let log = await ForgePullRequests.failedLog(of: run, worktree: workspace.path) {
                 excerpt = CheckFailureHandoff.excerpt(log)
             }
             if let excerpt {
@@ -217,7 +226,6 @@ extension WorkspaceModel {
 
         let mentions = gathered
         let more = failed.count - carried.count
-        let number = pullRequest.number
 
         let sources = logs
         let folder = workspace.path
@@ -225,11 +233,30 @@ extension WorkspaceModel {
             AttachmentFiles.save(sources, workspace: folder)
         }.value
 
-        let text = CheckFailureHandoff.request(
+        return CheckFailureHandoff.request(
             CheckFailureHandoff.carrying(mentions, logPaths: paths),
             moreFailed: more,
-            number: number
+            number: number,
+            host: await Forge.kind(forDirectory: folder)
         )
+    }
+
+    private static let cannotTakeRequest =
+        "This agent runs in a terminal or its workspace is being archived, so it cannot take that request."
+
+    private func send(
+        _ text: String, to session: Session, from source: AppRequest.Source
+    ) async -> String? {
+        guard source.hidesTurn else {
+            await transcript(for: session).submit(text)
+            return nil
+        }
+        return await deliver(text, to: session)
+    }
+
+    private func deliver(_ text: String, to session: Session) async -> String? {
+        let chat = transcript(for: session)
+        guard chat.acceptsMessages else { return Self.cannotTakeRequest }
         guard await chat.submitAppRequest(text) else {
             return "Unified Dev could not send that request to the agent."
         }

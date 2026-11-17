@@ -8,7 +8,7 @@ struct StoreObservationTests {
     @Test("a write names the table it landed in")
     func writeNamesItsTable() async throws {
         let store = try makeTestStore("changes")
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         _ = try await store.upsert(Repo(name: "one", path: TestScratch.unique("repo")))
 
@@ -20,7 +20,7 @@ struct StoreObservationTests {
     func upsertOverExistingRow() async throws {
         let store = try makeTestStore("changes")
         var repo = try await store.upsert(Repo(name: "one", path: TestScratch.unique("repo")))
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         repo.name = "renamed"
         _ = try await store.upsert(repo)
@@ -33,7 +33,7 @@ struct StoreObservationTests {
     func transactionPublishesOnceAfterCommit() async throws {
         let store = try makeTestStore("changes")
         let database = try SQLiteDatabase(path: store.path)
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         try database.transaction {
             try database.run(
@@ -62,7 +62,7 @@ struct StoreObservationTests {
     func rollbackPublishesNothing() async throws {
         let store = try makeTestStore("changes")
         let database = try SQLiteDatabase(path: store.path)
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         struct Abandoned: Error {}
         #expect(throws: Abandoned.self) {
@@ -93,7 +93,7 @@ struct StoreObservationTests {
         let session = try await store.upsert(Session(workspaceID: workspace.id, title: "chat"))
         _ = try await store.appendNext(sessionID: session.id, kind: .user, payload: Data("hi".utf8))
 
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
         try await store.deleteRepo(id: repo.id)
 
         #expect(await listener.nextBatch() == [.repos, .workspaces, .sessions, .messages])
@@ -104,7 +104,7 @@ struct StoreObservationTests {
     func slowConsumerSeesMergedBatches() async throws {
         let store = try makeTestStore("changes")
         let repo = try await store.upsert(Repo(name: "one", path: TestScratch.unique("repo")))
-        let listener = try await Listener(store, handlerDelay: .milliseconds(120))
+        let listener = try await StoreChangeListener(store, handlerDelay: .milliseconds(120))
 
         for index in 0..<20 {
             _ = try await store.upsert(Workspace(
@@ -130,7 +130,7 @@ struct StoreObservationTests {
             path: TestScratch.unique("worktree"), baseBranch: "main"
         ))
         let session = try await store.upsert(Session(workspaceID: workspace.id, title: "chat"))
-        let listener = try await Listener(store, interest: [.repos, .workspaces])
+        let listener = try await StoreChangeListener(store, interest: [.repos, .workspaces])
 
         for index in 0..<10 {
             _ = try await store.appendNext(
@@ -161,7 +161,7 @@ struct StoreObservationTests {
         )
         #expect(changes.count == 8, "the drag under test has to write more than one row")
 
-        let listener = try await Listener(store, interest: [.workspaces])
+        let listener = try await StoreChangeListener(store, interest: [.workspaces])
         try await store.reorderWorkspaces(changes)
 
         #expect(await listener.nextBatch() == [.workspaces])
@@ -185,7 +185,7 @@ struct StoreObservationTests {
         let changes = SidebarReorder.move(projects: repos, id: repos[0].id, to: 5)
         #expect(changes.count == 5, "the drag under test has to write more than one row")
 
-        let listener = try await Listener(store, interest: [.repos])
+        let listener = try await StoreChangeListener(store, interest: [.repos])
         try await store.reorderProjects(changes)
 
         #expect(await listener.nextBatch() == [.repos])
@@ -200,7 +200,7 @@ struct StoreObservationTests {
     func cancellationUnsubscribes() async throws {
         let store = try makeTestStore("changes")
         let hub = store.changeHub
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
         #expect(hub.subscriberCount == 1)
 
         listener.stop()
@@ -211,7 +211,7 @@ struct StoreObservationTests {
     @Test("two connections on one file publish into the same feed")
     func twoConnectionsShareAHub() async throws {
         let store = try makeTestStore("changes")
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
         let second = try Store(path: store.path)
 
         _ = try await second.upsert(Repo(name: "one", path: TestScratch.unique("repo")))
@@ -224,7 +224,7 @@ struct StoreObservationTests {
     func inMemoryStoresDoNotShare() async throws {
         let first = try Store.inMemory()
         let second = try Store.inMemory()
-        let listener = try await Listener(first)
+        let listener = try await StoreChangeListener(first)
 
         _ = try await second.upsert(Repo(name: "one", path: "/tmp/only-in-second"))
         #expect(await listener.nothingFurther())
@@ -239,7 +239,7 @@ struct StoreObservationTests {
         let store = try makeTestStore("changes")
         let repo = try await store.upsert(Repo(name: "one", path: TestScratch.unique("repo")))
         let database = try SQLiteDatabase(path: store.path)
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         try database.run("UPDATE repos SET name = name WHERE id = ?", [.text(repo.id)])
 
@@ -255,10 +255,10 @@ struct StoreObservationTests {
             repoID: repo.id, name: "work", branch: "b",
             path: TestScratch.unique("worktree"), baseBranch: "main"
         ))
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         try await store.updateDiffStat(workspaceID: workspace.id, additions: 12, deletions: 3, files: 2)
-        #expect(await listener.nextBatch() == [.workspaces])
+        #expect(await listener.nextBatch() == [.diffStats])
 
         for _ in 0..<5 {
             try await store.updateDiffStat(
@@ -268,7 +268,7 @@ struct StoreObservationTests {
         #expect(await listener.nothingFurther())
 
         try await store.updateDiffStat(workspaceID: workspace.id, additions: 13, deletions: 3, files: 2)
-        #expect(await listener.nextBatch() == [.workspaces])
+        #expect(await listener.nextBatch() == [.diffStats])
 
         let reread = try await store.workspace(id: workspace.id)
         #expect(reread?.additions == 13)
@@ -290,7 +290,7 @@ struct StoreObservationTests {
             body: "note"
         ))
         let database = try SQLiteDatabase(path: store.path)
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         try database.run("DELETE FROM review_comments")
 
@@ -307,7 +307,7 @@ struct StoreObservationTests {
         )
         try await store.add(work)
         let chosen = ChosenAgentAccount(AgentAccountHome(work))
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         try await store.chooseAgentAccount(chosen, forRepo: repo.id)
         #expect(await listener.nextBatch() == [.repoAgentAccounts])
@@ -324,7 +324,7 @@ struct StoreObservationTests {
         )
         try await store.add(work)
         try await store.chooseAgentAccount(ChosenAgentAccount(AgentAccountHome(work)), forRepo: repo.id)
-        let listener = try await Listener(store)
+        let listener = try await StoreChangeListener(store)
 
         try await store.chooseAgentAccount(ChosenAgentAccount(inheritedBy: .claudeCode), forRepo: repo.id)
 
@@ -340,7 +340,7 @@ struct StoreObservationTests {
         )
         try await store.add(work)
         let chosen = ChosenAgentAccount(AgentAccountHome(work))
-        let listener = try await Listener(store, interest: StoreDomain.projectsWorkspacesAndTheirAccounts)
+        let listener = try await StoreChangeListener(store, interest: StoreDomain.projectsWorkspacesAndTheirAccounts)
 
         let repo = try await store.upsert(Repo(name: "one", path: TestScratch.unique("repo")))
         #expect(await listener.nextBatch() == [.repos])
@@ -355,65 +355,5 @@ struct StoreObservationTests {
         #expect(await listener.nextBatch() == [.repoAgentAccounts])
 
         listener.stop()
-    }
-}
-
-private final class Listener: Sendable {
-    private struct State {
-        var batches: [Set<StoreDomain>] = []
-        var taken = 0
-        var task: Task<Void, Never>?
-    }
-
-    private let state = Mutex(State())
-
-    init(
-        _ store: Store,
-        interest: Set<StoreDomain> = Set(StoreDomain.allCases),
-        handlerDelay: Duration? = nil
-    ) async throws {
-        let hub = store.changeHub
-        let before = hub.subscriberCount
-        let feed = store.changes(of: interest)
-        let task = Task { [self] in
-            for await batch in feed {
-                state.withLock { $0.batches.append(batch) }
-                if let handlerDelay { try? await Task.sleep(for: handlerDelay) }
-            }
-        }
-        state.withLock { $0.task = task }
-        await waitUntil("the listener has subscribed") { hub.subscriberCount > before }
-    }
-
-    var batches: [Set<StoreDomain>] {
-        state.withLock { $0.batches }
-    }
-
-    func nextBatch(within timeout: Duration = .seconds(3)) async -> Set<StoreDomain>? {
-        let seen = state.withLock { $0.taken }
-        await waitUntil("a batch arrives", within: timeout) { self.batches.count > seen }
-        return state.withLock { state in
-            guard state.batches.count > seen else { return nil }
-            state.taken = seen + 1
-            return state.batches[seen]
-        }
-    }
-
-    func nothingFurther(within window: Duration = .milliseconds(250)) async -> Bool {
-        let before = batches.count
-        try? await Task.sleep(for: window)
-        return batches.count == before
-    }
-
-    func hasSettled(for window: Duration) async -> Bool {
-        await nothingFurther(within: window)
-    }
-
-    func stop() {
-        state.withLock { $0.task }?.cancel()
-    }
-
-    deinit {
-        state.withLock { $0.task }?.cancel()
     }
 }

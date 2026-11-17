@@ -9,7 +9,7 @@ extension Git {
         guard hasSubmodules(in: worktree) else { return "" }
         try Task.checkCancellation()
         let arguments = ["submodule", "update", "--init", "--recursive"]
-        let result = try await run(arguments, in: worktree, timeout: timeout)
+        let result = try await runAgainstRemote(arguments, in: worktree, timeout: timeout)
         guard result.ok else { throw error(arguments, result.status, result.stderr, result.stdout) }
         return result.stdout + result.stderr
     }

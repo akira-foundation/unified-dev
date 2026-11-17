@@ -6,7 +6,7 @@ enum OrchestratorUnaskedGit {
     private static let flagsTakingAWord: Set<String> = [
         "-C", "-c", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env", "--attr-source",
     ]
-    private static let flagsThatRedirectGit = ["-c", "--config-env", "--exec-path", "--git-dir", "--work-tree", "--namespace"]
+    private static let flagsThatRedirectGit = ["-C", "-c", "--config-env", "--exec-path", "--git-dir", "--work-tree", "--namespace"]
     private static let reads: Set<String> = [
         "status", "log", "diff", "show", "blame", "shortlog", "describe", "rev-parse", "rev-list", "ls-files", "ls-tree",
         "ls-remote", "merge-base", "cat-file", "grep", "for-each-ref", "show-ref", "name-rev", "whatchanged", "fetch",
@@ -19,17 +19,12 @@ enum OrchestratorUnaskedGit {
     private static let fetchShortFlagsThatMoveBranches = "pPuf"
     private static let lsRemoteShortFlagsThatRun = "u"
 
-    private static let ghReadVerbs: [String: Set<String>] = [
-        "pr": ["view", "list", "status", "diff", "checks"],
-        "issue": ["view", "list", "status"],
-        "run": ["view", "list", "watch"],
-        "repo": ["view", "list"],
-        "release": ["view", "list"],
-        "workflow": ["view", "list"],
-        "label": ["list"],
-    ]
+    private static let ghReadVerbs = OrchestratorReadList.ghVerbs.merging(["repo": ["view", "list"], "label": ["list"]]) {
+        $0.union($1)
+    }
+    private static let ghFlagsThatWait = ["--watch", "--interval"]
     private static let ghCommandsThatOnlyRead: Set<String> = ["search", "api", "status"]
-    private static let ghWritingFlags = ["--method", "--field", "--raw-field", "--input"]
+    private static let ghWritingFlags = ["--method", "--field", "--raw-field", "--input", "--cache"]
     private static let ghWritingShortFlags = "XFf"
     private static let ghVerbsWhereShortWIsNotTheBrowser: Set<String> = ["run list"]
 
@@ -50,7 +45,7 @@ enum OrchestratorUnaskedGit {
         }
         let after = Array(arguments[(index + 1)...])
         if verb == "fetch", after.contains(where: movesBranches) { return .asks }
-        if verb == "ls-remote", after.contains(where: { OrchestratorUnaskedPrograms.hasShortFlag($0, in: lsRemoteShortFlagsThatRun) }) {
+        if verb == "ls-remote", after.contains(where: { $0.contains(":") || OrchestratorUnaskedPrograms.hasShortFlag($0, in: lsRemoteShortFlagsThatRun) }) {
             return .asks
         }
         return after.contains { word in
@@ -77,6 +72,7 @@ enum OrchestratorUnaskedGit {
         let shortWIsTheBrowser = !ghVerbsWhereShortWIsNotTheBrowser.contains("\(command) \(verb)")
         if arguments.contains(where: { opensABrowser($0, shortWIsTheBrowser: shortWIsTheBrowser) }) { return .asks }
         if reachesAnotherHost(arguments, command: command, verb: verb) { return .asks }
+        if arguments.contains(where: { OrchestratorUnaskedPrograms.names($0, oneOf: ghFlagsThatWait) }) { return .asks }
         let writes = command == "api" && arguments.contains { word in
             word.contains("$") || OrchestratorUnaskedPrograms.names(word, oneOf: ghWritingFlags)
                 || OrchestratorUnaskedPrograms.hasShortFlag(word, in: ghWritingShortFlags)

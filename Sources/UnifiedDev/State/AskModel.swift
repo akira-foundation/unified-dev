@@ -115,16 +115,7 @@ final class AskModel {
             if let controls {
                 carried = controls
             } else {
-                let fast = (try await store.setting(ComposerControls.fastModeKey(sessionID: current.id))) == "1"
-                let style = (try await store.setting(ComposerControls.outputStyleKey(sessionID: current.id))) ?? ""
-                let window = CodexContextWindow.normalised(
-                    try await store.setting(ComposerControls.contextWindowKey(sessionID: current.id))
-                )
-                let codexFastMode = CodexSpeed.override(stored: try await store.setting(
-                    CodexSpeed.key(sessionID: current.id)
-                ))
-                carried = ComposerControls(session: current, isFastMode: fast, outputStyle: style,
-                                           codexContextWindow: window, codexFastMode: codexFastMode)
+                carried = try await ComposerControls.carried(from: current, in: store)
             }
             let made = try await store.replaceAskConversation(id: current.id, controls: carried)
             transcripts.removeValue(forKey: current.id)?.teardown()

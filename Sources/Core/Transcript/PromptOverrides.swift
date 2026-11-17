@@ -30,10 +30,10 @@ public struct PromptOverrides: @unchecked Sendable {
         stored(for: id) != nil
     }
 
-    public func template(for id: PromptID) -> String {
+    public func template(for id: PromptID, forge: ForgeKind = .gitHub) -> String {
         let override = stored(for: id) ?? ""
         guard !override.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return PromptRegistry.definition(for: id).defaultTemplate
+            return PromptRegistry.defaultTemplate(for: id, forge: forge)
         }
         return override
     }

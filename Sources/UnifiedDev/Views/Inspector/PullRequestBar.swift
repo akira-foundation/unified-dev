@@ -6,8 +6,6 @@ struct PullRequestBar: View {
 
     @Environment(AppModel.self) private var app
 
-    private static let pollInterval = Duration.seconds(20)
-
     @State private var isWorking = false
     @State private var pendingArchive: ArchiveRequest?
     @State private var pendingMerge: GitHub.MergeMethod?
@@ -63,7 +61,7 @@ struct PullRequestBar: View {
     @ViewBuilder
     private var menuItems: some View {
         if let pullRequest = model.pullRequest {
-            Button("Open on GitHub") { GitHubBridge.open(pullRequest.url) }
+            Button("Open on \(pullRequest.hostName)") { GitHubBridge.open(pullRequest.url) }
             Button("Copy link") { Clipboard.copy(pullRequest.url) }
             if let url = URL(string: pullRequest.url) {
                 ShareLink(item: url) { Text("Share") }
@@ -101,10 +99,10 @@ struct PullRequestBar: View {
     private func act(_ act: PullRequestStanding.Act) {
         switch act {
         case .openPullRequest: ask { await model.requestPullRequest() }
-        case .push, .commitAndPush: ask { await model.requestPush() }
+        case .push, .commitAndPush: ask { await model.requestPush(from: .pullRequestBar) }
         case .markReadyForReview: markReadyForReview()
         case .merge: propose(model.mergeMethod)
-        case .askToFixConflicts: ask { await model.writeFixConflictsRequest() }
+        case .askToFixConflicts: ask { await model.sendFixConflictsRequest() }
         case .askToFixChecks: ask { await model.sendCheckFailureRequest() }
         case .archive: archive()
         }
@@ -130,9 +128,9 @@ struct PullRequestBar: View {
         ask { await model.requestMarkReadyForReview(pullRequest) }
     }
 
-    private func merge(_ method: GitHub.MergeMethod) {
+    private func merge(_ method: GitHub.MergeMethod, confirmed: InstructionAuthority) {
         guard let pullRequest = model.pullRequest else { return }
-        ask { await model.requestMerge(pullRequest, method: method) }
+        ask { await model.requestMerge(pullRequest, method: method, from: .pullRequestBar, confirmed: confirmed) }
     }
 
     private func propose(_ method: GitHub.MergeMethod) {
@@ -188,11 +186,12 @@ struct PullRequestBar: View {
     private func poll() async {
         await model.readRemote()
 
+        let reader = PullRequestReader.pullRequestBar
         var maxAge = WorkspaceModel.pullRequestArrivalMaxAge
         while !Task.isCancelled {
             await model.refreshPullRequest(maxAge: maxAge)
-            maxAge = .zero
-            try? await Task.sleep(for: Self.pollInterval)
+            maxAge = reader.maxAge
+            try? await Task.sleep(for: reader.interval)
         }
     }
 }

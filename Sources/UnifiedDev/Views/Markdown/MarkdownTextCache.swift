@@ -23,8 +23,27 @@ private final class MarkdownTextKeyBox: NSObject {
 
 @MainActor
 final class MarkdownStreamSlot {
+    static var probeTap: ((String, [MarkdownBlock], Double) -> Void)?
+
     var key: MarkdownTextKey?
     var text: MarkdownText?
+    private var parse = MarkdownStreamParse()
+    private var parsed: (text: String, blocks: [MarkdownBlock])?
+
+    func blocks(streaming text: String) -> [MarkdownBlock] {
+        if let parsed, parsed.text == text { return parsed.blocks }
+        let started = ProcessInfo.processInfo.systemUptime
+        let blocks = parse.blocks(for: text)
+        parsed = (text, blocks)
+        Self.probeTap?(text, blocks, ProcessInfo.processInfo.systemUptime - started)
+        return blocks
+    }
+
+    func forgetStream() {
+        guard parsed != nil else { return }
+        parse = MarkdownStreamParse()
+        parsed = nil
+    }
 }
 
 @MainActor

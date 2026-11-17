@@ -24,6 +24,7 @@ final class AgentAccountsModel {
     private(set) var codexStorageMode: CodexAuthStorageMode = .file
     private(set) var activity = Activity.idle
     private(set) var failure: String?
+    private(set) var removalNotice: AgentAccountRemovalNotice?
     private(set) var book = AgentAccountChoiceBook()
 
     @ObservationIgnored private var lastAskedAt: Date?
@@ -39,6 +40,10 @@ final class AgentAccountsModel {
 
     func dismissFailure() {
         failure = nil
+    }
+
+    func dismissRemovalNotice() {
+        removalNotice = nil
     }
 
     func reload(store: Store?) async {
@@ -76,6 +81,7 @@ final class AgentAccountsModel {
     }
 
     func confirmSignIn(of account: AgentAccountID, executables: [AgentKind: String], store: Store?) async {
+        if removalNotice?.account == account { removalNotice = nil }
         answers[account] = nil
         lastAskedAt = nil
         await reload(store: store)
@@ -93,6 +99,7 @@ final class AgentAccountsModel {
                 support: support
             )
             failure = nil
+            removalNotice = nil
             creatingDirectory = reservation.plan.directory
             return Creation(reservation: reservation, profile: profile)
         } catch {
@@ -144,23 +151,15 @@ final class AgentAccountsModel {
     func remove(_ row: AgentAccountPanel.Row, store: Store?) async {
         guard let store else { return }
         let support = Self.support(of: store)
+        removalNotice = nil
+        failure = nil
         do {
             try await AgentAccountRemoval.remove(row, support: support, store: store, keychain: .login)
             if !row.isUnfinished { answers[row.id] = nil }
-            failure = nil
-        } catch AgentAccountError.folderLeftAlone(let path) {
-            if !row.isUnfinished { answers[row.id] = nil }
-            failure = row.isUnfinished
-                ? "Could not remove \(row.title): its folder is not where Unified Dev expected it, so it was left alone: \(path)"
-                : "\(row.title) was forgotten, but its folder is not where Unified Dev expected it, so it was left alone: \(path)"
-        } catch AgentAccountError.forgottenWithFolderKept(let path) {
-            if !row.isUnfinished { answers[row.id] = nil }
-            failure = "\(row.title) was forgotten, but its folder may still be in use, so it was left alone and is listed as an unfinished sign-in: \(path)"
-        } catch AgentAccountError.keychainEntriesLeft(let services) {
-            if !row.isUnfinished { answers[row.id] = nil }
-            failure = "\(row.title) was removed. \(AgentAccountError.keychainEntriesLeft(services).readableMessage)"
         } catch {
-            failure = "Could not remove \(row.title): \(error.readableMessage)"
+            let notice = AgentAccountRemovalNotice.after(error, removing: row)
+            if notice.forgotTheAccount { answers[row.id] = nil }
+            removalNotice = notice
         }
         await reload(store: store)
     }

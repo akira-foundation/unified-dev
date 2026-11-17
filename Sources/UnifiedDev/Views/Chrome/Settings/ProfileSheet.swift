@@ -33,6 +33,11 @@ struct ProfileSheet: View {
                 ProfileAgentAccountSection(profile: editing.id)
                 ProfileAccountSignInSection(profile: editing)
             }
+            if let editing {
+                ProfileGitHubSection(profile: editing)
+                ProfileBitbucketSection(profile: editing)
+                ProfileBridgeSection(profile: editing.id)
+            }
         }
         .confirmationDialog(
             "Delete \(editing?.name ?? "")?",

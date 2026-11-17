@@ -7,10 +7,14 @@ struct MenuBarFooterModule: View {
     let quit: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
+        HStack(spacing: Metrics.spacingSmall) {
             row(MenuBarPanelContent.settingsTitle, command: .openSettings, target: .settings, action: openSettings)
+            Spacer(minLength: Metrics.spacingWide)
             row(MenuBarPanelContent.quitTitle, command: .quit, target: .quit, action: quit)
         }
+        .padding(Metrics.spacingSmall)
+        .frame(maxWidth: .infinity)
+        .menuBarSurface(RoundedRectangle(cornerRadius: MenuBarModuleStyle.corner, style: .continuous))
         .accessibilityElement(children: .contain)
         .accessibilityLabel(MenuBarPanelContent.footerTitle)
     }
@@ -22,16 +26,15 @@ struct MenuBarFooterModule: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: Metrics.spacingWide) {
+            HStack(spacing: Metrics.spacing) {
                 Text(title)
-                Spacer(minLength: Metrics.spacingWide)
                 if let key = MenuBarPanelKey.shortcut(for: command) {
                     Text(key.display)
                         .foregroundStyle(Palette.textSecondary)
                 }
             }
             .font(Typo.label)
-            .padding(.horizontal, Metrics.inset)
+            .padding(.horizontal, Metrics.inset - Metrics.spacingSmall)
             .padding(.vertical, 6)
             .contentShape(Rectangle())
         }

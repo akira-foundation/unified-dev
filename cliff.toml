@@ -30,6 +30,8 @@ commit_preprocessors = [
   { pattern = 'BREAKING CHANGE: changes the behaviour #374 introduced\.', replace = "Changes the behaviour #374 introduced, which no release carried." },
   { pattern = '^fix\(agent\)!: ask the CLI whether a session stands, instead of dating its token', replace = "fix(agent): ask the CLI whether a session stands, instead of dating its token" },
   { pattern = '^fix\(profiles\)!: let the footer follow the launch, agent by agent', replace = "fix(profiles): let the footer follow the launch, agent by agent" },
+  { pattern = '^fix\(browser\)!: keep the owner.s browser panes out of the agents. tools \(#498\)', replace = "fix(browser): keep the owner's browser panes out of the agents' tools (#498)" },
+  { pattern = 'BREAKING CHANGE: an agent can no longer read or act in a browser pane the', replace = "An agent can no longer read or act in a browser pane the" },
 ]
 commit_parsers = [
   { field = "breaking", pattern = "true", group = "<!-- 0 -->Breaking Changes" },

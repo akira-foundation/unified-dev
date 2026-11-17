@@ -128,6 +128,16 @@ import Foundation
         #expect(opening.model == "opus")
     }
 
+    @Test func aPickerOptionTaggedWithItsSectionIsStoredAsThePlainModel() throws {
+        let controls = ComposerControls(model: "opus", agentKind: .claudeCode)
+
+        let opening = try #require(BackendChange.newChatControls(
+            from: controls, on: .antigravity, models: [:], firstOffered: "antigravity:claude-sonnet-4-6"
+        ))
+
+        #expect(opening.model == "claude-sonnet-4-6")
+    }
+
     @Test func aNewChatOnAProviderWithNoModelsIsNotOffered() {
         let controls = ComposerControls(model: "opus", agentKind: .claudeCode)
         #expect(BackendChange.newChatControls(from: controls, on: .codex, models: [:]) == nil)

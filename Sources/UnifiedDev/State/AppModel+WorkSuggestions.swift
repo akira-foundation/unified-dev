@@ -22,7 +22,19 @@ extension AppModel {
                 guard let self else { return .refused("Unified Dev is still starting up.") }
                 return await self.startCrewForBridge(order, from: sessionID, in: workspaceID)
             },
-            admit: { path in await WorkSuggestionLaunch.admit(path, filedAs: id, active: active, with: manager) }
+            admit: { path in await WorkSuggestionLaunch.admit(path, filedAs: id, active: active, with: manager) },
+            orchestrate: OrchestratorRequestLaunch(
+                start: { [weak self] project in
+                    guard let self else { throw AppNotReady.stillStartingUp }
+                    return try await self.startWorkspace(
+                        in: project, prompt: "", select: false, name: OrchestratorRole.newWorkspaceName, orchestrates: true
+                    )
+                },
+                deliver: { [weak self] message in
+                    guard let self else { return .refused("Unified Dev is still starting up.") }
+                    return await self.deliverWorkspaceMessage(message)
+                }
+            )
         )
         _ = await launch.launch(id, as: choice, store: store)
     }

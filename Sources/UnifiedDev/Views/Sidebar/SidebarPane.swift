@@ -63,29 +63,46 @@ final class SidebarPane {
     }
 
     func reflow(_ app: AppModel, shape: Shape) {
+        #if DEBUG
+        ActivityTally.sidebarReflows += 1
+        #endif
         switch shape.grouping {
         case .projects:
-            statusArrangement = []
-            rows = SidebarPaneRow.rows(
+            adopt(arrangement: [])
+            adopt(rows: SidebarPaneRow.rows(
                 groups,
                 crew: app.crew(of:),
                 subagents: app.subagents(of:),
                 pending: app.drawnPending(in:),
                 showsDraft: app.showsDraft(in:)
-            )
+            ))
         case .status:
             let listing = statusListing(app)
-            statusArrangement = listing.arrangement
-            foldedStatusGroups = listing.folding(foldedStatusGroups)
+            adopt(arrangement: listing.arrangement)
+            let folded = listing.folding(foldedStatusGroups)
+            if foldedStatusGroups != folded { foldedStatusGroups = folded }
             let names = Dictionary(groups.map { ($0.id, $0.repo.name) }, uniquingKeysWith: { first, _ in first })
-            rows = SidebarStatusRows.rows(
+            adopt(rows: SidebarStatusRows.rows(
                 listing: listing,
                 projectName: { names[$0] ?? "" },
                 folded: foldedStatusGroups,
                 crew: app.crew(of:),
                 subagents: app.subagents(of:)
-            )
+            ))
         }
+    }
+
+    private func adopt(rows next: [SidebarPaneRow]) {
+        guard rows != next else { return }
+        rows = next
+        #if DEBUG
+        ActivityTally.sidebarRowWrites += 1
+        #endif
+    }
+
+    private func adopt(arrangement next: [String]) {
+        guard statusArrangement != next else { return }
+        statusArrangement = next
     }
 
     func reflowStatus(_ app: AppModel, shape: Shape) {

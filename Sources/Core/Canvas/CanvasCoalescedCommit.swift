@@ -7,9 +7,11 @@ public final class CanvasCoalescedCommit {
     private var pending: (() -> Void)?
     private var timer: Task<Void, Never>?
 
+    public static let taskSleep: @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
+
     public init(
         delay: Duration = .milliseconds(300),
-        sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }
+        sleep: @escaping @Sendable (Duration) async -> Void = CanvasCoalescedCommit.taskSleep
     ) {
         self.delay = delay
         self.sleep = sleep

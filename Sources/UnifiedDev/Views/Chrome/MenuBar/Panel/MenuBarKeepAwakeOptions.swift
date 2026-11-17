@@ -56,7 +56,7 @@ struct MenuBarChipToggleStyle: ToggleStyle {
         } label: {
             HStack(spacing: Metrics.spacingWide) {
                 Image(systemName: symbolName)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(configuration.isOn ? Palette.onAccentFill : Palette.textPrimary)
                     .frame(width: MenuBarModuleStyle.chip, height: MenuBarModuleStyle.chip)
                     .background(Circle().fill(configuration.isOn ? Palette.accentFill : Palette.textPrimary.opacity(0.12)))

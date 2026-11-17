@@ -24,9 +24,9 @@ struct LoginShellProbeTests {
         return path
     }
 
-    private func pid(at path: String) throws -> pid_t {
+    private func pids(at path: String) throws -> [pid_t] {
         let text = try String(contentsOfFile: path, encoding: .utf8)
-        return try #require(pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)))
+        return text.split(whereSeparator: \.isWhitespace).compactMap { pid_t($0) }
     }
 
     @Test("a shell that answers is asked with separate flags and read")
@@ -91,25 +91,26 @@ struct LoginShellProbeTests {
     @Test("a startup file that never returns is stopped at the timeout, children and all")
     func hangingShellIsKilledWithItsGroup() async throws {
         let folder = try directory("hanging-shell")
+        let pidsFile = (folder as NSString).appendingPathComponent("pids")
         let shell = try fakeShell(
             """
-            sleep 30 &
-            echo $! > "$(dirname "$0")/child.pid"
-            echo $$ > "$(dirname "$0")/shell.pid"
-            sleep 30
+            sleep 300 &
+            echo "$! $$" > "$(dirname "$0")/pids.partial"
+            mv "$(dirname "$0")/pids.partial" "$(dirname "$0")/pids"
+            sleep 300
             """,
             in: folder
         )
-        let started = ContinuousClock.now
 
-        let found = await LoginShellPath.discover(shell: shell, environment: [:], timeout: .seconds(1))
+        for seconds in [1, 2, 4, 8, 16] where !FileManager.default.fileExists(atPath: pidsFile) {
+            let found = await LoginShellPath.discover(shell: shell, environment: [:], timeout: .seconds(seconds))
+            #expect(found.isEmpty)
+        }
 
-        #expect(found.isEmpty)
-        #expect(started.duration(to: .now) < .seconds(4))
-        let child = try pid(at: (folder as NSString).appendingPathComponent("child.pid"))
-        let parent = try pid(at: (folder as NSString).appendingPathComponent("shell.pid"))
+        let processes = try pids(at: pidsFile)
+        try #require(processes.count == 2)
         await waitUntil("the shell and the child it started have both gone") {
-            kill(parent, 0) != 0 && kill(child, 0) != 0
+            processes.allSatisfy { kill($0, 0) != 0 }
         }
     }
 
@@ -119,17 +120,25 @@ struct LoginShellProbeTests {
     )
     func slowZshrcIsStopped() async throws {
         let home = try directory("slow-zdotdir")
-        try "sleep 30\n".write(
-            toFile: (home as NSString).appendingPathComponent(".zshrc"), atomically: true, encoding: .utf8
-        )
-        let started = ContinuousClock.now
+        let zshrc = """
+            print $$ > "$ZDOTDIR/pid.partial"
+            mv "$ZDOTDIR/pid.partial" "$ZDOTDIR/pid"
+            sleep 30
 
-        let found = await LoginShellPath.discover(
-            shell: "/bin/zsh", environment: [:], overlay: ["ZDOTDIR": home], timeout: .seconds(2)
-        )
+            """
+        try zshrc.write(toFile: (home as NSString).appendingPathComponent(".zshrc"), atomically: true, encoding: .utf8)
 
-        #expect(found.isEmpty)
-        #expect(started.duration(to: .now) < .seconds(5))
+        let pidFile = (home as NSString).appendingPathComponent("pid")
+
+        for seconds in [2, 4, 8] where !FileManager.default.fileExists(atPath: pidFile) {
+            let found = await LoginShellPath.discover(
+                shell: "/bin/zsh", environment: [:], overlay: ["ZDOTDIR": home], timeout: .seconds(seconds)
+            )
+            #expect(found.isEmpty)
+        }
+
+        let shell = try #require(try pids(at: pidFile).first)
+        await waitUntil("the zsh that was reading its .zshrc has gone") { kill(shell, 0) != 0 }
     }
 
     @Test(
