@@ -32,6 +32,11 @@ public struct AgentAccountOptions: Sendable, Equatable {
         public var id: AgentKind { provider }
         public var title: String { provider.label }
 
+        public var selectedTitle: String {
+            ([inherit] + entries + [unavailable].compactMap(\.self))
+                .first { $0.pick == selected }?.title ?? inherit.title
+        }
+
         public func chosen(for pick: Pick) -> ChosenAgentAccount? {
             switch pick {
             case .inherit:

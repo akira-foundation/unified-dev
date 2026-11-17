@@ -1,0 +1,25 @@
+{
+  "welcome": false,
+  "activeProfile": "Akira",
+  "profiles": [
+    { "name": "Akira", "colour": "D9734E", "symbol": "leaf", "accounts": "own" }
+  ],
+  "accounts": [
+    { "provider": "claudeCode", "email": "ada@home.example" },
+    { "provider": "claudeCode", "email": "ada@client.example", "label": "client", "profile": "Akira", "isProfileDefault": true },
+    { "provider": "codex", "email": "a-rather-long-account-name-0042@relay.example" },
+    { "provider": "codex", "email": "a-rather-long-account-name-0042@relay.example", "label": "work-7d1f40b2", "profile": "Akira", "isProfileDefault": true }
+  ],
+  "projects": [
+    {
+      "name": "ledger",
+      "profile": "Akira",
+      "accounts": { "codex": "work-7d1f40b2" },
+      "files": { "README.md": "# ledger\n\nA scratch project in the Akira profile.\n" },
+      "commits": ["Start ledger"],
+      "workspaces": [
+        { "name": "Quarterly close", "branch": "quarterly-close", "chats": [{ "title": "Close" }] }
+      ]
+    }
+  ]
+}

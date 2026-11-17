@@ -78,7 +78,10 @@ enum ProfileProbe {
     }
 
     private static func sheet(
-        _ draft: ProfileDraft, isNew: Bool = false, refusal: ProfileDeletionRefused? = nil
+        _ draft: ProfileDraft,
+        isNew: Bool = false,
+        refusal: ProfileDeletionRefused? = nil,
+        options: AgentAccountOptions = AgentAccountProbe.profileOptions
     ) -> SceneBody {
         SceneBody(
             view: AnyView(
@@ -92,7 +95,7 @@ enum ProfileProbe {
                 ) {
                     if !isNew, draft.accounts == .own, !draft.accountsChanged {
                         AgentAccountRows(
-                            options: AgentAccountProbe.profileOptions, failure: nil, onPick: { _, _ in }, onAddAccount: nil
+                            options: options, failure: nil, onPick: { _, _ in }, onAddAccount: nil
                         )
                         ProfileAccountSignInButtons(
                             providers: [.claudeCode, .codex], profileName: draft.savedName, onSignIn: { _ in }
@@ -169,6 +172,9 @@ enum ProfileProbe {
             ("sheet-inherits", sheet(ProfileDraft(editing: akira, accounts: .inherits))),
             ("sheet-switching", sheet(switching)),
             ("sheet-blank-name", sheet(blank)),
+            ("sheet-long-account", sheet(
+                ProfileDraft(editing: akira, accounts: .own), options: AgentAccountProbe.longNameProfileOptions
+            )),
         ]
         return [
             Scene(name: "switcher-menu", size: CGSize(width: 260, height: 170), view: menuRows(menu)),

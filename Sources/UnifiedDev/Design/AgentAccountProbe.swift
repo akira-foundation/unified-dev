@@ -87,6 +87,37 @@ enum AgentAccountProbe {
         )
     }
 
+    static let longName = "a-rather-long-account-name-0042@relay.example"
+
+    private static var longNameStandings: [AgentAccountStanding] {
+        standings + [
+            AgentAccountStanding(
+                home: home("work-7d1f40b2", .codex), identity: AgentAccountIdentity(email: longName),
+                cliReport: .unanswered, isolationDoubt: nil
+            ),
+            AgentAccountStanding(
+                home: home("work-3e9a65c1", .codex), identity: AgentAccountIdentity(email: longName),
+                cliReport: .unanswered, isolationDoubt: nil
+            ),
+        ]
+    }
+
+    static var longNameProfileOptions: AgentAccountOptions {
+        AgentAccountOptions.make(
+            scope: .profile,
+            choices: AgentAccountChoices(profile: [.claudeCode: AgentAccountID("work"), .codex: AgentAccountID("work-7d1f40b2")]),
+            standings: longNameStandings,
+            outsideProfile: true
+        )
+    }
+
+    private static var longNameProjectOptions: AgentAccountOptions {
+        AgentAccountOptions.make(
+            choices: AgentAccountChoices(project: [.codex: AgentAccountID("work-7d1f40b2")]),
+            standings: longNameStandings
+        )
+    }
+
     static var profileOptions: AgentAccountOptions {
         options(.profile, stored: [.claudeCode: "work"], outsideProfile: true)
     }
@@ -155,6 +186,7 @@ enum AgentAccountProbe {
             Scene(name: "project-two", size: tall, view: Self.form(options(stored: [.claudeCode: "work", .codex: "lab"]))),
             Scene(name: "project-doubt", size: tall, view: Self.form(options(stored: [.codex: "lab"]))),
             Scene(name: "project-unavailable", size: tall, view: Self.form(options(stored: [.claudeCode: "deleted"]))),
+            Scene(name: "project-long-name", size: CGSize(width: 440, height: 340), view: Self.form(longNameProjectOptions)),
             Scene(name: "project-failure", size: form, view: Self.form(options(), failure: "Could not save the account: database is locked")),
             Scene(name: "composer-default", size: panel, view: Self.composer(project: nil)),
             Scene(name: "composer-project", size: panel, view: Self.composer(project: "work")),

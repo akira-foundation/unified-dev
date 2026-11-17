@@ -106,6 +106,14 @@ struct AgentAccountRows: View {
     }
 
     private func picker(_ group: AgentAccountOptions.Group) -> some View {
+        ViewThatFits(in: .horizontal) {
+            menu(group).fixedSize()
+            menu(group).truncationMode(.middle)
+        }
+        .help(group.selectedTitle)
+    }
+
+    private func menu(_ group: AgentAccountOptions.Group) -> some View {
         Picker(
             group.title,
             selection: Binding(get: { group.selected }, set: { onPick(group, $0) })
@@ -121,6 +129,5 @@ struct AgentAccountRows: View {
             }
         }
         .labelsHidden()
-        .fixedSize()
     }
 }
