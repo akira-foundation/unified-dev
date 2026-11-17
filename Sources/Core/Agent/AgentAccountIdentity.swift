@@ -29,8 +29,18 @@ public struct AgentAccountIdentity: Sendable, Hashable {
         switch home.provider {
         case .claudeCode: readClaude(identity: identity, credential: credential)
         case .codex: readCodex(credential: credential)
-        case .grok, .antigravity, .cursor, .openCode: AgentAccountIdentity()
+        case .grok: readGrok(credential: credential)
+        case .antigravity, .cursor, .openCode: AgentAccountIdentity()
         }
+    }
+
+    private static func readGrok(credential: Data?) -> AgentAccountIdentity {
+        guard let account = credential.flatMap(AgentCatalog.decodeGrokAuth) else { return AgentAccountIdentity() }
+        return AgentAccountIdentity(
+            email: account.email,
+            displayName: account.name,
+            expiresAt: account.canRefresh ? nil : account.expiresAt
+        )
     }
 
     private static func readClaude(identity: Data?, credential: Data?) -> AgentAccountIdentity {

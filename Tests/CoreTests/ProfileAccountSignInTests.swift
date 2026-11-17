@@ -5,8 +5,16 @@ import Testing
 struct ProfileAccountSignInTests {
     @Test("the sheet offers a sign-in for each installed CLI that can keep a login apart, in the usual order")
     func offeredProviders() {
-        let offered = ProfileAccountSignIn.providers(executables: [.codex, .claudeCode, .grok], codexStorageMode: .file)
-        #expect(offered == [.claudeCode, .codex])
+        let offered = ProfileAccountSignIn.providers(
+            executables: [.grok, .codex, .claudeCode, .antigravity, .cursor, .openCode], codexStorageMode: .file
+        )
+        #expect(offered == [.claudeCode, .codex, .grok])
+    }
+
+    @Test("Grok gets a sign-in of its own, worded like the others")
+    func grok() {
+        #expect(ProfileAccountSignIn.providers(executables: [.grok], codexStorageMode: .keyring) == [.grok])
+        #expect(ProfileAccountSignIn.title(for: .grok) == "Sign in with a Grok account\u{2026}")
     }
 
     @Test("a CLI that is not installed gets no sign-in")

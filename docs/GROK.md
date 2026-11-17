@@ -77,6 +77,13 @@ does not offer it and shows no card. Any other failure draws Grok as not having 
 A preview with no Grok account chosen does not ask at all. Grok has no default home for a preview
 to redirect, so asking would read the owner's own login.
 
+## Accounts
+
+A Grok account is a directory, and every process Unified Dev starts for it, the chat, the quota
+request, the sign-in terminal and the status question, carries that directory in `GROK_HOME`.
+`grok login` there writes its own `auth.json`, and `grok models` there says whether it holds a
+login. `docs/AGENTS-INTEGRATION.md` has what was measured.
+
 ## Permissions
 
 `session/request_permission` is a server-to-client request. The payload is a tool call plus
