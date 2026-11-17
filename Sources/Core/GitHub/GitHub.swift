@@ -285,11 +285,6 @@ public enum GitHub {
         guard Git.isValidBranchName(base) else {
             throw GitHubError("refusing to open a pull request against '\(base)': not a valid branch name")
         }
-        guard ConventionalTitle.isConventional(title) else {
-            throw GitHubError(
-                "refusing to open a pull request titled '\(title)': not a conventional commit, \(ConventionalTitle.shape)"
-            )
-        }
         var arguments = ["pr", "create", "--base", base, "--title", title, "--body", body]
         if draft { arguments.append("--draft") }
         try await checkGH(arguments, worktree: worktree)

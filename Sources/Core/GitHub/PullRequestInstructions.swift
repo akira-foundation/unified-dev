@@ -47,12 +47,12 @@ public enum PullRequestInstructions {
         return scratchPath
     }
 
-    private static func refreshed(_ relative: String, in worktree: String, to contents: String) -> String {
+    private static func refreshed(_ relative: String, in worktree: String, to contents: String) -> String? {
         let full = (worktree as NSString).appendingPathComponent(relative)
         guard let text = try? String(contentsOfFile: full, encoding: .utf8),
               text != contents, isUnedited(text)
         else { return relative }
-        try? contents.write(toFile: full, atomically: true, encoding: .utf8)
+        guard (try? contents.write(toFile: full, atomically: true, encoding: .utf8)) != nil else { return nil }
         return relative
     }
 
