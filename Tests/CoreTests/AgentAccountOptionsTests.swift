@@ -164,4 +164,24 @@ struct AgentAccountOptionsTests {
         let made = try group(.claudeCode, project: [.claudeCode: AccountFixture.defaultClaude.id], standings: signedOut)
         #expect(made.note == "Every workspace and chat in this project runs Claude Code on the default account.")
     }
+
+    @Test func theSelectedTitleIsTheFullTitleOfTheChosenAccount() throws {
+        let long = "a-rather-long-account-name-0042@relay.example"
+        let chosen = [
+            AccountFixture.standing(AccountFixture.defaultClaude, email: "me@home.com"),
+            AccountFixture.standing(AccountFixture.work, email: "me@client.com"),
+            AccountFixture.standing(AccountFixture.extra("lab"), email: long),
+        ]
+        let made = try group(.claudeCode, project: [.claudeCode: AgentAccountID("lab")], standings: chosen)
+        #expect(made.entries.map(\.title) == ["me@client.com", long])
+        #expect(made.selectedTitle == long)
+        let other = try group(.claudeCode, project: [.claudeCode: AccountFixture.work.id], standings: chosen)
+        #expect(other.selectedTitle == "me@client.com")
+    }
+
+    @Test func theSelectedTitleFollowsTheInheritedAndUnavailableEntries() throws {
+        #expect(try group(.claudeCode).selectedTitle == "Default account")
+        let gone = try group(.claudeCode, project: [.claudeCode: AgentAccountID("deleted")])
+        #expect(gone.selectedTitle == "Unavailable account")
+    }
 }
