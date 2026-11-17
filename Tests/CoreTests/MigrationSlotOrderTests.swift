@@ -21,8 +21,8 @@ struct MigrationSlotOrderTests {
         return (path, current)
     }
 
-    @Test func theFifthToLastMigrationCreatesTheInboxTable() throws {
-        let seeded = try storeWithoutInboxTable(rewoundBy: 5)
+    @Test func theSixthToLastMigrationCreatesTheInboxTable() throws {
+        let seeded = try storeWithoutInboxTable(rewoundBy: 6)
 
         _ = try Store(path: seeded.path)
 
@@ -30,21 +30,21 @@ struct MigrationSlotOrderTests {
         #expect(try SQLiteDatabase(path: seeded.path).readUserVersion() == seeded.current)
     }
 
-    @Test func theLastFourMigrationsDoNotCreateTheInboxTable() throws {
-        let seeded = try storeWithoutInboxTable(rewoundBy: 4)
+    @Test func theLastFiveMigrationsDoNotCreateTheInboxTable() throws {
+        let seeded = try storeWithoutInboxTable(rewoundBy: 5)
 
         _ = try Store(path: seeded.path)
 
         #expect(try !inboxTableExists(at: seeded.path))
     }
 
-    @Test func theLastMigrationCreatesTheChapterTable() async throws {
+    @Test func theSecondToLastMigrationCreatesTheChapterTable() async throws {
         let path = TestScratch.unique("migration-chapters") + ".sqlite"
         _ = try Store(path: path)
         let raw = try SQLiteDatabase(path: path)
         let current = try raw.readUserVersion()
         try raw.execute("DROP TABLE transcript_chapters;")
-        try raw.setUserVersion(current - 1)
+        try raw.setUserVersion(current - 2)
 
         let reopened = try Store(path: path)
         let repo = try await reopened.upsert(Repo(name: "r", path: TestScratch.unique("repo")))
