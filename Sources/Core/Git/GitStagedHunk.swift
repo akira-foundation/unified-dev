@@ -10,13 +10,11 @@ extension Git {
             let plan = try await hunkDiscardPlan(
                 hunk, of: file, worktree: worktree, base: base, scope: scope
             )
-            guard plan.hasPreimage else { return .holdsAnotherVersion }
-
-            let held = try await run(
-                ["apply", "--reverse", "--whitespace=nowarn", "--cached", "--check"],
-                in: worktree, stdin: plan.isolated
-            )
-            return held.ok ? .holdsTheHunk : .holdsAnotherVersion
+            return switch try await route(plan, in: worktree) {
+            case .indexAndWorktree: .holdsTheHunk
+            case .refusedByTheIndex: .divergesFromTheWorktree
+            case .worktreeOnly: .holdsAnotherVersion
+            }
         } catch {
             return .unreadable
         }

@@ -65,6 +65,38 @@ struct GitStagedHunkTests {
         #expect(await staged(repo, first) == .holdsAnotherVersion)
     }
 
+    @Test("an index holding the hunk while the working file has moved on is told apart from one that agrees")
+    func indexHoldsTheHunkApartFromTheWorktree() async throws {
+        let repo = try await repo()
+        defer { repo.cleanUp() }
+        try await Shell.check("git", ["add", "file.txt"], cwd: repo.path)
+        try repo.write("file.txt", Self.after.replacingOccurrences(of: "line 14\n", with: "line fourteen\n"))
+        let shown = try await hunks(repo, ChangedFile(path: "file.txt", change: .modified))
+        let first = try #require(shown.first { $0.lines.contains { $0.text == "line two" } })
+
+        #expect(await staged(repo, first) == .divergesFromTheWorktree)
+    }
+
+    @Test("a staged removal the working file agrees with leaves the index too, so it is not said to stay")
+    func stagedRemovalLeavesBoth() async throws {
+        let repo = try await TempRepo()
+        defer { repo.cleanUp() }
+        try repo.write("file.txt", Self.before)
+        try await repo.commit("Before")
+        let removed = Self.before.replacingOccurrences(of: "line 14\nline 15\n", with: "")
+        try repo.write("file.txt", removed)
+        try await Shell.check("git", ["add", "file.txt"], cwd: repo.path)
+        let file = ChangedFile(path: "file.txt", change: .modified)
+        let shown = try await hunks(repo, file)
+        let hunk = try #require(shown.first)
+
+        #expect(await staged(repo, hunk) == .holdsTheHunk)
+
+        try await Git.discardHunk(hunk, of: file, worktree: repo.path, base: "main", scope: .uncommitted)
+        let index = try await Shell.check("git", ["show", ":file.txt"], cwd: repo.path).stdout
+        #expect(index == Self.before)
+    }
+
     @Test("a staged rename on its own is no staged version of the region")
     func stagedRenameHoldsNothing() async throws {
         let repo = try await TempRepo()

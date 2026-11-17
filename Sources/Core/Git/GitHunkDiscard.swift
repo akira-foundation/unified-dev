@@ -1,5 +1,11 @@
 import Foundation
 
+enum HunkDiscardRoute: Equatable, Sendable {
+    case indexAndWorktree
+    case refusedByTheIndex
+    case worktreeOnly
+}
+
 struct HunkDiscardPlan: Sendable {
     let isolated: String
     let anchored: String
@@ -39,22 +45,31 @@ extension Git {
 
     static func apply(_ plan: HunkDiscardPlan, in worktree: String) async throws {
         let reverse = ["apply", "--reverse", "--whitespace=nowarn"]
-        if try await run(reverse + ["--index", "--check"], in: worktree, stdin: plan.anchored).ok {
+        switch try await route(plan, in: worktree) {
+        case .indexAndWorktree:
             try await check(reverse + ["--index"], in: worktree, stdin: plan.anchored)
-            return
+        case .refusedByTheIndex:
+            throw HunkDiscardRefusal.indexDiffers
+        case .worktreeOnly:
+            let worktreeCheck = try await run(reverse + ["--check"], in: worktree, stdin: plan.anchored)
+            guard worktreeCheck.ok else {
+                throw HunkDiscardRefusal.doesNotApply(
+                    worktreeCheck.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }
+            try await check(reverse, in: worktree, stdin: plan.anchored)
         }
+    }
 
+    static func route(_ plan: HunkDiscardPlan, in worktree: String) async throws -> HunkDiscardRoute {
+        let reverse = ["apply", "--reverse", "--whitespace=nowarn"]
+        if try await run(reverse + ["--index", "--check"], in: worktree, stdin: plan.anchored).ok {
+            return .indexAndWorktree
+        }
         if plan.hasPreimage,
            try await run(reverse + ["--cached", "--check"], in: worktree, stdin: plan.isolated).ok {
-            throw HunkDiscardRefusal.indexDiffers
+            return .refusedByTheIndex
         }
-
-        let worktreeCheck = try await run(reverse + ["--check"], in: worktree, stdin: plan.anchored)
-        guard worktreeCheck.ok else {
-            throw HunkDiscardRefusal.doesNotApply(
-                worktreeCheck.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-        }
-        try await check(reverse, in: worktree, stdin: plan.anchored)
+        return .worktreeOnly
     }
 }

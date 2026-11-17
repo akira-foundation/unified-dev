@@ -5,6 +5,7 @@ public enum HunkDiscard {
         case clean
         case holdsTheHunk
         case holdsAnotherVersion
+        case divergesFromTheWorktree
         case unreadable
     }
 
@@ -27,6 +28,13 @@ public enum HunkDiscard {
     public static let stagedUnknown =
         "Unified Dev could not read what the index holds for this file. If anything is staged "
             + "here, this leaves it as it is, and your next commit still carries it."
+
+    public static let unstageFirst =
+        "Unstage the file with git restore --staged, or commit what is staged, and then discard the hunk."
+
+    public static let indexRefuses =
+        "This file has staged changes over these lines that do not match the working file, so git "
+            + "refuses to discard this hunk and nothing would be written. " + unstageFirst
 
     public static let draftIsOpen =
         "Save or throw away your unsaved edits to this file before discarding a single hunk"
@@ -65,11 +73,16 @@ public enum HunkDiscard {
         }
     }
 
-    public static func question(path: String) -> String {
-        "Discard this hunk in \(path)?"
+    public static func question(path: String, staged: Staged = .clean) -> String {
+        canConfirm(staged) ? "Discard this hunk in \(path)?" : "This hunk in \(path) cannot be discarded yet"
+    }
+
+    public static func canConfirm(_ staged: Staged) -> Bool {
+        staged != .divergesFromTheWorktree
     }
 
     public static func losses(of hunk: DiffHunk, staged: Staged) -> String {
+        if staged == .divergesFromTheWorktree { return indexRefuses }
         let added = hunk.lines.filter { $0.kind == .addition }.count
         let removed = hunk.lines.filter { $0.kind == .deletion }.count
         let clauses = [
@@ -83,7 +96,7 @@ public enum HunkDiscard {
 
     static func notice(_ staged: Staged) -> String {
         switch staged {
-        case .clean, .holdsTheHunk: ""
+        case .clean, .holdsTheHunk, .divergesFromTheWorktree: ""
         case .holdsAnotherVersion: stagedStays + "\n\n"
         case .unreadable: stagedUnknown + "\n\n"
         }
