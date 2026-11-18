@@ -108,8 +108,10 @@ extension AppModel {
         }
         guard accountFingerprint(for: selectedAccountScope) == fingerprint else { return }
         selectedAccountHomes = resolution.homes
-        ComposerModelCatalog.shared.adopt(accounts: resolution.homes, store: store)
-        adoptQuotaScope(QuotaScope(homes: resolution.homes))
+        ComposerModelCatalog.shared.adopt(
+            accounts: resolution.homes, refusing: resolution.refusedProviders, store: store
+        )
+        adoptQuotaScope(QuotaScope(homes: resolution.homes, refusing: resolution.refusedProviders))
     }
 }
 

@@ -21,6 +21,7 @@ final class ComposerModelCatalog {
 
     private var sources: [AgentKind: AgentModelSource]
     private var accounts: [AgentKind: AgentAccountHome] = [:]
+    private var refused: Set<AgentKind> = []
     private var accountsAreKnown = false
     private var store: Store?
     private var loadTask: Task<Void, Never>?
@@ -34,18 +35,19 @@ final class ComposerModelCatalog {
     func configure(store: Store) {
         self.store = store
         Task { await ComposerPlanningSupport.shared.refresh(from: store) }
-        sources = AgentModelSource.live(store: store, accounts: accounts)
+        sources = AgentModelSource.live(store: store, accounts: accounts, refusing: refused)
         guard accountsAreKnown else { return }
         followClaudeReports(in: store)
         refresh()
     }
 
-    func adopt(accounts adopted: [AgentKind: AgentAccountHome], store: Store) {
-        guard adopted != accounts || !accountsAreKnown else { return }
+    func adopt(accounts adopted: [AgentKind: AgentAccountHome], refusing refusals: Set<AgentKind>, store: Store) {
+        guard adopted != accounts || refusals != refused || !accountsAreKnown else { return }
         accountsAreKnown = true
         accounts = adopted
+        refused = refusals
         self.store = store
-        sources = AgentModelSource.live(store: store, accounts: adopted)
+        sources = AgentModelSource.live(store: store, accounts: adopted, refusing: refusals)
         followClaudeReports(in: store)
         refresh()
     }
@@ -63,7 +65,7 @@ final class ComposerModelCatalog {
     }
 
     private func refreshClaudeAliases() {
-        guard let store else { return }
+        guard let store, sources[.claudeCode] != nil else { return }
         let account = accounts[.claudeCode]
         Task { await ClaudeAliasRefresh.shared.refresh(account: account, in: store) }
     }

@@ -7,8 +7,9 @@ public struct QuotaScope: Sendable, Hashable {
         self.holders = holders
     }
 
-    public init(homes: [AgentKind: AgentAccountHome]) {
-        self.init(holders: Dictionary(uniqueKeysWithValues: AgentKind.allCases.filter(\.publishesUsage).map {
+    public init(homes: [AgentKind: AgentAccountHome], refusing refused: Set<AgentKind> = []) {
+        let read = AgentKind.allCases.filter { $0.publishesUsage && !refused.contains($0) }
+        self.init(holders: Dictionary(uniqueKeysWithValues: read.map {
             ($0, QuotaHolder(provider: $0, home: homes[$0]))
         }))
     }

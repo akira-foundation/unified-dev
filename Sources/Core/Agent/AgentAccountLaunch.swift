@@ -61,4 +61,8 @@ public enum AgentAccountLaunch: Sendable, Equatable {
         case .refused(let refusal): throw refusal
         }
     }
+
+    public var isRefused: Bool {
+        if case .refused = self { true } else { false }
+    }
 }
