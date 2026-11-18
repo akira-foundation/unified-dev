@@ -340,7 +340,7 @@ its own condition, the note is the sentence above for that condition. It names o
 call from a workspace chat stops on the permission card exactly as a call that names a `profile` does:
 `BridgeToolApproval.crossesProfile` is true for it whatever its input, so `isSelfApproved` refuses it in a
 workspace, the card offers no "always allow", and it is among the `crossingTools` an ordinary chat gets an
-`ask` rule for. The owner's own Ask chat stops on it too; the standalone client, which has no card, is not stopped. A workspace's answer is fenced. A chat
+`ask` rule for. Unified Dev never approves it by itself, so the owner's own Ask chat shows the card whenever its mode asks, and the standalone client, which has no card, is not stopped; both are the owner's own. A workspace's answer is fenced. A chat
 that cannot cross, Codex among them, gets only its own profile back, so a call nothing could stop reveals
 nothing. `all` is reserved on the two lists, so
 a profile called All is named by its id there, and `include_github` is refused with `all` because it starts
