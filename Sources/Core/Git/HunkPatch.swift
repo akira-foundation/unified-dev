@@ -1,16 +1,18 @@
 import Foundation
 
 public enum HunkPatch {
-    public static func isolate(_ hunk: DiffHunk, from patch: String) -> String? {
-        let files = DiffParser.parse(patch)
+    typealias Line = [UInt8]
+
+    public static func isolate(_ hunk: DiffHunk, from patch: Data) -> Data? {
+        let files = DiffParser.parse(String(decoding: patch, as: UTF8.self))
         guard files.count == 1, let file = files.first else { return nil }
         guard let position = file.hunks.firstIndex(where: { matches($0, hunk) }) else { return nil }
 
-        let lines = patch.components(separatedBy: "\n")
-        guard let newPath = lines.first(where: { $0.hasPrefix("+++ ") }),
+        let lines = split(patch)
+        guard let newPath = lines.first(where: { $0.starts(with: newMarker) }),
               let oldPath = oldSide(of: newPath) else { return nil }
 
-        let starts = lines.indices.filter { lines[$0].hasPrefix("@@") }
+        let starts = lines.indices.filter { lines[$0].starts(with: hunkMarker) }
         guard starts.count == file.hunks.count else { return nil }
 
         let start = starts[position]
@@ -18,37 +20,42 @@ public enum HunkPatch {
         if end == lines.count, lines.last?.isEmpty == true { end -= 1 }
         let body = lines[start..<end]
 
-        return ([header(old: oldPath, new: newPath), oldPath, newPath] + body)
-            .joined(separator: "\n") + "\n"
+        return join([header(old: oldPath, new: newPath), oldPath, newPath] + body)
     }
 
     public static let wholeFileContext = 1_000_000
 
-    public static func anchor(_ hunk: DiffHunk, in whole: String) -> String? {
-        let files = DiffParser.parse(whole)
+    public static func addsLinesThatAreNotUTF8(_ patch: Data) -> Bool {
+        split(patch)
+            .drop { !$0.starts(with: hunkMarker) }
+            .contains { $0.first == UInt8(ascii: "+") && String(validating: $0, as: UTF8.self) == nil }
+    }
+
+    public static func anchor(_ hunk: DiffHunk, in whole: Data) -> Data? {
+        let files = DiffParser.parse(String(decoding: whole, as: UTF8.self))
         guard files.count == 1, let file = files.first, file.hunks.count == 1,
               let merged = file.hunks.first, merged.oldStart <= 1, merged.newStart <= 1
         else { return nil }
 
-        let lines = whole.components(separatedBy: "\n")
-        guard let newPath = lines.first(where: { $0.hasPrefix("+++ ") }),
+        let lines = split(whole)
+        guard let newPath = lines.first(where: { $0.starts(with: newMarker) }),
               let oldPath = oldSide(of: newPath),
-              let heading = lines.firstIndex(where: { $0.hasPrefix("@@") })
+              let heading = lines.firstIndex(where: { $0.starts(with: hunkMarker) })
         else { return nil }
 
         var body = Array(lines[(heading + 1)...])
         if body.last?.isEmpty == true { body.removeLast() }
-        guard let region = region(of: hunk, in: body) else { return nil }
+        guard let region = region(of: hunk, in: body.map { String(decoding: $0, as: UTF8.self) })
+        else { return nil }
 
         let rewritten = reduce(body, keeping: region)
         let counts = "@@ -\(rewritten.oldStart),\(rewritten.oldCount)"
             + " +\(rewritten.newStart),\(rewritten.newCount) @@"
-        return ([header(old: oldPath, new: newPath), oldPath, newPath, counts] + rewritten.body)
-            .joined(separator: "\n") + "\n"
+        return join([header(old: oldPath, new: newPath), oldPath, newPath, Line(counts.utf8)] + rewritten.body)
     }
 
     struct Reduced {
-        var body: [String] = []
+        var body: [Line] = []
         var oldCount = 0
         var newCount = 0
 
@@ -56,23 +63,23 @@ public enum HunkPatch {
         var newStart: Int { newCount == 0 ? 0 : 1 }
     }
 
-    static func reduce(_ body: [String], keeping region: Range<Int>) -> Reduced {
+    static func reduce(_ body: [Line], keeping region: Range<Int>) -> Reduced {
         var reduced = Reduced()
         var dropped = false
         for (index, line) in body.enumerated() {
             let kept = region.contains(index)
             switch line.first {
-            case "\\":
+            case UInt8(ascii: "\\"):
                 if !dropped { reduced.body.append(line) }
-            case "-":
+            case UInt8(ascii: "-"):
                 dropped = !kept
                 if kept {
                     reduced.body.append(line)
                     reduced.oldCount += 1
                 }
-            case "+":
+            case UInt8(ascii: "+"):
                 dropped = false
-                reduced.body.append(kept ? line : " " + line.dropFirst())
+                reduced.body.append(kept ? line : [UInt8(ascii: " ")] + line.dropFirst())
                 reduced.newCount += 1
                 if !kept { reduced.oldCount += 1 }
             default:
@@ -129,22 +136,35 @@ public enum HunkPatch {
         }
     }
 
-    static func header(old: String, new: String) -> String {
-        "diff --git " + name(of: old, after: "--- ") + " " + name(of: new, after: "+++ ")
+    static func split(_ patch: Data) -> [Line] {
+        patch.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: false).map { Line($0) }
     }
 
-    static func name(of line: String, after marker: String) -> String {
-        var name = Substring(line.dropFirst(marker.count))
-        while name.hasSuffix("\t") { name = name.dropLast() }
-        return String(name)
+    static func join(_ lines: [Line]) -> Data {
+        Data(lines.joined(separator: [UInt8(ascii: "\n")]) + [UInt8(ascii: "\n")])
     }
 
-    static func oldSide(of newPath: String) -> String? {
-        let name = newPath.dropFirst("+++ ".count)
-        if name.hasPrefix("\"b/") { return "--- \"a/" + name.dropFirst(3) }
-        if name.hasPrefix("b/") { return "--- a/" + name.dropFirst(2) }
+    static func header(old: Line, new: Line) -> Line {
+        Line("diff --git ".utf8) + name(of: old, after: oldMarker) + [UInt8(ascii: " ")]
+            + name(of: new, after: newMarker)
+    }
+
+    static func name(of line: Line, after marker: Line) -> Line {
+        var name = line.dropFirst(marker.count)
+        while name.last == UInt8(ascii: "\t") { name = name.dropLast() }
+        return Line(name)
+    }
+
+    static func oldSide(of newPath: Line) -> Line? {
+        let name = newPath.dropFirst(newMarker.count)
+        if name.starts(with: "\"b/".utf8) { return oldMarker + "\"a/".utf8 + name.dropFirst(3) }
+        if name.starts(with: "b/".utf8) { return oldMarker + "a/".utf8 + name.dropFirst(2) }
         return nil
     }
+
+    private static let oldMarker = Line("--- ".utf8)
+    private static let newMarker = Line("+++ ".utf8)
+    private static let hunkMarker = Line("@@".utf8)
 
     private static func matches(_ lhs: DiffHunk, _ rhs: DiffHunk) -> Bool {
         lhs.oldStart == rhs.oldStart && lhs.oldCount == rhs.oldCount

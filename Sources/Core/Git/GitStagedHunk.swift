@@ -4,12 +4,17 @@ extension Git {
     public static func stagedHunk(
         _ hunk: DiffHunk, of file: ChangedFile, worktree: String, base: String, scope: DiffScope
     ) async -> HunkDiscard.Staged {
+        let plan: HunkDiscardPlan?
+        do {
+            plan = try await hunkDiscardPlan(hunk, of: file, worktree: worktree, base: base, scope: scope)
+        } catch HunkDiscardRefusal.addsLinesThatAreNotUTF8 {
+            return .addsLinesThatAreNotUTF8
+        } catch {
+            plan = nil
+        }
         do {
             guard try await stagedContentDiffers(file, in: worktree) else { return .clean }
-
-            let plan = try await hunkDiscardPlan(
-                hunk, of: file, worktree: worktree, base: base, scope: scope
-            )
+            guard let plan else { return .unreadable }
             return switch try await route(plan, in: worktree) {
             case .indexAndWorktree: .holdsTheHunk
             case .refusedByTheIndex: .divergesFromTheWorktree

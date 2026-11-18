@@ -6,6 +6,7 @@ public enum HunkDiscard {
         case holdsTheHunk
         case holdsAnotherVersion
         case divergesFromTheWorktree
+        case addsLinesThatAreNotUTF8
         case unreadable
     }
 
@@ -35,6 +36,12 @@ public enum HunkDiscard {
     public static let indexRefuses =
         "This file has staged changes over these lines that do not match the working file, so git "
             + "refuses to discard this hunk and nothing would be written. " + unstageFirst
+
+    public static let addsLinesThatAreNotUTF8 =
+        "This hunk adds lines that are not UTF-8, so Unified Dev cannot check that they are still the "
+            + "ones shown here."
+
+    public static let discardTheWholeFile = "Discard the whole file to put it back the way git has it."
 
     public static let draftIsOpen =
         "Save or throw away your unsaved edits to this file before discarding a single hunk"
@@ -74,15 +81,20 @@ public enum HunkDiscard {
     }
 
     public static func question(path: String, staged: Staged = .clean) -> String {
-        canConfirm(staged) ? "Discard this hunk in \(path)?" : "This hunk in \(path) cannot be discarded yet"
+        switch staged {
+        case .divergesFromTheWorktree: "This hunk in \(path) cannot be discarded yet"
+        case .addsLinesThatAreNotUTF8: "This hunk in \(path) cannot be discarded"
+        case .clean, .holdsTheHunk, .holdsAnotherVersion, .unreadable: "Discard this hunk in \(path)?"
+        }
     }
 
     public static func canConfirm(_ staged: Staged) -> Bool {
-        staged != .divergesFromTheWorktree
+        staged != .divergesFromTheWorktree && staged != .addsLinesThatAreNotUTF8
     }
 
     public static func losses(of hunk: DiffHunk, staged: Staged) -> String {
         if staged == .divergesFromTheWorktree { return indexRefuses }
+        if staged == .addsLinesThatAreNotUTF8 { return addsLinesThatAreNotUTF8 + " " + discardTheWholeFile }
         let added = hunk.lines.filter { $0.kind == .addition }.count
         let removed = hunk.lines.filter { $0.kind == .deletion }.count
         let clauses = [
@@ -96,7 +108,7 @@ public enum HunkDiscard {
 
     static func notice(_ staged: Staged) -> String {
         switch staged {
-        case .clean, .holdsTheHunk, .divergesFromTheWorktree: ""
+        case .clean, .holdsTheHunk, .divergesFromTheWorktree, .addsLinesThatAreNotUTF8: ""
         case .holdsAnotherVersion: stagedStays + "\n\n"
         case .unreadable: stagedUnknown + "\n\n"
         }

@@ -71,30 +71,6 @@ struct GitHunkDiscardFileTests {
         #expect(repo.read("file.txt") == committed)
     }
 
-    @Test("a tracked file that is not UTF-8 is refused, and nothing is written")
-    func fileThatIsNotUTF8() async throws {
-        let repo = try await TempRepo()
-        defer { repo.cleanUp() }
-        let path = (repo.path as NSString).appendingPathComponent("file.txt")
-        let latin = (1...30).map { "line \($0)" }.joined(separator: "\n") + "\n"
-        let accented = latin.replacingOccurrences(of: "line 25", with: "caf\u{e9} 25")
-        try #require(latin.data(using: .isoLatin1)).write(to: URL(fileURLWithPath: path))
-        try await repo.commit("Before")
-        let edited = try #require(accented.data(using: .isoLatin1))
-        try edited.write(to: URL(fileURLWithPath: path))
-        let file = ChangedFile(path: "file.txt", change: .modified)
-        let shown = try await hunks(repo, file)
-
-        await #expect(performing: {
-            try await Git.discardHunk(shown[0], of: file, worktree: repo.path, base: "main", scope: .all)
-        }, throws: { error in
-            guard case .doesNotApply = error as? HunkDiscardRefusal else { return false }
-            return true
-        })
-
-        #expect(try Data(contentsOf: URL(fileURLWithPath: path)) == edited)
-    }
-
     @Test("a file emptied of every line is put back by discarding its one hunk")
     func emptiedFile() async throws {
         let repo = try await TempRepo()

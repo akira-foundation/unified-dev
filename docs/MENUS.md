@@ -276,7 +276,7 @@ A toolbar button with a key names that key in its tooltip, read from `MenuBarCat
 | Unified / side by side | file bar menu | **no** | none |
 | Ignore whitespace | file bar menu | **no** | none |
 | Discard changes (a file) | file bar button, file bar menus and row menu, greyed with the reason beneath it while the agent is mid turn | **no** | none |
-| Discard (a hunk) | the hunk's band in the diff, greyed with the reason as its tooltip while the agent is mid turn, while whitespace is ignored and while the file has unsaved edits, and absent altogether on an added, deleted, untracked, copied, binary, submodule or typechanged file | **no** | none |
+| Discard (a hunk) | the hunk's band in the diff, greyed with the reason as its tooltip while the agent is mid turn, while whitespace is ignored and while the file has unsaved edits; its confirmation cannot be accepted, and says why, while the index holds staged changes over those lines that do not match the working file or while the hunk adds lines that are not UTF-8; absent altogether on an added, deleted, untracked, copied, binary, submodule or typechanged file | **no** | none |
 | Reveal in Finder, Copy path (a changed file, a folder, a tree row) | row menus | **no** | none |
 | Comment on This Line | diff line menu | **no** | none |
 | Send This Failure to the Agent | check row menu | **no** | none |

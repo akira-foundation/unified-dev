@@ -34,6 +34,29 @@ struct GitStagedHunkTests {
         )
     }
 
+    @Test("a hunk no longer in the file still asks plainly when nothing is staged")
+    func staleHunkWithNothingStaged() async throws {
+        let repo = try await repo()
+        defer { repo.cleanUp() }
+        let file = ChangedFile(path: "file.txt", change: .modified)
+        let first = try #require(try await hunks(repo, file).first)
+        try repo.write("file.txt", Self.after.replacingOccurrences(of: "line two\n", with: "line deux\n"))
+
+        #expect(await staged(repo, first) == .clean)
+    }
+
+    @Test("a hunk no longer in the file says the index could not be read when something is staged")
+    func staleHunkWithSomethingStaged() async throws {
+        let repo = try await repo()
+        defer { repo.cleanUp() }
+        let file = ChangedFile(path: "file.txt", change: .modified)
+        let first = try #require(try await hunks(repo, file).first)
+        try await Shell.check("git", ["add", "file.txt"], cwd: repo.path)
+        try repo.write("file.txt", Self.after.replacingOccurrences(of: "line two\n", with: "line deux\n"))
+
+        #expect(await staged(repo, first) == .unreadable)
+    }
+
     @Test("an index that matches the commit holds nothing of its own")
     func nothingStaged() async throws {
         let repo = try await repo()

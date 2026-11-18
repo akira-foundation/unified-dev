@@ -170,6 +170,21 @@ struct HunkDiscardTests {
         }
     }
 
+    @Test("a hunk whose added lines cannot be checked is not offered as a button, and says why")
+    func uncheckableAddedLinesAreNotConfirmed() {
+        let hunk = DiffHunk(oldStart: 1, oldCount: 1, newStart: 1, newCount: 1, lines: [
+            DiffLine(kind: .deletion, text: "cafe"),
+            DiffLine(kind: .addition, text: "caf\u{fffd}"),
+        ])
+
+        #expect(!HunkDiscard.canConfirm(.addsLinesThatAreNotUTF8))
+        #expect(HunkDiscard.question(path: "src/hull.txt", staged: .addsLinesThatAreNotUTF8)
+            == "This hunk in src/hull.txt cannot be discarded")
+        #expect(HunkDiscard.losses(of: hunk, staged: .addsLinesThatAreNotUTF8)
+            == "This hunk adds lines that are not UTF-8, so Unified Dev cannot check that they are still "
+            + "the ones shown here. Discard the whole file to put it back the way git has it.")
+    }
+
     @Test("an index nobody could read says so rather than promising a clean discard")
     func lossesWithAnUnreadableIndex() {
         let hunk = DiffHunk(oldStart: 1, oldCount: 1, newStart: 1, newCount: 1, lines: [
@@ -198,5 +213,9 @@ struct HunkDiscardTests {
         #expect(bare == "The hunk no longer applies cleanly, so nothing was discarded.")
         #expect(detailed == bare + "\n\nerror: patch failed")
         #expect(HunkDiscardRefusal.notOffered.errorDescription?.isEmpty == false)
+        #expect(HunkDiscardRefusal.addsLinesThatAreNotUTF8.errorDescription
+            == "This hunk adds lines that are not UTF-8, so Unified Dev cannot check that they are still "
+            + "the ones shown here. Nothing was discarded. Discard the whole file to put it back the way "
+            + "git has it.")
     }
 }
