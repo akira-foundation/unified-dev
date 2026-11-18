@@ -37,6 +37,33 @@ struct TerminalResumeAccountTests {
         #expect(resume.contains("CLAUDE_CONFIG_DIR=/accounts/client"))
     }
 
+    @Test("the resume carries the chat's model, effort, permission mode, orchestration and browser", arguments: [true, false])
+    func theResumeCarriesEverySettingOfTheChat(orchestrates: Bool) throws {
+        var orchestrator = space
+        orchestrator.isOrchestrator = orchestrates
+        let chat = Session(
+            workspaceID: orchestrator.id, title: "Chat", model: "opus", effort: "high", permissionMode: .plan
+        )
+        let expected = URL(filePath: TestScratch.unique("expected"))
+        _ = try chat.agentKind.prepareInteractiveCommand(
+            directory: orchestrator.path, prompt: "", sessionID: chat.id, model: "opus", effort: "high",
+            permissionMode: .plan, resuming: "native-id", account: client, orchestrates: orchestrates, chrome: true,
+            base: expected
+        )
+
+        let command = AgentAccountLaunch.runs(client).resumeCommand(
+            for: chat, in: orchestrator, resuming: "native-id", chrome: true, base: base
+        )
+
+        let written = try AgentKind.interactiveLaunchDirectory(sessionID: chat.id, base: base)
+        let wanted = try AgentKind.interactiveLaunchDirectory(sessionID: chat.id, base: expected)
+        #expect(command != nil)
+        #expect(
+            try String(contentsOf: written.appending(path: "resume.sh"), encoding: .utf8)
+                == String(contentsOf: wanted.appending(path: "resume.sh"), encoding: .utf8)
+        )
+    }
+
     @Test("a refused agent remembers no resume command and writes no launch file")
     func aRefusedAgentRemembersNothing() throws {
         let refusal = AgentAccountRefusal(provider: .claudeCode, isChoiceLost: false)
@@ -56,6 +83,7 @@ struct TerminalResumeAccountTests {
             workspaceID: nil, repoID: site.id, profileID: profile.id, store: store, defaults: [mac]
         )
 
+        #expect(own.launch(for: .claudeCode).isRefused)
         #expect(try script(own.launch(for: .claudeCode)) == nil)
     }
 }
