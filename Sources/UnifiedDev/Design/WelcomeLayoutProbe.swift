@@ -149,7 +149,13 @@ enum WelcomeLayoutProbe {
               "the checks step does not fit the window")
         check(checksHeight <= WelcomeSheetFit.shortestLaptopVisibleHeight,
               "the checks window is \(checksHeight)pt, past the \(WelcomeSheetFit.shortestLaptopVisibleHeight)pt a 900 point laptop display leaves visible")
-        report(on: checksWindow, titled: SetupRehearsal.report?.headline ?? "", named: "the checks step", check: check)
+        let opened = SetupRehearsal.report?.checkToOpen
+        report(
+            on: checksWindow,
+            titled: opened?.tool.title ?? SetupRehearsal.report?.headline ?? "",
+            named: opened == nil ? "the checks step" : "the detail the checks step opened",
+            check: check
+        )
         inspection.cancel()
         checksWindow.contentViewController = nil
 

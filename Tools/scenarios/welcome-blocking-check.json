@@ -1,0 +1,10 @@
+{
+  "projects": [
+    {
+      "name": "gannet",
+      "files": { "README.md": "# Gannet\n" },
+      "commits": ["Find the colony"],
+      "workspaces": [{ "name": "Ledge", "branch": "ledge" }]
+    }
+  ]
+}

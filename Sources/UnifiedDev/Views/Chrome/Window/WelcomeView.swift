@@ -13,6 +13,7 @@ struct WelcomeView: View {
     @State private var subject: WelcomeCheckSubject?
     @State private var login: LoginTerminalSession?
     @State private var showsCommand = false
+    @State private var autoOpen = SetupDetailAutoOpen()
 
     init(
         inspection: SetupInspection,
@@ -70,6 +71,8 @@ struct WelcomeView: View {
         .onChange(of: offersAgentChoice) { _, offered in flow.offerAgentChoice(offered) }
         .onChange(of: offersExtras) { _, offered in flow.offerExtras(offered) }
         .onChange(of: offersAreKnown) { _, known in flow.settleOffers(known) }
+        .onChange(of: report) { openBlockingCheck() }
+        .onChange(of: flow.step) { openBlockingCheck() }
         .onDisappear {
             closeDetail()
             inspection.cancel()
@@ -115,8 +118,11 @@ struct WelcomeView: View {
                 report: report,
                 isRunning: inspection.isRunning,
                 footer: footer,
-                checkAgain: { inspection.start() },
-                openDetail: openDetail
+                checkAgain: checkAgain,
+                openDetail: { check in
+                    autoOpen.readerNavigated()
+                    openDetail(check)
+                }
             )
             .transition(reduceMotion ? .identity : .opacity)
             .onAppear { inspection.presentChecks() }
@@ -141,6 +147,7 @@ struct WelcomeView: View {
     }
 
     private func goBack() {
+        leaveChecks()
         move {
             guard subject == nil else {
                 closeDetail()
@@ -151,6 +158,7 @@ struct WelcomeView: View {
     }
 
     private func goForward() {
+        leaveChecks()
         guard subject == nil else {
             move { closeDetail() }
             return
@@ -160,6 +168,21 @@ struct WelcomeView: View {
             return
         }
         move { flow.advance() }
+    }
+
+    private func leaveChecks() {
+        guard flow.step == .checks else { return }
+        autoOpen.readerNavigated()
+    }
+
+    private func checkAgain() {
+        autoOpen.readerNavigated()
+        inspection.start()
+    }
+
+    private func openBlockingCheck() {
+        guard flow.step == .checks, subject == nil, let check = autoOpen.check(toOpenIn: report) else { return }
+        openDetail(check)
     }
 
     private func openDetail(_ check: SetupCheck) {
