@@ -6,5 +6,6 @@ extension AppModel {
         for model in workspaceModels.values where changedHome || model.workspace.repoID == repoID {
             model.refreshSettings()
         }
+        refreshSetupScriptPresence()
     }
 }

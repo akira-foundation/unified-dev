@@ -120,6 +120,11 @@ final class AppModel {
 
     @ObservationIgnored var workspaceModels: [WorkspaceID: WorkspaceModel] = [:]
 
+    var setupScriptPresence = SetupScriptPresence()
+    @ObservationIgnored var setupScriptPresenceTask: Task<Void, Never>?
+    @ObservationIgnored var setupScriptPresenceGeneration = 0
+    @ObservationIgnored var setupScriptPresenceActivationTask: Task<Void, Never>?
+
     @ObservationIgnored private var storedAsk: AskModel?
 
     var ask: AskModel {
@@ -299,6 +304,7 @@ final class AppModel {
         adoptSeededQuotaSilence()
         startObservingQuotas()
         startPollingQuotas()
+        followSetupScriptPresenceOnActivation()
         startOwnerRegistrationRepair()
         startProjectIconSearch()
         startTranscriptIndexBackfill()
@@ -365,6 +371,10 @@ final class AppModel {
         identityTask = nil
         iconSearchTask?.cancel()
         iconSearchTask = nil
+        setupScriptPresenceTask?.cancel()
+        setupScriptPresenceTask = nil
+        setupScriptPresenceActivationTask?.cancel()
+        setupScriptPresenceActivationTask = nil
         archiveRetentionTask?.cancel()
         archiveRetentionTask = nil
         bridge?.stop()
@@ -399,8 +409,10 @@ final class AppModel {
                 fresh: loadedWorkspaces, archiving: archivingWorkspaceIDs
             )
             if accountChoices != loadedChoices { accountChoices = loadedChoices }
+            let setupPresenceIsStale = repos != loadedRepos || Set(reconciled.map(\.id)) != known
             if repos != loadedRepos { repos = loadedRepos }
             if workspaces != reconciled { workspaces = reconciled }
+            if setupPresenceIsStale { refreshSetupScriptPresence() }
             settleSelectionInActiveProfile()
             if !pendingWorkspaces.isEmpty {
                 let landed = Set(reconciled.map(\.id))

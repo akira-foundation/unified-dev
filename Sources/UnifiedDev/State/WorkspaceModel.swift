@@ -243,6 +243,7 @@ final class WorkspaceModel {
                     SettingsLoader.load(repo: path)
                 }.value
                 if settings != loaded { settings = loaded }
+                app.recordSetupScript(loaded.setupScript != nil, forRepoID: workspace.repoID)
             }
         } while settingsRefresh.complete()
         settingsTask = nil
@@ -1118,12 +1119,18 @@ final class WorkspaceModel {
         return succeeded
     }
 
-    var setupRunOffer: SetupRunOffer? {
-        SetupRunOffer.offer(
-            hasSetupScript: repo != nil && (settings.setupScript != nil || Git.hasSubmodules(in: workspace.path)),
+    var setupRunLive: SetupRunOffer.Live {
+        SetupRunOffer.Live(
+            hasSetupScript: repo != nil && SetupScriptPresence.hasSetup(
+                script: settings.setupScript != nil, submodules: Git.hasSubmodules(in: workspace.path)
+            ),
             hasRunSetup: hasRunSetup,
             isRunning: isRunningSetup
         )
+    }
+
+    var setupRunOffer: SetupRunOffer? {
+        SetupRunOffer.offer(setupRunLive)
     }
 
     var canRunSetup: Bool {
@@ -1131,7 +1138,7 @@ final class WorkspaceModel {
     }
 
     var hasRunSetup: Bool {
-        workspace.setupState != .pending || !setupOutput.isEmpty
+        SetupRunOffer.hasRunSetup(setupState: workspace.setupState, log: setupOutput)
     }
 
     func runSetupAgain() {

@@ -70,8 +70,12 @@ struct WorkspaceMenuItems: View {
 
     @ViewBuilder
     private var setupItem: some View {
-        if let model = app.existingModel(for: workspace.id), let offer = model.setupRunOffer {
-            Button(offer.title) { SetupRunAlert.shared.ask(model) }
+        if let offer = SetupRunOffer.menuOffer(
+            for: workspace,
+            presence: app.setupScriptPresence,
+            live: app.existingModel(for: workspace.id)?.setupRunLive
+        ) {
+            Button(offer.title) { app.askToRunSetup(workspace) }
                 .disabled(!offer.isEnabled)
         }
     }

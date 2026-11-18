@@ -1,0 +1,23 @@
+{
+  "welcome": false,
+  "projects": [
+    {
+      "name": "dockyard",
+      "files": {
+        "README.md": "# Dockyard\n",
+        ".unifieddev/settings.toml": "[scripts]\nsetup = \"sleep 1; echo rigged\"\n"
+      },
+      "commits": ["Lay the keel"],
+      "workspaces": [
+        { "name": "Crane", "branch": "crane" },
+        { "name": "Hoist", "branch": "hoist" }
+      ]
+    },
+    {
+      "name": "quay",
+      "files": { "README.md": "# Quay\n" },
+      "commits": ["Pour the quay"],
+      "workspaces": [{ "name": "Bollard", "branch": "bollard" }]
+    }
+  ]
+}
