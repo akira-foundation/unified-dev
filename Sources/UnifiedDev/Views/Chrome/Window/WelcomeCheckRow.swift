@@ -50,9 +50,9 @@ struct WelcomeCheckRow: View {
         case .ready:
             mark("checkmark.circle.fill", ink: Self.ink(for: .ready))
         case .needsSignIn:
-            mark(presentation.tone == .needed ? "lock.circle.fill" : "lock.circle", ink: stateInk)
+            mark(presentation.isUrgent ? "lock.circle.fill" : "lock.circle", ink: stateInk)
         case .missing:
-            mark(presentation.tone == .needed ? "exclamationmark.circle.fill" : "circle.dotted", ink: stateInk)
+            mark(presentation.isUrgent ? "exclamationmark.circle.fill" : "circle.dotted", ink: stateInk)
         }
     }
 
@@ -77,7 +77,7 @@ struct WelcomeCheckRow: View {
 
     private var status: some View {
         Text(presentation.status)
-            .font(presentation.check.outcome.detail != nil && presentation.tone == .ready ? Typo.code : Typo.label)
+            .font(presentation.showsDetailInCode ? Typo.code : Typo.label)
             .foregroundStyle(presentation.tone == .ready ? Palette.textTertiary : stateInk)
     }
 }

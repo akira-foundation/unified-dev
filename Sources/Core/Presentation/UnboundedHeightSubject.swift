@@ -141,7 +141,7 @@ public extension UnboundedHeightSubject {
         UnboundedHeightSubject(
             key: "welcome-command",
             file: "Sources/UnifiedDev/Views/Chrome/Window/WelcomeCheckDetailStep.swift",
-            line: 57,
+            line: 86,
             host: .welcomeWindow,
             path: "First launch with an agent CLI missing: the welcome step prints the command to "
                 + "run and a button to copy it."

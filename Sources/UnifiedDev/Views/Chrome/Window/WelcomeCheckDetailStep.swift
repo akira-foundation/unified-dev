@@ -13,6 +13,10 @@ struct WelcomeCheckSubject {
         self.fix = fix
     }
 
+    func reading(_ report: SetupReport) -> WelcomeCheckSubject {
+        WelcomeCheckSubject(presentation: SetupCheckPresentation(tool: tool, in: report), fix: fix)
+    }
+
     init?(_ presentation: SetupCheckPresentation) {
         guard let fix = presentation.fix else { return nil }
         self.init(presentation: presentation, fix: fix)
@@ -66,7 +70,7 @@ struct WelcomeCheckDetailStep: View {
     }
 
     private var heroSymbol: String {
-        let isNeeded = subject.presentation.tone == .needed
+        let isNeeded = subject.presentation.isUrgent
         if subject.fix.isInteractive {
             return isNeeded ? "lock.circle.fill" : "lock.circle"
         }

@@ -76,6 +76,9 @@ struct OnboardingAgentChoiceTests {
         #expect(OnboardingAgentChoice.signedInLine(for: .claudeCode, in: signed) == "ada@example.com")
         #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: signed) == "Signed in")
         #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: "v2.1.4"))) == "Signed in")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: ""))) == "Signed in")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: "42team"))) == "42team")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: "team 2.0"))) == "team 2.0")
     }
 
     @Test("Only an agent that is ready is said to be signed in")

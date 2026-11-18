@@ -65,4 +65,39 @@ struct SetupCheckPresentationTests {
         #expect(SetupCheckPresentation(tool: .git, in: report(git: .ready(detail: nil))).status == "Ready")
         #expect(SetupCheckPresentation(tool: .git, in: report()).tone == .ready)
     }
+
+    @Test("A sign-in that blocks is urgent and says so plainly")
+    func blockingSignIn() {
+        let blocked = report(claude: .needsSignIn(detail: "2.1.234"))
+        let claude = SetupCheckPresentation(tool: .claudeCode, in: blocked)
+        #expect(claude.tone == .needed)
+        #expect(claude.isUrgent)
+        #expect(claude.status == "Not signed in")
+        #expect(!SetupCheckPresentation(tool: .gitHub, in: blocked).isUrgent)
+    }
+
+    @Test("Only a ready tool with something found draws it as code")
+    func detailInCode() {
+        #expect(SetupCheckPresentation(tool: .git, in: report()).showsDetailInCode)
+        #expect(!SetupCheckPresentation(tool: .git, in: report(git: .ready(detail: nil))).showsDetailInCode)
+        let signedOut = report(claude: .needsSignIn(detail: "2.1.234"), codex: .ready(detail: nil))
+        #expect(!SetupCheckPresentation(tool: .claudeCode, in: signedOut).showsDetailInCode)
+    }
+
+    @Test("A report presents a check it holds the same way as the tool's own row")
+    func presentationForCheck() throws {
+        let blocked = report(git: .missing)
+        let git = try #require(blocked.checks.first { $0.tool == .git })
+        #expect(blocked.presentation(for: git) == SetupCheckPresentation(tool: .git, in: blocked))
+        #expect(blocked.presentation(for: git).tone == .needed)
+    }
+
+    @Test("Reading a later report is what moves a detail on after a sign-in")
+    func laterReportMovesOn() {
+        let before = SetupCheckPresentation(tool: .gitHub, in: report())
+        let after = SetupCheckPresentation(tool: .gitHub, in: report(gitHub: .ready(detail: "Signed in")))
+        #expect(before.status == "Optional, not signed in")
+        #expect(after.tone == .ready)
+        #expect(after.status == "Signed in")
+    }
 }

@@ -34,6 +34,10 @@ public struct SetupCheckPresentation: Sendable, Hashable {
         }
     }
 
+    public var isUrgent: Bool { tone == .needed }
+
+    public var showsDetailInCode: Bool { tone == .ready && check.outcome.detail != nil }
+
     public var status: String {
         switch check.outcome {
         case .pending: "Checking"

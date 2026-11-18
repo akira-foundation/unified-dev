@@ -34,7 +34,7 @@ struct WelcomeChecksStep: View {
         switch report.verdict {
         case .checking: ("magnifyingglass.circle.fill", Palette.textTertiary)
         case .ready, .readyWithNotes: ("checkmark.circle.fill", WelcomeCheckRow.ink(for: .ready))
-        case .blocked: ("exclamationmark.triangle.fill", Palette.warning)
+        case .blocked: ("exclamationmark.triangle.fill", WelcomeCheckRow.ink(for: .needed))
         }
     }
 }

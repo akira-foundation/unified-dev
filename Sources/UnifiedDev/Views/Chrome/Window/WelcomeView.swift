@@ -111,7 +111,7 @@ struct WelcomeView: View {
     @ViewBuilder
     private var checksStep: some View {
         if let subject {
-            WelcomeCheckDetailStep(subject: subject, session: login, footer: footer)
+            WelcomeCheckDetailStep(subject: subject.reading(report), session: login, footer: footer)
                 .transition(reduceMotion ? .identity : .opacity)
         } else {
             WelcomeChecksStep(
