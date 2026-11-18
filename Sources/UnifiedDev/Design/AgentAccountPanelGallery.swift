@@ -119,6 +119,7 @@ extension AgentAccountProbe {
                     draft: ModelPresetDraft(preset: ModelPreset(
                         name: "Opus 5 High", model: "opus", effort: "high", backend: .claudeCode, permissionMode: .auto
                     )),
+                    refusing: [],
                     onSave: { _ in },
                     onCancel: {}
                 ))

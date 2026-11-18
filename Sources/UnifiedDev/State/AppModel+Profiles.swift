@@ -6,6 +6,10 @@ extension AppModel {
         profiles.first { $0.id == activeProfileID }
     }
 
+    var appWideRefusals: Set<AgentKind> {
+        accountChoices.accounts.appWideRefusals(across: profiles)
+    }
+
     var profileRepos: [Repo] {
         ProfileScope.repos(repos, in: activeProfileID)
     }
