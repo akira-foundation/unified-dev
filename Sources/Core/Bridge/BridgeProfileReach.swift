@@ -129,17 +129,12 @@ public enum BridgeProfileReach {
         else { return .failure(.unreachable(given: given)) }
 
         let asksEvery = allowsEvery && given.caseInsensitiveCompare(everyProfile) == .orderedSame
-        if !asksEvery, case .success(.own) = find(given, own: own, others: []) { return .success(.own) }
         if let ownSide = try await BridgeProfileReachRefusal.ownSide(identity, store: store) {
-            return .failure(ownSide)
+            guard !asksEvery, case .success(.own) = find(given, own: own, others: []) else { return .failure(ownSide) }
+            return .success(.own)
         }
         let others = try await reachable(from: identity, for: purpose, store: store)
-        if asksEvery {
-            guard try await mayLeaveOwnProfile(identity, for: purpose, store: store) else {
-                return .failure(.unreachable(given: given))
-            }
-            return .success(.every(own: own, others: others))
-        }
+        if asksEvery { return .success(.every(own: own, others: others)) }
         let found = find(given, own: own, others: others)
         guard case .failure(.unreachable) = found else { return found }
         return try await BridgeProfileReachRefusal.plain(given, purpose: purpose, as: identity, store: store) ?? found

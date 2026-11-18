@@ -21,14 +21,18 @@ struct OrchestratorRequestClickTests {
     }
 
     @Test("the sender's own profile closed since does not stop the click, because closing only stops what comes in")
-    func ownClosedSinceRefuses() async throws {
+    func ownClosedSinceStillDelivers() async throws {
         let (far, card) = try await OrchestratorRequestLaunchTests.card("orch-click-own-closed")
         try await ProfileBridgeSwitch.save(false, profile: .initial, to: far.w.store)
         let started = Started()
 
         let outcome = await OrchestratorRequestLaunchTests.launch(far, started).launch(card.id, as: .newWorkspace, store: far.w.store)
 
-        #expect(outcome != .refused(WorkSuggestionWording.senderCannotCross))
+        guard case .started = outcome else {
+            Issue.record("The card was not started: \(outcome)")
+            return
+        }
+        #expect(started.projects == [far.w.world.farProject.id])
         #expect(started.delivered.count == 1)
     }
 

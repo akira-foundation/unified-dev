@@ -16,7 +16,7 @@ public struct ProfileListTool: BridgeToolHandling {
             to project_list, workspace_list or workspace_say, or 'all' to the two lists.
 
             When this chat can reach no other profile, the answer says which condition it does not meet: \
-            it was not launched in Accept edits, or it runs on an agent that never crosses. A profile that \
+            it was not launched in Accept edits, or it does not run on Claude Code in an active workspace. A profile that \
             is not listed is either closed or does not exist, and Unified Dev does not say which.
 
             From a workspace chat, every call stops for the owner's approval, because it names other \

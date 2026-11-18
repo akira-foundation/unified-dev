@@ -42,7 +42,7 @@ public enum BridgeToolApproval {
     }
 
     public static func isSelfApproved(toolName: String, input: JSONValue, inWorkspace: Bool) -> Bool {
-        guard inWorkspace else { return isSelfApproved(toolName: toolName) || toolName == toolPrefix + ProfileListTool.name }
+        guard inWorkspace else { return isSelfApproved(toolName: toolName) }
         guard !crossesProfile(toolName: toolName, input: input) else { return false }
         return isSelfApproved(toolName: toolName) || toolName == toolPrefix + "workspace_list"
     }

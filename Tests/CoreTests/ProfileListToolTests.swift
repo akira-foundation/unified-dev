@@ -29,6 +29,8 @@ struct ProfileListToolTests {
         #expect(answer["own"]?["name"]?.stringValue == "Unified")
         #expect(answer["own"]?["open_to_others"] == .bool(true))
         #expect(Self.names(answer) == ["Akira"])
+        #expect(answer["reachable"]?.arrayValue?.first?["id"]?.stringValue == w.akira.rawValue)
+        #expect(answer["note"]?.stringValue == ProfileListTool.note(reachesAny: true))
         #expect(!result.text.contains(hidden.name))
         #expect(!result.text.contains(hidden.id.rawValue))
     }
@@ -87,11 +89,11 @@ struct ProfileListToolTests {
         #expect(answer["note"]?.stringValue == ProfileListTool.note(reachesAny: false))
     }
 
-    @Test("every call from a workspace stops on the card and is never remembered; the owner's own chat is not stopped")
+    @Test("every call from any chat stops on the card and is never remembered")
     func approval() {
         let name = BridgeToolApproval.toolPrefix + ProfileListTool.name
         #expect(!BridgeToolApproval.isSelfApproved(toolName: name, input: .object([:]), inWorkspace: true))
-        #expect(BridgeToolApproval.isSelfApproved(toolName: name, input: .object([:]), inWorkspace: false))
+        #expect(!BridgeToolApproval.isSelfApproved(toolName: name, input: .object([:]), inWorkspace: false))
         #expect(BridgeToolApproval.crossesProfile(toolName: name, input: .object([:])))
         #expect(BridgeToolApproval.crossingTools.contains(ProfileListTool.name))
         #expect(BridgeToolApproval.isSelfApproved(
@@ -103,6 +105,7 @@ struct ProfileListToolTests {
     func served() async throws {
         let w = try await ProfileReachWorld.make("profile-list-served")
         #expect(await w.listedTools(as: w.world.homeAgent).contains(ProfileListTool.name))
+        #expect(await w.listedTools(as: w.unasked).contains(ProfileListTool.name))
         #expect(await w.listedTools(as: .owner).contains(ProfileListTool.name))
     }
 }

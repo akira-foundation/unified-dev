@@ -22,7 +22,18 @@ struct BridgeProfileCrossingCardTests {
         #expect(!Self.crossing.canWiden)
         #expect(Self.ask(.object(["message": .string("m")])).canWiden)
         #expect(Self.ask(.object(["profile": .string(" "), "message": .string("m")])).canWiden)
+        #expect(!Self.profileList.canWiden)
     }
+
+    static let profileList: PermissionAsk = {
+        let name = BridgeToolApproval.toolPrefix + ProfileListTool.name
+        return PermissionAsk(
+            requestID: "p", toolName: name, input: .object([:]),
+            suggestions: [PermissionSuggestion(
+                type: "addRules", behavior: "allow", rules: [PermissionRule(toolName: name)], raw: .object([:])
+            )]
+        )
+    }()
 
     @Test("an answer for a wider scope still tells the CLI nothing to remember", arguments: [PermissionScope.session, .project])
     func answerDoesNotWiden(_ scope: PermissionScope) throws {
@@ -43,6 +54,7 @@ struct BridgeProfileCrossingCardTests {
         let grants = SessionGrants(store: store, workspaceID: workspace.id)
 
         await grants.record(.allow(scope: .project), from: Self.crossing)
+        await grants.record(.allow(scope: .project), from: Self.profileList)
 
         #expect(try await store.permissionGrants(repoID: repo.id).isEmpty)
     }

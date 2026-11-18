@@ -29,6 +29,16 @@ struct BridgeProfileOwnClosedTests {
         #expect(w.window.sent.map(\.target.workspaceID) == [w.world.farWorkspace.id])
     }
 
+    @Test("a message out of a closed profile sets up no notice, since nothing comes back in, and says so")
+    func noNoticeIntoClosed() async throws {
+        let w = try await Self.world("own-closed-notice")
+        let told = await w.say(as: w.lead, notify: true)
+
+        #expect(!told.isError, "\(told.text)")
+        #expect(told.text.contains("notify_when_done was not set up"), "\(told.text)")
+        #expect(w.window.sent.first?.notifyWhenDone == false)
+    }
+
     @Test("an ordinary chat launched asking whose own profile is closed lists the open one")
     func workspaceLeavesClosedOwn() async throws {
         let w = try await Self.world("own-closed-workspace")
@@ -48,9 +58,48 @@ struct BridgeProfileOwnClosedTests {
         let invented = await Self.list(w, as: farLead, profile: "Invented")
 
         #expect(real.text.contains(BridgeProfileTrouble.unreachable(given: "Unified").sentence), "\(real.text)")
-        #expect(invented.text.contains(BridgeProfileTrouble.unreachable(given: "Invented").sentence))
-        #expect(real.isError && invented.isError)
+        #expect(real.text.replacingOccurrences(of: "'Unified'", with: "'X'") == invented.text.replacingOccurrences(of: "'Invented'", with: "'X'"))
         #expect(!real.text.contains("home-project"))
+    }
+
+    @Test("an orchestrator in an open profile reaches no tool into the closed one", arguments: [
+        "project_list", "workspace_list", "chat_list", "chat_read", "workspace_diff", "workspace_say",
+    ])
+    func orchestratorCannotReachIn(_ tool: String) async throws {
+        let w = try await Self.world("own-closed-in-\(tool)")
+        _ = try await w.store.setOrchestrator(true, workspaceID: w.world.farWorkspace.id)
+        let farLead = BridgeIdentity(
+            sessionID: try #require(w.world.farAgent.sessionID), workspaceID: w.world.farWorkspace.id, role: .workspace,
+            launchedOrchestrating: true, launchedAsking: true
+        )
+        let handler: any BridgeToolHandling = tool == "workspace_say"
+            ? w.window.tool() : try #require(BridgeToolbox.standard.handler(named: tool, for: .workspace))
+        let arguments: [String: JSONValue] = [
+            "profile": .string("Unified"), "workspace": .string(w.world.homeWorkspace.id.rawValue),
+            "chat": .string("Home Chat"), "message": .string("Hello."),
+        ]
+
+        let answer = await handler.call(w.world.request(tool, arguments), as: farLead, store: w.store)
+
+        #expect(answer.text.contains(BridgeProfileTrouble.unreachable(given: "Unified").sentence), "\(answer.text)")
+        #expect(!answer.text.contains("Home Workspace"))
+        #expect(w.window.sent.isEmpty)
+    }
+
+    @Test("a name the caller's own profile shares with an open one is not guessed")
+    func sharedOwnName() async throws {
+        let w = try await Self.world("own-closed-shared-name")
+        let twin = try await w.store.createProfile(name: "AKIRA", colour: "red", symbol: "star").id
+        try await w.open(twin)
+        let farAgent = BridgeIdentity(
+            sessionID: try #require(w.world.farAgent.sessionID), workspaceID: w.world.farWorkspace.id, role: .workspace,
+            launchedAsking: true
+        )
+
+        let answer = await Self.list(w, as: farAgent, profile: "Akira")
+
+        #expect(answer.text.contains(twin.rawValue), "\(answer.text)")
+        #expect(answer.text.contains(w.akira.rawValue))
     }
 
     @Test("a chat not launched asking is told about its mode, for all and for any name alike")

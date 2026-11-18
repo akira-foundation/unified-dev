@@ -9,6 +9,9 @@ struct BridgeProfileReachTests {
         arguments: [
             (BridgeProfileCaller.owner, BridgeProfilePurpose.read, true, true),
             (.owner, .talk, false, false),
+            (.owner, .talk, true, true),
+            (.orchestrator, .talk, false, false),
+            (.workspace, .read, false, false),
             (.orchestrator, .read, true, true),
             (.orchestrator, .talk, true, true),
             (.orchestrator, .read, false, false),
@@ -74,6 +77,7 @@ struct BridgeProfileReachTests {
         let w = try await ProfileReachWorld.make("reach-ends")
         try await w.open(w.akira)
         #expect(await w.say(as: w.lead).isError == false)
+        #expect(w.window.sent.count == 1)
         #expect(await w.say(as: .owner).isError == false)
 
         let pinned = BridgeIdentity(ownerSession: w.leadChat.id, pinnedProfile: .initial)
@@ -114,12 +118,15 @@ struct BridgeProfileReachTests {
     @Test("all from a profile closed to others still lists the open ones")
     func everyFromClosed() async throws {
         let w = try await ProfileReachWorld.make("reach-every-off")
+        let closed = try await w.store.createProfile(name: "Closed", colour: "red", symbol: "star").id
+        _ = try await w.store.upsert(Repo(name: "secret-project", path: TestScratch.unique("s"), profileID: closed))
         try await w.open(w.akira)
         for identity in [w.world.homeAgent, w.lead] {
             let answer = await ProjectListTool().call(
                 w.world.request("project_list", ["profile": .string("all")]), as: identity, store: w.store
             )
             #expect(answer.text.contains(ProfileScopeWorld.farProjectName), "\(answer.text)")
+            #expect(!answer.text.contains("secret-project"))
         }
     }
 

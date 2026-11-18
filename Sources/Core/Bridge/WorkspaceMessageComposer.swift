@@ -21,6 +21,7 @@ enum WorkspaceMessageComposer {
             sendEnd.profileID = originKnown ? try await BridgeProfileScope.profile(of: identity, store: store) : nil
         }
         let projectName = try await store.repo(id: target.repoID)?.name ?? ""
+        let comesHome = try await noticeComesHome(crossingTo: destination, as: identity, store: store)
         return WorkspaceMessage(
             source: sendEnd,
             target: WorkspaceMessageEnd(
@@ -28,9 +29,17 @@ enum WorkspaceMessageComposer {
             ),
             replySessionID: heard?.source.sessionID,
             text: text,
-            notifyWhenDone: notify && sendEnd.sessionID != nil
+            notifyWhenDone: notify && sendEnd.sessionID != nil && comesHome
         )
     }
+
+    static func noticeComesHome(crossingTo destination: Profile?, as identity: BridgeIdentity, store: Store) async throws -> Bool {
+        guard destination != nil, let own = try await BridgeProfileScope.profile(of: identity, store: store) else { return true }
+        return await ProfileBridgeSwitch.isOn(profile: own, in: store)
+    }
+
+    static let noticeHeldBack = " notify_when_done was not set up: your own profile is not open to other profiles, so "
+        + "nothing from them comes back into it, the notice included. The owner can open it in its settings."
 
     static let unknown = "unknown"
 

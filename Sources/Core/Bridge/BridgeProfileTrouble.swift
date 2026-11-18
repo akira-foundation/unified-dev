@@ -33,9 +33,9 @@ public enum BridgeProfileTrouble: Error, Sendable, Equatable {
 
         case .agentConfined:
             return """
-                This chat cannot reach any other profile: only a chat on Claude Code, or a project's \
-                orchestrator on Grok, can, and never a chat on Codex. Tell the owner what you wanted to do \
-                there. Retrying will not change that.
+                This chat cannot reach any other profile: only a chat on Claude Code in an active workspace, \
+                or a project's orchestrator on Grok, can, and never a chat on Codex. Tell the owner what you \
+                wanted to do there. Retrying will not change that.
                 """
 
         case let .ambiguous(given, ids):
@@ -54,9 +54,9 @@ public enum BridgeProfileTrouble: Error, Sendable, Equatable {
 
         case .closedToOutside(let given):
             return """
-                The orchestrators in the profile '\(WorkspaceMessage.oneLine(given))' do not accept messages \
-                from outside it: the owner has not opened it to other profiles. Tell the owner what you \
-                wanted to send there. Retrying will not change that.
+                The profile '\(WorkspaceMessage.oneLine(given))' is not open to other profiles, so this \
+                message cannot be delivered there. Turn on Reachable from other profiles in that profile's \
+                settings and press again, or leave the message waiting.
                 """
         }
     }

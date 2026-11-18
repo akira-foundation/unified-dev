@@ -213,7 +213,11 @@ A profile can be opened to the others, and callers can then cross into it. The d
 with every switch off, every tool answers as it does without this section. The rule is about the
 destination: whatever comes from outside a profile goes through the orchestrator of the project it is
 for. A profile's switch decides only what comes in. A chat in a closed profile still reaches every
-profile that is open, under the same conditions as a chat in an open one.
+profile that is open, under the same conditions as a chat in an open one, and its message names the profile,
+workspace, project and chat it came from, as any message from outside does. Nothing comes back into a
+closed profile: a reply is refused like any call into it, and `notify_when_done` is not set up for a message
+it sends, which the answer says (`WorkspaceMessageComposer.noticeComesHome`). A watch made while the profile
+was open is still kept, as below.
 
 **Who.** `BridgeProfileReach.caller` reads it from the rows on every call, and from what the chat's bridge token recorded when it launched.
 `BridgeProfileReach.mayCross` then decides it for one of two purposes: talking, which is `project_list`,
@@ -248,8 +252,10 @@ so. Only the owner's click on Start Orchestrator acts on it: `OrchestratorReques
 in that project as its orchestrator and delivers the message to it, in the same envelope as any message from
 outside. If the project has gained an orchestrator by then, the message goes to that one and nothing new is
 started. The click is judged again: a card whose destination has since been closed, whose chat has moved
-to Codex, or whose workspace was archived, is refused and stays waiting, and the refusal, which only the
-owner sees, says that the destination is closed. The sender's own profile being closed does not stop it. A card whose sender has since become that
+to Codex, or whose workspace was archived, is refused and stays waiting. The refusal, which only the owner
+sees, says which: `BridgeProfileTrouble.closedToOutside` for a closed destination, and
+`WorkSuggestionWording.senderCannotCross` for a sender that can no longer cross. The sender's own profile
+being closed does not stop it. A card whose sender has since become that
 project's orchestrator is not delivered to itself. A card from the owner's Ask chat always arrives in the
 envelope from outside, with its profile given as unknown, since which profile that chat was in is not kept. A delivery
 that fails leaves the card waiting with the orchestrator already in place, and the next click delivers to it.
@@ -334,12 +340,12 @@ its own condition, the note is the sentence above for that condition. It names o
 call from a workspace chat stops on the permission card exactly as a call that names a `profile` does:
 `BridgeToolApproval.crossesProfile` is true for it whatever its input, so `isSelfApproved` refuses it in a
 workspace, the card offers no "always allow", and it is among the `crossingTools` an ordinary chat gets an
-`ask` rule for. The owner's own Ask chat and client are not stopped. A workspace's answer is fenced. A chat
+`ask` rule for. The owner's own Ask chat stops on it too; the standalone client, which has no card, is not stopped. A workspace's answer is fenced. A chat
 that cannot cross, Codex among them, gets only its own profile back, so a call nothing could stop reveals
 nothing. `all` is reserved on the two lists, so
 a profile called All is named by its id there, and `include_github` is refused with `all` because it starts
-processes per workspace. A tool in `tools/list` is the list from when the agent started, so a switch turned
-on later reaches an orchestrator's `workspace_list` at its next start.
+processes per workspace. No switch changes what `tools/list` offers: `workspace_list` is served by who the
+caller is, not by which profiles are open.
 
 **What comes back from a read.** Every answer that crosses is fenced as untrusted content, and names the
 profile it belongs to. Refusals inside a crossing list workspace ids, never names, and a refusal from the
