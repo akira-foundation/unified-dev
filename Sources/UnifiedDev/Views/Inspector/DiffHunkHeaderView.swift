@@ -10,6 +10,7 @@ struct DiffHunkHeaderView: View {
     var isConfirming: Binding<Bool> = .constant(false)
     var staged: HunkDiscard.Staged = .clean
     var onAsk: () -> Void = {}
+    var onRecheck: () -> Void = {}
     var onDiscard: () -> Void = {}
 
     private var filename: String { (path as NSString).lastPathComponent }
@@ -31,6 +32,7 @@ struct DiffHunkHeaderView: View {
         .padding(.horizontal, CodeMetrics.textInset)
         .frame(width: width, height: CodeMetrics.rowHeight, alignment: .leading)
         .background(Palette.surfaceSunken)
+        .onHover { inside in if inside { onRecheck() } }
     }
 
     @ViewBuilder

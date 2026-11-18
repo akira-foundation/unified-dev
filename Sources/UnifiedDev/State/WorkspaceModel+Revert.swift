@@ -17,11 +17,18 @@ extension WorkspaceModel {
     }
 
     func hunkDiscard(
-        for file: ChangedFile, in diff: FileDiff?, ignoringWhitespace: Bool
+        for file: ChangedFile, in diff: FileDiff?, ignoringWhitespace: Bool, staged: HunkDiscard.Staged = .clean
     ) -> HunkDiscard.Availability {
         HunkDiscard.availability(
             file: file, in: diff, ignoringWhitespace: ignoringWhitespace, blocker: revertBlocker,
-            hasUnsavedEdits: hasUnsavedEdits(file)
+            hasUnsavedEdits: hasUnsavedEdits(file), staged: staged
+        )
+    }
+
+    func hunkRefusals(for file: ChangedFile, in diff: FileDiff) async -> [DiffHunk: HunkDiscard.Staged] {
+        guard hunkRefusal(for: file, in: diff) == nil else { return [:] }
+        return await Git.hunkRefusals(
+            in: diff, of: file, worktree: workspace.path, base: workspace.baseBranch, scope: diffScope
         )
     }
 

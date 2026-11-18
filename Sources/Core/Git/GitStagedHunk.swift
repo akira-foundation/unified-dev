@@ -15,11 +15,7 @@ extension Git {
         do {
             guard try await stagedContentDiffers(file, in: worktree) else { return .clean }
             guard let plan else { return .unreadable }
-            return switch try await route(plan, in: worktree) {
-            case .indexAndWorktree: .holdsTheHunk
-            case .refusedByTheIndex: .divergesFromTheWorktree
-            case .worktreeOnly: .holdsAnotherVersion
-            }
+            return try await route(plan, in: worktree).staged
         } catch {
             return .unreadable
         }
