@@ -6,7 +6,7 @@ import SwiftUI
 @MainActor
 enum SearchPanelProbe {
     private static let flag = "--search-panel-probe"
-    private static let width: CGFloat = 680
+    private static let width: CGFloat = SearchPanelLayout.minimumWidth + 48
     private static let height: CGFloat = 600
 
     static var isRequested: Bool { CommandLine.arguments.contains(flag) }
@@ -25,17 +25,18 @@ enum SearchPanelProbe {
     private static func run() async {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         var written = 0
-        for scheme in [ColorScheme.light, .dark] where await shoot(scheme) { written += 1 }
-        exit(written == 2 ? 0 : 1)
+        let shots: [(ColorScheme, ControlActiveState)] = [(.light, .key), (.dark, .key), (.light, .inactive), (.dark, .inactive)]
+        for (scheme, state) in shots where await shoot(scheme, state) { written += 1 }
+        exit(written == shots.count ? 0 : 1)
     }
 
-    private static func shoot(_ scheme: ColorScheme) async -> Bool {
+    private static func shoot(_ scheme: ColorScheme, _ state: ControlActiveState) async -> Bool {
         let size = CGSize(width: width, height: height)
         let host = NSHostingController(rootView: panel
             .padding(24)
             .frame(width: size.width, height: size.height, alignment: .top)
             .background(Palette.windowBackground)
-            .environment(\.controlActiveState, .key)
+            .environment(\.controlActiveState, state)
             .environment(\.colorScheme, scheme))
         host.sizingOptions = []
         let window = NSWindow(
@@ -52,7 +53,7 @@ enum SearchPanelProbe {
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return false }
         view.cacheDisplay(in: view.bounds, to: bitmap)
         guard let png = bitmap.representation(using: .png, properties: [:]) else { return false }
-        return (try? png.write(to: URL(filePath: "\(directory)/panel-\(scheme).png"))) != nil
+        return (try? png.write(to: URL(filePath: "\(directory)/panel-\(scheme)\(state == .key ? "" : "-inactive").png"))) != nil
     }
 
     private static var panel: some View {

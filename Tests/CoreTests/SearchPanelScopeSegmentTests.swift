@@ -28,15 +28,10 @@ struct SearchPanelScopeSegmentTests {
         #expect(segments.first { $0.scope == .workspaces }?.title == "Workspaces (0)")
     }
 
-    @Test("an offered scope stays selected")
-    func offeredScopeStaysSelected() {
-        #expect(SearchPanelScopeSegment.selected(.transcripts) == .transcripts)
-        #expect(SearchPanelScopeSegment.selected(.archived) == .archived)
-    }
-
-    @Test("a scope the search does not offer selects Everything, so one segment is always on")
-    func unofferedScopeFallsBack() {
-        #expect(SearchPanelScopeSegment.selected(.running) == .all)
-        #expect(SearchPanelScopeSegment.selected(.needsYou) == .all)
+    @Test("a segment is identified by its scope, so the picker's tag and the panel's scope are one value")
+    func segmentIdentity() {
+        let segments = SearchPanelScopeSegment.offered(counts: counts)
+        #expect(segments.map(\.id) == segments.map(\.scope))
+        #expect(Set(segments.map(\.id)).count == segments.count)
     }
 }

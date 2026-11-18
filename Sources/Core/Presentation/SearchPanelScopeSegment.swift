@@ -18,8 +18,4 @@ public struct SearchPanelScopeSegment: Equatable, Sendable, Identifiable {
             )
         }
     }
-
-    public static func selected(_ scope: HomeScope) -> HomeScope {
-        HomeScope.settle(scope, searching: true)
-    }
 }

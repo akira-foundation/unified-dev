@@ -6,24 +6,20 @@ struct SearchPanelScopes: View {
     @Binding var scope: HomeScope
 
     var body: some View {
-        Picker("Scope", selection: selection) {
+        Picker("Scope", selection: $scope) {
             ForEach(SearchPanelScopeSegment.offered(counts: counts)) { segment in
                 Text(segment.title)
-                    .accessibilityLabel("\(segment.name), \(segment.count)")
+                    .lineLimit(1)
+                    .fixedSize()
                     .tag(segment.scope)
             }
         }
         .pickerStyle(.segmented)
         .labelsHidden()
+        .fixedSize()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Metrics.inset)
         .padding(.bottom, Metrics.spacingSmall)
         .accessibilityHint("Narrows the answer to one kind of thing.")
-    }
-
-    private var selection: Binding<HomeScope> {
-        Binding(
-            get: { SearchPanelScopeSegment.selected(scope) },
-            set: { scope = $0 }
-        )
     }
 }

@@ -127,8 +127,19 @@ struct SearchPanelKeysTests {
         #expect(everyKey.allSatisfy { !$0.key.contains { $0.isLetter } })
     }
 
-    @Test("the file search names both arrows under one label")
-    func fileSearchFooter() {
-        #expect(SearchPanelKeys.fileSearchFooter.map(\.key) == ["\u{2191}\u{2193}", "\u{21A9}", "\u{238B}"])
+    @Test("every footer reads each label followed by its key, in the order the keys are offered")
+    func everyFooterInFull() {
+        #expect(SearchPanelKeys.footer(for: .things, isSearching: false).map(\.text) == [
+            "Open \u{21A9}", "Actions \u{2318}\u{21A9}", "Commands >", "Close \u{238B}",
+        ])
+        #expect(SearchPanelKeys.footer(for: .commands, isSearching: true).map(\.text) == [
+            "Run \u{21A9}", "Leave commands \u{232B}", "Close \u{238B}",
+        ])
+        #expect(SearchPanelKeys.footer(for: .actions(WorkspaceID("w1")), isSearching: true).map(\.text) == [
+            "Run \u{21A9}", "Back \u{232B}", "Close \u{238B}",
+        ])
+        #expect(SearchPanelKeys.fileSearchFooter.map(\.text) == [
+            "Navigate \u{2191}\u{2193}", "Open \u{21A9}", "Close \u{238B}",
+        ])
     }
 }
