@@ -13,6 +13,7 @@ command -v git-cliff >/dev/null || { echo "changelog-check test: git-cliff is no
 export GIT_AUTHOR_NAME=release-test GIT_AUTHOR_EMAIL=release-test@example.invalid
 export GIT_COMMITTER_NAME=release-test GIT_COMMITTER_EMAIL=release-test@example.invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GITHUB_API_URL=http://127.0.0.1:9
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 
 clock=1767225600
@@ -30,7 +31,7 @@ released_repository() {
   git -C "$repo" checkout -q -b release/1.2.1
   commit "$repo" "fix(composer): show the version each Claude alias runs (#515)"
   git -C "$repo" tag v1.2.1
-  git-cliff --config "$real_config" --repository "$repo" --use-branch-tags --output "$repo/CHANGELOG.md" 2>/dev/null
+  git-cliff --offline --config "$real_config" --repository "$repo" --use-branch-tags --output "$repo/CHANGELOG.md" 2>/dev/null
   git -C "$repo" add CHANGELOG.md
   commit "$repo" "chore(changelog): v1.2.1"
   git -C "$repo" checkout -q develop
@@ -112,6 +113,14 @@ git -C "$repo" tag v1.2.0
 commit "$repo" "fix: a fix after it (#600)"
 if output="$(run_check "$repo")"; then fail "a range with no published changelog to compare against went through: $output"; fi
 [[ "$output" == *"no CHANGELOG.md"* ]] || fail "the missing changelog is not named: $output"
+
+unreadable_config="$work/unreadable.toml"
+print -r -- "this is not toml [" > "$unreadable_config"
+released_repository
+merged_back "$repo"
+if output="$(run_check "$repo" "$unreadable_config")"; then fail "a git-cliff that wrote no notes went through: $output"; fi
+[[ "$output" == *"git-cliff could not write the notes"* ]] || fail "the git-cliff failure is not named: $output"
+[[ "$output" == *"expected \`=\`"* ]] || fail "what git-cliff said is not shown: $output"
 
 skipping_features="$work/skipping-features.toml"
 sed 's/{ message = "^feat", group = "Features" }/{ message = "^feat", group = "Features", skip = true }/' "$real_config" > "$skipping_features"
