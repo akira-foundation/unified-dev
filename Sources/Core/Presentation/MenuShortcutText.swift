@@ -21,13 +21,19 @@ extension MenuShortcut {
         case .return: "\u{21A9}"
         case .comma: ","
         case .tab: "\u{21E5}"
+        case .escape: "\u{238B}"
         }
     }
 }
 
 extension MenuBarItem {
-    public var keyText: String {
+    public var keyText: String? {
         let shown = [key, alternateKey].compactMap { $0?.display }
-        return shown.isEmpty ? SearchPanelCommands.noKey : shown.joined(separator: " ")
+        return shown.isEmpty ? nil : shown.joined(separator: " ")
+    }
+
+    public func help(_ phrase: String) -> String {
+        guard let keyText else { return phrase }
+        return "\(phrase) (\(keyText))"
     }
 }

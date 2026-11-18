@@ -1,10 +1,15 @@
 import SwiftUI
 
 enum MatchedRuns {
-    static func text(_ string: String, highlights: [Int], loud: Color, quiet: Color) -> Text {
-        var runs = LocalizedStringKey.StringInterpolation(literalCapacity: 0, interpolationCount: 0)
-        append(string, highlights: highlights, loud: loud, quiet: quiet, to: &runs)
-        return Text(LocalizedStringKey(stringInterpolation: runs))
+    static func text(_ string: String, highlights: [Int]) -> Text {
+        let hits = Set(highlights)
+        var built = AttributedString()
+        for (index, character) in string.enumerated() {
+            var run = AttributedString(String(character))
+            if hits.contains(index) { run.inlinePresentationIntent = .stronglyEmphasized }
+            built.append(run)
+        }
+        return Text(built)
     }
 
     static func append(

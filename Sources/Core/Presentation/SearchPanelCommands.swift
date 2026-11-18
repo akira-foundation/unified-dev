@@ -46,6 +46,4 @@ public enum SearchPanelCommands {
         case .help: "Help"
         }
     }
-
-    public static let noKey = "no key"
 }

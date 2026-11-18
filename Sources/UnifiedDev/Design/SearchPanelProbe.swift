@@ -6,8 +6,8 @@ import SwiftUI
 @MainActor
 enum SearchPanelProbe {
     private static let flag = "--search-panel-probe"
-    private static let width: CGFloat = 640
-    private static let height: CGFloat = 420
+    private static let width: CGFloat = 680
+    private static let height: CGFloat = 600
 
     static var isRequested: Bool { CommandLine.arguments.contains(flag) }
 
@@ -26,31 +26,7 @@ enum SearchPanelProbe {
         try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
         var written = 0
         for scheme in [ColorScheme.light, .dark] where await shoot(scheme) { written += 1 }
-        report(.aqua)
-        report(.darkAqua)
         exit(written == 2 ? 0 : 1)
-    }
-
-    private static func report(_ name: NSAppearance.Name) {
-        guard let appearance = NSAppearance(named: name) else { return }
-        appearance.performAsCurrentDrawingAppearance {
-            let plate = rgb(.unemphasizedSelectedContentBackgroundColor, over: 0xFFFFFF)
-            let lines = [
-                ("title and detail on the selected plate", NSColor.labelColor),
-                ("disabled title and detail on the selected plate", NSColor.secondaryLabelColor),
-            ].map { label, colour in
-                "\(name.rawValue) \(label): \(String(format: "%.2f", Contrast.ratio(rgb(colour, over: plate), plate)))"
-            }
-            FileHandle.standardError.write(Data((lines.joined(separator: "\n") + "\n").utf8))
-        }
-    }
-
-    private static func rgb(_ colour: NSColor, over ground: UInt32) -> UInt32 {
-        guard let srgb = colour.usingColorSpace(.sRGB) else { return ground }
-        let packed = [srgb.redComponent, srgb.greenComponent, srgb.blueComponent].reduce(UInt32(0)) {
-            ($0 << 8) | UInt32(($1 * 255).rounded())
-        }
-        return Contrast.composited(packed, over: ground, at: Double(srgb.alphaComponent))
     }
 
     private static func shoot(_ scheme: ColorScheme) async -> Bool {
@@ -59,6 +35,7 @@ enum SearchPanelProbe {
             .padding(24)
             .frame(width: size.width, height: size.height, alignment: .top)
             .background(Palette.windowBackground)
+            .environment(\.controlActiveState, .key)
             .environment(\.colorScheme, scheme))
         host.sizingOptions = []
         let window = NSWindow(
@@ -75,41 +52,47 @@ enum SearchPanelProbe {
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return false }
         view.cacheDisplay(in: view.bounds, to: bitmap)
         guard let png = bitmap.representation(using: .png, properties: [:]) else { return false }
-        return (try? png.write(to: URL(filePath: "\(directory)/rows-\(scheme).png"))) != nil
+        return (try? png.write(to: URL(filePath: "\(directory)/panel-\(scheme).png"))) != nil
     }
 
     private static var panel: some View {
         MenuPanel {
+            SearchPanelScopes(counts: counts, scope: .constant(.all))
+                .padding(.top, Metrics.spacingWide)
+
             VStack(alignment: .leading, spacing: SearchPanelRowMetrics.gap) {
-                heading("Profiles")
+                SearchPanelSectionHeading(title: "Commands")
+                command(.previousWorkspace, highlights: [0, 1], isEnabled: true, isSelected: true)
+                command(.findPrevious, highlights: [0, 5], isEnabled: false, isSelected: false)
+                command(.newWorkspaceFromPullRequest, highlights: [0, 4], isEnabled: true, isSelected: false)
+                SearchPanelSectionHeading(title: "Profiles")
                 SearchPanelProfileRow(
-                    hit: SearchPanelProfileHit(profile: foundation, highlights: [0, 1], score: 52, keyText: "\u{2303}\u{2318}2"),
-                    isSelected: true, onPick: {}, onHover: {}
-                )
-                heading("Workspaces")
-                SearchPanelWorkspaceRow(
-                    hit: workspaceHit("feat: falar com chats de todos os profiles", highlights: [5, 6]),
-                    isSelected: true, onPick: {}, onHover: {}
-                )
-                SearchPanelWorkspaceRow(
-                    hit: workspaceHit("auditar issues abertas e fechar as feitas", highlights: [20, 21]),
+                    hit: SearchPanelProfileHit(profile: profile, highlights: [0, 1], score: 52, keyText: "\u{2303}\u{2318}2"),
                     isSelected: false, onPick: {}, onHover: {}
                 )
-                heading("Commands")
-                command(.focusPane, highlights: [0, 1], isEnabled: false, isSelected: false)
-                command(.findPrevious, highlights: [0, 8], isEnabled: true, isSelected: false)
-                command(.focusPane, highlights: [0, 1], isEnabled: false, isSelected: true)
-                command(.findPrevious, highlights: [0, 8], isEnabled: true, isSelected: true)
+                SearchPanelSectionHeading(title: "Workspaces")
+                SearchPanelWorkspaceRow(
+                    hit: workspaceHit("Tidy the release notes", highlights: [5, 6]),
+                    isSelected: false, onPick: {}, onHover: {}
+                )
+                SearchPanelSectionHeading(title: "Transcripts")
+                SearchPanelTranscriptRow(hit: transcriptHit, isSelected: false, onPick: {}, onHover: {})
             }
             .padding(.vertical, Metrics.spacingSmall)
+
+            SearchPanelFooter(
+                keys: SearchPanelKeys.footer(for: .things, isSearching: true),
+                summary: SearchPanelSummary.rows(counts.count(of: .all, searching: true))
+            )
         }
     }
 
-    private static func heading(_ title: String) -> some View {
-        Text(title)
-            .font(Typo.micro)
-            .foregroundStyle(Palette.textTertiary)
-            .padding(.horizontal, Metrics.inset)
+    private static var counts: HomeScopeCounts {
+        var counts = HomeScopeCounts()
+        counts.workspaces = 3
+        counts.transcripts = 42
+        counts.archived = 7
+        return counts
     }
 
     private static func command(
@@ -121,20 +104,37 @@ enum SearchPanelProbe {
         )
     }
 
-    private static let foundation = Profile(
-        id: ProfileID("foundation"), name: "Foundation", folder: "foundation", colour: "4C8DF6", symbol: "building.2"
+    private static let profile = Profile(
+        id: ProfileID("sample"), name: "Sample", folder: "sample", colour: "4C8DF6", symbol: "building.2"
     )
 
-    private static let repo = Repo(id: RepoID("repo"), name: "unified-dev", path: "/tmp/repo")
+    private static let repo = Repo(id: RepoID("repo"), name: "sample-app", path: "/tmp/repo")
+
+    private static func workspace(_ name: String) -> Workspace {
+        Workspace(
+            id: WorkspaceID(name), repoID: repo.id, name: name, branch: "x", path: "/tmp/x",
+            baseBranch: "main", lastActivityAt: Date(timeIntervalSinceNow: -60)
+        )
+    }
 
     private static func workspaceHit(_ name: String, highlights: [Int]) -> SearchPanelWorkspaceHit {
-        SearchPanelWorkspaceHit(
-            workspace: Workspace(
-                id: WorkspaceID(name), repoID: repo.id, name: name, branch: "x", path: "/tmp/x",
-                baseBranch: "main", lastActivityAt: Date(timeIntervalSinceNow: -60)
-            ),
-            repo: repo,
-            highlights: highlights
+        SearchPanelWorkspaceHit(workspace: workspace(name), repo: repo, highlights: highlights)
+    }
+
+    private static var transcriptHit: SearchPanelTranscriptHit {
+        let found = workspace("Draft the onboarding copy")
+        let snippet = TranscriptSnippet(segments: [
+            .init(text: "\u{2026}the settings live in ", isMatch: false),
+            .init(text: "Persistence", isMatch: true),
+            .init(text: "/Settings.swift, next to the defaults\u{2026}", isMatch: false),
+        ])
+        let match = TranscriptMatch(
+            messageID: 1, workspaceID: found.id, sessionID: SessionID("s"), sessionTitle: "Chat",
+            seq: 1, kind: .assistantText, createdAt: Date(), snippet: snippet, score: 1
+        )
+        return SearchPanelTranscriptHit(
+            result: TranscriptWorkspaceMatches(workspaceID: found.id, matches: [match], total: 12),
+            workspace: found, repo: repo, isArchived: false
         )
     }
 }

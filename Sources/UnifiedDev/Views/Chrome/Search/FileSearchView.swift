@@ -10,7 +10,7 @@ struct FileSearchView: View {
         MenuPanel {
             HStack(spacing: Metrics.spacing) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundStyle(Palette.textTertiary)
+                    .searchPanelInk(SearchPanelRowInk.detail())
                 MenuSearchField(
                     text: Binding(get: { model.query }, set: { model.type($0) }),
                     placeholder: "Search files, or filename:line…",
@@ -20,7 +20,7 @@ struct FileSearchView: View {
                 .frame(height: Metrics.controlHeight)
                 Text(model.workspace.name)
                     .font(Typo.caption)
-                    .foregroundStyle(Palette.textTertiary)
+                    .searchPanelInk(SearchPanelRowInk.detail())
                     .lineLimit(1)
             }
             .padding(.horizontal, Metrics.inset)
@@ -28,11 +28,7 @@ struct FileSearchView: View {
             Hairline()
             list.frame(height: 310)
             SearchPanelFooter(
-                keys: [
-                    .init(key: "↑↓", label: "Navigate"),
-                    .init(key: "↩", label: "Open"),
-                    .init(key: "esc", label: "Close"),
-                ],
+                keys: SearchPanelKeys.fileSearchFooter,
                 summary: nil
             )
         }

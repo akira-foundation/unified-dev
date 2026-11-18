@@ -20,16 +20,34 @@ extension View {
     }
 
     func searchPanelRowPlate(isSelected: Bool, isHovered: Bool) -> some View {
-        rowBackground(isSelected: isSelected, isHovered: isHovered, isFocused: false)
+        rowBackground(isSelected: isSelected, isHovered: isHovered, isFocused: true)
             .padding(.horizontal, SearchPanelRowMetrics.plateInset)
     }
 }
 
-extension SearchPanelRowInk {
-    var colour: Color {
-        switch self {
-        case .primary: Palette.textPrimary
-        case .secondary: Palette.textSecondary
+extension View {
+    func searchPanelInk(_ ink: SearchPanelRowInk) -> some View {
+        modifier(SearchPanelInkStyle(ink: ink))
+    }
+}
+
+private struct SearchPanelInkStyle: ViewModifier {
+    var ink: SearchPanelRowInk
+
+    @Environment(\.isOnEmphasizedSelection) private var isOnSelection
+
+    func body(content: Content) -> some View {
+        content.foregroundStyle(colour)
+    }
+
+    private var colour: Color {
+        switch (ink, isOnSelection) {
+        case (.primary, true): Palette.selectedEmphasizedText
+        case (.secondary, true): Palette.selectedEmphasizedText.opacity(0.76)
+        case (.tertiary, true): Palette.selectedEmphasizedText.opacity(0.55)
+        case (.primary, false): Palette.textPrimary
+        case (.secondary, false): Palette.textSecondary
+        case (.tertiary, false): Palette.textTertiary
         }
     }
 }

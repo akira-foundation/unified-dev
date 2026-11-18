@@ -39,7 +39,7 @@ struct SearchPanelView: View {
         HStack(spacing: Metrics.spacing) {
             Image(systemName: "magnifyingglass")
                 .font(Typo.labelEmphasis)
-                .foregroundStyle(Palette.textTertiary)
+                .searchPanelInk(SearchPanelRowInk.detail())
 
             if let pill = modePill {
                 Chip(text: pill)
@@ -62,7 +62,7 @@ struct SearchPanelView: View {
             if let subject = commandSubject {
                 Text("on \(subject)")
                     .font(Typo.caption)
-                    .foregroundStyle(Palette.textTertiary)
+                    .searchPanelInk(SearchPanelRowInk.detail())
                     .lineLimit(1)
             }
         }
@@ -111,12 +111,7 @@ struct SearchPanelView: View {
                 LazyVStack(alignment: .leading, spacing: SearchPanelRowMetrics.gap) {
                     ForEach(panel.listing.sections) { section in
                         if let title = section.title {
-                            Text(title)
-                                .font(Typo.micro)
-                                .foregroundStyle(Palette.textTertiary)
-                                .padding(.horizontal, Metrics.inset)
-                                .padding(.top, Metrics.gutter)
-                                .padding(.bottom, Metrics.spacingTight)
+                            SearchPanelSectionHeading(title: title)
                         }
 
                         ForEach(section.rows) { row in

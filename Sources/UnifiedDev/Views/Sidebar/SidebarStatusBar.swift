@@ -67,7 +67,7 @@ struct SidebarStatusBar: View {
             .foregroundStyle(app.profileRepos.isEmpty ? Palette.textDisabled : Palette.textSecondary)
         }
         .disabled(app.profileRepos.isEmpty)
-        .help("New workspace (\(MenuBarCatalogue[.newWorkspace].keyText))")
+        .help(MenuBarCatalogue[.newWorkspace].help("New workspace"))
         .accessibilityLabel("New workspace")
     }
 
@@ -78,7 +78,7 @@ struct SidebarStatusBar: View {
                     .foregroundStyle(Palette.textSecondary)
             }
         }
-        .help("\(MenuBarCatalogue[.startProject].title) (\(MenuBarCatalogue[.startProject].keyText))")
+        .help(MenuBarCatalogue[.startProject].help(MenuBarCatalogue[.startProject].title))
         .accessibilityLabel(MenuBarCatalogue[.startProject].title)
     }
 

@@ -46,10 +46,10 @@ struct SearchPanelCommandsTests {
         #expect(sections.map(\.title) == ["Help"])
     }
 
-    @Test("a row prints its key, or the words no key")
-    func everyRowPrintsAKey() {
+    @Test("a row with a key prints it the way the menu bar does, and a row without one prints nothing")
+    func everyRowPrintsItsKeyOrNothing() {
         #expect(MenuBarCatalogue[.archive].keyText == "\u{21E7}\u{2318}\u{232B}")
-        #expect(MenuBarCatalogue[.pin].keyText == "no key")
+        #expect(MenuBarCatalogue[.pin].keyText == nil)
         #expect(MenuBarCatalogue[.nextChangedFile].keyText == "\u{2325}\u{2318}J")
         #expect(MenuBarCatalogue[.projectSettings].keyText == "\u{21E7}\u{2318},")
         #expect(MenuBarCatalogue[.zoomPane].keyText == "\u{21E7}\u{2318}\u{21A9}")
@@ -61,6 +61,18 @@ struct SearchPanelCommandsTests {
     func aRowPrintsItsAlternateKeyToo() {
         #expect(MenuBarCatalogue[.nextTab].keyText == "\u{21E7}\u{2318}] \u{2325}\u{21E5}")
         #expect(MenuBarCatalogue[.previousTab].keyText == "\u{21E7}\u{2318}[ \u{2325}\u{21E7}\u{21E5}")
+    }
+
+    @Test("a tooltip names the key when there is one and stays a plain phrase when there is not")
+    func tooltipCarriesTheKeyOnlyWhenThereIsOne() {
+        #expect(MenuBarCatalogue[.archive].help("Archive workspace") == "Archive workspace (\u{21E7}\u{2318}\u{232B})")
+        #expect(MenuBarCatalogue[.pin].help("Pin") == "Pin")
+    }
+
+    @Test("escape is drawn as the menu bar's escape glyph rather than spelled out")
+    func escapeGlyph() {
+        #expect(MenuShortcut(.escape).display == "\u{238B}")
+        #expect(MenuShortcut(.return, .command).display == "\u{2318}\u{21A9}")
     }
 
     @Test("the modifiers are drawn in the platform's order")

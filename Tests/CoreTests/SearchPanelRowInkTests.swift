@@ -14,14 +14,15 @@ struct SearchPanelRowInkTests {
         #expect(SearchPanelRowInk.title(isEnabled: false) != SearchPanelRowInk.title(isEnabled: true))
     }
 
-    @Test("the second line is secondary until its row is selected, because secondary falls short on the plate")
+    @Test("the second line is one level below its title, and a disabled one a level further")
     func detail() {
-        #expect(SearchPanelRowInk.detail(isSelected: false) == .secondary)
-        #expect(SearchPanelRowInk.detail(isSelected: true) == .primary)
+        #expect(SearchPanelRowInk.detail() == .secondary)
+        #expect(SearchPanelRowInk.detail(isEnabled: false) == .tertiary)
     }
 
-    @Test("selecting a disabled command does not make its detail read as usable")
-    func detailOfADisabledCommand() {
-        #expect(SearchPanelRowInk.detail(isSelected: true, isEnabled: false) == .secondary)
+    @Test("a section heading sits below the rows it heads")
+    func heading() {
+        #expect(SearchPanelRowInk.heading == .secondary)
+        #expect(SearchPanelRowInk.heading != SearchPanelRowInk.title(isEnabled: true))
     }
 }

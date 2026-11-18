@@ -364,29 +364,6 @@ struct Chip: View {
     }
 }
 
-struct CountLabel: View {
-    var count: Int
-    var isOnSelection = false
-
-    private static let reserved = "000"
-
-    var body: some View {
-        ZStack(alignment: .leading) {
-            Text(verbatim: Self.reserved)
-                .monospacedDigit()
-                .hidden()
-            Text(count, format: Figures.count)
-                .monospacedDigit()
-                .lineLimit(1)
-        }
-        .font(Typo.caption)
-        .foregroundStyle(
-            isOnSelection ? Palette.selectedEmphasizedText.opacity(0.76) : Palette.textTertiary
-        )
-        .accessibilityHidden(true)
-    }
-}
-
 struct DiffStatLabel: View {
     var additions: Int
     var deletions: Int

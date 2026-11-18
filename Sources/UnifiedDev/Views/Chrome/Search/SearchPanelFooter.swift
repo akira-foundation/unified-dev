@@ -6,34 +6,21 @@ struct SearchPanelFooter: View {
     var summary: String?
 
     var body: some View {
-        HStack(spacing: Metrics.gutter) {
+        HStack(spacing: Metrics.inset) {
             ForEach(keys) { key in
-                HStack(spacing: Metrics.spacingSmall) {
-                    Text(key.key)
-                        .font(Typo.caption)
-                        .foregroundStyle(Palette.textSecondary)
-                        .padding(.horizontal, Metrics.chipInsetH)
-                        .padding(.vertical, Metrics.chipInsetV)
-                        .background(
-                            RoundedRectangle(cornerRadius: Metrics.cornerSmall)
-                                .fill(Palette.hover)
-                        )
-
-                    Text(key.label)
-                        .font(Typo.caption)
-                        .foregroundStyle(Palette.textTertiary)
-                }
+                Text(key.text)
+                    .lineLimit(1)
             }
 
             Spacer(minLength: Metrics.spacingWide)
 
             if let summary {
                 Text(summary)
-                    .font(Typo.caption)
-                    .foregroundStyle(Palette.textTertiary)
                     .lineLimit(1)
             }
         }
+        .font(Typo.caption)
+        .searchPanelInk(SearchPanelRowInk.detail())
         .padding(.horizontal, Metrics.inset)
         .padding(.vertical, Metrics.spacingSmall)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -114,4 +114,21 @@ struct SearchPanelKeysTests {
                 .contains { $0.label == "Back" }
         )
     }
+
+    @Test("the footer draws every key as the menu bar does, with no key spelled out in words")
+    func theFooterUsesMenuGlyphs() {
+        let searching = SearchPanelKeys.footer(for: .things, isSearching: true)
+        #expect(searching.map(\.key) == ["\u{21A9}", "\u{2318}\u{21A9}", "\u{21E5}", "\u{238B}"])
+        #expect(searching.map(\.text) == ["Open \u{21A9}", "Actions \u{2318}\u{21A9}", "Scope \u{21E5}", "Close \u{238B}"])
+        let everyKey = [false, true].flatMap { SearchPanelKeys.footer(for: .things, isSearching: $0) }
+            + SearchPanelKeys.footer(for: .commands, isSearching: true)
+            + SearchPanelKeys.footer(for: .actions(WorkspaceID("w1")), isSearching: true)
+            + SearchPanelKeys.fileSearchFooter
+        #expect(everyKey.allSatisfy { !$0.key.contains { $0.isLetter } })
+    }
+
+    @Test("the file search names both arrows under one label")
+    func fileSearchFooter() {
+        #expect(SearchPanelKeys.fileSearchFooter.map(\.key) == ["\u{2191}\u{2193}", "\u{21A9}", "\u{238B}"])
+    }
 }
