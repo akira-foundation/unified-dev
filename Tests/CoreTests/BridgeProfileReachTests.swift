@@ -7,21 +7,23 @@ struct BridgeProfileReachTests {
     @Test(
         "the rule for crossing",
         arguments: [
-            (BridgeProfileCaller.owner, BridgeProfilePurpose.read, false, true, true),
-            (.owner, .talk, true, false, false),
-            (.owner, .read, false, false, false),
-            (.orchestrator, .read, true, true, true),
-            (.orchestrator, .talk, false, true, false),
-            (.orchestrator, .read, true, false, false),
-            (.workspace, .talk, true, true, true),
-            (.workspace, .read, true, true, false),
-            (.workspace, .talk, false, true, false),
-            (.workspace, .talk, true, false, false),
-            (.confined, .talk, true, true, false),
-        ] as [(BridgeProfileCaller, BridgeProfilePurpose, Bool, Bool, Bool)]
+            (BridgeProfileCaller.owner, BridgeProfilePurpose.read, true, true),
+            (.owner, .talk, false, false),
+            (.owner, .talk, true, true),
+            (.orchestrator, .talk, false, false),
+            (.workspace, .read, false, false),
+            (.orchestrator, .read, true, true),
+            (.orchestrator, .talk, true, true),
+            (.orchestrator, .read, false, false),
+            (.workspace, .talk, true, true),
+            (.workspace, .read, true, false),
+            (.workspace, .talk, false, false),
+            (.unasked, .talk, true, false),
+            (.confined, .talk, true, false),
+        ] as [(BridgeProfileCaller, BridgeProfilePurpose, Bool, Bool)]
     )
-    func rule(caller: BridgeProfileCaller, purpose: BridgeProfilePurpose, ownOpen: Bool, targetOpen: Bool, expected: Bool) {
-        #expect(BridgeProfileReach.mayCross(caller, for: purpose, ownOpen: ownOpen, targetOpen: targetOpen) == expected)
+    func rule(caller: BridgeProfileCaller, purpose: BridgeProfilePurpose, targetOpen: Bool, expected: Bool) {
+        #expect(BridgeProfileReach.mayCross(caller, for: purpose, targetOpen: targetOpen) == expected)
     }
 
     @Test("with the switches off, a real profile is refused in the words an invented one is")
@@ -30,12 +32,8 @@ struct BridgeProfileReachTests {
         for identity in [w.lead, w.world.homeAgent] {
             let real = await w.say(as: identity, profile: "Akira")
             let invented = await w.say(as: identity, profile: "Invented")
-            #expect(real.isError)
             #expect(real.text.contains(BridgeProfileTrouble.unreachable(given: "Akira").sentence))
-            #expect(
-                real.text.replacingOccurrences(of: "Akira", with: "X")
-                    == invented.text.replacingOccurrences(of: "Invented", with: "X")
-            )
+            #expect(real.text.replacingOccurrences(of: "Akira", with: "X") == invented.text.replacingOccurrences(of: "Invented", with: "X"))
         }
         let real = await w.read(as: .owner, profile: "Akira")
         let invented = await w.read(as: .owner, profile: "Invented")
@@ -74,18 +72,16 @@ struct BridgeProfileReachTests {
         #expect(await w.read(as: w.lead, profile: "Akira").text.contains("is left to its projects' orchestrators"))
     }
 
-    @Test("an orchestrator needs both ends open, and the owner only the destination")
+    @Test("an orchestrator, like the owner, needs only the destination open")
     func whichEnds() async throws {
         let w = try await ProfileReachWorld.make("reach-ends")
         try await w.open(w.akira)
-        #expect(await w.say(as: w.lead).isError)
+        #expect(await w.say(as: w.lead).isError == false)
+        #expect(w.window.sent.count == 1)
         #expect(await w.say(as: .owner).isError == false)
 
         let pinned = BridgeIdentity(ownerSession: w.leadChat.id, pinnedProfile: .initial)
         #expect(await w.say(as: pinned).isError == false)
-
-        try await w.open(.initial)
-        #expect(await w.say(as: w.lead).isError == false)
     }
 
     @Test("without profile, another profile's workspace stays as if it did not exist")
@@ -119,16 +115,18 @@ struct BridgeProfileReachTests {
         #expect(!answer.text.contains(BridgeUntrustedText.opening))
     }
 
-    @Test("all is refused to a caller that may not leave")
-    func everyIsRefused() async throws {
+    @Test("all from a profile closed to others still lists the open ones")
+    func everyFromClosed() async throws {
         let w = try await ProfileReachWorld.make("reach-every-off")
+        let closed = try await w.store.createProfile(name: "Closed", colour: "red", symbol: "star").id
+        _ = try await w.store.upsert(Repo(name: "secret-project", path: TestScratch.unique("s"), profileID: closed))
         try await w.open(w.akira)
         for identity in [w.world.homeAgent, w.lead] {
             let answer = await ProjectListTool().call(
                 w.world.request("project_list", ["profile": .string("all")]), as: identity, store: w.store
             )
-            #expect(answer.isError)
-            #expect(!answer.text.contains(ProfileScopeWorld.farProjectName))
+            #expect(answer.text.contains(ProfileScopeWorld.farProjectName), "\(answer.text)")
+            #expect(!answer.text.contains("secret-project"))
         }
     }
 
@@ -161,10 +159,8 @@ struct BridgeProfileReachTests {
     func listServing() async throws {
         let w = try await ProfileReachWorld.make("reach-serving")
         let tool = "workspace_list"
-        #expect(await w.listedTools(as: w.lead).contains(tool) == false)
-        #expect(await BridgeToolbox.standard.handler(named: tool, for: w.lead, store: w.store) == nil)
-
-        try await w.open(.initial)
+        #expect(await w.listedTools(as: w.unasked).contains(tool) == false)
+        #expect(await BridgeToolbox.standard.handler(named: tool, for: w.unasked, store: w.store) == nil)
 
         #expect(await w.listedTools(as: w.lead).contains(tool))
         #expect(await w.listedTools(as: w.world.homeAgent).contains(tool))

@@ -251,7 +251,7 @@ public struct WorkspaceSayTool: BridgeToolHandling {
             ? "This connection is not a workspace, so the agent there cannot answer you with "
                 + "workspace_say. Call workspace_list to see what became of it."
             : profile != nil
-            ? "It can answer with workspace_say while both profiles stay open, an orchestrator always and "
+            ? "It can answer with workspace_say while your own profile is open to others, an orchestrator always and "
                 + "another workspace only when you are an orchestrator. Use notify_when_done to hear how its "
                 + "turn ended."
             : "If it answers, it answers with workspace_say, and its message lands in this chat, "
@@ -272,19 +272,22 @@ public struct WorkspaceSayTool: BridgeToolHandling {
                     + "It starts a turn there, or waits for the one that is running, "
                     + "and the owner can cancel it until the agent there starts reading it. Unified "
                     + "Dev does not wait for an answer, so get on with your own work. " + reply
-                    + noticeLine(for: message, requested: noticeRequested)
+                    + noticeLine(for: message, requested: noticeRequested, crossing: profile != nil)
             ),
         ]
         if let profile { fields[Key.profile] = .string(profile) }
         return .object(fields)
     }
 
-    private static func noticeLine(for message: WorkspaceMessage, requested: Bool) -> String {
+    private static func noticeLine(for message: WorkspaceMessage, requested: Bool, crossing: Bool) -> String {
         if message.notifyWhenDone {
             return " Unified Dev will tell this chat once, by itself, when the turn this message "
                 + "causes there comes to rest: finished, failed, or waiting on the owner."
         }
         guard requested else { return "" }
+        guard message.source.workspaceID == nil || !crossing else {
+            return WorkspaceMessageComposer.noticeHeldBack
+        }
         return " notify_when_done was ignored: this connection is not a chat in a Unified Dev "
             + "workspace, so there is nowhere to deliver the notice."
     }

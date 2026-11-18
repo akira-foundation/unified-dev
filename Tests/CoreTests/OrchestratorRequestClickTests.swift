@@ -20,18 +20,20 @@ struct OrchestratorRequestClickTests {
         #expect(try await far.w.store.workSuggestion(id: card.id)?.state == .pending)
     }
 
-    @Test("the sender's own profile closed since refuses the click too")
-    func ownClosedSinceRefuses() async throws {
+    @Test("the sender's own profile closed since does not stop the click, because closing only stops what comes in")
+    func ownClosedSinceStillDelivers() async throws {
         let (far, card) = try await OrchestratorRequestLaunchTests.card("orch-click-own-closed")
         try await ProfileBridgeSwitch.save(false, profile: .initial, to: far.w.store)
         let started = Started()
 
         let outcome = await OrchestratorRequestLaunchTests.launch(far, started).launch(card.id, as: .newWorkspace, store: far.w.store)
 
-        #expect(outcome == .refused(WorkSuggestionWording.senderCannotCross))
-        #expect(started.projects.isEmpty)
-        #expect(started.delivered.isEmpty)
-        #expect(try await far.w.store.workSuggestion(id: card.id)?.state == .pending)
+        guard case .started = outcome else {
+            Issue.record("The card was not started: \(outcome)")
+            return
+        }
+        #expect(started.projects == [far.w.world.farProject.id])
+        #expect(started.delivered.count == 1)
     }
 
     @Test("a card from the owner's Ask chat always arrives marked as coming from outside")

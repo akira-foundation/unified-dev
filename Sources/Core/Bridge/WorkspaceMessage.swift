@@ -120,7 +120,7 @@ public struct WorkspaceMessage: Identifiable, Sendable, Hashable {
 
     private func crossingReplyLine(_ profile: String) -> String {
         guard let workspaceID = source.workspaceID else { return replyLine }
-        return "An agent that may cross profiles can answer it while the owner keeps both profiles open, by calling "
+        return "An agent that may cross profiles can answer it while the owner keeps the sender's profile open, by calling "
             + "workspace_say with workspace \"\(workspaceID.rawValue)\" and "
             + "profile \"\(source.profileID?.rawValue ?? Self.oneLine(profile))\". A workspace that is not its "
             + "project's orchestrator can answer only when that sender is one. Whoever sent it may be told how "

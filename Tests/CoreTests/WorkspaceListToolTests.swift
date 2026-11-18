@@ -20,7 +20,7 @@ struct WorkspaceListToolTests {
         try #require(workspaces(result).first { $0["name"]?.stringValue == name })
     }
 
-    @Test("the owner sees it, and a workspace sees it only once its profile may be left")
+    @Test("the owner sees it, and a workspace sees it only from a chat that may leave its profile")
     func roleGate() async throws {
         let store = try makeTestStore("workspace-list-gate")
         let toolbox = BridgeToolbox(handlers: [WorkspaceListTool()])
@@ -30,13 +30,11 @@ struct WorkspaceListToolTests {
         ))
         let chat = try await store.upsert(Session(workspaceID: workspace.id, title: "c", permissionMode: .acceptEdits))
         let agent = BridgeIdentity(sessionID: chat.id, workspaceID: workspace.id, role: .workspace, launchedAsking: true)
+        let unasked = BridgeIdentity(sessionID: chat.id, workspaceID: workspace.id, role: .workspace)
 
-        #expect(await toolbox.tools(for: agent, store: store).isEmpty)
+        #expect(await toolbox.tools(for: unasked, store: store).isEmpty)
         #expect(await toolbox.tools(for: .owner, store: store).map(\.name) == ["workspace_list"])
-        #expect(await toolbox.handler(named: "workspace_list", for: agent, store: store) == nil)
-
-        try await ProfileBridgeSwitch.save(true, profile: .initial, to: store)
-
+        #expect(await toolbox.handler(named: "workspace_list", for: unasked, store: store) == nil)
         #expect(await toolbox.tools(for: agent, store: store).map(\.name) == ["workspace_list"])
     }
 

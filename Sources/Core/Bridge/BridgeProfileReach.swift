@@ -37,9 +37,10 @@ public enum BridgeProfileReach {
             "Another profile to act in, by its id or by a name no other reachable profile shares. "
                 + "Leave it out to stay in your own. Any workspace on Claude Code can send a message to a "
                 + "project's orchestrator there; reading its chats and diffs is left to a project's "
-                + "orchestrator and the owner's own clients. Only a profile the owner has opened can be "
-                + "reached, a workspace's own profile must be open too, and a workspace reaches one only from a "
-                + "chat launched in Accept edits, where the owner approves every call that names one."
+                + "orchestrator and the owner's own clients. Only a profile the owner has opened to others can be "
+                + "reached, whether or not your own is open, and a workspace reaches one only from a "
+                + "chat launched in Accept edits, where the owner approves every call that names one. "
+                + "profile_list names the ones you can reach."
         ),
     ])
 
@@ -48,19 +49,18 @@ public enum BridgeProfileReach {
         "description": .string(
             "Another profile to list, by its id or by a name no other reachable profile shares, or "
                 + "'all' for your own and every other you can reach. Leave it out to stay in your own. "
-                + "Any workspace on Claude Code can list another profile the owner has opened, when its own "
-                + "is open too, from a chat launched in Accept edits, where the owner approves every call that names one. Each "
-                + "row then says which profile it belongs to."
+                + "Any workspace on Claude Code can list another profile the owner has opened to others, "
+                + "from a chat launched in Accept edits, where the owner approves every call that names one. Each "
+                + "row then says which profile it belongs to. profile_list names the ones you can reach."
         ),
     ])
 
     public static func mayCross(
-        _ caller: BridgeProfileCaller, for purpose: BridgeProfilePurpose, ownOpen: Bool, targetOpen: Bool
+        _ caller: BridgeProfileCaller, for purpose: BridgeProfilePurpose, targetOpen: Bool
     ) -> Bool {
         switch caller {
-        case .owner: targetOpen
-        case .orchestrator: ownOpen && targetOpen
-        case .workspace: purpose == .talk && ownOpen && targetOpen
+        case .owner, .orchestrator: targetOpen
+        case .workspace: purpose == .talk && targetOpen
         case .unasked, .confined: false
         }
     }
@@ -96,11 +96,8 @@ public enum BridgeProfileReach {
     public static func mayLeaveOwnProfile(
         _ identity: BridgeIdentity, for purpose: BridgeProfilePurpose, store: Store
     ) async throws -> Bool {
-        let caller = try await caller(of: identity, store: store)
-        guard let own = try await BridgeProfileScope.profile(of: identity, store: store) else { return false }
-        return mayCross(
-            caller, for: purpose, ownOpen: await ProfileBridgeSwitch.isOn(profile: own, in: store), targetOpen: true
-        )
+        guard try await BridgeProfileScope.profile(of: identity, store: store) != nil else { return false }
+        return mayCross(try await caller(of: identity, store: store), for: purpose, targetOpen: true)
     }
 
     public static func reachable(
@@ -108,11 +105,10 @@ public enum BridgeProfileReach {
     ) async throws -> [Profile] {
         let caller = try await caller(of: identity, store: store)
         guard let own = try await BridgeProfileScope.profile(of: identity, store: store) else { return [] }
-        let ownOpen = await ProfileBridgeSwitch.isOn(profile: own, in: store)
         var open: [Profile] = []
         for profile in try await store.profiles() where profile.id != own {
             let targetOpen = await ProfileBridgeSwitch.isOn(profile: profile.id, in: store)
-            if mayCross(caller, for: purpose, ownOpen: ownOpen, targetOpen: targetOpen) { open.append(profile) }
+            if mayCross(caller, for: purpose, targetOpen: targetOpen) { open.append(profile) }
         }
         return open
     }
@@ -132,18 +128,16 @@ public enum BridgeProfileReach {
               let own = try await store.profile(id: ownID)
         else { return .failure(.unreachable(given: given)) }
 
-        let others = try await reachable(from: identity, for: purpose, store: store)
-        if allowsEvery, given.caseInsensitiveCompare(everyProfile) == .orderedSame {
-            guard try await mayLeaveOwnProfile(identity, for: purpose, store: store) else {
-                return .failure(.unreachable(given: given))
-            }
-            return .success(.every(own: own, others: others))
+        let asksEvery = allowsEvery && given.caseInsensitiveCompare(everyProfile) == .orderedSame
+        if let ownSide = try await BridgeProfileReachRefusal.ownSide(identity, store: store) {
+            guard !asksEvery, case .success(.own) = find(given, own: own, others: []) else { return .failure(ownSide) }
+            return .success(.own)
         }
+        let others = try await reachable(from: identity, for: purpose, store: store)
+        if asksEvery { return .success(.every(own: own, others: others)) }
         let found = find(given, own: own, others: others)
         guard case .failure(.unreachable) = found else { return found }
-        return try await BridgeProfileReachRefusal.plain(
-            given, own: own, purpose: purpose, allowsEvery: allowsEvery, as: identity, store: store
-        ) ?? found
+        return try await BridgeProfileReachRefusal.plain(given, purpose: purpose, as: identity, store: store) ?? found
     }
 
     private static func find(

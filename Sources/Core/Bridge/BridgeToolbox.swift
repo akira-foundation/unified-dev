@@ -10,6 +10,7 @@ public struct BridgeToolbox: Sendable {
     public static let standard = BridgeToolbox(handlers: [
         WhoamiTool(),
         ProjectListTool(),
+        ProfileListTool(),
         ProjectAddTool(),
         ProjectHideTool(),
         ProjectUnhideTool(),

@@ -34,9 +34,8 @@ public enum WorkSuggestionWording {
     }
 
     public static let senderCannotCross = """
-        The chat that left this message cannot reach other profiles any more: its own profile was closed \
-        to them, its workspace was archived, or it no longer runs in a mode that asks you first. Nothing \
-        was started.
+        The chat that left this message cannot reach other profiles any more: its workspace was archived, \
+        or it no longer runs on Claude Code. Nothing was started.
         """
 
     public static func senderLeads(_ name: String) -> String {

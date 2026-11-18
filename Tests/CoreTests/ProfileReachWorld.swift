@@ -7,6 +7,7 @@ struct ProfileReachWorld {
     let lead: BridgeIdentity
     let leadChat: Session
     let subagent: BridgeIdentity
+    let unasked: BridgeIdentity
     let window: WorkspaceSayWindow
 
     var store: Store { world.store }
@@ -33,6 +34,9 @@ struct ProfileReachWorld {
             ),
             leadChat: leadChat,
             subagent: BridgeIdentity(sessionID: child.id, workspaceID: leadWorkspace.id, role: .workspace, launchedAsking: true),
+            unasked: BridgeIdentity(
+                sessionID: try #require(world.homeAgent.sessionID), workspaceID: world.homeWorkspace.id, role: .workspace
+            ),
             window: WorkspaceSayWindow(
                 store: store, chats: [world.farWorkspace.id: farChat]
             )

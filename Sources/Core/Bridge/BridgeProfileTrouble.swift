@@ -3,10 +3,11 @@ import Foundation
 public enum BridgeProfileTrouble: Error, Sendable, Equatable {
     case notText
     case unreachable(given: String)
+    case launchedUnasked
+    case agentConfined
     case ambiguous(given: String, ids: [String])
     case readsGoThroughOrchestrator(given: String)
     case closedToOutside(given: String)
-    case asksNobody(given: String)
 
     public var sentence: String {
         switch self {
@@ -15,8 +16,26 @@ public enum BridgeProfileTrouble: Error, Sendable, Equatable {
 
         case .unreachable(let given):
             return """
-                This connection cannot reach a profile called '\(WorkspaceMessage.oneLine(given))'. \
-                Unified Dev does not say whether one exists. Retrying will not change that.
+                No open profile this connection can reach is called '\(WorkspaceMessage.oneLine(given))'. \
+                A profile can be reached only once the owner opens it to the others, in that profile's own \
+                settings, so ask the owner to open the one you need. profile_list names the ones open to you. \
+                Unified Dev does not say whether a closed profile by that name exists, and retrying will not \
+                change that.
+                """
+
+        case .launchedUnasked:
+            return """
+                This chat cannot reach any other profile, because it runs in a mode that does not ask the \
+                owner before a tool call. A workspace reaches another profile only from a chat launched in \
+                Accept edits, where the owner approves each call. Tell the owner what you wanted to do there, \
+                or ask them to switch this chat's mode; the change applies from its next message.
+                """
+
+        case .agentConfined:
+            return """
+                This chat cannot reach any other profile: only a chat on Claude Code in an active workspace, \
+                or a project's orchestrator on Grok, can, and never a chat on Codex. Tell the owner what you \
+                wanted to do there. Retrying will not change that.
                 """
 
         case let .ambiguous(given, ids):
@@ -35,17 +54,9 @@ public enum BridgeProfileTrouble: Error, Sendable, Equatable {
 
         case .closedToOutside(let given):
             return """
-                The orchestrators in the profile '\(WorkspaceMessage.oneLine(given))' do not accept messages \
-                from outside it: the owner has not opened it to other profiles. Tell the owner what you \
-                wanted to send there. Retrying will not change that.
-                """
-
-        case .asksNobody(let given):
-            return """
-                This chat cannot reach the profile '\(WorkspaceMessage.oneLine(given))', because it runs in a \
-                mode that does not ask the owner before a tool call. A workspace reaches another profile only \
-                from a chat launched in Accept edits, where the owner approves each call. Tell the owner what \
-                you wanted to send there, or ask them to switch this chat's mode.
+                The profile '\(WorkspaceMessage.oneLine(given))' is not open to other profiles, so this \
+                message cannot be delivered there. Turn on Reachable from other profiles in that profile's \
+                settings and press again, or leave the message waiting.
                 """
         }
     }

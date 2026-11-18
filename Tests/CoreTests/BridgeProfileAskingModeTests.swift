@@ -50,8 +50,8 @@ struct BridgeProfileAskingModeTests {
         )
 
         #expect(told.isError)
-        #expect(told.text.contains(BridgeProfileTrouble.asksNobody(given: "Akira").sentence))
-        #expect(listed.text.contains(BridgeProfileTrouble.asksNobody(given: "Akira").sentence))
+        #expect(told.text.contains(BridgeProfileTrouble.launchedUnasked.sentence))
+        #expect(listed.text.contains(BridgeProfileTrouble.launchedUnasked.sentence))
         #expect(!listed.text.contains(ProfileScopeWorld.farProjectName))
         #expect(far.window.sent.isEmpty)
         #expect(try await far.w.store.workSuggestions(sessionID: session).isEmpty)
@@ -71,14 +71,14 @@ struct BridgeProfileAskingModeTests {
         #expect(far.window.sent.map(\.target.workspaceID) == [far.orchestrator.id])
     }
 
-    @Test("a profile that does not exist is answered as before, so the refusal reveals nothing new")
+    @Test("a profile that does not exist is answered in the same words, so the refusal reveals nothing")
     func unaskedInventedProfile() async throws {
         let far = try await Reach.world("asking-invented")
         let listed = await ProjectListTool().call(
             far.w.world.request("project_list", ["profile": .string("Invented")]),
             as: try Self.launched(far, asking: false), store: far.w.store
         )
-        #expect(listed.text.contains(BridgeProfileTrouble.unreachable(given: "Invented").sentence))
+        #expect(listed.text.contains(BridgeProfileTrouble.launchedUnasked.sentence))
     }
 
     @Test("an ordinary workspace on Grok does not cross, because its approvals cover a whole tool")
@@ -92,7 +92,7 @@ struct BridgeProfileAskingModeTests {
 
         #expect(try await BridgeProfileReach.caller(of: identity, store: far.w.store) == .confined)
         let told = await Reach.say(far, as: identity, ["workspace": .string(far.orchestrator.id.rawValue)])
-        #expect(told.text.contains(BridgeProfileTrouble.unreachable(given: "Akira").sentence))
+        #expect(told.text.contains(BridgeProfileTrouble.agentConfined.sentence))
         #expect(far.window.sent.isEmpty)
     }
 
