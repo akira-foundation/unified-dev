@@ -114,6 +114,14 @@ commit "$repo" "fix: a fix after it (#600)"
 if output="$(run_check "$repo")"; then fail "a range with no published changelog to compare against went through: $output"; fi
 [[ "$output" == *"no CHANGELOG.md"* ]] || fail "the missing changelog is not named: $output"
 
+unreadable_config="$work/unreadable.toml"
+print -r -- "this is not toml [" > "$unreadable_config"
+released_repository
+merged_back "$repo"
+if output="$(run_check "$repo" "$unreadable_config")"; then fail "a git-cliff that wrote no notes went through: $output"; fi
+[[ "$output" == *"git-cliff could not write the notes"* ]] || fail "the git-cliff failure is not named: $output"
+[[ "$output" == *"expected \`=\`"* ]] || fail "what git-cliff said is not shown: $output"
+
 skipping_features="$work/skipping-features.toml"
 sed 's/{ message = "^feat", group = "Features" }/{ message = "^feat", group = "Features", skip = true }/' "$real_config" > "$skipping_features"
 released_repository

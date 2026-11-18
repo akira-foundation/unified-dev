@@ -43,7 +43,7 @@ branch, the Release workflow commits `CHANGELOG.md` back to it, a pull request t
 
    It takes every commit since the last tag, a prerelease included because that is where
    git-cliff starts, which covers every pull request merged since, and compares it with what
-   `git-cliff --config cliff.toml --use-branch-tags --unreleased --strip all` will write. It also
+   `git-cliff --offline --config cliff.toml --use-branch-tags --unreleased --strip all` will write. It also
    compares every entry of those notes with `CHANGELOG.md` on `HEAD` and on `origin/main`. It exits
    non-zero and names each one when a pull request will not reach the notes, because its squash
    subject is not a conventional commit and `filter_unconventional` drops it, or when the notes

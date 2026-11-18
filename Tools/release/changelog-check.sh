@@ -11,7 +11,13 @@ command -v git-cliff >/dev/null || { echo "changelog-check: git-cliff is not ins
 previous="$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null || true)"
 [ -n "$previous" ] || { echo "changelog-check: no release tag behind HEAD to compare against" >&2; exit 1; }
 
-notes="$(git-cliff --offline --config "$config" --use-branch-tags --unreleased --strip all 2>/dev/null)"
+cliff_errors="$(mktemp)"
+trap 'rm -f "$cliff_errors"' EXIT
+notes="$(git-cliff --offline --config "$config" --use-branch-tags --unreleased --strip all 2>"$cliff_errors")" || {
+  echo "changelog-check: git-cliff could not write the notes (--offline needs git-cliff 2.12.0 or newer):" >&2
+  cat "$cliff_errors" >&2
+  exit 1
+}
 published_refs=(HEAD)
 if git remote get-url origin >/dev/null 2>&1; then
   git fetch -q origin main || { echo "changelog-check: could not fetch origin/main, so what it published is unknown" >&2; exit 1; }
