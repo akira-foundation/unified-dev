@@ -124,16 +124,6 @@ struct DiffView: View {
         case image(ImageDiffSides)
     }
 
-    private struct LoadID: Hashable {
-        var language: Language
-        var workspaceID: WorkspaceID
-        var file: ChangedFile
-        var scope: DiffScope
-        var isCollapsed: Bool
-        var ignoringWhitespace: Bool
-        var imageRevision: String?
-    }
-
     private struct PendingDiscard: Equatable {
         var target: Target
         var question: ReviewCommentDiscard
@@ -244,12 +234,10 @@ struct DiffView: View {
         .background {
             if embeddedWidth == nil { shortcut }
         }
-        .task(id: LoadID(
-            language: effectiveLanguage,
-            workspaceID: model.workspace.id, file: file, scope: model.diffScope,
-            isCollapsed: isCollapsed, ignoringWhitespace: ignoresWhitespace,
-            imageRevision: ImageDiff.isOffered(path: file.path, isBinary: file.isBinary)
-                ? model.viewedRevisions[file.path] : nil
+        .task(id: DiffLoadIdentity(
+            workspaceID: model.workspace.id, file: file, revisions: model.viewedRevisions,
+            scope: model.diffScope, language: effectiveLanguage,
+            isCollapsed: isCollapsed, ignoringWhitespace: ignoresWhitespace
         )) {
             guard !isCollapsed else {
                 priming?.cancel()
