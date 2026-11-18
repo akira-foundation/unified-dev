@@ -70,6 +70,26 @@ struct OnboardingAgentChoiceTests {
         #expect(OnboardingAgentChoice.candidates(in: missingGrok).isEmpty)
     }
 
+    @Test("An agent's card names the account it is signed in to, never a version standing in for one")
+    func signedInLine() {
+        let signed = report(claude: .ready(detail: "ada@example.com"), codex: .ready(detail: "0.130.0"))
+        #expect(OnboardingAgentChoice.signedInLine(for: .claudeCode, in: signed) == "ada@example.com")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: signed) == "Signed in")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: "v2.1.4"))) == "Signed in")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: ""))) == "Signed in")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: "42team"))) == "42team")
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: report(codex: .ready(detail: "team 2.0"))) == "team 2.0")
+    }
+
+    @Test("Only an agent that is ready is said to be signed in")
+    func signedInOnlyWhenReady() {
+        let unsure = report(claude: .needsSignIn(detail: "2.1.234"), codex: .pending, grok: .missing)
+        #expect(OnboardingAgentChoice.signedInLine(for: .claudeCode, in: unsure) == nil)
+        #expect(OnboardingAgentChoice.signedInLine(for: .codex, in: unsure) == nil)
+        #expect(OnboardingAgentChoice.signedInLine(for: .grok, in: unsure) == nil)
+        #expect(OnboardingAgentChoice.signedInLine(for: .claudeCode, in: report()) == "Signed in")
+    }
+
     @Test("The picker lands on a candidate rather than on an agent that is not there")
     func selection() {
         #expect(OnboardingAgentChoice.selection(among: [.claudeCode, .codex], current: .codex) == .codex)

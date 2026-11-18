@@ -13,6 +13,7 @@ struct WelcomeView: View {
     @State private var subject: WelcomeCheckSubject?
     @State private var login: LoginTerminalSession?
     @State private var showsCommand = false
+    @State private var autoOpen = SetupDetailAutoOpen()
 
     init(
         inspection: SetupInspection,
@@ -70,6 +71,8 @@ struct WelcomeView: View {
         .onChange(of: offersAgentChoice) { _, offered in flow.offerAgentChoice(offered) }
         .onChange(of: offersExtras) { _, offered in flow.offerExtras(offered) }
         .onChange(of: offersAreKnown) { _, known in flow.settleOffers(known) }
+        .onChange(of: report) { openBlockingCheck() }
+        .onChange(of: flow.step) { openBlockingCheck() }
         .onDisappear {
             closeDetail()
             inspection.cancel()
@@ -108,15 +111,18 @@ struct WelcomeView: View {
     @ViewBuilder
     private var checksStep: some View {
         if let subject {
-            WelcomeCheckDetailStep(subject: subject, session: login, footer: footer)
+            WelcomeCheckDetailStep(subject: subject.reading(report), session: login, footer: footer)
                 .transition(reduceMotion ? .identity : .opacity)
         } else {
             WelcomeChecksStep(
                 report: report,
                 isRunning: inspection.isRunning,
                 footer: footer,
-                checkAgain: { inspection.start() },
-                openDetail: openDetail
+                checkAgain: checkAgain,
+                openDetail: { check in
+                    autoOpen.readerNavigated()
+                    openDetail(check)
+                }
             )
             .transition(reduceMotion ? .identity : .opacity)
             .onAppear { inspection.presentChecks() }
@@ -141,6 +147,7 @@ struct WelcomeView: View {
     }
 
     private func goBack() {
+        leaveChecks()
         move {
             guard subject == nil else {
                 closeDetail()
@@ -151,6 +158,7 @@ struct WelcomeView: View {
     }
 
     private func goForward() {
+        leaveChecks()
         guard subject == nil else {
             move { closeDetail() }
             return
@@ -162,10 +170,26 @@ struct WelcomeView: View {
         move { flow.advance() }
     }
 
+    private func leaveChecks() {
+        autoOpen.readerLeft(flow.step)
+    }
+
+    private func checkAgain() {
+        autoOpen.readerNavigated()
+        inspection.start()
+    }
+
+    private func openBlockingCheck() {
+        guard let check = autoOpen.check(toOpenIn: report, on: flow.step, isShowingDetail: subject != nil)
+        else { return }
+        openDetail(check)
+    }
+
     private func openDetail(_ check: SetupCheck) {
-        guard let fix = check.fix else { return }
+        guard let opened = WelcomeCheckSubject(report.presentation(for: check)) else { return }
+        let fix = opened.fix
         stopLogin()
-        move { subject = WelcomeCheckSubject(tool: check.tool, fix: fix) }
+        move { subject = opened }
         guard fix.isInteractive else { return }
         login = Self.session(for: fix, onExit: { inspection.start() })
     }
