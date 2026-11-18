@@ -13,6 +13,7 @@ command -v git-cliff >/dev/null || { echo "changelog-check test: git-cliff is no
 export GIT_AUTHOR_NAME=release-test GIT_AUTHOR_EMAIL=release-test@example.invalid
 export GIT_COMMITTER_NAME=release-test GIT_COMMITTER_EMAIL=release-test@example.invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GITHUB_API_URL=http://127.0.0.1:9
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 
 clock=1767225600
@@ -30,7 +31,7 @@ released_repository() {
   git -C "$repo" checkout -q -b release/1.2.1
   commit "$repo" "fix(composer): show the version each Claude alias runs (#515)"
   git -C "$repo" tag v1.2.1
-  git-cliff --config "$real_config" --repository "$repo" --use-branch-tags --output "$repo/CHANGELOG.md" 2>/dev/null
+  git-cliff --offline --config "$real_config" --repository "$repo" --use-branch-tags --output "$repo/CHANGELOG.md" 2>/dev/null
   git -C "$repo" add CHANGELOG.md
   commit "$repo" "chore(changelog): v1.2.1"
   git -C "$repo" checkout -q develop
