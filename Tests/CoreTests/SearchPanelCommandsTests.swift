@@ -67,6 +67,7 @@ struct SearchPanelCommandsTests {
     func tooltipCarriesTheKeyOnlyWhenThereIsOne() {
         #expect(MenuBarCatalogue[.archive].help("Archive workspace") == "Archive workspace (\u{21E7}\u{2318}\u{232B})")
         #expect(MenuBarCatalogue[.pin].help("Pin") == "Pin")
+        #expect(MenuBarCatalogue[.nextTab].help("Next tab") == "Next tab (\u{21E7}\u{2318}])")
     }
 
     @Test("escape is drawn as the menu bar's escape glyph rather than spelled out")

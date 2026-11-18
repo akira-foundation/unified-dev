@@ -33,7 +33,7 @@ extension MenuBarItem {
     }
 
     public func help(_ phrase: String) -> String {
-        guard let keyText else { return phrase }
-        return "\(phrase) (\(keyText))"
+        guard let key else { return phrase }
+        return "\(phrase) (\(key.display))"
     }
 }
