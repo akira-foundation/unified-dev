@@ -24,11 +24,11 @@ final class ComposerOutputStyleCatalog: AccountBound {
 
     static let shelves = OutputStyleShelves<ComposerOutputStyleCatalog>()
 
-    static func appWide(refusing refused: Set<AgentKind>) -> ComposerOutputStyleCatalog {
+    static func appWide(_ reading: AppWideOutputStyles) -> ComposerOutputStyleCatalog {
         shelves.catalogue(
             project: nil,
-            account: SpendAccounts.defaultHomes().first { $0.provider == .claudeCode },
-            refusing: refused
+            account: AppWideOutputStyles.claudeAccount(in: SpendAccounts.defaultHomes()),
+            refusing: reading.refused
         )
     }
 

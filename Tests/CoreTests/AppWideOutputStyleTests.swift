@@ -10,10 +10,15 @@ struct AppWideOutputStyleTests {
         return tree
     }
 
+    private func reading(_ store: Store) async throws -> AppWideOutputStyles {
+        try await AppWideOutputStyles(accounts: store.agentAccountChoices().accounts, profiles: store.profiles())
+    }
+
     private func settingsStyles(_ tree: SlashCommandTests.Tree, store: Store) async throws -> [String] {
-        let refused = try await store.profileAccounts().appWideRefusals(across: store.profiles())
-        return OutputStyleIndex.discover(
-            home: tree.home, project: nil, claudeHome: "\(tree.home)/.claude", refusing: refused
+        let defaults = AgentKind.allCases.compactMap { AgentAccountHome.defaultHome(for: $0, home: URL(filePath: tree.home)) }
+        let account = try #require(AppWideOutputStyles.claudeAccount(in: defaults))
+        return try await OutputStyleIndex.discover(
+            home: tree.home, project: nil, claudeHome: account.directory.path, refusing: reading(store).refused
         ).map(\.name)
     }
 
@@ -46,31 +51,38 @@ struct AppWideOutputStyleTests {
         #expect(read.contains("MacStyle"))
     }
 
-    @Test("a profile that keeps its own accounts leaves the Mac's styles out of Settings")
+    @Test("a profile that keeps its own accounts leaves the Mac's styles out of Settings, wherever it sorts")
     func anOwnProfileRefusesTheMacStyles() async throws {
         let tree = try macLogin()
-        let store = try makeTestStore("app-wide-own")
-        _ = try await profile(store, .inherits)
-        _ = try await profile(store, .own)
+        let first = try makeTestStore("app-wide-own-first")
+        _ = try await profile(first, .own)
+        _ = try await profile(first, .inherits)
+        let last = try makeTestStore("app-wide-own-last")
+        _ = try await profile(last, .inherits)
+        _ = try await profile(last, .own)
 
-        let read = try await settingsStyles(tree, store: store)
+        let ownFirst = try await settingsStyles(tree, store: first)
+        let ownLast = try await settingsStyles(tree, store: last)
 
-        #expect(!read.contains("MacStyle"))
-        #expect(read.contains(OutputStyle.defaultName))
+        #expect(!ownFirst.contains("MacStyle"))
+        #expect(!ownLast.contains("MacStyle"))
+        #expect(ownLast.contains(OutputStyle.defaultName))
     }
 
-    @Test("an own profile that is deleted no longer refuses anything")
+    @Test("an own profile that is deleted no longer refuses, while another own profile still does")
     func aDeletedProfileIsNotCounted() async throws {
         let tree = try macLogin()
         let store = try makeTestStore("app-wide-deleted")
-        let own = try await profile(store, .own)
-        let before = try await settingsStyles(tree, store: store)
+        let one = try await profile(store, .own)
+        let other = try await profile(store, .own)
 
-        try await store.deleteProfile(id: own.id)
-        let after = try await settingsStyles(tree, store: store)
+        try await store.deleteProfile(id: one.id)
+        let oneGone = try await settingsStyles(tree, store: store)
+        try await store.deleteProfile(id: other.id)
+        let bothGone = try await settingsStyles(tree, store: store)
 
-        #expect(!before.contains("MacStyle"))
-        #expect(after.contains("MacStyle"))
+        #expect(!oneGone.contains("MacStyle"))
+        #expect(bothGone.contains("MacStyle"))
     }
 
     @Test("an own profile that turns to inheriting stops refusing")
@@ -78,7 +90,6 @@ struct AppWideOutputStyleTests {
         let tree = try macLogin()
         let store = try makeTestStore("app-wide-switch")
         let own = try await profile(store, .own)
-
         let before = try await settingsStyles(tree, store: store)
 
         try await store.setAccountSource(.inherits, for: own.id)
@@ -86,5 +97,33 @@ struct AppWideOutputStyleTests {
 
         #expect(!before.contains("MacStyle"))
         #expect(after.contains("MacStyle"))
+    }
+
+    @Test("the Settings copy names the styles it offers")
+    func theCopyFollowsTheReading() async throws {
+        let shared = try makeTestStore("app-wide-copy-shared")
+        let unshared = try makeTestStore("app-wide-copy-unshared")
+        _ = try await profile(unshared, .own)
+
+        let offering = try await reading(shared)
+        let refusing = try await reading(unshared)
+
+        #expect(offering.offersDefaultAccountStyles)
+        #expect(offering.settingsFooter.hasPrefix("These are the output styles of the default Claude Code account"))
+        #expect(offering.presetLabel == "From the default Claude Code account")
+        #expect(!refusing.offersDefaultAccountStyles)
+        #expect(refusing.settingsFooter.hasPrefix("Only the built-in output styles are offered"))
+        #expect(refusing.presetLabel == "Built-in styles and the current choice")
+    }
+
+    @Test("Settings read the default account of Claude Code and no other agent's")
+    func theClaudeAccountIsPicked() throws {
+        let home = URL(filePath: "/tmp/home.example")
+        let defaults = [AgentKind.codex, .claudeCode].compactMap { AgentAccountHome.defaultHome(for: $0, home: home) }
+
+        let picked = AppWideOutputStyles.claudeAccount(in: defaults)
+
+        #expect(picked?.provider == .claudeCode)
+        #expect(AppWideOutputStyles.claudeAccount(in: defaults.filter { $0.provider != .claudeCode }) == nil)
     }
 }

@@ -26,8 +26,8 @@ public struct ProfileAccounts: Sendable, Hashable {
         profile.map { holder(for: $0) != .initial } ?? false
     }
 
-    public func appWideRefusals(across profiles: [Profile]) -> Set<AgentKind> {
-        profiles.contains { keepsOwnAccounts($0.id) } ? Set(AgentKind.allCases) : []
+    public func defaultAccountIsShared(by profiles: [Profile]) -> Bool {
+        !profiles.contains { keepsOwnAccounts($0.id) }
     }
 
     public func owner(of account: AgentAccountHome) -> ProfileID {

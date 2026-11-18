@@ -6,8 +6,8 @@ extension AppModel {
         profiles.first { $0.id == activeProfileID }
     }
 
-    var appWideRefusals: Set<AgentKind> {
-        accountChoices.accounts.appWideRefusals(across: profiles)
+    var appWideOutputStyles: AppWideOutputStyles {
+        AppWideOutputStyles(accounts: accountChoices.accounts, profiles: profiles)
     }
 
     var profileRepos: [Repo] {

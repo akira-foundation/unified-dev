@@ -7,7 +7,7 @@ struct ModelPresetDraft: Identifiable {
 }
 
 struct ModelPresetEditor: View {
-    var refusing: Set<AgentKind>
+    var reading: AppWideOutputStyles
     var onSave: (ModelPreset) -> Void
     var onCancel: () -> Void
 
@@ -15,11 +15,11 @@ struct ModelPresetEditor: View {
 
     init(
         draft: ModelPresetDraft,
-        refusing: Set<AgentKind>,
+        reading: AppWideOutputStyles,
         onSave: @escaping (ModelPreset) -> Void,
         onCancel: @escaping () -> Void
     ) {
-        self.refusing = refusing
+        self.reading = reading
         self.onSave = onSave
         self.onCancel = onCancel
         _preset = State(initialValue: draft.preset)
@@ -44,7 +44,7 @@ struct ModelPresetEditor: View {
                         }
                     } label: {
                         Text("Output style")
-                        Text(refusing.contains(.claudeCode) ? "Built-in styles only" : "From the default Claude Code account")
+                        Text(reading.presetLabel)
                     }
                 }
 
@@ -72,11 +72,11 @@ struct ModelPresetEditor: View {
             .padding(Metrics.gutter)
         }
         .frame(width: 480, height: 300)
-        .task(id: refusing) { await outputStyles.refreshIfStale(project: nil) }
+        .task(id: reading) { await outputStyles.refreshIfStale(project: nil) }
     }
 
     private var outputStyles: ComposerOutputStyleCatalog {
-        .appWide(refusing: refusing)
+        .appWide(reading)
     }
 
     private var backendBinding: Binding<AgentKind> {

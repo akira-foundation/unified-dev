@@ -5,7 +5,7 @@ struct ModelSettingsView: View {
     @Environment(AppModel.self) private var app
     @Binding var defaults: AppDefaults
     private var outputStyles: ComposerOutputStyleCatalog {
-        .appWide(refusing: app.appWideRefusals)
+        .appWide(app.appWideOutputStyles)
     }
 
     private var catalog: ComposerModelCatalog { .shared }
@@ -62,9 +62,7 @@ struct ModelSettingsView: View {
             } header: {
                 Text("Claude Code")
             } footer: {
-                Text(app.appWideRefusals.contains(.claudeCode)
-                    ? "Only the built-in output styles are offered. These settings apply to every profile, and a profile with its own accounts does not have the default account's styles."
-                    : "These are the output styles of the default Claude Code account. A project that runs another account may not have the style you choose.")
+                Text(app.appWideOutputStyles.settingsFooter)
                     .settingsFootnote()
             }
 
@@ -86,7 +84,7 @@ struct ModelSettingsView: View {
             ComposerModelCatalog.shared.load()
             await ModelPresetLibrary.shared.load(from: app.store)
         }
-        .task(id: app.appWideRefusals) {
+        .task(id: app.appWideOutputStyles) {
             await outputStyles.refreshIfStale(project: nil)
         }
     }
