@@ -22,7 +22,7 @@ public extension AgentKind {
             directory: directory,
             executable: "/usr/bin/env",
             unquoted: AgentAccountEnvironment.shellUnsets,
-            arguments: ["-u", "NO_COLOR"] + AgentAccountEnvironment.shellArguments(for: account) + [
+            arguments: ["-u", "NO_COLOR"] + AgentAccountEnvironment.shellArguments(launching: self, as: account) + [
                 "TERM=xterm-256color", "COLORTERM=truecolor",
                 "UD_CLI_STATUS_FILE=\(Self.interactiveStatusURL(sessionID: sessionID).path)",
             ] + [executableName] + arguments
