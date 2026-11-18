@@ -11,6 +11,7 @@ command -v git-cliff >/dev/null || { echo "breaking-bump: git-cliff is not insta
 export GIT_AUTHOR_NAME=release-test GIT_AUTHOR_EMAIL=release-test@example.invalid
 export GIT_COMMITTER_NAME=release-test GIT_COMMITTER_EMAIL=release-test@example.invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+export GITHUB_API_URL=http://127.0.0.1:9
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
 
 unreleased_434=$'feat(composer)!: show the agent account in the model menu and choose it per project (#434)\n\n* feat(agent)!: run every workspace and chat of a project on its account\n\nAn agent account is now chosen per project only.\n\nBREAKING CHANGE: changes the behaviour #374 introduced. Workspace account\nchoices are deleted by the migration, and the migrated database is refused\nby older builds.'
@@ -33,11 +34,11 @@ repository_with() {
 }
 
 bumped() {
-  git-cliff --config "$1" --repository "$2" --use-branch-tags --bumped-version 2>/dev/null
+  git-cliff --offline --config "$1" --repository "$2" --use-branch-tags --bumped-version 2>/dev/null
 }
 
 notes() {
-  git-cliff --config "$1" --repository "$2" --use-branch-tags --unreleased --strip all 2>/dev/null
+  git-cliff --offline --config "$1" --repository "$2" --use-branch-tags --unreleased --strip all 2>/dev/null
 }
 
 section_of() {
