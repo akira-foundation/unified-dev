@@ -99,6 +99,14 @@ struct AppWideOutputStyleTests {
         #expect(after.contains("MacStyle"))
     }
 
+    @Test("before the profiles have loaded, Settings offer the built-in styles only")
+    func nothingLoadedOffersTheBuiltIns() {
+        let unloaded = AppWideOutputStyles(accounts: ProfileAccounts(), profiles: [])
+
+        #expect(!unloaded.offersDefaultAccountStyles)
+        #expect(unloaded.refused == [.claudeCode])
+    }
+
     @Test("the Settings copy names the styles it offers")
     func theCopyFollowsTheReading() async throws {
         let shared = try makeTestStore("app-wide-copy-shared")
@@ -109,21 +117,49 @@ struct AppWideOutputStyleTests {
         let refusing = try await reading(unshared)
 
         #expect(offering.offersDefaultAccountStyles)
-        #expect(offering.settingsFooter.hasPrefix("These are the output styles of the default Claude Code account"))
+        #expect(offering.settingsFooter == "These are the output styles of the default Claude Code account. A project that runs another account may not have the style you choose.")
         #expect(offering.presetLabel == "From the default Claude Code account")
         #expect(!refusing.offersDefaultAccountStyles)
-        #expect(refusing.settingsFooter.hasPrefix("Only the built-in output styles are offered"))
+        #expect(refusing.settingsFooter == "Only the built-in output styles are offered, beside the style already chosen. These settings apply to every profile, and a profile with its own accounts does not have the default account's styles.")
         #expect(refusing.presetLabel == "Built-in styles and the current choice")
     }
 
-    @Test("Settings read the default account of Claude Code and no other agent's")
+    @Test("Settings read the first default account of Claude Code and no other agent's")
     func theClaudeAccountIsPicked() throws {
-        let home = URL(filePath: "/tmp/home.example")
-        let defaults = [AgentKind.codex, .claudeCode].compactMap { AgentAccountHome.defaultHome(for: $0, home: home) }
+        let first = URL(filePath: "/tmp/first.example")
+        let second = URL(filePath: "/tmp/second.example")
+        let defaults = [
+            AgentAccountHome.defaultHome(for: .codex, home: first),
+            AgentAccountHome.defaultHome(for: .claudeCode, home: first),
+            AgentAccountHome.defaultHome(for: .claudeCode, home: second),
+        ].compactMap(\.self)
 
         let picked = AppWideOutputStyles.claudeAccount(in: defaults)
 
-        #expect(picked?.provider == .claudeCode)
+        #expect(picked == defaults[1])
         #expect(AppWideOutputStyles.claudeAccount(in: defaults.filter { $0.provider != .claudeCode }) == nil)
+    }
+
+    @MainActor
+    @Test("the Settings shelf holds the default Claude Code account with the reading's refusal")
+    func theSettingsShelfCarriesTheReading() async throws {
+        let shared = try await reading(makeTestStore("app-wide-shelf-shared"))
+        let unsharedStore = try makeTestStore("app-wide-shelf-unshared")
+        _ = try await profile(unsharedStore, .own)
+        let unshared = try await reading(unsharedStore)
+        let defaults = [AgentKind.codex, .claudeCode].compactMap {
+            AgentAccountHome.defaultHome(for: $0, home: URL(filePath: "/tmp/home.example"))
+        }
+        let claude = try #require(AppWideOutputStyles.claudeAccount(in: defaults))
+        let shelves = OutputStyleShelves<ScanFixture>()
+
+        let offering = shelves.appWide(shared, defaults: defaults)
+        let refusing = shelves.appWide(unshared, defaults: defaults)
+
+        #expect(offering.account == claude.id)
+        #expect(offering.refused.isEmpty)
+        #expect(refusing.account == claude.id)
+        #expect(refusing.refused.contains(.claudeCode))
+        #expect(shelves.catalogue(project: nil, account: claude, refusing: unshared.refused) === refusing)
     }
 }

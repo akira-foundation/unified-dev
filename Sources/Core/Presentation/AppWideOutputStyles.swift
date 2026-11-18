@@ -4,7 +4,7 @@ public struct AppWideOutputStyles: Sendable, Hashable {
     public let refused: Set<AgentKind>
 
     public init(accounts: ProfileAccounts, profiles: [Profile]) {
-        refused = accounts.defaultAccountIsShared(by: profiles) ? [] : Set(AgentKind.allCases)
+        refused = accounts.defaultAccountIsShared(by: profiles) ? [] : [.claudeCode]
     }
 
     public var offersDefaultAccountStyles: Bool {
@@ -23,5 +23,11 @@ public struct AppWideOutputStyles: Sendable, Hashable {
 
     public static func claudeAccount(in defaults: [AgentAccountHome]) -> AgentAccountHome? {
         defaults.first { $0.provider == .claudeCode }
+    }
+}
+
+extension OutputStyleShelves {
+    public func appWide(_ reading: AppWideOutputStyles, defaults: [AgentAccountHome]) -> Catalogue {
+        catalogue(project: nil, account: AppWideOutputStyles.claudeAccount(in: defaults), refusing: reading.refused)
     }
 }

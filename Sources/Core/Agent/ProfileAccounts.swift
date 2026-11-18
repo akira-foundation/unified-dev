@@ -27,7 +27,7 @@ public struct ProfileAccounts: Sendable, Hashable {
     }
 
     public func defaultAccountIsShared(by profiles: [Profile]) -> Bool {
-        !profiles.contains { keepsOwnAccounts($0.id) }
+        !profiles.isEmpty && !profiles.contains { keepsOwnAccounts($0.id) }
     }
 
     public func owner(of account: AgentAccountHome) -> ProfileID {
