@@ -112,10 +112,13 @@ struct ComposerFooterView: View {
                 speedFailed = true
             }
         }
-        .task(id: OutputStyleKey(project: project, claude: accountHomes?.claude, known: accountHomes != nil)) {
+        .task(id: OutputStyleKey(
+            project: project, claude: accountHomes?.claude, known: accountHomes != nil,
+            refused: accountHomes?.refused.contains(.claudeCode) ?? false
+        )) {
             guard showsAgentControls, let accountHomes else { return }
             let catalog = ComposerOutputStyleCatalog.shelves.catalogue(
-                project: project, account: accountHomes.claude
+                project: project, account: accountHomes.claude, refused: accountHomes.refused.contains(.claudeCode)
             )
             outputStyles = catalog
             await catalog.refreshIfStale(project: project)
@@ -271,4 +274,5 @@ private struct OutputStyleKey: Equatable {
     var project: String?
     var claude: AgentAccountHome?
     var known: Bool
+    var refused: Bool
 }

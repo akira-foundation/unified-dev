@@ -8,9 +8,11 @@ final class ComposerOutputStyleCatalog: AccountBound {
     private(set) var styles: [OutputStyle] = OutputStyle.builtIns
 
     private let claudeAccount: AgentAccountHome?
+    private let refused: Bool
 
-    init(account: AgentAccountHome? = nil) {
+    init(account: AgentAccountHome? = nil, refused: Bool = false) {
         claudeAccount = account
+        self.refused = refused
     }
 
     private var loadedPath: String?
@@ -57,8 +59,9 @@ final class ComposerOutputStyleCatalog: AccountBound {
         } else {
             let home = NSHomeDirectory()
             let claudeHome = claudeAccount?.directory.path
+            let refusing: Set<AgentKind> = refused ? [.claudeCode] : []
             task = Task.detached(priority: .utility) {
-                OutputStyleIndex.discover(home: home, project: project, claudeHome: claudeHome)
+                OutputStyleIndex.discover(home: home, project: project, claudeHome: claudeHome, refusing: refusing)
             }
             running = task
             runningPath = project
