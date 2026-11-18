@@ -163,9 +163,10 @@ struct WelcomeView: View {
     }
 
     private func openDetail(_ check: SetupCheck) {
-        guard let fix = check.fix else { return }
+        guard let opened = WelcomeCheckSubject(report.presentation(for: check)) else { return }
+        let fix = opened.fix
         stopLogin()
-        move { subject = WelcomeCheckSubject(tool: check.tool, fix: fix) }
+        move { subject = opened }
         guard fix.isInteractive else { return }
         login = Self.session(for: fix, onExit: { inspection.start() })
     }

@@ -31,7 +31,7 @@ struct WelcomeAgentStep: View {
                 ForEach(candidates, id: \.self) { kind in
                     WelcomeAgentCard(
                         kind: kind,
-                        account: account(for: kind),
+                        signedIn: OnboardingAgentChoice.signedInLine(for: kind, in: report),
                         isSelected: kind == shown,
                         choose: { agentDefault.choose(kind) }
                     )
@@ -55,15 +55,11 @@ struct WelcomeAgentStep: View {
         ) ?? AppDefaults.fallbackBackend
     }
 
-    private func account(for kind: AgentKind) -> String {
-        let tool = SetupTool.displayOrder.first { $0.agentKind == kind }
-        return tool.flatMap { report.outcome(for: $0).detail } ?? "Signed in"
-    }
 }
 
 struct WelcomeAgentCard: View {
     let kind: AgentKind
-    let account: String
+    let signedIn: String?
     let isSelected: Bool
     let choose: () -> Void
 
@@ -75,11 +71,13 @@ struct WelcomeAgentCard: View {
                         .font(Typo.bodyEmphasis)
                         .foregroundStyle(Palette.textPrimary)
 
-                    Text(account)
-                        .font(Typo.label)
-                        .foregroundStyle(Palette.textSecondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+                    if let signedIn {
+                        Text(signedIn)
+                            .font(Typo.label)
+                            .foregroundStyle(Palette.textSecondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
 
                 Spacer(minLength: Metrics.inset)

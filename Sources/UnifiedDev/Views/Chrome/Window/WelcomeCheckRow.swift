@@ -2,9 +2,7 @@ import SwiftUI
 import Core
 
 struct WelcomeCheckRow: View {
-    let check: SetupCheck
-    let severity: SetupSeverity
-    let isSettled: Bool
+    let presentation: SetupCheckPresentation
     let openDetail: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -18,7 +16,7 @@ struct WelcomeCheckRow: View {
                 .frame(width: Self.glyphColumn, alignment: .center)
                 .accessibilityHidden(true)
 
-            Text(check.tool.title)
+            Text(presentation.tool.title)
                 .font(Typo.bodyEmphasis)
                 .foregroundStyle(Palette.textPrimary)
 
@@ -28,12 +26,12 @@ struct WelcomeCheckRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
 
-            if let fix = check.fix {
+            if let fix = presentation.fix {
                 Button(Self.openTitle(for: fix)) { openDetail() }
                     .buttonStyle(.plain)
                     .font(Typo.label)
                     .foregroundStyle(Palette.link)
-                    .accessibilityIdentifier("welcome-check-open-\(check.tool.rawValue)")
+                    .accessibilityIdentifier("welcome-check-open-\(presentation.tool.rawValue)")
             }
         }
         .contentShape(.rect)
@@ -45,16 +43,16 @@ struct WelcomeCheckRow: View {
 
     @ViewBuilder
     private var glyph: some View {
-        switch check.outcome {
+        switch presentation.check.outcome {
         case .pending:
             ProgressView()
                 .controlSize(.mini)
         case .ready:
-            mark("checkmark.circle.fill", ink: Palette.accent(beside: [.warning]))
+            mark("checkmark.circle.fill", ink: Self.ink(for: .ready))
         case .needsSignIn:
-            mark(severity == .problem ? "lock.circle.fill" : "lock.circle", ink: stateInk)
+            mark(presentation.tone == .needed ? "lock.circle.fill" : "lock.circle", ink: stateInk)
         case .missing:
-            mark(severity == .problem ? "exclamationmark.circle.fill" : "circle.dotted", ink: stateInk)
+            mark(presentation.tone == .needed ? "exclamationmark.circle.fill" : "circle.dotted", ink: stateInk)
         }
     }
 
@@ -66,32 +64,20 @@ struct WelcomeCheckRow: View {
     }
 
     private var stateInk: Color {
-        severity == .problem ? Palette.warning : Palette.textTertiary
+        Self.ink(for: presentation.tone)
     }
 
-    @ViewBuilder
-    private var status: some View {
-        switch check.outcome {
-        case .pending:
-            Text("Checking")
-                .font(Typo.label)
-                .foregroundStyle(Palette.textTertiary)
-        case .ready(let detail):
-            Text(detail ?? "Ready")
-                .font(detail == nil ? Typo.label : Typo.code)
-                .foregroundStyle(Palette.textTertiary)
-        case .needsSignIn:
-            Text(stateWord("Not signed in"))
-                .font(Typo.label)
-                .foregroundStyle(stateInk)
-        case .missing:
-            Text(stateWord("Not installed"))
-                .font(Typo.label)
-                .foregroundStyle(stateInk)
+    static func ink(for tone: SetupCheckTone) -> Color {
+        switch tone {
+        case .needed: Palette.warning
+        case .ready: Palette.accent(beside: [.warning])
+        case .checking, .optional: Palette.textTertiary
         }
     }
 
-    private func stateWord(_ state: String) -> String {
-        severity == .note && isSettled ? "Optional, \(state.lowercased())" : state
+    private var status: some View {
+        Text(presentation.status)
+            .font(presentation.check.outcome.detail != nil && presentation.tone == .ready ? Typo.code : Typo.label)
+            .foregroundStyle(presentation.tone == .ready ? Palette.textTertiary : stateInk)
     }
 }

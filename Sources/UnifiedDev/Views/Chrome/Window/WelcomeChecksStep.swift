@@ -21,9 +21,7 @@ struct WelcomeChecksStep: View {
             VStack(alignment: .leading, spacing: WelcomeMetrics.rowSpacing) {
                 ForEach(report.checks) { check in
                     WelcomeCheckRow(
-                        check: check,
-                        severity: report.severity(for: check.tool),
-                        isSettled: report.isSettled,
+                        presentation: report.presentation(for: check),
                         openDetail: { openDetail(check) }
                     )
                 }
@@ -35,7 +33,7 @@ struct WelcomeChecksStep: View {
     private var hero: (symbol: String, ink: Color) {
         switch report.verdict {
         case .checking: ("magnifyingglass.circle.fill", Palette.textTertiary)
-        case .ready, .readyWithNotes: ("checkmark.circle.fill", Palette.positive)
+        case .ready, .readyWithNotes: ("checkmark.circle.fill", WelcomeCheckRow.ink(for: .ready))
         case .blocked: ("exclamationmark.triangle.fill", Palette.warning)
         }
     }

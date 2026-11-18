@@ -3,8 +3,20 @@ import SwiftUI
 import Core
 
 struct WelcomeCheckSubject {
-    let tool: SetupTool
+    let presentation: SetupCheckPresentation
     let fix: SetupFix
+
+    var tool: SetupTool { presentation.tool }
+
+    init(presentation: SetupCheckPresentation, fix: SetupFix) {
+        self.presentation = presentation
+        self.fix = fix
+    }
+
+    init?(_ presentation: SetupCheckPresentation) {
+        guard let fix = presentation.fix else { return nil }
+        self.init(presentation: presentation, fix: fix)
+    }
 }
 
 struct WelcomeCheckDetailStep: View {
@@ -16,7 +28,7 @@ struct WelcomeCheckDetailStep: View {
 
     var body: some View {
         WelcomeStage(
-            hero: .symbol(subject.fix.isInteractive ? "lock.circle.fill" : "arrow.down.circle.fill", Palette.warning),
+            hero: .symbol(heroSymbol, WelcomeCheckRow.ink(for: subject.presentation.tone)),
             title: subject.tool.title,
             subtitle: subject.tool.purpose,
             link: subject.fix.url.map { url in
@@ -25,6 +37,11 @@ struct WelcomeCheckDetailStep: View {
             footer: footer
         ) {
             VStack(alignment: .leading, spacing: Metrics.inset + Metrics.spacingSmall) {
+                Text(subject.presentation.status)
+                    .font(Typo.label)
+                    .foregroundStyle(WelcomeCheckRow.ink(for: subject.presentation.tone))
+                    .accessibilityIdentifier("welcome-check-detail-status")
+
                 Text(subject.fix.summary)
                     .font(Typo.bodyEmphasis)
                     .foregroundStyle(Palette.textPrimary)
@@ -46,6 +63,14 @@ struct WelcomeCheckDetailStep: View {
             }
         }
         .accessibilityIdentifier("welcome-check-detail")
+    }
+
+    private var heroSymbol: String {
+        let isNeeded = subject.presentation.tone == .needed
+        if subject.fix.isInteractive {
+            return isNeeded ? "lock.circle.fill" : "lock.circle"
+        }
+        return isNeeded ? "arrow.down.circle.fill" : "arrow.down.circle"
     }
 
     private func commandLine(_ command: String) -> some View {

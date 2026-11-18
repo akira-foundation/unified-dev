@@ -185,7 +185,10 @@ private struct WelcomeCommandStand: View {
     var body: some View {
         WelcomeCheckDetailStep(
             subject: WelcomeCheckSubject(
-                tool: .gitHub,
+                presentation: SetupCheckPresentation(
+                    check: SetupCheck(tool: .gitHub, outcome: .needsSignIn(detail: nil)),
+                    in: .pending
+                ),
                 fix: SetupFix(
                     summary: text,
                     command: text,

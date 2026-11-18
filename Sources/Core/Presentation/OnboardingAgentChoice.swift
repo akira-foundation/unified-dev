@@ -16,6 +16,17 @@ public enum OnboardingAgentChoice {
         return candidates(in: report).count > 1
     }
 
+    public static func signedInLine(for kind: AgentKind, in report: SetupReport) -> String? {
+        guard let tool = SetupTool.displayOrder.first(where: { $0.agentKind == kind }),
+              case .ready(let detail) = report.outcome(for: tool) else { return nil }
+        guard let detail, !detail.isEmpty, !isVersion(detail) else { return "Signed in" }
+        return detail
+    }
+
+    private static func isVersion(_ text: String) -> Bool {
+        text.range(of: #"^v?\d+(\.\d+)+"#, options: .regularExpression) != nil
+    }
+
     public static func selection(among candidates: [AgentKind], current: AgentKind) -> AgentKind? {
         candidates.contains(current) ? current : candidates.first
     }

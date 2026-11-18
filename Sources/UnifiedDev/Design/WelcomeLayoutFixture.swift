@@ -54,7 +54,7 @@ struct WelcomeLayoutContent: View {
     let fixture: WelcomeLayoutFixture
 
     private static let subject = WelcomeCheckSubject(
-        tool: .gitHub,
+        presentation: SetupCheckPresentation(tool: .gitHub, in: SetupRehearsal.report ?? .pending),
         fix: SetupFix(summary: "Sign in to GitHub", command: "gh auth login", isInteractive: true)
     )
 
