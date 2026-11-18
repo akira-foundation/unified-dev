@@ -365,13 +365,8 @@ final class TerminalSessionStore {
                let resolution = try? await AgentAccountResolver.resolve(
                    workspaceID: workspace.id, repoID: workspace.repoID, store: store
                ),
-               case .runs(let account) = resolution.launch(for: session.agentKind),
-               let resume = try? session.agentKind.prepareInteractiveCommand(
-                   directory: workspace.path, prompt: "", sessionID: sessionID,
-                   model: session.model, effort: session.effort,
-                   permissionMode: session.permissionMode, resuming: externalSession,
-                   account: account,
-                   orchestrates: workspace.isOrchestrator,
+               let resume = resolution.launch(for: session.agentKind).resumeCommand(
+                   for: session, in: workspace, resuming: externalSession,
                    chrome: await ClaudeChrome.launches(in: store, orchestrates: workspace.isOrchestrator)
                ) {
                 await recall.rememberResume(resume, inPane: tab.id, store: store)
