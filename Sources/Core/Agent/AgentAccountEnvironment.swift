@@ -111,6 +111,17 @@ public enum AgentAccountEnvironment {
         return ["\(variable)=\(home.directory.path)"]
     }
 
+    public static func shellArguments(
+        launching provider: AgentKind,
+        as home: AgentAccountHome?,
+        userHome: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> [String] {
+        guard let home, home.provider == provider else {
+            return directoryVariable(for: provider).map { ["-u", $0] } ?? []
+        }
+        return shellArguments(for: home, userHome: userHome)
+    }
+
     static func directoryVariable(for provider: AgentKind) -> String? {
         switch provider {
         case .claudeCode: "CLAUDE_CONFIG_DIR"

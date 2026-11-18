@@ -138,7 +138,7 @@ struct AgentLaunchAccountCatalogueTests {
             + LaunchAccountFixture.tokens {
             #expect(reported[name] == "unset", "\(name) survived \(shell) under \(kind)")
         }
-        #expect(reported["CLAUDE_CONFIG_DIR"] == (account?.directory.path ?? "/somewhere/else"))
+        #expect(reported["CLAUDE_CONFIG_DIR"] == (account?.directory.path ?? "unset"))
     }
 
     @Test func theSkillsDirectoryFollowsTheAccountTheProcessWillRunUnder() {
