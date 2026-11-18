@@ -1,0 +1,43 @@
+{
+  "welcome": false,
+  "activeProfile": "Akira",
+  "profiles": [
+    {
+      "name": "Akira",
+      "colour": "4C8DF6",
+      "symbol": "building.2",
+      "accounts": "own"
+    }
+  ],
+  "accounts": [
+    { "provider": "claudeCode", "email": "mac-login@example.com" }
+  ],
+  "projects": [
+    {
+      "name": "harbour",
+      "profile": "Akira",
+      "files": {
+        "README.md": "# harbour\n\nA project in a profile with accounts of its own and none chosen.\n"
+      },
+      "commits": ["Start harbour"],
+      "workspaces": [{ "name": "Pier", "branch": "pier", "lastActive": 1 }]
+    },
+    {
+      "name": "almanac",
+      "profile": "Unified",
+      "files": {
+        "README.md": "# almanac\n\nA project in the Unified profile, which reads this Mac's login.\n"
+      },
+      "commits": ["Start almanac"],
+      "workspaces": [{ "name": "Tides", "branch": "tides", "lastActive": 2 }]
+    }
+  ],
+  "quotas": [
+    {
+      "provider": "claudeCode",
+      "window": "five_hour",
+      "used": 0.42,
+      "resetsInMinutes": 120
+    }
+  ]
+}
