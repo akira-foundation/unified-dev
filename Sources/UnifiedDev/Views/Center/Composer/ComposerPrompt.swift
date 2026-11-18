@@ -175,6 +175,7 @@ struct ComposerPrompt<Footer: View>: View {
             let catalog = SlashCommandCatalog.shared(for: mentionRoot)
             catalog.claudeAccount = accountHomes.claude
             catalog.account = accountHomes.codex
+            catalog.readsCodexSkills = !accountHomes.refused.contains(.codex)
             slashCatalog = catalog
             await catalog.load(workspacePath: mentionRoot)
         }

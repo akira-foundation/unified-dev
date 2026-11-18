@@ -4,6 +4,7 @@ import Core
 struct ComposerAccountHomes: Hashable {
     var claude: AgentAccountHome?
     var codex: AgentAccountHome?
+    var refused: Set<AgentKind> = []
 }
 
 struct ComposerAccountKey: Hashable {
@@ -47,7 +48,11 @@ extension AppModel {
         return ComposerAccountReading(
             key: key,
             section: resolution.composerSection(repoID: key.fingerprint.scope.repoID, provider: key.provider),
-            homes: ComposerAccountHomes(claude: resolution.home(for: .claudeCode), codex: resolution.home(for: .codex))
+            homes: ComposerAccountHomes(
+                claude: resolution.home(for: .claudeCode),
+                codex: resolution.home(for: .codex),
+                refused: resolution.refusedProviders
+            )
         )
     }
 
@@ -108,8 +113,10 @@ extension AppModel {
         }
         guard accountFingerprint(for: selectedAccountScope) == fingerprint else { return }
         selectedAccountHomes = resolution.homes
-        ComposerModelCatalog.shared.adopt(accounts: resolution.homes, store: store)
-        adoptQuotaScope(QuotaScope(homes: resolution.homes))
+        ComposerModelCatalog.shared.adopt(
+            accounts: resolution.homes, refusing: resolution.refusedProviders, store: store
+        )
+        adoptQuotaScope(QuotaScope(homes: resolution.homes, refusing: resolution.refusedProviders))
     }
 }
 

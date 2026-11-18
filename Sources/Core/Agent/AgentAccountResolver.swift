@@ -34,6 +34,10 @@ public struct AgentAccountResolution: Sendable {
         try launch(for: provider).home()
     }
 
+    public var refusedProviders: Set<AgentKind> {
+        Set(AgentKind.allCases.filter { launch(for: $0).isRefused })
+    }
+
     public func isPresent(_ account: AgentAccountID) -> Bool {
         AgentAccountChoice.present(in: standings).contains { $0.id == account }
     }

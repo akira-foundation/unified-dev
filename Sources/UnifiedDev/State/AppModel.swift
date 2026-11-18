@@ -71,6 +71,7 @@ final class AppModel {
         narrowHomeFilterToActiveProfile()
         saveActiveProfile(id)
         if let span = spendAccountsSpan { loadSpendAccounts(span: span) }
+        Task { [weak self] in await self?.adoptSelectedAccounts() }
     }
 
     func reloadProfiles() async throws {
@@ -472,7 +473,7 @@ final class AppModel {
         guard store != nil, !UserDefaults.standard.bool(forKey: PreviewScenario.holdsQuotasKey) else { return }
         if let quotaScope, quotaLedger.due(quotaScope.holders.values, at: Date(), after: gap).isEmpty { return }
         guard let resolution = await accountResolution(for: selectedAccountScope) else { return }
-        let sources = AgentQuotaSources.all(accounts: resolution.homes)
+        let sources = AgentQuotaSources.all(accounts: resolution.homes, refusing: resolution.refusedProviders)
         let due = quotaLedger.due(sources.map(\.holder), at: Date(), after: gap)
         guard !due.isEmpty else { return }
         quotaLedger.begin(due, at: Date())

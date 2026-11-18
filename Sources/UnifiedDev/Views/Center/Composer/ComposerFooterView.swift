@@ -36,6 +36,7 @@ struct ComposerFooterView: View {
             project ?? "", controls.agentKind.rawValue, controls.model, String(showsAgentControls),
             accountHomes?.codex?.directory.path ?? "",
             String(accountHomes != nil),
+            String(accountHomes?.refused.contains(.codex) ?? false),
         ]
     }
 
@@ -97,7 +98,9 @@ struct ComposerFooterView: View {
             loadedSpeed = nil
             loadedSpeedRequest = request
             speedFailed = false
-            guard showsAgentControls, controls.agentKind == .codex, let accountHomes else { return }
+            guard showsAgentControls, controls.agentKind == .codex, let accountHomes,
+                  !accountHomes.refused.contains(.codex)
+            else { return }
             do {
                 let speed = try await CodexSpeed.read(
                     cwd: project ?? AgentScratchDirectory.current(), modelID: controls.model, account: accountHomes.codex

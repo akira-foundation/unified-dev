@@ -30,13 +30,14 @@ public struct AgentModelSource: Sendable {
 
     public static func live(
         store: Store? = nil,
-        accounts: [AgentKind: AgentAccountHome] = [:]
+        accounts: [AgentKind: AgentAccountHome] = [:],
+        refusing refused: Set<AgentKind> = []
     ) -> [AgentKind: AgentModelSource] {
         let claude = ClaudeModelSource.live(path: accounts[.claudeCode]?.identityPath.path)
         let codex = CodexModelCatalog.live(account: accounts[.codex])
         let grok = GrokModelCatalog.live(store: store, account: accounts[.grok])
         let antigravity = AntigravityModelCatalog.live(store: store)
-        return [
+        let sources: [AgentKind: AgentModelSource] = [
             .claudeCode: AgentModelSource(
                 models: { try await claude.models() },
                 invalidate: { await claude.invalidate() }
@@ -57,6 +58,7 @@ public struct AgentModelSource: Sendable {
                 isInstalled: { await isInstalled(.antigravity, store: store) }
             ),
         ]
+        return sources.filter { !refused.contains($0.key) }
     }
 
     public static func followsExecutablePath(_ kind: AgentKind) -> Bool {

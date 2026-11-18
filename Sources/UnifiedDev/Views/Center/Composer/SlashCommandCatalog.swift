@@ -24,6 +24,14 @@ final class SlashCommandCatalog {
         }
     }
 
+    var readsCodexSkills = true {
+        didSet {
+            guard readsCodexSkills != oldValue else { return }
+            restartScan()
+            codexPath = nil
+        }
+    }
+
     var claudeAccount: AgentAccountHome? {
         didSet {
             guard claudeAccount != oldValue else { return }
@@ -86,7 +94,7 @@ final class SlashCommandCatalog {
             let claudeHome = claudeAccount?.directory.path
             let codexHome = AgentAccountEnvironment.codexHome(for: account, inheriting: Shell.environment())
             if codexPath != workspacePath {
-                codexCatalog = CodexSkillCatalog.live(project: workspacePath, account: account)
+                codexCatalog = readsCodexSkills ? CodexSkillCatalog.live(project: workspacePath, account: account) : nil
                 codexPath = workspacePath
             }
             let codex = codexCatalog

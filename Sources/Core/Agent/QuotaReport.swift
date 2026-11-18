@@ -1,13 +1,17 @@
 import Foundation
 
 public enum AgentQuotaSources {
-    public static func all(accounts: [AgentKind: AgentAccountHome] = [:]) -> [any AgentQuotaSource] {
-        [
+    public static func all(
+        accounts: [AgentKind: AgentAccountHome] = [:],
+        refusing refused: Set<AgentKind> = []
+    ) -> [any AgentQuotaSource] {
+        let sources: [any AgentQuotaSource] = [
             ClaudeCodeQuotaSource(account: accounts[.claudeCode]),
             CodexQuotaSource(account: accounts[.codex]),
             GrokQuotaSource(account: accounts[.grok]),
             AntigravityQuotaSource(account: accounts[.antigravity]),
         ]
+        return sources.filter { !refused.contains(type(of: $0).provider) }
     }
 
     public static func readAll(
