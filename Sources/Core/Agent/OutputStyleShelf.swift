@@ -3,16 +3,18 @@ import Foundation
 public struct OutputStyleShelf: Hashable, Sendable {
     public let project: String
     public let account: AgentAccountID?
+    public let refused: Set<AgentKind>
 
-    public init(project: String?, account: AgentAccountHome?) {
+    public init(project: String?, account: AgentAccountHome?, refusing refused: Set<AgentKind> = []) {
         self.project = project ?? ""
         self.account = account?.id
+        self.refused = refused
     }
 }
 
 @MainActor
 public protocol AccountBound {
-    init(account: AgentAccountHome?)
+    init(account: AgentAccountHome?, refusing: Set<AgentKind>)
 }
 
 @MainActor
@@ -21,10 +23,14 @@ public final class OutputStyleShelves<Catalogue: AccountBound> {
 
     public init() {}
 
-    public func catalogue(project: String?, account: AgentAccountHome?) -> Catalogue {
-        let shelf = OutputStyleShelf(project: project, account: account)
+    public func catalogue(
+        project: String?,
+        account: AgentAccountHome?,
+        refusing refused: Set<AgentKind> = []
+    ) -> Catalogue {
+        let shelf = OutputStyleShelf(project: project, account: account, refusing: refused)
         if let standing = held[shelf] { return standing }
-        let made = Catalogue(account: account)
+        let made = Catalogue(account: account, refusing: refused)
         held[shelf] = made
         return made
     }

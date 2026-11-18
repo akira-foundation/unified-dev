@@ -24,9 +24,9 @@ final class SlashCommandCatalog {
         }
     }
 
-    var readsCodexSkills = true {
+    var refused: Set<AgentKind> = [] {
         didSet {
-            guard readsCodexSkills != oldValue else { return }
+            guard refused != oldValue else { return }
             restartScan()
             codexPath = nil
         }
@@ -93,8 +93,10 @@ final class SlashCommandCatalog {
             let home = NSHomeDirectory()
             let claudeHome = claudeAccount?.directory.path
             let codexHome = AgentAccountEnvironment.codexHome(for: account, inheriting: Shell.environment())
+            let refused = refused
             if codexPath != workspacePath {
-                codexCatalog = readsCodexSkills ? CodexSkillCatalog.live(project: workspacePath, account: account) : nil
+                codexCatalog = refused.contains(.codex)
+                    ? nil : CodexSkillCatalog.live(project: workspacePath, account: account)
                 codexPath = workspacePath
             }
             let codex = codexCatalog
@@ -102,7 +104,7 @@ final class SlashCommandCatalog {
                 let skills = await codex?.skills()
                 return SlashCommandIndex.discover(
                     home: home, project: workspacePath, codexSkills: skills,
-                    codexHome: codexHome, claudeHome: claudeHome
+                    codexHome: codexHome, claudeHome: claudeHome, refusing: refused
                 )
             }
             running = task

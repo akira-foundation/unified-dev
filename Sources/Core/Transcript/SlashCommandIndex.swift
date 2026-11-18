@@ -12,7 +12,8 @@ public enum SlashCommandIndex {
         project: String?,
         codexSkills: [SlashCommand]? = nil,
         codexHome: String? = nil,
-        claudeHome: String? = nil
+        claudeHome: String? = nil,
+        refusing refused: Set<AgentKind> = []
     ) -> [SlashCommand] {
         let claudeRoot = claudeHome ?? "\(home)/.claude"
         var byName: [String: SlashCommand] = [:]
@@ -22,14 +23,16 @@ public enum SlashCommandIndex {
         }
 
         add(builtIns)
-        add(commands(in: "\(claudeRoot)/commands", namespace: nil, scope: .user))
-        add(skills(in: "\(claudeRoot)/skills", namespace: nil, scope: .user))
-        add(pluginEntries(claudeRoot: claudeRoot, project: project))
+        if !refused.contains(.claudeCode) {
+            add(commands(in: "\(claudeRoot)/commands", namespace: nil, scope: .user))
+            add(skills(in: "\(claudeRoot)/skills", namespace: nil, scope: .user))
+            add(pluginEntries(claudeRoot: claudeRoot, project: project))
+        }
 
         let codexRoot = codexHome ?? "\(home)/.codex"
-        if let codexSkills {
-            add(codexSkills.filter { $0.scope != .project })
-        } else {
+        let readsCodexUser = !refused.contains(.codex)
+        add(readsCodexUser ? codexSkills?.filter { $0.scope != .project } ?? [] : [])
+        if codexSkills == nil, readsCodexUser {
             add(skills(in: "\(codexRoot)/skills/.system", namespace: nil, scope: .user))
             add(skills(in: "\(codexRoot)/skills", namespace: nil, scope: .user))
             add(skills(in: "\(home)/.agents/skills", namespace: nil, scope: .user))
