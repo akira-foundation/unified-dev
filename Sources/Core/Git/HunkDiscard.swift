@@ -57,13 +57,26 @@ public enum HunkDiscard {
 
     public static func availability(
         file: ChangedFile, in diff: FileDiff? = nil, ignoringWhitespace: Bool,
-        blocker: String?, hasUnsavedEdits: Bool
+        blocker: String?, hasUnsavedEdits: Bool, staged: Staged = .clean
     ) -> Availability {
         guard offers(file, in: diff) else { return .hidden }
         if let blocker { return .disabled(blocker) }
         if hasUnsavedEdits { return .disabled(draftIsOpen) }
         if ignoringWhitespace { return .disabled(whitespaceIsHidden) }
+        if let refusal = refusal(staged) { return .disabled(refusal) }
         return .enabled
+    }
+
+    public static func refusal(_ staged: Staged) -> String? {
+        switch staged {
+        case .divergesFromTheWorktree: indexRefuses
+        case .addsLinesThatAreNotUTF8: addsLinesThatAreNotUTF8 + " " + discardTheWholeFile
+        case .clean, .holdsTheHunk, .holdsAnotherVersion, .unreadable: nil
+        }
+    }
+
+    static func mayAddLinesThatAreNotUTF8(_ hunk: DiffHunk) -> Bool {
+        hunk.lines.contains { $0.kind == .addition && $0.text.contains("\u{FFFD}") }
     }
 
     public static func refusal(
@@ -89,12 +102,11 @@ public enum HunkDiscard {
     }
 
     public static func canConfirm(_ staged: Staged) -> Bool {
-        staged != .divergesFromTheWorktree && staged != .addsLinesThatAreNotUTF8
+        refusal(staged) == nil
     }
 
     public static func losses(of hunk: DiffHunk, staged: Staged) -> String {
-        if staged == .divergesFromTheWorktree { return indexRefuses }
-        if staged == .addsLinesThatAreNotUTF8 { return addsLinesThatAreNotUTF8 + " " + discardTheWholeFile }
+        if let refusal = refusal(staged) { return refusal }
         let added = hunk.lines.filter { $0.kind == .addition }.count
         let removed = hunk.lines.filter { $0.kind == .deletion }.count
         let clauses = [

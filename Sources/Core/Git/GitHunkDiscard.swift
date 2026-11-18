@@ -4,6 +4,19 @@ enum HunkDiscardRoute: Equatable, Sendable {
     case indexAndWorktree
     case refusedByTheIndex
     case worktreeOnly
+
+    var staged: HunkDiscard.Staged {
+        switch self {
+        case .indexAndWorktree: .holdsTheHunk
+        case .refusedByTheIndex: .divergesFromTheWorktree
+        case .worktreeOnly: .holdsAnotherVersion
+        }
+    }
+}
+
+struct HunkDiscardPatches: Sendable {
+    let current: Data
+    let whole: Data
 }
 
 struct HunkDiscardPlan: Sendable {
@@ -25,6 +38,13 @@ extension Git {
     static func hunkDiscardPlan(
         _ hunk: DiffHunk, of file: ChangedFile, worktree: String, base: String, scope: DiffScope
     ) async throws -> HunkDiscardPlan {
+        let patches = try await hunkDiscardPatches(of: file, worktree: worktree, base: base, scope: scope)
+        return try hunkDiscardPlan(hunk, in: patches)
+    }
+
+    static func hunkDiscardPatches(
+        of file: ChangedFile, worktree: String, base: String, scope: DiffScope
+    ) async throws -> HunkDiscardPatches {
         guard HunkDiscard.offers(file) else { throw HunkDiscardRefusal.notOffered }
 
         let current = try await trackedPatch(worktree: worktree, base: base, file: file, scope: scope)
@@ -36,8 +56,12 @@ extension Git {
             worktree: worktree, base: base, file: file, scope: scope,
             context: HunkPatch.wholeFileContext
         )
-        guard let isolated = HunkPatch.isolate(hunk, from: current),
-              let anchored = HunkPatch.anchor(hunk, in: whole)
+        return HunkDiscardPatches(current: current, whole: whole)
+    }
+
+    static func hunkDiscardPlan(_ hunk: DiffHunk, in patches: HunkDiscardPatches) throws -> HunkDiscardPlan {
+        guard let isolated = HunkPatch.isolate(hunk, from: patches.current),
+              let anchored = HunkPatch.anchor(hunk, in: patches.whole)
         else { throw HunkDiscardRefusal.changed }
         guard !HunkPatch.addsLinesThatAreNotUTF8(anchored) else {
             throw HunkDiscardRefusal.addsLinesThatAreNotUTF8
