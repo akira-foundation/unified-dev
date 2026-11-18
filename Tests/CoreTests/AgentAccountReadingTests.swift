@@ -7,9 +7,9 @@ final class ScanFixture: AccountBound {
     static var built = 0
 
     let account: AgentAccountID?
-    let refused: Bool
+    let refused: Set<AgentKind>
 
-    init(account: AgentAccountHome?, refused: Bool) {
+    init(account: AgentAccountHome?, refusing refused: Set<AgentKind>) {
         self.account = account?.id
         self.refused = refused
         Self.built += 1

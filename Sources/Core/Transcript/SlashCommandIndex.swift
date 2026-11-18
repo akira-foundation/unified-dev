@@ -30,8 +30,9 @@ public enum SlashCommandIndex {
         }
 
         let codexRoot = codexHome ?? "\(home)/.codex"
-        add(codexSkills?.filter { $0.scope != .project } ?? [])
-        if codexSkills == nil, !refused.contains(.codex) {
+        let readsCodexUser = !refused.contains(.codex)
+        add(readsCodexUser ? codexSkills?.filter { $0.scope != .project } ?? [] : [])
+        if codexSkills == nil, readsCodexUser {
             add(skills(in: "\(codexRoot)/skills/.system", namespace: nil, scope: .user))
             add(skills(in: "\(codexRoot)/skills", namespace: nil, scope: .user))
             add(skills(in: "\(home)/.agents/skills", namespace: nil, scope: .user))
