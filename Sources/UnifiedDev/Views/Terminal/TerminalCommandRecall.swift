@@ -74,6 +74,15 @@ final class TerminalCommandRecall {
         }
     }
 
+    @discardableResult
+    func forgetRefusedResume(
+        _ launch: AgentAccountLaunch, inPane pane: String, of session: SessionID, store: Store
+    ) async -> Bool {
+        guard await launch.forgetsResume(inPane: pane, of: session, store: store) else { return false }
+        forget(panes: [pane], store: nil)
+        return true
+    }
+
     func considerOffer(
         inPane pane: String,
         session: String?,
@@ -81,10 +90,14 @@ final class TerminalCommandRecall {
         store: Store?
     ) async {
         guard let store, offers[pane] == nil else { return }
-        let stored = try? await store.setting(TerminalCommandMemory.key(paneID: pane))
-        let isAgent = CenterTabStore.shared.tabsByWorkspace.values.joined().contains {
-            $0.id == pane && $0.agentSessionID != nil
+        let agentSession = CenterTabStore.shared.tabsByWorkspace.values.joined()
+            .first { $0.id == pane }?.agentSessionID
+        if let agentSession, let launch = try? await AgentAccountLaunch.terminal(of: agentSession, store: store),
+           await forgetRefusedResume(launch, inPane: pane, of: agentSession, store: store) {
+            return
         }
+        let stored = try? await store.setting(TerminalCommandMemory.key(paneID: pane))
+        let isAgent = agentSession != nil
         guard let command = TerminalCommandMemory.offerable(
             stored, maximumLength: isAgent ? 262_144 : TerminalCommandMemory.lengthLimit
         ) else { return }
