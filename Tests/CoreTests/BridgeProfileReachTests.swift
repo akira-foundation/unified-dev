@@ -30,12 +30,8 @@ struct BridgeProfileReachTests {
         for identity in [w.lead, w.world.homeAgent] {
             let real = await w.say(as: identity, profile: "Akira")
             let invented = await w.say(as: identity, profile: "Invented")
-            #expect(real.isError)
-            #expect(real.text.contains(BridgeProfileTrouble.unreachable(given: "Akira").sentence))
-            #expect(
-                real.text.replacingOccurrences(of: "Akira", with: "X")
-                    == invented.text.replacingOccurrences(of: "Invented", with: "X")
-            )
+            #expect(real.text.contains(BridgeProfileTrouble.ownProfileClosed(own: "Unified").sentence))
+            #expect(real.text == invented.text)
         }
         let real = await w.read(as: .owner, profile: "Akira")
         let invented = await w.read(as: .owner, profile: "Invented")

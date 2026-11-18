@@ -261,6 +261,13 @@ answer it gives for a profile that does not exist. That holds only for talking, 
 could otherwise leave its own profile; the lists and the reads still answer a closed profile and an
 invented one in the same words.
 
+**A caller held on its own side is told which side.** Before any other profile is looked up,
+`BridgeProfileReachRefusal.ownSide` asks whether the caller could leave its own at all, from the caller alone:
+its own profile is closed (`ownProfileClosed`, naming that profile and where the owner opens it), it was not
+launched asking (`launchedUnasked`), or it runs on an agent that never crosses (`agentConfined`). The answer
+is the same for `all`, for a profile that exists and for one that does not, so it says nothing about any
+profile but the caller's own. Naming the caller's own profile is answered before this, as its own.
+
 **The owner approves a workspace's crossing.** Every call from a workspace chat that names a `profile`
 stops on the permission card, reads included, because what it reads could steer it and what it sends wakes
 an agent. `BridgeToolApproval.isSelfApproved(toolName:input:inWorkspace:)` decides it, and the same call
@@ -277,8 +284,8 @@ permissions. Accept edits is kept until the app starts the CLI again, whatever t
 meanwhile, since a change of mode in the app starts it again, so the bridge token records it: `BridgeServer.attach` sets `launchedAsking` from
 `BridgeProfileReach.asksTheOwner`, and an orchestrator's launch, which always asks, sets it too.
 `BridgeProfileReach.caller` makes an ordinary chat launched any other way `.unasked`, which reaches no other
-profile. Naming a profile that exists answers with `BridgeProfileTrouble.asksNobody`, which says why and what
-the owner can change; a profile that does not exist is answered as before. A chat switched to Accept edits
+profile. Naming any other profile, or `all`, answers with `BridgeProfileTrouble.launchedUnasked`, which says
+why and what the owner can change, in the same words for a profile that exists and one that does not. A chat switched to Accept edits
 crosses from its next start, which is its next message. Grok, Cursor and OpenCode stay confined:
 an approval Grok remembers covers a whole tool, so a call allowed in a chat's own profile would carry every
 later call that names another.
@@ -317,8 +324,9 @@ in the app's `settings` table, only its settings section writes it (and a seeded
 **Naming a target.** The tools above take an optional `profile`, an id or a name no other reachable profile
 shares, and the two lists also take `all`, meaning the caller's own and every one it can reach. Without it
 nothing changes: an id from another profile is still answered as if it did not exist, so crossing is always
-something the caller said out loud. Naming the caller's own profile is not a crossing. A profile the caller
-cannot reach gets one refusal, whether it is closed or does not exist. `all` is reserved on the two lists, so
+something the caller said out loud. Naming the caller's own profile is not a crossing. Once the caller itself
+may leave, a profile it cannot reach gets one refusal, whether it is closed or does not exist, and the
+refusal names both possibilities. `all` is reserved on the two lists, so
 a profile called All is named by its id there, and `include_github` is refused with `all` because it starts
 processes per workspace. A tool in `tools/list` is the list from when the agent started, so a switch turned
 on later reaches an orchestrator's `workspace_list` at its next start.

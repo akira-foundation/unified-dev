@@ -1,6 +1,19 @@
 import Foundation
 
 enum BridgeProfileReachRefusal {
+    static func ownSide(_ identity: BridgeIdentity, own: Profile, store: Store) async throws -> BridgeProfileTrouble? {
+        switch try await BridgeProfileReach.caller(of: identity, store: store) {
+        case .owner:
+            return nil
+        case .unasked:
+            return .launchedUnasked
+        case .confined:
+            return .agentConfined
+        case .orchestrator, .workspace:
+            return await ProfileBridgeSwitch.isOn(profile: own.id, in: store) ? nil : .ownProfileClosed(own: own.name)
+        }
+    }
+
     static func plain(
         _ given: String,
         own: Profile,
@@ -9,10 +22,6 @@ enum BridgeProfileReachRefusal {
         as identity: BridgeIdentity,
         store: Store
     ) async throws -> Result<BridgeProfileChoice, BridgeProfileTrouble>? {
-        if try await BridgeProfileReach.caller(of: identity, store: store) == .unasked {
-            let others = try await store.profiles().filter { $0.id != own.id }
-            return names(given, among: others) ? .failure(.asksNobody(given: given)) : nil
-        }
         switch purpose {
         case .read:
             guard try await BridgeProfileReach.caller(of: identity, store: store) == .workspace else { return nil }

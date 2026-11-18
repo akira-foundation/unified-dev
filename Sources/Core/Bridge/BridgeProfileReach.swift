@@ -132,8 +132,13 @@ public enum BridgeProfileReach {
               let own = try await store.profile(id: ownID)
         else { return .failure(.unreachable(given: given)) }
 
+        let asksEvery = allowsEvery && given.caseInsensitiveCompare(everyProfile) == .orderedSame
+        if !asksEvery, case .success(.own) = find(given, own: own, others: []) { return .success(.own) }
+        if let ownSide = try await BridgeProfileReachRefusal.ownSide(identity, own: own, store: store) {
+            return .failure(ownSide)
+        }
         let others = try await reachable(from: identity, for: purpose, store: store)
-        if allowsEvery, given.caseInsensitiveCompare(everyProfile) == .orderedSame {
+        if asksEvery {
             guard try await mayLeaveOwnProfile(identity, for: purpose, store: store) else {
                 return .failure(.unreachable(given: given))
             }

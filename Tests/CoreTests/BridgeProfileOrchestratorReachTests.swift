@@ -162,7 +162,7 @@ struct BridgeProfileOrchestratorReachTests {
         try await ProfileBridgeSwitch.save(true, profile: far.w.akira, to: far.w.store)
         try await ProfileBridgeSwitch.save(false, profile: .initial, to: far.w.store)
         let told = await Self.say(far, as: far.w.world.homeAgent, ["workspace": .string(far.orchestrator.id.rawValue)])
-        #expect(told.text.contains(BridgeProfileTrouble.unreachable(given: "Akira").sentence))
+        #expect(told.text.contains(BridgeProfileTrouble.ownProfileClosed(own: "Unified").sentence))
         #expect(far.window.sent.isEmpty)
     }
 
@@ -174,7 +174,7 @@ struct BridgeProfileOrchestratorReachTests {
         let identity = BridgeIdentity(sessionID: codex.id, workspaceID: workspace, role: .workspace)
         #expect(try await BridgeProfileReach.caller(of: identity, store: far.w.store) == .confined)
         let told = await Self.say(far, as: identity, ["workspace": .string(far.orchestrator.id.rawValue)])
-        #expect(told.text.contains(BridgeProfileTrouble.unreachable(given: "Akira").sentence))
+        #expect(told.text.contains(BridgeProfileTrouble.agentConfined.sentence))
         #expect(far.window.sent.isEmpty)
     }
 
