@@ -35,6 +35,16 @@ struct SearchPanelRowInkTests {
         #expect(SearchPanelRowInk.secondary.opacityOnSelection == 1)
     }
 
+    @Test("a usable line on the accent selection is as legible as the on-accent ink itself",
+          arguments: accents, [false, true])
+    func usableLinesOnSelection(accent: UInt32, isDark: Bool) {
+        let ink = AccentInk(accent: accent, isDark: isDark)
+        for line in [SearchPanelRowInk.primary, .secondary] {
+            let drawn = Contrast.composited(ink.onFill, over: ink.fill, at: line.opacityOnSelection)
+            #expect(Contrast.ratio(drawn, ink.fill) >= Contrast.largeTextFloor)
+        }
+    }
+
     @Test("a muted line on the accent selection reads as dimmer than a usable one, and stays above 2:1",
           arguments: accents, [false, true])
     func mutedOnSelection(accent: UInt32, isDark: Bool) {

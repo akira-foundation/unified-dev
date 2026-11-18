@@ -3,9 +3,17 @@ import Testing
 
 @Suite("Matched runs")
 struct MatchedRunTests {
-    @Test("a name with no highlights is one plain run")
+    @Test("a name with no highlights is one run, not bold, drawn in the loud ink because nothing was narrowed")
     func noHighlights() {
-        #expect(MatchedRun.split("Pin", highlights: []) == [MatchedRun(text: "Pin", isHit: false)])
+        let runs = MatchedRun.split("Pin", highlights: [])
+        #expect(runs == [MatchedRun(text: "Pin", isHit: false, isLoud: true)])
+    }
+
+    @Test("once something matched, only the hits are loud and the rest is quiet")
+    func onlyHitsAreLoudOnceMatched() {
+        let runs = MatchedRun.split("Pin", highlights: [0])
+        #expect(runs.map(\.isLoud) == [true, false])
+        #expect(runs.map(\.isHit) == [true, false])
     }
 
     @Test("neighbouring hits join into one run, and the gaps between them stay plain")

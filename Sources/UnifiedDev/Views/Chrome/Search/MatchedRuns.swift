@@ -21,9 +21,8 @@ enum MatchedRuns {
     ) {
         for run in MatchedRun.split(string, highlights: highlights) {
             let piece = Text(run.text)
-            runs.appendInterpolation(
-                run.isHit ? piece.fontWeight(.bold).foregroundStyle(loud) : piece.foregroundStyle(quiet)
-            )
+            let weighted = run.isHit ? piece.fontWeight(.bold) : piece
+            runs.appendInterpolation(weighted.foregroundStyle(run.isLoud ? loud : quiet))
         }
     }
 }
