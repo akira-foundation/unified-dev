@@ -171,8 +171,7 @@ struct WelcomeView: View {
     }
 
     private func leaveChecks() {
-        guard flow.step == .checks else { return }
-        autoOpen.readerNavigated()
+        autoOpen.readerLeft(flow.step)
     }
 
     private func checkAgain() {
@@ -181,7 +180,8 @@ struct WelcomeView: View {
     }
 
     private func openBlockingCheck() {
-        guard flow.step == .checks, subject == nil, let check = autoOpen.check(toOpenIn: report) else { return }
+        guard let check = autoOpen.check(toOpenIn: report, on: flow.step, isShowingDetail: subject != nil)
+        else { return }
         openDetail(check)
     }
 

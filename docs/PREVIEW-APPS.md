@@ -188,10 +188,9 @@ as their closed line and reopen with the choice marked; the waiting one closes a
 
 `Tools/scenarios/welcome-blocking-check.json` seeds one project and leaves the Welcome window to
 open on its own, since nothing marks onboarding complete. A scenario cannot say what the setup
-check finds, so the checks come from `--setup-rehearsal no-agent` at the same launch: Claude Code
-and Codex missing, which blocks, and Grok, Antigravity and the GitHub CLI missing, which do not.
-The checks step opens straight onto the Claude Code install, and Grok's row and its detail both
-read optional.
+check finds, so the checks come from `--setup-rehearsal no-agent` at the same launch: every agent
+missing, which blocks, and the GitHub CLI missing, which does not. The checks step opens straight
+onto the Claude Code install, and the GitHub CLI's row and its detail both read optional.
 
 `Tools/scenarios/unbounded-height.json` seeds `lantern` with the state
 `Tools/unbounded-height-probe.sh` reads: one workspace whose name and whose waiting question both
