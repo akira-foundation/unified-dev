@@ -116,10 +116,8 @@ extension Git {
     }
 
     public static func patch(
-        worktree: String, base: String, file: ChangedFile, scope: DiffScope = .all,
-        context: Int? = nil
+        worktree: String, base: String, file: ChangedFile, scope: DiffScope = .all
     ) async throws -> String {
-        let patchOptions = patchOptions + (context.map { ["-U\($0)"] } ?? [])
         if file.change == .untracked {
             let result = try await run(
                 ["diff", "--no-index"] + patchOptions + ["--", "/dev/null", file.path], in: worktree
@@ -130,9 +128,18 @@ extension Git {
             }
             return result.stdout
         }
+        return String(
+            decoding: try await trackedPatch(worktree: worktree, base: base, file: file, scope: scope),
+            as: UTF8.self
+        )
+    }
+
+    static func trackedPatch(
+        worktree: String, base: String, file: ChangedFile, scope: DiffScope, context: Int? = nil
+    ) async throws -> Data {
         let mergeBase = try await revision(for: scope, base: base, in: worktree)
-        return try await check(
-            literalPaths(["diff"] + patchOptions + ["-M", mergeBase, "--"] + pathspecs(of: file)), in: worktree
+        return try await checkRaw(
+            literalPaths(["diff"] + patchOptions(context: context) + ["-M", mergeBase, "--"] + pathspecs(of: file)), in: worktree
         ).stdout
     }
 
@@ -148,6 +155,10 @@ extension Git {
     static func pathspecs(of file: ChangedFile) -> [String] {
         guard let oldPath = file.oldPath, file.change == .renamed else { return [file.path] }
         return [oldPath, file.path]
+    }
+
+    private static func patchOptions(context: Int?) -> [String] {
+        patchOptions + (context.map { ["-U\($0)"] } ?? [])
     }
 
     private static let patchOptions = [

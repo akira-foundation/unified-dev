@@ -7,8 +7,8 @@ enum HunkDiscardRoute: Equatable, Sendable {
 }
 
 struct HunkDiscardPlan: Sendable {
-    let isolated: String
-    let anchored: String
+    let isolated: Data
+    let anchored: Data
     let hasPreimage: Bool
 }
 
@@ -27,18 +27,21 @@ extension Git {
     ) async throws -> HunkDiscardPlan {
         guard HunkDiscard.offers(file) else { throw HunkDiscardRefusal.notOffered }
 
-        let current = try await patch(worktree: worktree, base: base, file: file, scope: scope)
-        let parsed = DiffParser.parse(current)
+        let current = try await trackedPatch(worktree: worktree, base: base, file: file, scope: scope)
+        let parsed = DiffParser.parse(String(decoding: current, as: UTF8.self))
         guard parsed.count == 1, let shown = parsed.first,
               HunkDiscard.offers(file, in: shown) else { throw HunkDiscardRefusal.notOffered }
 
-        let whole = try await patch(
+        let whole = try await trackedPatch(
             worktree: worktree, base: base, file: file, scope: scope,
             context: HunkPatch.wholeFileContext
         )
         guard let isolated = HunkPatch.isolate(hunk, from: current),
               let anchored = HunkPatch.anchor(hunk, in: whole)
         else { throw HunkDiscardRefusal.changed }
+        guard !HunkPatch.addsLinesThatAreNotUTF8(anchored) else {
+            throw HunkDiscardRefusal.addsLinesThatAreNotUTF8
+        }
 
         return HunkDiscardPlan(isolated: isolated, anchored: anchored, hasPreimage: hunk.newCount > 0)
     }
@@ -47,27 +50,27 @@ extension Git {
         let reverse = ["apply", "--reverse", "--whitespace=nowarn"]
         switch try await route(plan, in: worktree) {
         case .indexAndWorktree:
-            try await check(reverse + ["--index"], in: worktree, stdin: plan.anchored)
+            try await checkRaw(reverse + ["--index"], in: worktree, input: plan.anchored)
         case .refusedByTheIndex:
             throw HunkDiscardRefusal.indexDiffers
         case .worktreeOnly:
-            let worktreeCheck = try await run(reverse + ["--check"], in: worktree, stdin: plan.anchored)
+            let worktreeCheck = try await runRaw(reverse + ["--check"], in: worktree, input: plan.anchored)
             guard worktreeCheck.ok else {
                 throw HunkDiscardRefusal.doesNotApply(
                     worktreeCheck.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
                 )
             }
-            try await check(reverse, in: worktree, stdin: plan.anchored)
+            try await checkRaw(reverse, in: worktree, input: plan.anchored)
         }
     }
 
     static func route(_ plan: HunkDiscardPlan, in worktree: String) async throws -> HunkDiscardRoute {
         let reverse = ["apply", "--reverse", "--whitespace=nowarn"]
-        if try await run(reverse + ["--index", "--check"], in: worktree, stdin: plan.anchored).ok {
+        if try await runRaw(reverse + ["--index", "--check"], in: worktree, input: plan.anchored).ok {
             return .indexAndWorktree
         }
         if plan.hasPreimage,
-           try await run(reverse + ["--cached", "--check"], in: worktree, stdin: plan.isolated).ok {
+           try await runRaw(reverse + ["--cached", "--check"], in: worktree, input: plan.isolated).ok {
             return .refusedByTheIndex
         }
         return .worktreeOnly

@@ -1,8 +1,13 @@
+import Foundation
 import Testing
 @testable import Core
 
 @Suite("Anchoring a hunk patch to the whole file")
 struct HunkAnchorTests {
+    private func anchored(_ hunk: DiffHunk, in whole: String) -> String? {
+        HunkPatch.anchor(hunk, in: Data(whole.utf8)).map { String(decoding: $0, as: UTF8.self) }
+    }
+
     private static let whole = """
         diff --git a/f.txt b/f.txt
         index 1111111..2222222 100644
@@ -32,11 +37,32 @@ struct HunkAnchorTests {
 
         """
 
+    @Test("bytes that are not UTF-8 reach the anchored patch exactly as git wrote them")
+    func keepsBytesThatAreNotUTF8() throws {
+        let latin = Data(Self.whole.utf8.map { $0 == UInt8(ascii: "v") ? 0xE9 : $0 })
+        let hunk = try #require(DiffParser.parse(Self.narrow).first?.hunks.first)
+        let expected = """
+            diff --git a/f.txt b/f.txt
+            --- a/f.txt
+            +++ b/f.txt
+            @@ -1,5 +1,5 @@
+             one
+            -two
+            +TWO
+             three
+             FOUR
+             five
+
+            """
+
+        #expect(HunkPatch.anchor(hunk, in: latin) == Data(expected.utf8.map { $0 == UInt8(ascii: "v") ? 0xE9 : $0 }))
+    }
+
     @Test("anchoring keeps the chosen hunk and turns every other change into context")
     func anchoredFirstHunk() throws {
         let hunk = try #require(DiffParser.parse(Self.narrow).first?.hunks.first)
 
-        #expect(HunkPatch.anchor(hunk, in: Self.whole) == """
+        #expect(anchored(hunk, in: Self.whole) == """
             diff --git a/f.txt b/f.txt
             --- a/f.txt
             +++ b/f.txt
@@ -55,7 +81,7 @@ struct HunkAnchorTests {
     func anchoredSecondHunk() throws {
         let hunk = try #require(DiffParser.parse(Self.narrow).first?.hunks.last)
 
-        #expect(HunkPatch.anchor(hunk, in: Self.whole) == """
+        #expect(anchored(hunk, in: Self.whole) == """
             diff --git a/f.txt b/f.txt
             --- a/f.txt
             +++ b/f.txt
@@ -94,7 +120,7 @@ struct HunkAnchorTests {
         let hunk = try #require(DiffParser.parse(narrow).first?.hunks.first)
         #expect(hunk.newCount == 0)
 
-        #expect(HunkPatch.anchor(hunk, in: whole) == """
+        #expect(anchored(hunk, in: whole) == """
             diff --git a/f.txt b/f.txt
             --- a/f.txt
             +++ b/f.txt
@@ -120,7 +146,7 @@ struct HunkAnchorTests {
             """
         let hunk = try #require(DiffParser.parse(whole).first?.hunks.first)
 
-        #expect(HunkPatch.anchor(hunk, in: whole) == whole)
+        #expect(anchored(hunk, in: whole) == whole)
     }
 
     @Test("the no newline marker of a line nobody is restoring goes with it")
@@ -149,7 +175,7 @@ struct HunkAnchorTests {
             """
         let hunk = try #require(DiffParser.parse(narrow).first?.hunks.first)
 
-        #expect(HunkPatch.anchor(hunk, in: whole) == """
+        #expect(anchored(hunk, in: whole) == """
             diff --git a/f.txt b/f.txt
             --- a/f.txt
             +++ b/f.txt
@@ -166,6 +192,6 @@ struct HunkAnchorTests {
     func anchorNeedsOneHunk() throws {
         let hunk = try #require(DiffParser.parse(Self.narrow).first?.hunks.first)
 
-        #expect(HunkPatch.anchor(hunk, in: Self.narrow) == nil)
+        #expect(anchored(hunk, in: Self.narrow) == nil)
     }
 }

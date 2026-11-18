@@ -52,11 +52,11 @@ public enum Git {
         )
     }
 
-    static func runRaw(_ arguments: [String], in directory: String) async throws -> GitOutput {
+    static func runRaw(_ arguments: [String], in directory: String, input: Data? = nil) async throws -> GitOutput {
         let result = try await Shell.runBytes("git", arguments, cwd: directory, env: [
             "GIT_TERMINAL_PROMPT": "0",
             "GIT_OPTIONAL_LOCKS": "0",
-        ])
+        ], stdin: input)
         return GitOutput(
             status: result.status,
             stdout: result.stdout,
@@ -64,8 +64,9 @@ public enum Git {
         )
     }
 
-    static func checkRaw(_ arguments: [String], in directory: String) async throws -> GitOutput {
-        let result = try await runRaw(arguments, in: directory)
+    @discardableResult
+    static func checkRaw(_ arguments: [String], in directory: String, input: Data? = nil) async throws -> GitOutput {
+        let result = try await runRaw(arguments, in: directory, input: input)
         guard result.ok else {
             throw error(arguments, result.status, result.stderr, String(decoding: result.stdout, as: UTF8.self))
         }
