@@ -42,13 +42,13 @@ public enum BridgeToolApproval {
     }
 
     public static func isSelfApproved(toolName: String, input: JSONValue, inWorkspace: Bool) -> Bool {
-        guard inWorkspace else { return isSelfApproved(toolName: toolName) }
-        guard !namesProfile(input) else { return false }
+        guard inWorkspace else { return isSelfApproved(toolName: toolName) || toolName == toolPrefix + ProfileListTool.name }
+        guard !crossesProfile(toolName: toolName, input: input) else { return false }
         return isSelfApproved(toolName: toolName) || toolName == toolPrefix + "workspace_list"
     }
 
     public static let crossingTools = [
-        "project_list", "workspace_list", "workspace_say", "chat_list", "chat_read", "workspace_diff",
+        "project_list", "workspace_list", "workspace_say", "chat_list", "chat_read", "workspace_diff", ProfileListTool.name,
     ]
 
     public static var claudeCrossingPermissions: [String: [String]] {
@@ -56,7 +56,7 @@ public enum BridgeToolApproval {
     }
 
     public static func crossesProfile(toolName: String, input: JSONValue) -> Bool {
-        toolName.hasPrefix(toolPrefix) && namesProfile(input)
+        toolName == toolPrefix + ProfileListTool.name || (toolName.hasPrefix(toolPrefix) && namesProfile(input))
     }
 
     private static func namesProfile(_ input: JSONValue) -> Bool {

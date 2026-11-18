@@ -3,7 +3,6 @@ import Foundation
 public enum BridgeProfileTrouble: Error, Sendable, Equatable {
     case notText
     case unreachable(given: String)
-    case ownProfileClosed(own: String)
     case launchedUnasked
     case agentConfined
     case ambiguous(given: String, ids: [String])
@@ -17,17 +16,11 @@ public enum BridgeProfileTrouble: Error, Sendable, Equatable {
 
         case .unreachable(let given):
             return """
-                This connection cannot reach a profile called '\(WorkspaceMessage.oneLine(given))'. \
-                Unified Dev does not say whether one exists: either no profile has that name, or the owner \
-                has not opened it to the others. Retrying will not change that.
-                """
-
-        case .ownProfileClosed(let own):
-            return """
-                This chat cannot reach any other profile, because its own profile, \
-                '\(WorkspaceMessage.oneLine(own))', is not open to the others. The owner opens it in that \
-                profile's settings, and both sides must be open. Tell the owner what you wanted to do there. \
-                Retrying will not change that.
+                No open profile this connection can reach is called '\(WorkspaceMessage.oneLine(given))'. \
+                A profile can be reached only once the owner opens it to the others, in that profile's own \
+                settings, so ask the owner to open the one you need. profile_list names the ones open to you. \
+                Unified Dev does not say whether a closed profile by that name exists, and retrying will not \
+                change that.
                 """
 
         case .launchedUnasked:

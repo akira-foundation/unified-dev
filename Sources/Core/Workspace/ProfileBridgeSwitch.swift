@@ -1,13 +1,14 @@
 import Foundation
 
 public enum ProfileBridgeSwitch {
-    public static let settingTitle = "Connected to other profiles"
+    public static let settingTitle = "Reachable from other profiles"
 
-    public static let caveat = "With this on in two profiles, any workspace in one can list the other's "
+    public static let caveat = "With this on, any workspace in another profile can list this profile's "
         + "projects and their orchestrators and send those orchestrators a message, from a chat in Accept edits, where you approve each call. "
-        + "A project's orchestrator can also read the other's chats and changes and write to any of its "
-        + "workspaces. Your own chat and client reach any profile with this on. A message wakes an agent and "
-        + "arrives marked as coming from outside. Nothing is started there unless you click to start it. "
+        + "Another profile's project orchestrators can also read chats and changes here and write to any "
+        + "workspace here. Your own chat and client reach this profile. With it off, nothing comes in, and "
+        + "workspaces here can still reach the profiles that have it on. A message wakes an agent and "
+        + "arrives marked as coming from outside. Nothing is started here unless you click to start it. "
         + "Text planted in something an agent reads could still carry one organisation's work into another."
 
     public static let saveFailure = "This could not be saved, so it is as it was."

@@ -212,7 +212,8 @@ this Mac rather than a profile.
 A profile can be opened to the others, and callers can then cross into it. The default is closed:
 with every switch off, every tool answers as it does without this section. The rule is about the
 destination: whatever comes from outside a profile goes through the orchestrator of the project it is
-for.
+for. A profile's switch decides only what comes in. A chat in a closed profile still reaches every
+profile that is open, under the same conditions as a chat in an open one.
 
 **Who.** `BridgeProfileReach.caller` reads it from the rows on every call, and from what the chat's bridge token recorded when it launched.
 `BridgeProfileReach.mayCross` then decides it for one of two purposes: talking, which is `project_list`,
@@ -220,9 +221,9 @@ for.
 
 | Caller | May talk when | May read when |
 | --- | --- | --- |
-| A top level chat of a project's orchestrator workspace, on Claude Code or Grok | Its own profile and the destination are both open, and the owner approves the call | The same |
+| A top level chat of a project's orchestrator workspace, on Claude Code or Grok | The destination is open, and the owner approves the call | The same |
 | The owner's own clients: an Ask chat and the standalone token | The destination is open | The destination is open |
-| Any other workspace chat on Claude Code, a subagent included, launched in Accept edits | Its own profile and the destination are both open, and the owner approves the call, and only to an orchestrator | Never |
+| Any other workspace chat on Claude Code, a subagent included, launched in Accept edits | The destination is open, and the owner approves the call, and only to an orchestrator | Never |
 | Any other workspace chat on Claude Code launched in Auto, Plan or Bypass permissions | Never, and it is told why | Never |
 | Any other workspace chat on Grok, Cursor or OpenCode | Never | Never |
 | A chat running on Codex | Never | Never |
@@ -246,27 +247,26 @@ owner below the sender's message, in the shape of `work_suggest`, carrying the m
 so. Only the owner's click on Start Orchestrator acts on it: `OrchestratorRequestLaunch` starts a workspace
 in that project as its orchestrator and delivers the message to it, in the same envelope as any message from
 outside. If the project has gained an orchestrator by then, the message goes to that one and nothing new is
-started. The click is judged again: a card from a workspace whose profile, or whose destination, has since
-been closed, whose chat has moved to Codex, or whose workspace was archived, is
-refused and stays waiting, and the refusal says which side closed. A card whose sender has since become that
+started. The click is judged again: a card whose destination has since been closed, whose chat has moved
+to Codex, or whose workspace was archived, is refused and stays waiting, and the refusal, which only the
+owner sees, says that the destination is closed. The sender's own profile being closed does not stop it. A card whose sender has since become that
 project's orchestrator is not delivered to itself. A card from the owner's Ask chat always arrives in the
 envelope from outside, with its profile given as unknown, since which profile that chat was in is not kept. A delivery
 that fails leaves the card waiting with the orchestrator already in place, and the next click delivers to it.
 `notify_when_done` does not apply to a message waiting on a card. The sender can withdraw it with
 `work_withdraw`. No bridge tool starts an orchestrator.
 
-**A closed destination is named.** When the profile a message names exists and the owner has not opened
-it, `workspace_say` says that its orchestrators do not accept messages from outside it, instead of the
-answer it gives for a profile that does not exist. That holds only for talking, and only for a caller that
-could otherwise leave its own profile; the lists and the reads still answer a closed profile and an
-invented one in the same words.
+**A closed destination is answered as one that does not exist.** Every tool, `workspace_say` included,
+answers a closed profile and an invented one with `BridgeProfileTrouble.unreachable`, which says that no
+open profile it can reach has that name, that the owner opens one in that profile's own settings, and that
+`profile_list` names the ones open to it. It does not say whether a closed one exists. Only the owner's
+card, which no agent reads, names a closed destination.
 
 **A caller held on its own side is told which side.** Before any other profile is looked up,
 `BridgeProfileReachRefusal.ownSide` asks whether the caller could leave its own at all, from the caller alone:
-its own profile is closed (`ownProfileClosed`, naming that profile and where the owner opens it), it was not
-launched asking (`launchedUnasked`), or it runs on an agent that never crosses (`agentConfined`). The answer
-is the same for `all`, for a profile that exists and for one that does not, so it says nothing about any
-profile but the caller's own. Naming the caller's own profile is answered before this, as its own.
+it was not launched asking (`launchedUnasked`), or it runs on an agent that never crosses (`agentConfined`).
+The answer is the same for `all`, for a profile that exists and for one that does not, so it says nothing
+about any other profile. Naming the caller's own profile is answered before this, as its own.
 
 **The owner approves a workspace's crossing.** Every call from a workspace chat that names a `profile`
 stops on the permission card, reads included, because what it reads could steer it and what it sends wakes
@@ -316,8 +316,9 @@ role where it stands.
 chat may leave its profile to talk, and answers exactly as an unknown tool otherwise, in `tools/list` and in
 `tools/call`, through `BridgeToolHandling.isServed`. An orchestrator's list is always fenced.
 
-**The switch.** One per profile, in Profile Settings, under the key `ProfileBridgeSwitch.key(profile:)`,
-off by default and read on every call. It is held to the rule of who may write the orchestrator's unasked switch: it lives
+**The switch.** One per profile, in Profile Settings, titled Reachable from other profiles, under the key
+`ProfileBridgeSwitch.key(profile:)`, off by default and read on every call. It decides whether other
+profiles can reach this one, and nothing about where this one's chats can reach. It is held to the rule of who may write the orchestrator's unasked switch: it lives
 in the app's `settings` table, only its settings section writes it (and a seeded preview), and
 `OrchestratorUnaskedReachTests` reads it back after calling every bridge tool in every role.
 
@@ -325,8 +326,17 @@ in the app's `settings` table, only its settings section writes it (and a seeded
 shares, and the two lists also take `all`, meaning the caller's own and every one it can reach. Without it
 nothing changes: an id from another profile is still answered as if it did not exist, so crossing is always
 something the caller said out loud. Naming the caller's own profile is not a crossing. Once the caller itself
-may leave, a profile it cannot reach gets one refusal, whether it is closed or does not exist, and the
-refusal names both possibilities. `all` is reserved on the two lists, so
+may leave, a profile it cannot reach gets one refusal, whether it is closed or does not exist.
+
+**Finding a profile.** `profile_list` answers the caller's own profile, whether it is open to others, and
+every other open profile the caller can reach for talking, by id and name; when it reaches none because of
+its own condition, the note is the sentence above for that condition. It names other profiles, so every
+call from a workspace chat stops on the permission card exactly as a call that names a `profile` does:
+`BridgeToolApproval.crossesProfile` is true for it whatever its input, so `isSelfApproved` refuses it in a
+workspace, the card offers no "always allow", and it is among the `crossingTools` an ordinary chat gets an
+`ask` rule for. The owner's own Ask chat and client are not stopped. A workspace's answer is fenced. A chat
+that cannot cross, Codex among them, gets only its own profile back, so a call nothing could stop reveals
+nothing. `all` is reserved on the two lists, so
 a profile called All is named by its id there, and `include_github` is refused with `all` because it starts
 processes per workspace. A tool in `tools/list` is the list from when the agent started, so a switch turned
 on later reaches an orchestrator's `workspace_list` at its next start.
@@ -359,13 +369,14 @@ outside the bridge is limited by what that user can read, as section 2 says of t
 
 ## 3. The tools
 
-Fifty-three, each a type of its own in `Sources/Core/Bridge/`, each carrying its own role
+Fifty-four, each a type of its own in `Sources/Core/Bridge/`, each carrying its own role
 gate. A list of handlers rather than a switch, because a switch would put every tool in three
 places: the listing, the dispatch and the gate.
 
 | Tool | What it does | workspace | owner |
 | --- | --- | :---: | :---: |
 | `whoami` | What this connection is: the workspace and its branch, the worktree path, the project, whether the workspace was created by the owner or by another agent, and whether it is the project's orchestrator. From the owner's own client, which copy of Unified Dev was reached and how much it is holding | ✓ | ✓ |
+| `profile_list` | The caller's own profile, whether it is open to others, and every other open profile it can reach, by id and name, or which condition of its own stops it reaching any. Stops on the permission card from any workspace chat | ✓ | ✓ |
 | `project_list` | Every project of the caller's profile: name, path, default branch, how many workspaces it has, how many of those have an agent mid turn and how many have one stopped on a question, whether it is still where Unified Dev recorded it, whether it is hidden. A workspace agent calls it to find a project to hand work to | ✓ | ✓ |
 | `project_add` | Register a git repository that **already exists** as a project | | ✓ |
 | `project_hide` | Take a project out of the sidebar. A view preference and nothing more | | ✓ |

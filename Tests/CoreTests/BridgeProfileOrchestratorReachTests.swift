@@ -147,13 +147,13 @@ struct BridgeProfileOrchestratorReachTests {
         #expect(answer.text.contains(BridgeProfileTrouble.readsGoThroughOrchestrator(given: "Akira").sentence))
     }
 
-    @Test("a closed destination says so plainly, and a closed own profile says nothing about others")
+    @Test("a closed destination is refused in the words of an invented one, and a closed own profile still sends")
     func closedDestination() async throws {
         let far = try await Self.world("orch-reach-closed")
         try await ProfileBridgeSwitch.save(false, profile: far.w.akira, to: far.w.store)
         for identity in [far.w.world.homeAgent, BridgeIdentity.owner] {
             let told = await Self.say(far, as: identity, ["workspace": .string(far.orchestrator.id.rawValue)])
-            #expect(told.text.contains(BridgeProfileTrouble.closedToOutside(given: "Akira").sentence))
+            #expect(told.text.contains(BridgeProfileTrouble.unreachable(given: "Akira").sentence))
             let listed = await ProjectListTool().call(
                 far.w.world.request("project_list", ["profile": .string("Akira")]), as: identity, store: far.w.store
             )
@@ -162,8 +162,8 @@ struct BridgeProfileOrchestratorReachTests {
         try await ProfileBridgeSwitch.save(true, profile: far.w.akira, to: far.w.store)
         try await ProfileBridgeSwitch.save(false, profile: .initial, to: far.w.store)
         let told = await Self.say(far, as: far.w.world.homeAgent, ["workspace": .string(far.orchestrator.id.rawValue)])
-        #expect(told.text.contains(BridgeProfileTrouble.ownProfileClosed(own: "Unified").sentence))
-        #expect(far.window.sent.isEmpty)
+        #expect(!told.isError, "\(told.text)")
+        #expect(far.window.sent.map(\.target.workspaceID) == [far.orchestrator.id])
     }
 
     @Test("an ordinary workspace on Codex does not cross")

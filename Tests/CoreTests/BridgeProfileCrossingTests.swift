@@ -4,7 +4,7 @@ import Testing
 
 @Suite("What a crossing answers, tool by tool", .tags(.persistence), .scratchDirectory)
 struct BridgeProfileCrossingTests {
-    private let unreachable = "does not say whether one exists"
+    private let unreachable = "does not say whether a closed profile by that name exists"
 
     @Test("a workspace of the caller's own profile is not found by naming another")
     func ownWorkspaceThroughOtherProfile() async throws {
@@ -35,7 +35,7 @@ struct BridgeProfileCrossingTests {
     @Test("calling workspace_list when it is not served answers as an unknown tool does")
     func listThroughDispatch() async throws {
         let w = try await ProfileReachWorld.make("cross-dispatch")
-        let dispatch = BridgeDispatch(store: w.store, identity: w.lead)
+        let dispatch = BridgeDispatch(store: w.store, identity: w.unasked)
 
         func call(_ name: String) async throws -> String {
             let request = MCPRequest(id: .number(1), method: "tools/call", params: .object(["name": .string(name), "arguments": .object([:])]))

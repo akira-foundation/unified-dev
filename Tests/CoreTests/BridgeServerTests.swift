@@ -88,7 +88,7 @@ struct BridgeServerTests {
         #expect(listed["id"] == .string("two"))
         let names = listed["result"]?["tools"]?.arrayValue?.compactMap { $0["name"]?.stringValue }
         #expect(names == [
-            "agent_list", "chat_list", "chat_read", "project_list", "quick_prompt_create", "quick_prompt_list",
+            "agent_list", "chat_list", "chat_read", "profile_list", "project_list", "quick_prompt_create", "quick_prompt_list",
             "whoami", "work_suggest", "work_withdraw", "workspace_diff", "workspace_rename",
         ])
 
