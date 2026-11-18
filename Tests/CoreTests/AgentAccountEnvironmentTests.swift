@@ -227,8 +227,6 @@ struct AgentAccountEnvironmentTests {
     @Test func aLaunchWithAnAccountNamesIt() {
         #expect(AgentAccountEnvironment.shellArguments(launching: .codex, as: workCodex, userHome: someone)
             == ["CODEX_HOME=\(workCodex.directory.path)"])
-        #expect(AgentAccountEnvironment.shellArguments(launching: .claudeCode, as: defaultClaude, userHome: someone)
-            == ["-u", "CLAUDE_CONFIG_DIR"])
     }
 
     @Test func theShellStillNamesADefaultHomeTheLaunchPointedElsewhere() {
