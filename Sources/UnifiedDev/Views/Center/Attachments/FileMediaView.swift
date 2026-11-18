@@ -1,5 +1,5 @@
 import SwiftUI
-import UniformTypeIdentifiers
+import PDFKit
 import Core
 
 struct FileMediaView: View {
@@ -7,21 +7,53 @@ struct FileMediaView: View {
     var path: String
 
     @State private var width: CGFloat = 0
+    @State private var pageCount: Int?
+    @State private var document: PDFDocument?
+    @State private var countedURL: URL?
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Hairline()
 
-            GeometryReader { proxy in
-                AttachmentPreview(
-                    url: url,
-                    maxWidth: max(proxy.size.width - Metrics.pane * 2, 1),
-                    maxHeight: max(proxy.size.height - Metrics.pane * 2, 1)
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            switch MediaDisplay.of(path: path, pageCount: pageCount, hasCounted: countedURL == url) {
+            case .pages:
+                PDFPagesView(document: document, name: filename)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .counting:
+                ProgressView()
+                    .controlSize(.small)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .still:
+                GeometryReader { proxy in
+                    AttachmentPreview(
+                        url: url,
+                        maxWidth: max(proxy.size.width - Metrics.pane * 2, 1),
+                        maxHeight: max(proxy.size.height - Metrics.pane * 2, 1)
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
+        .task(id: url) { await countPages() }
+    }
+
+    private func countPages() async {
+        pageCount = nil
+        document = nil
+        countedURL = nil
+        guard MediaDisplay.of(path: path, pageCount: nil, hasCounted: false) == .counting else { return }
+        let file = url.path
+        let counted = await Task.detached(priority: .userInitiated) { ReadablePDF.pageCount(atPath: file) }.value
+        guard !Task.isCancelled else { return }
+        let opened = counted == nil ? nil : PDFDocument(url: url)
+        let agreed = ReadablePDF.agreedPageCount(
+            counted: counted,
+            opened: opened.map { ReadablePDF.Opened(pageCount: $0.pageCount, isLocked: $0.isLocked) }
+        )
+        document = agreed == nil ? nil : opened
+        pageCount = agreed
+        countedURL = url
     }
 
     private var header: some View {
@@ -52,11 +84,6 @@ struct FileMediaView: View {
     private var filename: String { (path as NSString).lastPathComponent }
 
     static func isMedia(path: String) -> Bool {
-        guard let type = UTType(filenameExtension: (path as NSString).pathExtension) else {
-            return false
-        }
-        if type.conforms(to: .text) || type.conforms(to: .sourceCode) { return false }
-        return [UTType.image, .pdf, .audiovisualContent, .archive, .font]
-            .contains { type.conforms(to: $0) }
+        MediaPresentation.of(path: path) != nil
     }
 }

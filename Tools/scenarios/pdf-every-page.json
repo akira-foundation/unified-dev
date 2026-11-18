@@ -1,0 +1,37 @@
+{
+  "welcome": false,
+  "projects": [
+    {
+      "name": "papers",
+      "files": {
+        "README.md": "# Papers\n\nA scratch project with a PDF of three pages.\n",
+        "docs/three-pages.pdf": "%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R 5 0 R 7 0 R] /Count 3 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 9 0 R >> >> >>\nendobj\n4 0 obj\n<< /Length 42 >>\nstream\nBT /F1 48 Tf 72 700 Td (Page 1 of 3) Tj ET\nendstream\nendobj\n5 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 6 0 R /Resources << /Font << /F1 9 0 R >> >> >>\nendobj\n6 0 obj\n<< /Length 42 >>\nstream\nBT /F1 48 Tf 72 700 Td (Page 2 of 3) Tj ET\nendstream\nendobj\n7 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 8 0 R /Resources << /Font << /F1 9 0 R >> >> >>\nendobj\n8 0 obj\n<< /Length 42 >>\nstream\nBT /F1 48 Tf 72 700 Td (Page 3 of 3) Tj ET\nendstream\nendobj\n9 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\nxref\n0 10\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000127 00000 n \n0000000253 00000 n \n0000000345 00000 n \n0000000471 00000 n \n0000000563 00000 n \n0000000689 00000 n \n0000000781 00000 n \ntrailer\n<< /Size 10 /Root 1 0 R >>\nstartxref\n851\n%%EOF\n",
+        "docs/broken.pdf": "This file is named like a PDF and is not one.\n"
+      },
+      "commits": [
+        "File the papers"
+      ],
+      "workspaces": [
+        {
+          "name": "Read",
+          "branch": "read",
+          "chats": [
+            {
+              "title": "Review",
+              "messages": [
+                {
+                  "from": "user",
+                  "text": "Open the PDF and read every page."
+                },
+                {
+                  "from": "agent",
+                  "text": "The document is `docs/three-pages.pdf`, three A4 pages, each saying which page it is. `docs/broken.pdf` is not a PDF at all."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
