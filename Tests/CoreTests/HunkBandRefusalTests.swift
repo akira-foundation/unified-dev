@@ -34,9 +34,18 @@ struct HunkBandRefusalTests {
         }
     }
 
-    @Test("hidden whitespace is named before what git would refuse")
-    func whitespaceComesFirst() {
+    @Test("a turn in progress, unsaved edits and hidden whitespace are named before what git would refuse")
+    func ownReasonsComeFirst() {
+        let turn = FileBarControls.revertWhileAgentWorks
         #expect(offer(staged: .divergesFromTheWorktree, whitespace: true) == .disabled(HunkDiscard.whitespaceIsHidden))
+        #expect(HunkDiscard.availability(
+            file: modified, ignoringWhitespace: false, blocker: turn, hasUnsavedEdits: false,
+            staged: .addsLinesThatAreNotUTF8
+        ) == .disabled(turn))
+        #expect(HunkDiscard.availability(
+            file: modified, ignoringWhitespace: false, blocker: nil, hasUnsavedEdits: true,
+            staged: .divergesFromTheWorktree
+        ) == .disabled(HunkDiscard.draftIsOpen))
     }
 
     @Test("only an added line that decoded with a replacement character can be one that is not UTF-8")

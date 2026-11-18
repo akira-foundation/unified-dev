@@ -74,6 +74,8 @@ struct DiffView: View {
     @State private var pendingHunk: DiffHunk?
     @State private var stagedHunk: HunkDiscard.Staged = .clean
     @State private var refusedHunks: [DiffHunk: HunkDiscard.Staged] = [:]
+    @State private var hunkCheck: Task<Void, Never>?
+    @State private var isCheckingHunks = false
     private let session = FileEditSession.shared
     private let edits = DiffEditSession.shared
     @State private var editProblem: String?
@@ -261,12 +263,16 @@ struct DiffView: View {
         .onChange(of: isSideBySide) { _, _ in rebuild() }
         .onChange(of: fileComments) { _, _ in rebuild() }
         .onChange(of: draftSelection) { _, _ in rebuild() }
-        .onChange(of: model.changesGeneration) { _, _ in refreshWorktreeCopy() }
+        .onChange(of: model.changesGeneration) { _, _ in
+            refreshWorktreeCopy()
+            if case let .ready(document) = phase { checkHunks(in: document.file) }
+        }
         .onChange(of: isEditable) { _, editable in
             if !editable { mode = .diff }
         }
         .onDisappear {
             priming?.cancel()
+            hunkCheck?.cancel()
             if case .image = phase {
                 phase = .loading
                 presented = nil
@@ -408,6 +414,7 @@ struct DiffView: View {
             fileLines = nil
             source = nil
             isEditable = false
+            refusedHunks = [:]
         }
 
         let patch = await model.patch(for: file)
@@ -443,13 +450,18 @@ struct DiffView: View {
         }.value
         guard !Task.isCancelled else { return }
         isEditable = editable
-        if case let .ready(document) = phase { await checkHunks(in: document.file) }
+        if case let .ready(document) = phase { checkHunks(in: document.file) }
     }
 
-    private func checkHunks(in diff: FileDiff) async {
-        let found = await model.hunkRefusals(for: file, in: diff)
-        guard !Task.isCancelled, found != refusedHunks else { return }
-        refusedHunks = found
+    private func checkHunks(in diff: FileDiff) {
+        hunkCheck?.cancel()
+        isCheckingHunks = true
+        hunkCheck = Task {
+            let found = await model.hunkRefusals(for: file, in: diff)
+            guard !Task.isCancelled else { return }
+            isCheckingHunks = false
+            if found != refusedHunks { refusedHunks = found }
+        }
     }
 
     private func apply(_ raw: FileDiff, ignoringWhitespace: Bool) async {
@@ -531,6 +543,7 @@ struct DiffView: View {
         let document = prepared.document
         fileLines = prepared.lines
         phase = .ready(document)
+        checkHunks(in: document.file)
         if SourceEditorState.file(absolutePath).diffRequest != nil {
             expandedRuns.formUnion(document.file.hunks.flatMap(\.lines).map(\.index))
         }
@@ -801,7 +814,7 @@ struct DiffView: View {
                     staged: stagedHunk,
                     onAsk: { if let hunk { ask(hunk, in: document.file) } },
                     onRecheck: {
-                        if let hunk, refusedHunks[hunk] != nil { Task { await checkHunks(in: document.file) } }
+                        if let hunk, refusedHunks[hunk] != nil, !isCheckingHunks { checkHunks(in: document.file) }
                     },
                     onDiscard: { if let asked = pendingHunk { discard(asked, in: document.file) } }
                 )
