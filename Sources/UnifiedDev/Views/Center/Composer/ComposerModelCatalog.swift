@@ -54,6 +54,10 @@ final class ComposerModelCatalog {
 
     private func followClaudeReports(in store: Store) {
         observationTask?.cancel()
+        guard sources[.claudeCode] != nil else {
+            reportedClaudeModels = [:]
+            return
+        }
         let account = accounts[.claudeCode]
         observationTask = Task { [weak self] in
             var changes = store.changes(of: [.settings]).makeAsyncIterator()
