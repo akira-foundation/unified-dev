@@ -51,9 +51,7 @@ struct NewWorkspacePane: View {
                     remote: remote(of: draft.startingPoint),
                     catalogue: catalogue,
                     pullRequests: pullRequests,
-                    leadingBases: StartingPointMenu.leadingBases(
-                        point: draft.startingPoint, cameFrom: cameFromBranch(in: repo)
-                    ),
+                    cameFrom: cameFromBranch(in: repo),
                     isPresented: $isChoosingStart,
                     onPick: { pick($0) }
                 )

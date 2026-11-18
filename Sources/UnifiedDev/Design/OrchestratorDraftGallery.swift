@@ -32,7 +32,7 @@ struct OrchestratorDraftGallery: View {
                 remote: "origin",
                 catalogue: nil,
                 pullRequests: .loading,
-                leadingBases: [],
+                cameFrom: nil,
                 isPresented: .constant(false),
                 onPick: { _ in }
             )
