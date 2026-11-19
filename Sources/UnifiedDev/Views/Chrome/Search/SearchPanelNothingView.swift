@@ -24,7 +24,7 @@ struct SearchPanelNothingView: View {
         if let sentence = nothing.indexNotice(isIndexing: isIndexing) {
             Label(sentence, systemImage: "clock")
                 .font(Typo.caption)
-                .foregroundStyle(Palette.textTertiary)
+                .searchPanelInk(SearchPanelRowInk.detail())
                 .multilineTextAlignment(.leading)
                 .padding(.horizontal, Metrics.pane)
                 .padding(.bottom, Metrics.gutter)

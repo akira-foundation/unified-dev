@@ -220,7 +220,7 @@ struct WorkspaceRow: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(isEmphasized ? Palette.textInverted : Palette.textSecondary)
-        .help("Archive workspace (\(MenuBarCatalogue[.archive].keyText))")
+        .help(MenuBarCatalogue[.archive].help("Archive workspace"))
         .accessibilityLabel("Archive \(workspace.name)")
         .archiveConfirmation($archiveRequest, arrowEdge: .leading, onConfirm: onConfirmArchive)
     }

@@ -253,6 +253,7 @@ public struct MenuShortcut: Equatable, Hashable, Sendable {
         case `return`
         case comma
         case tab
+        case escape
     }
 
     public struct Modifiers: OptionSet, Hashable, Sendable {

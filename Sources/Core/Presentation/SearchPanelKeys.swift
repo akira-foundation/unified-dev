@@ -98,43 +98,52 @@ public enum SearchPanelKeys {
     public static func footer(
         for mode: SearchPanelMode, isSearching: Bool
     ) -> [SearchPanelFooterKey] {
+        let open = MenuShortcut(.return)
+        let close = MenuShortcut(.escape)
         switch mode {
         case .things:
-            var keys = [
-                SearchPanelFooterKey(key: "\u{21A9}", label: "Open"),
-                SearchPanelFooterKey(key: "\u{2318}\u{21A9}", label: "Actions"),
-            ]
-            keys.append(
+            return [
+                SearchPanelFooterKey(open, label: "Open"),
+                SearchPanelFooterKey(MenuShortcut(.return, .command), label: "Actions"),
                 isSearching
-                    ? SearchPanelFooterKey(key: "\u{21E5}", label: "Scope")
-                    : SearchPanelFooterKey(key: ">", label: "Commands")
-            )
-            keys.append(SearchPanelFooterKey(key: "esc", label: "Close"))
-            return keys
+                    ? SearchPanelFooterKey(MenuShortcut(.tab), label: "Scope")
+                    : SearchPanelFooterKey(MenuShortcut(">"), label: "Commands"),
+                SearchPanelFooterKey(close, label: "Close"),
+            ]
         case .commands:
             return [
-                SearchPanelFooterKey(key: "\u{21A9}", label: "Run"),
-                SearchPanelFooterKey(key: "\u{232B}", label: "Leave commands"),
-                SearchPanelFooterKey(key: "esc", label: "Close"),
+                SearchPanelFooterKey(open, label: "Run"),
+                SearchPanelFooterKey(MenuShortcut(.delete), label: "Leave commands"),
+                SearchPanelFooterKey(close, label: "Close"),
             ]
         case .actions:
             return [
-                SearchPanelFooterKey(key: "\u{21A9}", label: "Run"),
-                SearchPanelFooterKey(key: "\u{232B}", label: "Back"),
-                SearchPanelFooterKey(key: "esc", label: "Close"),
+                SearchPanelFooterKey(open, label: "Run"),
+                SearchPanelFooterKey(MenuShortcut(.delete), label: "Back"),
+                SearchPanelFooterKey(close, label: "Close"),
             ]
         }
     }
+
+    public static let fileSearchFooter = [
+        SearchPanelFooterKey(MenuShortcut(.upArrow), MenuShortcut(.downArrow), label: "Navigate"),
+        SearchPanelFooterKey(MenuShortcut(.return), label: "Open"),
+        SearchPanelFooterKey(MenuShortcut(.escape), label: "Close"),
+    ]
 }
 
 public struct SearchPanelFooterKey: Equatable, Sendable, Identifiable {
-    public var key: String
+    public var shortcuts: [MenuShortcut]
     public var label: String
+
+    public var key: String { shortcuts.map(\.display).joined() }
+
+    public var text: String { "\(label) \(key)" }
 
     public var id: String { label }
 
-    public init(key: String, label: String) {
-        self.key = key
+    public init(_ shortcuts: MenuShortcut..., label: String) {
+        self.shortcuts = shortcuts
         self.label = label
     }
 }

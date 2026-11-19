@@ -88,7 +88,6 @@ public struct BrowserPaneState: Equatable, Sendable {
 
 extension BrowserToolbar {
     static func help(_ text: String, key action: MenuBarAction) -> String {
-        guard let key = MenuBarCatalogue[action].key else { return text }
-        return "\(text) (\(key.display))"
+        MenuBarCatalogue[action].help(text)
     }
 }

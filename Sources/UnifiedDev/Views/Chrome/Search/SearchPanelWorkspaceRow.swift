@@ -15,12 +15,13 @@ struct SearchPanelWorkspaceRow: View {
                 RepoIcon(repo: hit.repo)
 
                 VStack(alignment: .leading, spacing: SearchPanelRowMetrics.lineGap) {
-                    name
+                    MatchedRuns.text(hit.workspace.name, highlights: hit.highlights)
                         .font(Typo.bodyEmphasis)
+                        .searchPanelInk(SearchPanelRowInk.title(isEnabled: true))
                         .lineLimit(1)
                     detail
                         .font(Typo.caption)
-                        .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected).colour)
+                        .searchPanelInk(SearchPanelRowInk.detail())
                         .lineLimit(1)
                 }
 
@@ -36,11 +37,6 @@ struct SearchPanelWorkspaceRow: View {
             isHovered = hovering
             if hovering { onHover() }
         }
-    }
-
-    private var name: Text {
-        let ink = SearchPanelRowInk.title(isEnabled: true).colour
-        return MatchedRuns.text(hit.workspace.name, highlights: hit.highlights, loud: ink, quiet: ink)
     }
 
     private var detail: Text {

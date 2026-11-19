@@ -13,16 +13,19 @@ struct SearchPanelCommandRow: View {
     var body: some View {
         Button(action: onPick) {
             HStack(spacing: Metrics.spacingWide) {
-                title
+                MatchedRuns.text(hit.item.title, highlights: hit.highlights)
                     .font(Typo.body)
+                    .searchPanelInk(SearchPanelRowInk.title(isEnabled: isEnabled))
                     .lineLimit(1)
 
                 Spacer(minLength: Metrics.gutter)
 
-                Text(hit.item.keyText)
-                    .font(Typo.caption)
-                    .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected, isEnabled: isEnabled).colour)
-                    .lineLimit(1)
+                if let keyText = hit.item.keyText {
+                    Text(keyText)
+                        .font(Typo.body)
+                        .searchPanelInk(SearchPanelRowInk.detail(isEnabled: isEnabled))
+                        .lineLimit(1)
+                }
             }
             .searchPanelRowPadding()
             .contentShape(Rectangle())
@@ -30,16 +33,11 @@ struct SearchPanelCommandRow: View {
         .buttonStyle(SearchPanelUndimmedButtonStyle())
         .disabled(!isEnabled)
         .accessibilityLabel(hit.item.title)
-        .accessibilityValue(hit.item.keyText)
+        .accessibilityValue(hit.item.keyText ?? "")
         .searchPanelRowPlate(isSelected: isSelected, isHovered: isHovered)
         .onHoverChange { hovering in
             isHovered = hovering
             if hovering { onHover() }
         }
-    }
-
-    private var title: Text {
-        let ink = SearchPanelRowInk.title(isEnabled: isEnabled).colour
-        return MatchedRuns.text(hit.item.title, highlights: hit.highlights, loud: ink, quiet: ink)
     }
 }

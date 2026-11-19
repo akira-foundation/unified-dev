@@ -16,12 +16,13 @@ struct SearchPanelProfileRow: View {
                     .frame(width: Metrics.repoIcon, height: Metrics.repoIcon)
 
                 VStack(alignment: .leading, spacing: SearchPanelRowMetrics.lineGap) {
-                    name
+                    MatchedRuns.text(hit.profile.name, highlights: hit.highlights)
                         .font(Typo.bodyEmphasis)
+                        .searchPanelInk(SearchPanelRowInk.title(isEnabled: true))
                         .lineLimit(1)
                     Text(SearchPanelProfiles.detail)
                         .font(Typo.caption)
-                        .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected).colour)
+                        .searchPanelInk(SearchPanelRowInk.detail())
                         .lineLimit(1)
                 }
 
@@ -29,8 +30,8 @@ struct SearchPanelProfileRow: View {
 
                 if let keyText = hit.keyText {
                     Text(keyText)
-                        .font(Typo.caption)
-                        .foregroundStyle(SearchPanelRowInk.detail(isSelected: isSelected).colour)
+                        .font(Typo.body)
+                        .searchPanelInk(SearchPanelRowInk.detail())
                         .lineLimit(1)
                 }
             }
@@ -45,10 +46,5 @@ struct SearchPanelProfileRow: View {
             isHovered = hovering
             if hovering { onHover() }
         }
-    }
-
-    private var name: Text {
-        let ink = SearchPanelRowInk.title(isEnabled: true).colour
-        return MatchedRuns.text(hit.profile.name, highlights: hit.highlights, loud: ink, quiet: ink)
     }
 }
