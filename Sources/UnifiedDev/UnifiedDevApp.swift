@@ -22,6 +22,7 @@ struct UnifiedDevApp: App {
         if OrchestratorSidebarProbe.isRequested { OrchestratorSidebarProbe.runAndExit() }
         if RepoOrchestratorProbe.isRequested { RepoOrchestratorProbe.runAndExit() }
         if UpdateAlertProbe.isRequested { UpdateAlertProbe.runAndExit() }
+        if DiscardAlertProbe.isRequested { DiscardAlertProbe.runAndExit() }
         if ArchiveRetentionProbe.isRequested { ArchiveRetentionProbe.runAndExit() }
         if ProfileProbe.isRequested { ProfileProbe.runAndExit() }
         if NotificationBellProbe.isRequested { NotificationBellProbe.runAndExit() }
