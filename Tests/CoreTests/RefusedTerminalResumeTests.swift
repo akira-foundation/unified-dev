@@ -21,8 +21,8 @@ struct RefusedTerminalResumeTests {
         return file
     }
 
-    private func ownProfileChat(_ store: Store) async throws -> (Workspace, Session) {
-        let profile = try await store.createProfile(name: "Akira", colour: Accent.all[1], symbol: "star", accounts: .own)
+    private func ownProfileChat(_ store: Store, accounts: ProfileAccountSource = .own) async throws -> (Workspace, Session) {
+        let profile = try await store.createProfile(name: "Akira", colour: Accent.all[1], symbol: "star", accounts: accounts)
         let site = try await store.upsert(Repo(name: "site", path: TestScratch.unique("repo"), profileID: profile.id))
         let space = try await store.upsert(Workspace(
             repoID: site.id, name: "w", branch: "b", path: TestScratch.unique("worktree"), baseBranch: "main"
@@ -72,6 +72,30 @@ struct RefusedTerminalResumeTests {
         #expect(forgot)
         #expect(try await store.setting(TerminalCommandMemory.key(paneID: pane)) == nil)
         #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test("a terminal chat in a profile that inherits this Mac's accounts runs and keeps its resume")
+    func anInheritingProfileKeepsTheResume() async throws {
+        let store = try makeTestStore("inherited-resume")
+        let mac = try #require(AgentAccountHome.defaultHome(for: .claudeCode, home: URL(filePath: "/Users/someone")))
+        let (space, chat) = try await ownProfileChat(store, accounts: .inherits)
+        let file = try await remember(chat, in: space, store: store)
+
+        let launch = try #require(try await AgentAccountLaunch.terminal(of: chat.id, store: store, defaults: [mac]))
+        let forgot = await launch.forgetsResume(inPane: pane, of: chat.id, store: store, base: base)
+
+        #expect(launch == .runs(mac))
+        #expect(!forgot)
+        #expect(try await store.setting(TerminalCommandMemory.key(paneID: pane)) != nil)
+        #expect(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test("a chat with no workspace has no terminal launch to decide")
+    func aChatWithNoWorkspaceHasNoLaunch() async throws {
+        let store = try makeTestStore("unplaced-resume")
+        let chat = try await store.upsert(Session(workspaceID: nil, title: "Chat"))
+
+        #expect(try await AgentAccountLaunch.terminal(of: chat.id, store: store) == nil)
     }
 
     @Test("a chat no longer in the database has no launch to decide")

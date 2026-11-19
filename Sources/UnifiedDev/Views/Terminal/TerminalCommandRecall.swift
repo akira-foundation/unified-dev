@@ -89,13 +89,16 @@ final class TerminalCommandRecall {
         persistence: TerminalPersistence?,
         store: Store?
     ) async {
-        guard let store, offers[pane] == nil else { return }
+        guard let store else { return }
         let agentSession = CenterTabStore.shared.tabsByWorkspace.values.joined()
             .first { $0.id == pane }?.agentSessionID
-        if let agentSession, let launch = try? await AgentAccountLaunch.terminal(of: agentSession, store: store),
+        let isRunning = await hasForegroundCommand(session: session, persistence: persistence)
+        if !isRunning, let agentSession,
+           let launch = try? await AgentAccountLaunch.terminal(of: agentSession, store: store),
            await forgetRefusedResume(launch, inPane: pane, of: agentSession, store: store) {
             return
         }
+        guard offers[pane] == nil else { return }
         let stored = try? await store.setting(TerminalCommandMemory.key(paneID: pane))
         let isAgent = agentSession != nil
         guard let command = TerminalCommandMemory.offerable(
@@ -103,16 +106,15 @@ final class TerminalCommandRecall {
         ) else { return }
         if isAgent { resumeCommands[pane] = command }
         recorded[pane] = command
-
-        if let session, let persistence {
-            let pids = await persistence.panePIDs(notOlderThan: .zero)
-            if let shell = pids[session], let table = await ProcessTable.recent(notOlderThan: .zero),
-               table.foregroundCommand(ofShell: shell) != nil {
-                return
-            }
-        }
-        guard !withdrawn.contains(pane) else { return }
+        guard !isRunning, !withdrawn.contains(pane) else { return }
         offers[pane] = command
+    }
+
+    private func hasForegroundCommand(session: String?, persistence: TerminalPersistence?) async -> Bool {
+        guard let session, let persistence else { return false }
+        let pids = await persistence.panePIDs(notOlderThan: .zero)
+        guard let shell = pids[session], let table = await ProcessTable.recent(notOlderThan: .zero) else { return false }
+        return table.foregroundCommand(ofShell: shell) != nil
     }
 
     func record(panes: [Pane], persistence: TerminalPersistence?, store: Store) async {
