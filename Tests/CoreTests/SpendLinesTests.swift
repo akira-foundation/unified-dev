@@ -239,8 +239,8 @@ struct SpendLinesTests {
         #expect(SpendLines.projectCaption(priced) == "0 chats")
     }
 
-    @Test("a line with every token unpriced says so once in the cost and counts them in the caption, like the total")
-    func whollyUnpricedLineMatchesTheTotal() {
+    @Test("a known account with every token unpriced says so in the cost and counts the tokens in the caption")
+    func whollyUnpricedKnownAccount() {
         let spend = ModelPrices.spend(
             of: TokenUsage(output: 2_000_000), model: "codex-auto-review", provider: .codex
         )
@@ -248,7 +248,29 @@ struct SpendLinesTests {
             accountID: AgentAccountID("work"), name: "work", provider: .codex, spend: spend, sessions: []
         )
         #expect(SpendLines.cost(account.spend) == SpendLines.noPublishedPrice)
-        #expect(SpendLines.accountCaption(account).hasSuffix(SpendLines.unpricedLine(spend.unpriced)))
+        #expect(
+            SpendLines.accountCaption(account)
+                == "Codex, 0 chats, " + SpendFormat.tokens(2_000_000) + " tokens had no published price"
+        )
+    }
+
+    @Test("a known account half spent on an unpriced model names the tokens its cost leaves out")
+    func knownAccountCaptionNamesUnpricedTokens() {
+        let account = SpendAccountLine(
+            accountID: AgentAccountID("work"),
+            name: "work",
+            provider: .claudeCode,
+            spend: Spend(
+                usage: TokenUsage(output: 3_000_000),
+                cost: SpendCost(output: 25),
+                unpriced: TokenUsage(output: 2_000_000)
+            ),
+            sessions: []
+        )
+        #expect(
+            SpendLines.accountCaption(account)
+                == "Claude Code, 0 chats, " + SpendFormat.tokens(2_000_000) + " tokens had no published price"
+        )
     }
 
     @Test("a chat half spent on an unpriced model names the tokens its cost leaves out")
