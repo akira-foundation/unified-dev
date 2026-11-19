@@ -39,7 +39,9 @@ public struct GitRepositoryContext: Sendable, Equatable {
         let currentRemote = config["branch.\(branch).remote"]
         let merge = config["branch.\(branch).merge"]
         let tracksBase = merge.map { $0 == "refs/heads/\(baseBranch)" || !$0.hasPrefix("refs/heads/") } ?? false
-        let baseRemote = explicitRemote ?? recorded ?? configuredBase ?? (tracksBase ? currentRemote : nil) ?? primary
+        let headUpstream = remotes.contains("upstream") ? "upstream" : primary
+        let baseRemote = explicitRemote ?? recorded ?? configuredBase
+            ?? (merge == nil || tracksBase ? currentRemote ?? primary : headUpstream)
         let branchPushRemote = config["branch.\(branch).pushremote"]
         let explicitPublication = branchPushRemote ?? config["remote.pushdefault"]
         let publishRemote = explicitPublication

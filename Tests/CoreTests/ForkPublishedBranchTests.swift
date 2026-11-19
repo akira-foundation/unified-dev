@@ -106,7 +106,7 @@ struct ForkPublishedBranchTests {
             branch: Self.branch, baseBranch: "dev", ahead: 2, pullRequest: found
         )
 
-        #expect(found != nil)
+        #expect(standing.number == 41)
         #expect(standing.button?.act != .openPullRequest)
     }
 
@@ -135,8 +135,7 @@ struct ForkPublishedBranchTests {
             ["pr", "create", "--base", "dev", "--title", "Fix", "--body", ""], context: context
         )
 
-        #expect(arguments.suffix(2) == ["--repo", Self.upstreamRepository])
-        #expect(arguments.contains("fork-owner:\(Self.branch)"))
+        #expect(arguments.suffix(4) == ["--head", "fork-owner:\(Self.branch)", "--repo", Self.upstreamRepository])
         #expect(context.publishRemote == "fork")
     }
 
@@ -168,5 +167,33 @@ struct ForkPublishedBranchTests {
         )
 
         #expect(context.baseRemote == "fork")
+    }
+
+    @Test("a branch published to an origin fork reads its base from the upstream remote")
+    func publishedToAnOriginFork() {
+        let context = GitRepositoryContext.resolve(
+            config: [
+                "remote.origin.url": Self.forkURL, "remote.upstream.url": Self.upstreamURL,
+                "branch.side.remote": "origin", "branch.side.merge": "refs/heads/side",
+            ],
+            base: "dev", branch: "side", baseIsBranchName: true
+        )
+
+        #expect(context.baseRemote == "upstream")
+        #expect(PullRequestHead.selector(in: context) == "fork-owner:side")
+    }
+
+    @Test("a branch published straight to the upstream keeps the upstream as its base")
+    func publishedStraightToTheUpstream() {
+        let context = GitRepositoryContext.resolve(
+            config: [
+                "remote.origin.url": Self.forkURL, "remote.upstream.url": Self.upstreamURL,
+                "branch.side.remote": "upstream", "branch.side.merge": "refs/heads/side",
+            ],
+            base: "dev", branch: "side", baseIsBranchName: true
+        )
+
+        #expect(context.baseRemote == "upstream")
+        #expect(PullRequestHead.selector(in: context) == "side")
     }
 }
