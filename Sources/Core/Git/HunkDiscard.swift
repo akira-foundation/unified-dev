@@ -114,15 +114,14 @@ public enum HunkDiscard {
             added > 0 ? "takes out \(Counted.of(added, "added line"))" : nil,
         ].compactMap { $0 }
         let change = clauses.isEmpty ? "This undoes the change" : "This " + clauses.joined(separator: " and ")
-        return change + ". The rest of the file is left as it is.\n\n"
-            + notice(staged) + NoUndo.sentence
+        return change + ", and leaves the rest of the file as it is."
     }
 
-    static func notice(_ staged: Staged) -> String {
+    public static func note(_ staged: Staged) -> String? {
         switch staged {
-        case .clean, .holdsTheHunk, .divergesFromTheWorktree, .addsLinesThatAreNotUTF8: ""
-        case .holdsAnotherVersion: stagedStays + "\n\n"
-        case .unreadable: stagedUnknown + "\n\n"
+        case .clean, .holdsTheHunk, .divergesFromTheWorktree, .addsLinesThatAreNotUTF8: nil
+        case .holdsAnotherVersion: stagedStays
+        case .unreadable: stagedUnknown
         }
     }
 }

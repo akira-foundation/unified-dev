@@ -62,9 +62,7 @@ struct DiffHunkHeaderView: View {
         .fixedSize()
         .discardConfirmation(
             isPresented: isConfirming,
-            title: HunkDiscard.question(path: path, staged: staged),
-            message: { hunk.map { HunkDiscard.losses(of: $0, staged: staged) } ?? "" },
-            canConfirm: { HunkDiscard.canConfirm(staged) },
+            alert: { hunk.map { DiscardAlert.hunk($0, path: path, staged: staged) } },
             onConfirm: onDiscard
         )
     }
