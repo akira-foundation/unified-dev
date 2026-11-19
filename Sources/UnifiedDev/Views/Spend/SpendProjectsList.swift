@@ -21,7 +21,7 @@ struct SpendProjectsList: View {
                     Text(SpendLines.cost(project.spend)).monospacedDigit()
                 } label: {
                     Text(project.name)
-                    Text(SpendLines.sessions(project.sessions.count))
+                    Text(SpendLines.projectCaption(project))
                 }
             }
         }
