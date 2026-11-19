@@ -237,10 +237,9 @@ struct ChangedFileList: View {
                 get: { pendingRevert?.id == file.id },
                 set: { if !$0 { pendingRevert = nil } }
             ),
-            title: FileBarControls.discardQuestion(path: file.path),
-            message: {
-                FileRevert.losses(
-                    for: file, in: model.workspace,
+            alert: {
+                DiscardAlert.file(
+                    file, base: model.workspace.baseBranch,
                     hasDraft: FileRevert.hasUnsavedEdits(at: fullPath(file.path))
                 )
             },

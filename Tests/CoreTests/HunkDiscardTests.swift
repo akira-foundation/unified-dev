@@ -87,8 +87,8 @@ struct HunkDiscardTests {
             DiffLine(kind: .addition, text: "C"),
         ])
         #expect(HunkDiscard.losses(of: hunk, staged: .clean)
-            == "This puts back 1 removed line and takes out 2 added lines. "
-            + "The rest of the file is left as it is.\n\nThere is no undo for this.")
+            == "This puts back 1 removed line and takes out 2 added lines, "
+            + "and leaves the rest of the file as it is.")
     }
 
     @Test("a hunk that only removes, or only adds, says just that")
@@ -102,18 +102,22 @@ struct HunkDiscardTests {
             DiffLine(kind: .addition, text: "B"),
         ])
 
-        #expect(HunkDiscard.losses(of: removalsOnly, staged: .clean).hasPrefix("This puts back 1 removed line. "))
+        #expect(HunkDiscard.losses(of: removalsOnly, staged: .clean).hasPrefix("This puts back 1 removed line, "))
         #expect(!HunkDiscard.losses(of: removalsOnly, staged: .clean).contains("takes out"))
-        #expect(HunkDiscard.losses(of: additionsOnly, staged: .clean).hasPrefix("This takes out 1 added line. "))
+        #expect(HunkDiscard.losses(of: additionsOnly, staged: .clean).hasPrefix("This takes out 1 added line, "))
         #expect(!HunkDiscard.losses(of: additionsOnly, staged: .clean).contains("puts back"))
     }
 
-    @Test("every sentence that destroys work ends with the one no undo sentence")
-    func lossesEndWithTheSharedSentence() {
+    @Test("the losses are one sentence and leave the no undo wording to the destructive button")
+    func lossesAreOneSentence() {
         let hunk = DiffHunk(oldStart: 1, oldCount: 1, newStart: 1, newCount: 1, lines: [
             DiffLine(kind: .deletion, text: "b"),
         ])
-        #expect(HunkDiscard.losses(of: hunk, staged: .clean).hasSuffix(NoUndo.sentence))
+        let sentence = HunkDiscard.losses(of: hunk, staged: .holdsAnotherVersion)
+
+        #expect(!sentence.lowercased().contains("undo"))
+        #expect(!sentence.contains("\n"))
+        #expect(sentence.filter { $0 == "." }.count == 1)
     }
 
     @Test("a hunk with nothing counted still says what happens")
@@ -121,25 +125,20 @@ struct HunkDiscardTests {
         let hunk = DiffHunk(oldStart: 1, oldCount: 1, newStart: 1, newCount: 1, lines: [
             DiffLine(kind: .context, text: "a"),
         ])
-        #expect(HunkDiscard.losses(of: hunk, staged: .clean).hasPrefix("This undoes the change. "))
+        #expect(HunkDiscard.losses(of: hunk, staged: .clean)
+            == "This undoes the change, and leaves the rest of the file as it is.")
     }
 
-    @Test("a staged version of the same region is named before the hunk goes")
-    func lossesWithAStagedVersion() {
-        let hunk = DiffHunk(oldStart: 1, oldCount: 1, newStart: 1, newCount: 1, lines: [
-            DiffLine(kind: .deletion, text: "b"),
-            DiffLine(kind: .addition, text: "B"),
-        ])
-
-        #expect(HunkDiscard.losses(of: hunk, staged: .holdsAnotherVersion)
-            == "This puts back 1 removed line and takes out 1 added line. "
-            + "The rest of the file is left as it is.\n\n"
-            + "This file has staged changes that this does not touch. They stay in the index, so "
+    @Test("a staged version of the same region is a note of its own, and only when there is one")
+    func noteForAStagedVersion() {
+        #expect(HunkDiscard.note(.holdsAnotherVersion)
+            == "This file has staged changes that this does not touch. They stay in the index, so "
             + "your next commit still carries them, even where they cover these same lines. "
-            + "Unstage them with git restore --staged if you do not want them."
-            + "\n\nThere is no undo for this.")
-        #expect(!HunkDiscard.losses(of: hunk, staged: .clean).contains("staged"))
-        #expect(!HunkDiscard.losses(of: hunk, staged: .holdsTheHunk).contains("staged"))
+            + "Unstage them with git restore --staged if you do not want them.")
+        #expect(HunkDiscard.note(.unreadable) == HunkDiscard.stagedUnknown)
+        for staged: HunkDiscard.Staged in [.clean, .holdsTheHunk, .divergesFromTheWorktree, .addsLinesThatAreNotUTF8] {
+            #expect(HunkDiscard.note(staged) == nil)
+        }
     }
 
     @Test("an index that has moved apart from the working file promises a refusal, not a discard")
@@ -156,7 +155,7 @@ struct HunkDiscardTests {
             + "file with git restore --staged, or commit what is staged, and then discard the hunk.")
         #expect(!sentence.contains("puts back"))
         #expect(!sentence.contains("takes out"))
-        #expect(!sentence.contains(NoUndo.sentence))
+        #expect(!sentence.lowercased().contains("undo"))
     }
 
     @Test("a discard git will refuse is not offered as a button, and its title does not ask")
@@ -186,19 +185,11 @@ struct HunkDiscardTests {
     }
 
     @Test("an index nobody could read says so rather than promising a clean discard")
-    func lossesWithAnUnreadableIndex() {
-        let hunk = DiffHunk(oldStart: 1, oldCount: 1, newStart: 1, newCount: 1, lines: [
-            DiffLine(kind: .deletion, text: "b"),
-            DiffLine(kind: .addition, text: "B"),
-        ])
-        let sentence = HunkDiscard.losses(of: hunk, staged: .unreadable)
-
-        #expect(sentence.contains(
-            "Unified Dev could not read what the index holds for this file. If anything is staged "
-                + "here, this leaves it as it is, and your next commit still carries it."
-        ))
-        #expect(sentence.hasSuffix(NoUndo.sentence))
-        #expect(!sentence.contains(HunkDiscard.stagedStays))
+    func noteForAnUnreadableIndex() {
+        #expect(HunkDiscard.note(.unreadable)
+            == "Unified Dev could not read what the index holds for this file. If anything is staged "
+            + "here, this leaves it as it is, and your next commit still carries it.")
+        #expect(HunkDiscard.note(.unreadable) != HunkDiscard.stagedStays)
     }
 
     @Test("every refusal says nothing was discarded, and git's words follow when there are some")
