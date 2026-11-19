@@ -128,13 +128,13 @@ struct ClaudeQuotaSourceTests {
         #expect(try await reportedPlan(answer: withLimits, identity: team) == "Team")
     }
 
-    @Test("a session on another config directory is named by its own answer, not by the default files")
-    func anotherConfigDirectoryIgnoresTheFiles() async throws {
+    @Test("the config directory the app inherited does not take the session away from the default files")
+    func anInheritedConfigDirectoryKeepsTheFiles() async throws {
         let team = #"{"session":{},"subscription_type":"team","rate_limits_available":true,"rate_limits":{}}"#
         let plan = try await reportedPlan(
             answer: team, identity: ultraIdentity, environment: ["CLAUDE_CONFIG_DIR": "/elsewhere"]
         )
-        #expect(plan == "Team")
+        #expect(plan == "Ultra")
     }
 
     @Test("an API key in the session's environment names no plan even when the cache answers")

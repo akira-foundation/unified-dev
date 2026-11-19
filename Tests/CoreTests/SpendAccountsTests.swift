@@ -99,10 +99,8 @@ struct SpendAccountsTests {
 
     @Test func theDefaultHomesAreTheDirectoriesTheIndexerReads() {
         let home = URL(filePath: "/Users/someone")
-        let homes = SpendAccounts.defaultHomes(home: home, environment: ["CLAUDE_CONFIG_DIR": "/elsewhere/claude"])
-        let sources = TranscriptSources.sources(
-            home: home, environment: ["CLAUDE_CONFIG_DIR": "/elsewhere/claude"]
-        )
+        let homes = SpendAccounts.defaultHomes(home: home)
+        let sources = TranscriptSources.sources(provider: home)
         #expect(homes.map(\.directory) == sources.map(\.home))
         #expect(homes.map(\.id) == sources.map { AgentAccountHome.defaultID(for: $0.provider) })
         let allDefault = homes.allSatisfy { $0.isDefault }

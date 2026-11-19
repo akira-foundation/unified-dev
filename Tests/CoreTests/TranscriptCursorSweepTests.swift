@@ -49,7 +49,7 @@ struct TranscriptCursorSweepTests {
         let gone = "/nowhere/ud-sweep/gone.jsonl"
         try await store.record([turn("t", file: gone)], reaching: cursor(gone))
 
-        _ = try await SpendIndexer(store: store, home: home.root, environment: [:]).refresh()
+        _ = try await SpendIndexer(store: store, home: home.root).refresh()
 
         let left = try await store.transcriptCursorPaths(after: "", limit: 10)
         #expect(left.count == 1)
@@ -66,7 +66,7 @@ struct TranscriptCursorSweepTests {
         for index in 0..<(TranscriptCursorSweep.sweepBatch + overflow) {
             try await store.record([], reaching: cursor(missing(index)))
         }
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
 
         _ = try await indexer.refresh()
         let afterFirst = try await store.transcriptCursorPaths(after: "", limit: overflow * 2)
@@ -100,7 +100,7 @@ struct TranscriptCursorSweepTests {
         }
         let late = base.appending(path: "z-gone").path
         try await store.record([], reaching: cursor(late))
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
 
         _ = try await indexer.refresh()
         #expect(!(try await store.transcriptCursorPaths(after: "", limit: 2_000).filter { $0 == late }.isEmpty))
@@ -129,7 +129,7 @@ struct TranscriptCursorSweepTests {
             try home.write(claudeLine(10) + "\n", to: directory.appending(path: "s\(index).jsonl"))
         }
         let store = try makeTestStore("sweep")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
 
         let first = try await indexer.refresh()
         let second = try await indexer.refresh()

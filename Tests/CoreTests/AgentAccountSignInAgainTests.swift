@@ -105,7 +105,7 @@ struct AgentAccountSignInAgainTests {
         let home = try #require(try row(standing()).signInAgainHome)
 
         let variables = AgentAccountEnvironment.login(
-            for: home,
+            launching: home.provider, as: home,
             inheriting: ["CLAUDE_CONFIG_DIR": "/somewhere/else", "ANTHROPIC_API_KEY": "inherited"],
             userHome: URL(filePath: "/Users/ada")
         )

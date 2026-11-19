@@ -98,7 +98,7 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
             executable: executable,
             arguments: arguments,
             cwd: cwd,
-            environment: AgentAccountEnvironment.apply(account, to: environment)
+            environment: AgentAccountEnvironment.apply(launching: Self.provider, as: account, to: environment)
         )
     }
 
@@ -174,9 +174,7 @@ public struct ClaudeCodeQuotaSource: AgentQuotaSource {
     }
 
     private var filesDescribeTheSession: Bool {
-        AgentAccountEnvironment.filesDescribeTheSession(
-            environment ?? Shell.environment(), provider: .claudeCode, hasChosenAccount: account != nil
-        )
+        AgentAccountEnvironment.filesDescribeTheSession(environment ?? Shell.environment())
     }
 
     private func accountFile() -> Data? {

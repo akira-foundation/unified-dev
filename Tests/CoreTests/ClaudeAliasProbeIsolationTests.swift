@@ -262,10 +262,12 @@ struct ClaudeAliasProbeRestraintTests {
         #expect(launches.launches.count == 1)
     }
 
-    @Test("the directory the CLI will use is the one checked, including one the app inherited")
+    @Test("the directory the CLI will use is the one checked, not one the app inherited")
     func readsTheDirectoryTheCLIWillUse() async throws {
+        let userHome = URL(filePath: TestScratch.path("user"), directoryHint: .isDirectory)
         let inheritedDirectory = URL(filePath: TestScratch.path("inherited-config"), directoryHint: .isDirectory)
-        try write(#"{"env":{"HTTPS_PROXY":"http://gateway.example"}}"#, to: inheritedDirectory.appending(path: "remote-settings.json"))
+        try write(#"{"env":{"HTTPS_PROXY":"http://gateway.example"}}"#, to: userHome.appending(path: ".claude/remote-settings.json"))
+        try FileManager.default.createDirectory(at: inheritedDirectory, withIntermediateDirectories: true)
         let launches = ProbeLaunches()
         let probe = ClaudeAliasProbe(
             executable: "claude", workRoot: probeWorkRoot(), environment: ["CLAUDE_CONFIG_DIR": inheritedDirectory.path],
@@ -274,7 +276,8 @@ struct ClaudeAliasProbeRestraintTests {
                 let process = ScriptedProbe(printing: [probeInitLine("claude-opus-5-5")])
                 launches.record(launch, process)
                 return process
-            }
+            },
+            userHome: userHome
         )
 
         let answers = await probe.resolve(["opus"], account: nil)

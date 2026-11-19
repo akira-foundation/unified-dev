@@ -1352,7 +1352,7 @@ final class TranscriptModel {
         if let notice = plan.settlement.notice(
             on: account, among: app.agentAccounts.standings,
             besides: AgentAccountEnvironment.strippedNotice(
-                AgentAccountEnvironment.applied(account, to: Shell.environment()).stripped
+                AgentAccountEnvironment.applied(launching: session.agentKind, as: account, to: Shell.environment()).stripped
             )
         ) {
             app.notice = Notice(message: notice)

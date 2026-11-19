@@ -138,13 +138,13 @@ struct AgentLaunchAccountCatalogueTests {
             + LaunchAccountFixture.tokens {
             #expect(reported[name] == "unset", "\(name) survived \(shell) under \(kind)")
         }
-        #expect(reported["CLAUDE_CONFIG_DIR"] == (account?.directory.path ?? "/somewhere/else"))
+        #expect(reported["CLAUDE_CONFIG_DIR"] == (account?.directory.path ?? "unset"))
     }
 
     @Test func theSkillsDirectoryFollowsTheAccountTheProcessWillRunUnder() {
         let inherited = ["CODEX_HOME": "/inherited/codex"]
         #expect(AgentAccountEnvironment.codexHome(for: workCodex, inheriting: inherited) == workCodex.directory.path)
-        #expect(AgentAccountEnvironment.codexHome(for: nil, inheriting: inherited) == "/inherited/codex")
+        #expect(AgentAccountEnvironment.codexHome(for: nil, inheriting: inherited) == nil)
         #expect(AgentAccountEnvironment.codexHome(for: nil, inheriting: [:]) == nil)
     }
 }

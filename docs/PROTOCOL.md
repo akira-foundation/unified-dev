@@ -168,7 +168,8 @@ anything: `/Library/Application Support/ClaudeCode/managed-settings.json`, any `
 `managed-settings.d`, the `com.anthropic.claudecode` profile under `/Library/Managed Preferences`
 for this user or for the machine, or a `remote-settings.json` in the directory the CLI will use, which
 is where it keeps what the organisation's server sent it. That directory is the one the launch names in
-`CLAUDE_CONFIG_DIR`, including one the app inherited, and `~/.claude` only when nothing names one.
+`CLAUDE_CONFIG_DIR` for the probe's account, and `~/.claude` with no account, whatever the app
+itself inherited.
 An empty object, which is what a personal account's `remote-settings.json` holds, does not count; a
 file that cannot be read, or a `managed-settings.d` that cannot be listed, does. Those paths are the ones `claude 2.1.322` names; writing to `/Library` needs root, so the precedence
 itself was not reproduced here.

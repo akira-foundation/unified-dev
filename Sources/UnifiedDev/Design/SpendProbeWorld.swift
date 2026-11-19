@@ -18,7 +18,7 @@ struct SpendProbeWorld {
         store = try Store(path: root.appending(path: "unifieddev.sqlite").path)
     }
 
-    var defaults: [AgentAccountHome] { SpendAccounts.defaultHomes(home: home, environment: [:]) }
+    var defaults: [AgentAccountHome] { SpendAccounts.defaultHomes(home: home) }
 
     func defaultHome(_ provider: AgentKind) throws -> AgentAccountHome {
         guard let found = defaults.first(where: { $0.provider == provider }) else {
@@ -84,7 +84,7 @@ struct SpendProbeWorld {
     }
 
     func index() async throws {
-        _ = try await SpendIndexer(store: store, home: home, environment: [:]).refresh()
+        _ = try await SpendIndexer(store: store, home: home).refresh()
     }
 
     func screen(days window: SpendSpan = .week) async throws -> (board: SpendBoard, accounts: [SpendAccountLine]) {

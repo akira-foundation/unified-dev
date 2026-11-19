@@ -103,7 +103,7 @@ public struct WorkspaceNamer: Sendable {
             arguments: argv(model: model),
             stdin: prompt,
             cwd: scratchDirectory,
-            environment: AgentAccountEnvironment.apply(account, to: environment)
+            environment: AgentAccountEnvironment.apply(launching: .claudeCode, as: account, to: environment)
         )
     }
 

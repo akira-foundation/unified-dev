@@ -11,7 +11,7 @@ struct SpendCensusTests {
         try home.write(codexCount(1) + "\n", to: home.codex)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         let task = Task { () async throws -> SpendIndexOutcome in
             while !Task.isCancelled { await Task.yield() }
             return try await indexer.refresh()
@@ -33,7 +33,7 @@ struct SpendCensusTests {
         try home.write(claudeLine(10) + "\n", to: home.claude)
 
         let store = try makeTestStore("indexer")
-        _ = try await SpendIndexer(store: store, home: home.root, environment: [:]).refresh()
+        _ = try await SpendIndexer(store: store, home: home.root).refresh()
 
         let census = try #require(try await spendCensus(in: store))
         #expect(census[.grok]?.keepsTranscripts == false)
@@ -49,7 +49,7 @@ struct SpendCensusTests {
         try home.write(claudeLine(10) + "\n", to: home.claude)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         _ = try await indexer.refresh()
 
         let census = try #require(try await spendCensus(in: store))

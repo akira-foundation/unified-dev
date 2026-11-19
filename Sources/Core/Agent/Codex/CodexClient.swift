@@ -47,7 +47,7 @@ public actor CodexClient {
             executable: configuration.executable,
             arguments: arguments,
             cwd: configuration.cwd,
-            environment: AgentAccountEnvironment.apply(configuration.account, to: configuration.environment)
+            environment: AgentAccountEnvironment.apply(launching: .codex, as: configuration.account, to: configuration.environment)
         )
     }
 

@@ -167,7 +167,7 @@ struct WelcomeView: View {
         stopLogin()
         move { subject = WelcomeCheckSubject(tool: check.tool, fix: fix) }
         guard fix.isInteractive else { return }
-        login = Self.session(for: fix, onExit: { inspection.start() })
+        login = Self.session(for: fix, of: check.tool, onExit: { inspection.start() })
     }
 
     private func closeDetail() {
@@ -177,12 +177,14 @@ struct WelcomeView: View {
 
     private static func session(
         for fix: SetupFix,
+        of tool: SetupTool,
         onExit: @escaping @MainActor () -> Void
     ) -> LoginTerminalSession? {
         guard let command = LoginCommand(parsing: fix.command) else { return nil }
         return LoginTerminalSession(
             command: command,
             directory: AgentScratchDirectory.current(),
+            provider: tool.agentKind,
             account: nil,
             onExit: { _ in Task { @MainActor in onExit() } }
         )

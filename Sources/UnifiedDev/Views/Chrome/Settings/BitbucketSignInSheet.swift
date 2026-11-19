@@ -63,6 +63,7 @@ struct BitbucketSignInSheet: View {
         session = LoginTerminalSession(
             command: LoginCommand(executable: Bitbucket.executable, arguments: request.login.signInArguments(request.method)),
             directory: AgentScratchDirectory.current(),
+            provider: nil,
             account: nil,
             bitbucket: request.login,
             onExit: { _ in }

@@ -47,9 +47,10 @@ Team, Enterprise and Pro keep their own names whatever tier they carry. The logi
 The usage panel asks the same decision and falls back to `get_usage` only when neither file answers:
 that answer carries `subscription_type` and, in the schema shipped with CLI 2.1.309, no tier, so on
 its own it reads a 20x account as Max. A `subscription_type` of `null` means an API key or third-party
-session, which names no plan whatever account is on disk. With `ANTHROPIC_API_KEY` or
-`CLAUDE_CONFIG_DIR` in the session's environment the default files do not describe that session, so
-the panel reads the answer alone.
+session, which names no plan whatever account is on disk. With `ANTHROPIC_API_KEY` in the session's
+environment the default files do not describe that session, so the panel reads the answer alone. A
+`CLAUDE_CONFIG_DIR` the app itself was started with does not count: a launch with no account unsets
+it, so that session runs under `~/.claude` and its files are the default ones.
 An `ANTHROPIC_API_KEY` in the environment means API key auth instead, and takes precedence in
 what is displayed. Config file to offer for opening: `~/.claude/settings.json` (a symlink into
 the user's dotfiles here, so resolve symlinks before revealing it).
@@ -265,7 +266,10 @@ fixed at `exec`, so changing the account of a live session means relaunching the
 That was written before accounts shipped, when Unified Dev read exactly one directory per CLI and
 had no list to choose from. It creates a directory per account now, points a launch at one through
 `CLAUDE_CONFIG_DIR`, `CODEX_HOME` or `GROK_HOME`, and offers the list wherever an account can be
-chosen; what is written above is why it cannot go further than that, not a description of what it
+chosen. A launch with no account unsets its own provider's variable rather than keep the one Unified
+Dev was started with, through the same `AgentAccountEnvironment` decision for a terminal, a headless
+turn, a probe and a sign-in, so it runs under the CLI's own directory, which is also the default
+account the spend screen and the roster show. What is written above is why it cannot go further than that, not a description of what it
 does. The spend screen still groups by the directory a transcript sits under, which is why it can
 show spend from a config directory that has since been changed or removed, as historic spend under
 no account it knows.

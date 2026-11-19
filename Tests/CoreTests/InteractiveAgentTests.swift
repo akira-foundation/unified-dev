@@ -261,4 +261,28 @@ struct InteractiveAgentTests {
         #expect(result.stdout == "unset")
     }
 
+    @Test(
+        "a launch with no account does not run under the directory the app itself inherited",
+        .tags(.subprocess),
+        arguments: [AgentKind.claudeCode, .codex]
+    )
+    func aLaunchWithNoAccountUnsetsTheInheritedDirectory(provider: AgentKind) async throws {
+        let variable = try #require(AgentAccountEnvironment.directoryVariable(for: provider))
+        let other = try #require(AgentAccountEnvironment.directoryVariable(for: provider == .codex ? .claudeCode : .codex))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("unifieddev-no-account-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fake = root.appendingPathComponent(provider.executableName)
+        try Data("#!/bin/sh\nprintf '%s|%s' \"${\(variable)-unset}\" \"${\(other)-unset}\"\n".utf8).write(to: fake)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fake.path)
+        let command = try #require(provider.interactiveCommand(
+            directory: root.path, prompt: "", sessionID: .new(), model: "", effort: "", account: nil
+        ))
+        let result = try await Shell.run("/bin/sh", ["-c", command], env: [
+            "PATH": root.path + ":/usr/bin:/bin", variable: "/somewhere/else", other: "/another/provider",
+        ])
+        #expect(result.ok, "exited \(result.status): \(result.stderr)")
+        #expect(result.stdout == "unset|/another/provider")
+    }
+
 }

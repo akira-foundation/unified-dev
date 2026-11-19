@@ -51,8 +51,9 @@ public actor ACPClient {
                 alwaysApprove: configuration.alwaysApprove
             ),
             cwd: configuration.cwd,
-            environment: AgentAccountEnvironment.apply(configuration.account, to: configuration.environment)
-                .merging(configuration.dialect.quietEnvironment) { _, ours in ours }
+            environment: AgentAccountEnvironment.apply(
+                launching: configuration.dialect.kind, as: configuration.account, to: configuration.environment
+            ).merging(configuration.dialect.quietEnvironment) { _, ours in ours }
         )
     }
 

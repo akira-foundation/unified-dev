@@ -21,9 +21,9 @@ private struct World {
         support = URL(filePath: store.path).deletingLastPathComponent()
     }
 
-    var defaults: [AgentAccountHome] { SpendAccounts.defaultHomes(home: home.root, environment: [:]) }
+    var defaults: [AgentAccountHome] { SpendAccounts.defaultHomes(home: home.root) }
 
-    var indexer: SpendIndexer { SpendIndexer(store: store, home: home.root, environment: [:]) }
+    var indexer: SpendIndexer { SpendIndexer(store: store, home: home.root) }
 
     func createAccount(label: String, provider: AgentKind = .claudeCode) async throws -> AgentAccountHome {
         let plan = try AgentAccountCreation.reserve(

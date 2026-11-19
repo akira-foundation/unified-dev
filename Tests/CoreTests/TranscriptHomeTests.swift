@@ -86,13 +86,6 @@ struct TranscriptHomeTests {
         ) == nil)
     }
 
-    @Test("a preview with a home of its own does not read the owner's environment")
-    func environmentIsDropped() {
-        let theirs = ["CLAUDE_CONFIG_DIR": "/Users/ada/dotfiles/claude"]
-        #expect(TranscriptHome.environment(theirs, overriddenBy: "/tmp/preview").isEmpty)
-        #expect(TranscriptHome.environment(theirs, overriddenBy: nil) == theirs)
-    }
-
     @Test("a directory named in CODEX_HOME is theirs too")
     func seedingRefusesTheCodexEnvironmentHome() {
         let environment = ["CODEX_HOME": "/Users/ada/dotfiles/codex"]
