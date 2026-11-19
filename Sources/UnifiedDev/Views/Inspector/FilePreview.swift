@@ -121,7 +121,8 @@ struct FilePreview: View {
                 Hairline()
                 FileDiskChangeBand(
                     model: model, path: path, absolutePath: absolutePath, session: session,
-                    language: state.languageOverride ?? Language.detect(path: path)
+                    language: state.languageOverride ?? Language.detect(path: path),
+                    canOverwrite: controls.canOverwriteDisk
                 )
             }
         }

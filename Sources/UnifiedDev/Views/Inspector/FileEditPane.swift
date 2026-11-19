@@ -52,6 +52,7 @@ struct FileEditPane: View {
         }
         .task(id: absolutePath) {
             await session.load(path: absolutePath)
+            guard controls.watchesDisk else { return }
             await session.watch(path: absolutePath)
         }
     }
@@ -87,7 +88,7 @@ struct FileEditPane: View {
                 if controls.showsDiskChange {
                     FileDiskChangeBand(
                         model: model, path: path, absolutePath: absolutePath, session: session,
-                        language: language, onSaved: onSaved
+                        language: language, canOverwrite: controls.canOverwriteDisk, onSaved: onSaved
                     )
                 }
                 if isEditable { footer } else if case let .failed(reason) = session.status(for: absolutePath) {

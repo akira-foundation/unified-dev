@@ -7,6 +7,7 @@ struct FileDiskChangeBand: View {
     let absolutePath: String
     let session: FileEditSession
     let language: Language
+    let canOverwrite: Bool
     var onSaved: () -> Void = {}
 
     @Environment(\.colorScheme) private var colorScheme
@@ -34,7 +35,8 @@ struct FileDiskChangeBand: View {
             HSplitView {
                 VStack {
                     Text("Your draft")
-                    SourceEditor(text: session.binding(for: absolutePath), language: language, colorScheme: colorScheme)
+                    SourceEditor(text: session.binding(for: absolutePath), language: language, colorScheme: colorScheme,
+                                 isEditable: canOverwrite)
                 }
                 VStack {
                     Text("Current file on disk")
@@ -49,6 +51,7 @@ struct FileDiskChangeBand: View {
                     comparing = false
                     isConfirmingReload = true
                 }
+                .disabled(!canOverwrite)
                 Button("Save my version over disk") {
                     Task {
                         guard await session.keepDraftOverDisk(path: absolutePath, reviewing: path, in: model) else {
@@ -58,7 +61,7 @@ struct FileDiskChangeBand: View {
                         onSaved()
                     }
                 }
-                .disabled(session.diskVersions[absolutePath] == nil || session.saving.contains(absolutePath))
+                .disabled(!canOverwrite)
             }
             if case let .failed(reason) = session.status(for: absolutePath) {
                 Text(reason).foregroundStyle(Palette.negative).font(Typo.caption)

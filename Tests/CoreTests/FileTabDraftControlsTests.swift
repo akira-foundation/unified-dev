@@ -57,4 +57,19 @@ struct FileTabDraftControlsTests {
             #expect(!controls(mode, hasDraft: false, changedOnDisk: true).showsDiskChange)
         }
     }
+
+    @Test("a tab that may not edit shows a change on disk but cannot write its draft over it")
+    func readOnlyCannotOverwrite() {
+        let readOnly = controls(.preview, canEdit: false, isDirty: true, changedOnDisk: true)
+        #expect(readOnly.showsDiskChange)
+        #expect(!readOnly.canOverwriteDisk)
+        #expect(controls(.preview, isDirty: true, changedOnDisk: true).canOverwriteDisk)
+        #expect(!controls(.edit, isDirty: true, isSaving: true, changedOnDisk: true).canOverwriteDisk)
+        #expect(!controls(.edit, isDirty: true).canOverwriteDisk)
+    }
+
+    @Test("a draft that is not held cannot be saved, whatever the dirty flag says")
+    func noDraftNoSave() {
+        #expect(!controls(.edit, hasDraft: false, isDirty: true).canSave)
+    }
 }
