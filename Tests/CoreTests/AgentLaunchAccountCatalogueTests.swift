@@ -144,7 +144,7 @@ struct AgentLaunchAccountCatalogueTests {
     @Test func theSkillsDirectoryFollowsTheAccountTheProcessWillRunUnder() {
         let inherited = ["CODEX_HOME": "/inherited/codex"]
         #expect(AgentAccountEnvironment.codexHome(for: workCodex, inheriting: inherited) == workCodex.directory.path)
-        #expect(AgentAccountEnvironment.codexHome(for: nil, inheriting: inherited) == "/inherited/codex")
+        #expect(AgentAccountEnvironment.codexHome(for: nil, inheriting: inherited) == nil)
         #expect(AgentAccountEnvironment.codexHome(for: nil, inheriting: [:]) == nil)
     }
 }

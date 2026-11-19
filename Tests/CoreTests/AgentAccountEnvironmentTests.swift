@@ -64,7 +64,7 @@ struct AgentAccountEnvironmentTests {
     @Test func everyInheritedCredentialAndHostAuthVariableIsStripped() {
         var dirty = Dictionary(uniqueKeysWithValues: Self.measured.union(Self.tokens).map { ($0, "x") })
         dirty["PATH"] = "/usr/bin"
-        let clean = AgentAccountEnvironment.apply(workClaude, to: dirty)
+        let clean = AgentAccountEnvironment.apply(launching: workClaude.provider, as: workClaude, to: dirty)
         for key in Self.measured.union(Self.tokens) { #expect(clean[key] == nil, "\(key) survived") }
         #expect(clean["PATH"] == "/usr/bin")
     }
@@ -93,7 +93,7 @@ struct AgentAccountEnvironmentTests {
         let inherited = Dictionary(
             uniqueKeysWithValues: AgentAccountEnvironment.exemptVariables.map { ($0, "chosen") }
         )
-        let clean = AgentAccountEnvironment.apply(workClaude, to: inherited)
+        let clean = AgentAccountEnvironment.apply(launching: workClaude.provider, as: workClaude, to: inherited)
         for name in AgentAccountEnvironment.exemptVariables { #expect(clean[name] == "chosen", "\(name) was dropped") }
     }
 
@@ -104,14 +104,13 @@ struct AgentAccountEnvironmentTests {
     }
 
     @Test func whatWasClearedIsReportedByNameAndNothingIsSaidWhenNothingWasCleared() {
-        let applied = AgentAccountEnvironment.applied(
-            workClaude, to: ["ANTHROPIC_API_KEY": "x", "CLAUDE_CODE_OAUTH_TOKEN": "y", "PATH": "/usr/bin"]
+        let applied = AgentAccountEnvironment.applied(launching: .claudeCode, as: workClaude, to: ["ANTHROPIC_API_KEY": "x", "CLAUDE_CODE_OAUTH_TOKEN": "y", "PATH": "/usr/bin"]
         )
         #expect(applied.stripped == ["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"])
         let notice = AgentAccountEnvironment.strippedNotice(applied.stripped)
         #expect(notice?.contains("ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN") == true)
         #expect(AgentAccountEnvironment.strippedNotice([]) == nil)
-        #expect(AgentAccountEnvironment.applied(workClaude, to: ["PATH": "/usr/bin"]).stripped.isEmpty)
+        #expect(AgentAccountEnvironment.applied(launching: .claudeCode, as: workClaude, to: ["PATH": "/usr/bin"]).stripped.isEmpty)
     }
 
     @Test func aNameTheCliHasNotInventedYetIsStrippedByItsPrefix() {
@@ -161,20 +160,21 @@ struct AgentAccountEnvironmentTests {
     }
 
     @Test func aClaudeAccountIsPointedAtByItsConfigDirectory() {
-        let clean = AgentAccountEnvironment.apply(workClaude, to: [:])
+        let clean = AgentAccountEnvironment.apply(launching: workClaude.provider, as: workClaude, to: [:])
         #expect(clean["CLAUDE_CONFIG_DIR"] == workClaude.directory.path)
         #expect(clean["CODEX_HOME"] == nil)
     }
 
     @Test func aCodexAccountIsPointedAtByItsHome() {
-        let clean = AgentAccountEnvironment.apply(workCodex, to: [:])
+        let clean = AgentAccountEnvironment.apply(launching: workCodex.provider, as: workCodex, to: [:])
         #expect(clean["CODEX_HOME"] == workCodex.directory.path)
         #expect(clean["CLAUDE_CONFIG_DIR"] == nil)
     }
 
     @Test func theDirectoryTheCliWouldUseAnywayIsLeftUnnamedAndTheOwnersExportIsStillCleared() {
         let clean = AgentAccountEnvironment.apply(
-            defaultClaude,
+            launching: .claudeCode,
+            as: defaultClaude,
             to: ["ANTHROPIC_API_KEY": "x", "CLAUDE_CONFIG_DIR": "/Users/someone/.claude-work"],
             userHome: someone
         )
@@ -185,7 +185,7 @@ struct AgentAccountEnvironmentTests {
     @Test func everyProvidersOwnDirectoryIsLeftUnnamed() {
         for provider in [AgentKind.claudeCode, .codex, .grok] {
             let home = AgentAccountHome.defaultHome(for: provider, home: someone)!
-            let clean = AgentAccountEnvironment.apply(home, to: [:], userHome: someone)
+            let clean = AgentAccountEnvironment.apply(launching: home.provider, as: home, to: [:], userHome: someone)
             #expect(clean.isEmpty, "\(provider) named \(clean)")
         }
     }
@@ -197,7 +197,7 @@ struct AgentAccountEnvironmentTests {
             directory: URL(filePath: "/Users/someone/.claude-work", directoryHint: .isDirectory),
             isDefault: true
         )
-        let clean = AgentAccountEnvironment.apply(elsewhere, to: [:], userHome: someone)
+        let clean = AgentAccountEnvironment.apply(launching: elsewhere.provider, as: elsewhere, to: [:], userHome: someone)
         #expect(clean["CLAUDE_CONFIG_DIR"] == elsewhere.directory.path)
     }
 
@@ -244,13 +244,13 @@ struct AgentAccountEnvironmentTests {
         let home = AgentAccountHome.defaultHome(
             for: .claudeCode, home: FileManager.default.homeDirectoryForCurrentUser
         )!
-        #expect(AgentAccountEnvironment.apply(home, to: [:]).isEmpty)
+        #expect(AgentAccountEnvironment.apply(launching: home.provider, as: home, to: [:]).isEmpty)
         #expect(AgentAccountEnvironment.shellArguments(for: home) == ["-u", "CLAUDE_CONFIG_DIR"])
     }
 
     @Test func noAccountStillStripsTheInheritedVariables() {
         let clean = AgentAccountEnvironment.apply(
-            nil, to: ["ANTHROPIC_API_KEY": "x", "CLAUDECODE": "1", "PATH": "/usr/bin"]
+            launching: .claudeCode, as: nil, to: ["ANTHROPIC_API_KEY": "x", "CLAUDECODE": "1", "PATH": "/usr/bin"]
         )
         #expect(clean["ANTHROPIC_API_KEY"] == nil)
         #expect(clean["CLAUDECODE"] == nil)
@@ -258,13 +258,15 @@ struct AgentAccountEnvironmentTests {
     }
 
     @Test func aStaleDirectoryVariableInTheInheritedEnvironmentIsReplacedNotKept() {
-        let clean = AgentAccountEnvironment.apply(workClaude, to: ["CLAUDE_CONFIG_DIR": "/somewhere/else"])
+        let clean = AgentAccountEnvironment.apply(
+            launching: .claudeCode, as: workClaude, to: ["CLAUDE_CONFIG_DIR": "/somewhere/else"]
+        )
         #expect(clean["CLAUDE_CONFIG_DIR"] == workClaude.directory.path)
     }
 
     @Test func variablesThatAreNotCredentialsPassThroughUntouched() {
         let inherited = ["HOME": "/Users/someone", "PATH": "/usr/bin", "LANG": "en_GB.UTF-8"]
-        #expect(AgentAccountEnvironment.apply(workClaude, to: inherited).filter { $0.key != "CLAUDE_CONFIG_DIR" } == inherited)
+        #expect(AgentAccountEnvironment.apply(launching: workClaude.provider, as: workClaude, to: inherited).filter { $0.key != "CLAUDE_CONFIG_DIR" } == inherited)
     }
 }
 
@@ -300,61 +302,55 @@ struct AgentAccountLoginEnvironmentTests {
 
     @Test func noInheritedCredentialReachesTheLoginOfAnyAccount() {
         for home in [work, workCodex, defaultCodex, nil] {
-            let login = AgentAccountEnvironment.login(for: home, inheriting: dirty)
+            let login = AgentAccountEnvironment.login(launching: home?.provider, as: home, inheriting: dirty)
             for key in Self.credentials { #expect(login[key] == nil, "\(key) survived for \(String(describing: home?.id))") }
             #expect(login["PATH"] == "/usr/bin")
         }
     }
 
     @Test func aChosenAccountsLoginOverridesTheInheritedDirectory() {
-        let claude = AgentAccountEnvironment.login(for: work, inheriting: dirty)
-        let codex = AgentAccountEnvironment.login(for: workCodex, inheriting: dirty)
+        let claude = AgentAccountEnvironment.login(launching: work.provider, as: work, inheriting: dirty)
+        let codex = AgentAccountEnvironment.login(launching: workCodex.provider, as: workCodex, inheriting: dirty)
         #expect(claude["CLAUDE_CONFIG_DIR"] == work.directory.path)
         #expect(codex["CODEX_HOME"] == workCodex.directory.path)
     }
 
-    @Test func theLoginOfNoAccountKeepsTheInheritedDirectoryBecauseThatIsTheDefaultAccount() {
-        let login = AgentAccountEnvironment.login(for: nil, inheriting: dirty)
+    @Test(arguments: [AgentKind.claudeCode, .codex, .grok])
+    func theLoginOfNoAccountSignsInToTheCliOwnDirectoryNotTheInheritedOne(provider: AgentKind) throws {
+        let variable = try #require(AgentAccountEnvironment.directoryVariable(for: provider))
+        let login = AgentAccountEnvironment.login(launching: provider, as: nil, inheriting: dirty)
+        #expect(login[variable] == nil)
+        for other in Self.directoryVariables.subtracting([variable]) {
+            #expect(login[other] == "inherited", "\(other) was dropped")
+        }
+    }
+
+    @Test func aLoginThatLaunchesNoAgentLeavesEveryDirectoryVariableAlone() {
+        let login = AgentAccountEnvironment.login(launching: nil, as: nil, inheriting: dirty)
         for key in Self.directoryVariables { #expect(login[key] == "inherited", "\(key) was dropped") }
     }
 
     @Test func theLoginOfTheDefaultHomeLeavesTheDirectoryTheCliWouldUseAnywayUnnamed() {
         let login = AgentAccountEnvironment.login(
-            for: defaultCodex, inheriting: dirty, userHome: URL(filePath: "/Users/someone")
+            launching: .codex, as: defaultCodex, inheriting: dirty, userHome: URL(filePath: "/Users/someone")
         )
         #expect(login["CODEX_HOME"] == nil)
     }
 
     @Test func theLoginRunsInATerminal() {
-        let login = AgentAccountEnvironment.login(for: work, inheriting: ["NO_COLOR": "1"])
+        let login = AgentAccountEnvironment.login(launching: work.provider, as: work, inheriting: ["NO_COLOR": "1"])
         #expect(login["TERM"] == "xterm-256color")
         #expect(login["NO_COLOR"] == nil)
     }
-    @Test("a chosen account's files describe its session even with the directory variable set")
-    func chosenAccountFilesDescribeTheSession() {
-        let pointed = ["CLAUDE_CONFIG_DIR": "/Users/ada/.claude-work"]
-        let chosen = AgentAccountEnvironment.filesDescribeTheSession(
-            pointed, provider: .claudeCode, hasChosenAccount: true
-        )
-        let notChosen = AgentAccountEnvironment.filesDescribeTheSession(
-            pointed, provider: .claudeCode, hasChosenAccount: false
-        )
-        #expect(chosen)
-        #expect(!notChosen)
+    @Test("the app's own directory variable does not take the session away from the files")
+    func anInheritedDirectoryVariableLeavesTheFilesDescribingTheSession() {
+        #expect(AgentAccountEnvironment.filesDescribeTheSession(["CLAUDE_CONFIG_DIR": "/Users/ada/.claude-work"]))
     }
 
-    @Test("an API key in the environment means the files describe no session, account or not")
+    @Test("an API key in the environment means the files describe no session")
     func anApiKeyMeansTheFilesDescribeNoSession() {
-        let keyed = ["ANTHROPIC_API_KEY": "sk-test"]
-        #expect(!AgentAccountEnvironment.filesDescribeTheSession(
-            keyed, provider: .claudeCode, hasChosenAccount: true
-        ))
-        #expect(!AgentAccountEnvironment.filesDescribeTheSession(
-            keyed, provider: .claudeCode, hasChosenAccount: false
-        ))
-        #expect(AgentAccountEnvironment.filesDescribeTheSession(
-            [:], provider: .claudeCode, hasChosenAccount: false
-        ))
+        #expect(!AgentAccountEnvironment.filesDescribeTheSession(["ANTHROPIC_API_KEY": "sk-test"]))
+        #expect(AgentAccountEnvironment.filesDescribeTheSession([:]))
     }
 
 }

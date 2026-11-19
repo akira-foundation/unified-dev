@@ -68,7 +68,7 @@ enum WelcomeLayoutProbe {
 
         let session = LoginTerminalSession(
             command: LoginCommand(executable: "git", arguments: ["--version"]),
-            directory: NSTemporaryDirectory(), account: nil, onExit: { _ in }
+            directory: NSTemporaryDirectory(), provider: nil, account: nil, onExit: { _ in }
         )
         check(session != nil, "the probe could not open a login terminal")
         let tallest = WelcomeLayoutFixture(

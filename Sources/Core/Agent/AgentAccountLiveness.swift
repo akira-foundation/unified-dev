@@ -106,7 +106,7 @@ public struct AgentAccountLiveness: Sendable {
             executable: executable(for: command),
             arguments: command.arguments,
             cwd: cwd,
-            environment: AgentAccountEnvironment.apply(home, to: environment ?? Shell.environment())
+            environment: AgentAccountEnvironment.apply(launching: home.provider, as: home, to: environment ?? Shell.environment())
         ))
         let lines = process.lines
         let errorLines = process.errorLines

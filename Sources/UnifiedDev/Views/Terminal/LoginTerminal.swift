@@ -16,6 +16,7 @@ final class LoginTerminalSession {
     init?(
         command: LoginCommand,
         directory: String,
+        provider: AgentKind?,
         account: AgentAccountHome?,
         gitHub: GitHubLogin = .thisMac,
         bitbucket: BitbucketLogin = .thisMac,
@@ -25,7 +26,7 @@ final class LoginTerminalSession {
 
         let inherited = gitHub.signInEnvironment(from: Shell.environment())
         let variables = AgentAccountEnvironment.login(
-            for: account, inheriting: bitbucket.isOwn ? BitbucketSignIn.environment(inherited, login: bitbucket) : inherited
+            launching: provider, as: account, inheriting: bitbucket.isOwn ? BitbucketSignIn.environment(inherited, login: bitbucket) : inherited
         )
 
         label = command.label

@@ -80,7 +80,7 @@ struct AgentAccountKeychainTests {
     @Test func theServiceIsCalculatedFromTheDirectoryTheCliIsTold() throws {
         let support = scratchSupport()
         let made = AgentAccountCreation.plan(provider: .claudeCode, label: "Client", existing: [], support: support)
-        let told = try #require(AgentAccountEnvironment.apply(made.home, to: [:])["CLAUDE_CONFIG_DIR"])
+        let told = try #require(AgentAccountEnvironment.apply(launching: .claudeCode, as: made.home, to: [:])["CLAUDE_CONFIG_DIR"])
 
         let entries = AgentAccountRemoval.keychainEntries(
             of: made.home, support: support, environment: environment, username: "x"

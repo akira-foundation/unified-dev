@@ -141,6 +141,7 @@ struct AgentSignInSheet: View {
         session = LoginTerminalSession(
             command: LoginCommand(executable: request.executable, arguments: request.kind.loginArguments),
             directory: request.directory,
+            provider: request.kind,
             account: request.account,
             onExit: { result in
                 exit = result

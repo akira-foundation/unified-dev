@@ -12,6 +12,7 @@ public struct ClaudeAliasProbe: Sendable {
     private let managed: ClaudeManagedSettings
     private let activity: ClaudeAccountActivity
     private let makeProcess: @Sendable (AgentLaunch) -> any AgentProcessing
+    private let userHome: URL
 
     init(
         executable: String = AgentRunner.executable,
@@ -21,7 +22,8 @@ public struct ClaudeAliasProbe: Sendable {
         exitGrace: Duration = ClaudeAliasProbe.exitGrace,
         managed: ClaudeManagedSettings = .system,
         activity: ClaudeAccountActivity = .shared,
-        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = AgentRunner.spawn
+        makeProcess: @escaping @Sendable (AgentLaunch) -> any AgentProcessing = AgentRunner.spawn,
+        userHome: URL = FileManager.default.homeDirectoryForCurrentUser
     ) {
         self.executable = executable
         self.workRoot = workRoot
@@ -31,6 +33,7 @@ public struct ClaudeAliasProbe: Sendable {
         self.managed = managed
         self.activity = activity
         self.makeProcess = makeProcess
+        self.userHome = userHome
     }
 
     public static func using(executableOverride override: String?) -> ClaudeAliasProbe {
@@ -39,7 +42,7 @@ public struct ClaudeAliasProbe: Sendable {
 
     public func resolve(_ aliases: [String], account: AgentAccountHome?) async -> ClaudeAliasAnswers {
         let inherited = await inheritedEnvironment()
-        let configuration = Self.configurationDirectory(in: AgentAccountEnvironment.apply(account, to: inherited))
+        let configuration = configurationDirectory(for: account, inheriting: inherited)
         guard !managed.governs(accountDirectory: configuration) else { return ClaudeAliasAnswers() }
         let pins = ClaudeAliasPins.pinned(aliases, inSettingsAt: configuration.appending(path: "settings.json"))
         var found = ClaudeAliasAnswers(pinned: pins)
@@ -55,8 +58,9 @@ public struct ClaudeAliasProbe: Sendable {
                 executable: executable,
                 arguments: Self.arguments(alias: alias, baseURL: endpoint.url, proxy: proxy.url),
                 cwd: directory,
-                environment: AgentAccountEnvironment.apply(account, to: inherited)
-                    .merging(Self.overrides(baseURL: endpoint.url, proxy: proxy.url)) { _, override in override }
+                environment: AgentAccountEnvironment.apply(
+                    launching: .claudeCode, as: account, to: inherited, userHome: userHome
+                ).merging(Self.overrides(baseURL: endpoint.url, proxy: proxy.url)) { _, override in override }
             )
             found.probed[alias] = await reportedModel(launching: launch)
             activity.endProbe(id)
@@ -66,7 +70,7 @@ public struct ClaudeAliasProbe: Sendable {
     }
 
     public func settingsFingerprint(_ aliases: [String], account: AgentAccountHome?) async -> String {
-        let configuration = Self.configurationDirectory(in: AgentAccountEnvironment.apply(account, to: await inheritedEnvironment()))
+        let configuration = configurationDirectory(for: account, inheriting: await inheritedEnvironment())
         let governed = managed.governs(accountDirectory: configuration)
         let pins = ClaudeAliasPins.pinned(aliases, inSettingsAt: configuration.appending(path: "settings.json"))
         return "managed=\(governed);" + pins.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ";")
@@ -77,12 +81,13 @@ public struct ClaudeAliasProbe: Sendable {
         return (environment ?? Shell.environment()).filter { !Self.proxyVariables.contains($0.key) }
     }
 
-    static func configurationDirectory(in environment: [String: String]) -> URL {
+    private func configurationDirectory(for account: AgentAccountHome?, inheriting inherited: [String: String]) -> URL {
+        let environment = AgentAccountEnvironment.apply(launching: .claudeCode, as: account, to: inherited, userHome: userHome)
         if let variable = AgentAccountEnvironment.directoryVariable(for: .claudeCode),
            let path = environment[variable], !path.isEmpty {
             return URL(filePath: path, directoryHint: .isDirectory)
         }
-        return FileManager.default.homeDirectoryForCurrentUser.appending(path: ".claude", directoryHint: .isDirectory)
+        return userHome.appending(path: ".claude", directoryHint: .isDirectory)
     }
 
     static func freshDirectory(in root: String) -> String? {
