@@ -5,11 +5,9 @@ public enum DocumentPreviewCharset {
 
     private static let utf8Suffix = "; charset=utf-8"
     private static let labelCharacters = Set("abcdefghijklmnopqrstuvwxyz0123456789._:-")
-
-    private static let comment = try? NSRegularExpression(pattern: "<!--[\\s\\S]*?(-->|$)")
-    private static let meta = try? NSRegularExpression(
-        pattern: "<meta\\b[^>]*?charset\\s*=\\s*[\"']?\\s*([^\"'\\s;/>]+)", options: [.caseInsensitive]
-    )
+    private static let utf16Labels: Set<String> = [
+        "csunicode", "iso-10646-ucs-2", "ucs-2", "unicode", "unicodefeff", "unicodefffe",
+    ]
     private static let stylesheet = try? NSRegularExpression(pattern: "^@charset \"([^\"]*)\";")
 
     public static func contentType(forFile path: String, body: Data) -> String {
@@ -22,16 +20,17 @@ public enum DocumentPreviewCharset {
 
     public static func label(for body: Data, path: String) -> String? {
         if let marked = byteOrderMark(body) { return marked }
-        if let declared = declared(in: body, path: path) { return declared }
+        if let declared = declared(in: body, path: path).flatMap(normalised) { return declared }
         return String(data: body, encoding: .utf8) == nil ? nil : "utf-8"
     }
 
     private static func declared(in body: Data, path: String) -> String? {
-        if DocumentPreview.hasPreview(path: path) {
-            return declaration(in: body, matching: meta, skippingComments: true)
-        }
-        guard (path as NSString).pathExtension.lowercased() == "css" else { return nil }
-        return declaration(in: body, matching: stylesheet, skippingComments: false)
+        guard let prescan = String(data: body.prefix(prescanLength), encoding: .isoLatin1) else { return nil }
+        if DocumentPreview.hasPreview(path: path) { return HTMLMetaCharset.declared(in: prescan) }
+        guard (path as NSString).pathExtension.lowercased() == "css", let stylesheet,
+              let match = stylesheet.firstMatch(in: prescan, range: NSRange(prescan.startIndex..., in: prescan)),
+              let range = Range(match.range(at: 1), in: prescan) else { return nil }
+        return String(prescan[range])
     }
 
     private static func byteOrderMark(_ body: Data) -> String? {
@@ -42,26 +41,10 @@ public enum DocumentPreviewCharset {
         return nil
     }
 
-    private static func declaration(
-        in body: Data, matching expression: NSRegularExpression?, skippingComments: Bool
-    ) -> String? {
-        guard let expression, var text = String(data: body.prefix(prescanLength), encoding: .isoLatin1) else {
-            return nil
-        }
-        if skippingComments, let comment {
-            text = comment.stringByReplacingMatches(
-                in: text, range: NSRange(text.startIndex..., in: text), withTemplate: ""
-            )
-        }
-        guard let match = expression.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-              let range = Range(match.range(at: 1), in: text) else { return nil }
-        return normalised(String(text[range]))
-    }
-
     private static func normalised(_ label: String) -> String? {
         let lowered = label.lowercased()
         guard !lowered.isEmpty, lowered.count <= 40, lowered.allSatisfy(labelCharacters.contains) else { return nil }
-        if lowered.hasPrefix("utf-16") { return "utf-8" }
+        if lowered.hasPrefix("utf-16") || utf16Labels.contains(lowered) { return "utf-8" }
         if lowered == "x-user-defined" { return "windows-1252" }
         return lowered
     }

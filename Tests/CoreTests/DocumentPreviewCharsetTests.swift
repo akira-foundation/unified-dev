@@ -38,6 +38,40 @@ struct DocumentPreviewCharsetTests {
         #expect(try served(late, as: "late.html").type == "text/html")
     }
 
+    @Test("a declaration is read anywhere inside the first kilobyte, and only when its tag closes there")
+    func prescanBoundary() throws {
+        let early = latin1(String(repeating: " ", count: 950) + "<meta charset=\"iso-8859-1\"><p>caf\u{e9}</p>")
+        #expect(try served(early, as: "early.html").type == "text/html; charset=iso-8859-1")
+        let cut = latin1(String(repeating: " ", count: 1_000) + "<meta charset=\"iso-8859-15\"><p>\u{e9}</p>")
+        #expect(try served(cut, as: "cut.html").type == "text/html")
+    }
+
+    @Test("a comment left open hides the rest of the scan, and <!--> closes at once")
+    func commentEdges() throws {
+        let open = latin1("<!-- <meta charset=\"iso-8859-1\"> <p>caf\u{e9}</p>")
+        #expect(try served(open, as: "open.html").type == "text/html")
+        let empty = latin1("<!--><meta charset=\"iso-8859-1\"><p>caf\u{e9}</p>")
+        #expect(try served(empty, as: "empty.html").type == "text/html; charset=iso-8859-1")
+    }
+
+    @Test("only a charset attribute, or the content of an http-equiv content-type, names the charset")
+    func onlyTheRightAttribute() throws {
+        let described = latin1(
+            "<meta name=\"description\" content=\"charset=koi8-r\"><meta charset=\"iso-8859-1\"><p>\u{e9}</p>"
+        )
+        #expect(try served(described, as: "described.html").type == "text/html; charset=iso-8859-1")
+        let dataAttribute = Array("<meta data-charset=\"koi8-r\"><p>x</p>".utf8)
+        #expect(try served(dataAttribute, as: "data.html").type == "text/html; charset=utf-8")
+    }
+
+    @Test("the labels a browser reads differently from their name are translated")
+    func translatedLabels() throws {
+        let unicode = Array("<meta charset=\"unicode\"><p>x</p>".utf8)
+        #expect(try served(unicode, as: "unicode.html").type == "text/html; charset=utf-8")
+        let userDefined = latin1("<meta charset=\"x-user-defined\"><p>\u{e9}</p>")
+        #expect(try served(userDefined, as: "user.html").type == "text/html; charset=windows-1252")
+    }
+
     @Test("a byte order mark wins over the meta, as it does in a browser")
     func byteOrderMark() throws {
         let utf8 = [0xEF, 0xBB, 0xBF] + Array("<meta charset=\"iso-8859-1\">".utf8)
@@ -66,6 +100,8 @@ struct DocumentPreviewCharsetTests {
         #expect(try served(script, as: "app.js").type == "text/javascript")
         let sheet = latin1("h1::after { content: \"\u{e9}\" }")
         #expect(try served(sheet, as: "plain.css").type == "text/css")
+        let drawing = latin1("<svg><text>caf\u{e9}</text></svg>")
+        #expect(try served(drawing, as: "chart.svg").type == "image/svg+xml")
     }
 
     @Test("text that declares nothing and is UTF-8 is still declared UTF-8")
@@ -78,6 +114,8 @@ struct DocumentPreviewCharsetTests {
 
     @Test("a label that is not a charset name is ignored rather than put in the header")
     func hostileLabel() throws {
+        let odd = latin1("<meta charset=\"latin(1)\"><p>caf\u{e9}</p>")
+        #expect(try served(odd, as: "odd.html").type == "text/html")
         let page = Array("<meta charset=\"utf-8\r\nX-Evil: 1\"><p>x</p>".utf8)
         #expect(try served(page, as: "evil.html").type == "text/html; charset=utf-8")
         let long = Array("<meta charset=\"\(String(repeating: "a", count: 80))\">".utf8)
