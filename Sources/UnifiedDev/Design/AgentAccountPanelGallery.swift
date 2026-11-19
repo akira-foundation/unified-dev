@@ -55,9 +55,12 @@ extension AgentAccountProbe {
         activity: AgentAccountsModel.Activity = .idle,
         orphans: [AgentAccountHome] = [],
         refusing refused: AgentAccountID? = nil,
+        owner: AgentAccountPanel.Owner? = nil,
         height: CGFloat
     ) -> Scene {
-        let panel = AgentAccountPanel.make(provider: provider, standings: standings, orphans: orphans, codexStorageMode: codex)
+        let panel = AgentAccountPanel.make(
+            provider: provider, standings: standings, orphans: orphans, codexStorageMode: codex, owner: owner
+        )
         let notice = panel.rows.first { $0.id == refused }.map {
             AgentAccountRemovalNotice.after(
                 AgentAccountError.folderInUse($0.home.directory.path), removing: $0
@@ -76,6 +79,26 @@ extension AgentAccountProbe {
                 .settingsForm()
             )
         )
+    }
+
+    private static func crowdScenes() -> [Scene] {
+        let names = ["client", "lab", "studio", "relay", "night"]
+        let plans = ["Team", "Pro", "Max 20x", "Pro", "Team"]
+        let extras = names.indices.map { index in
+            standing(
+                home(names[index], .claudeCode), email: "ada@\(names[index]).example", plan: plans[index],
+                expires: expiry, report: index == 3 ? .claimsNoSession : .claimsSession
+            )
+        }
+        let owner = AgentAccountPanel.Owner(
+            name: "Green Place", holderName: "Studio Ada", inherits: true, refusesWithoutAccount: false,
+            defaultAccount: AgentAccountHome.defaultID(for: .claudeCode)
+        )
+        return [1, 3, 6].map { count in
+            pane(
+                "crowd-\(count)", .claudeCode, [claudeDefault] + extras.prefix(count - 1), owner: owner, height: 640
+            )
+        }
     }
 
     static func panelScenes() -> [Scene] {
@@ -112,6 +135,7 @@ extension AgentAccountProbe {
             pane("codex-keyring", .codex, [codexDefault, codexLab], codex: .keyring, height: 900),
             pane("grok", .grok, [standing(home("default", .grok, isDefault: true))], height: 420),
             pane("cursor", .cursor, [], height: 160),
+        ] + crowdScenes() + [
             Scene(
                 name: "preset-editor",
                 size: CGSize(width: 480, height: 300),

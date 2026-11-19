@@ -2,6 +2,7 @@ import Foundation
 
 public struct AgentAccountPanel: Sendable, Equatable {
     public static let unknown = "unknown"
+    public static let sessionLabel = "Session"
 
     public struct Field: Sendable, Equatable, Identifiable {
         public let label: String
@@ -165,7 +166,7 @@ public struct AgentAccountPanel: Sendable, Equatable {
             id: home.id,
             home: home,
             title: title,
-            fields: [Field(label: "Session", value: "Sign-in did not finish")],
+            fields: [Field(label: sessionLabel, value: "Sign-in did not finish")],
             note: "Unified Dev never added this account, because its sign-in did not finish. The folder is still on this Mac.",
             offersSignInAgain: false,
             warns: true,
@@ -195,7 +196,7 @@ public struct AgentAccountPanel: Sendable, Equatable {
                     label: "Expires",
                     value: standing.identity.expiresAt.map { expiry($0, locale: locale, timeZone: timeZone) } ?? unknown
                 ),
-                Field(label: "Session", value: session(of: standing)),
+                Field(label: sessionLabel, value: session(of: standing)),
             ],
             note: note.text,
             offersSignInAgain: AgentAccountSignInAgain.isOffered(for: standing),
