@@ -1,0 +1,65 @@
+{
+  "welcome": false,
+  "activeProfile": "Unified",
+  "profiles": [
+    { "name": "Lampworks", "colour": "4C8DF6", "symbol": "building.2", "accounts": "inherits" }
+  ],
+  "projects": [
+    {
+      "name": "harbour",
+      "files": { "README.md": "# harbour\n\nA scratch project for the quick search panel.\n" },
+      "commits": ["Lay the pier"],
+      "workspaces": [
+        {
+          "name": "Light the lamp",
+          "branch": "light-the-lamp",
+          "chats": [
+            { "title": "Plan", "messages": [
+              { "from": "user", "text": "Where does the lamp oil live?" },
+              { "from": "agent", "text": "The lamp oil sits in the store by the pier, next to the spare wicks." }
+            ] }
+          ]
+        },
+        {
+          "name": "Ring the bell",
+          "branch": "ring-the-bell",
+          "chats": [
+            { "title": "Plan", "messages": [
+              { "from": "user", "text": "Should the bell ring when the lamp goes out?" },
+              { "from": "agent", "text": "Yes, twice, so the boats know the lamp is being relit." }
+            ] }
+          ]
+        },
+        {
+          "name": "Paint the boats",
+          "branch": "paint-the-boats",
+          "state": "archived",
+          "commits": ["Paint the hulls"],
+          "chats": [
+            { "title": "Plan", "messages": [
+              { "from": "user", "text": "Which colour for the lamp post?" },
+              { "from": "agent", "text": "Green, like the boats, so the lamp post reads from the water." }
+            ] }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "almanac",
+      "files": { "README.md": "# almanac\n\nA second scratch project.\n" },
+      "commits": ["Start almanac"],
+      "workspaces": [
+        {
+          "name": "Tide tables",
+          "branch": "tide-tables",
+          "chats": [
+            { "title": "Plan", "messages": [
+              { "from": "user", "text": "Add the lamp lighting times to the tide tables." },
+              { "from": "agent", "text": "Done: the lamp is lit an hour before high water." }
+            ] }
+          ]
+        }
+      ]
+    }
+  ]
+}
