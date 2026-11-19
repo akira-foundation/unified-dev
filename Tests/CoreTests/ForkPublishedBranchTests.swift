@@ -43,13 +43,15 @@ struct ForkPublishedBranchTests {
 
     private static func bare(_ name: String) async throws -> String {
         let path = TestScratch.unique("unifieddev-\(name)") + ".git"
-        try await Shell.check("git", ["init", "-q", "--bare", "-b", "dev", path])
+        try await Shell.check("git", ["init", "-q", "--bare", "-b", "dev", path], env: isolated)
         return path
     }
 
+    private static let isolated = ["GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1"]
+
     @discardableResult
     private static func git(_ arguments: [String], in repo: TempRepo) async throws -> String {
-        try await Shell.check("git", arguments, cwd: repo.path).trimmed
+        try await Shell.check("git", arguments, cwd: repo.path, env: isolated).trimmed
     }
 
     private static func commit(in repo: TempRepo) async throws {
@@ -195,5 +197,17 @@ struct ForkPublishedBranchTests {
 
         #expect(context.baseRemote == "upstream")
         #expect(PullRequestHead.selector(in: context) == "side")
+    }
+
+    @Test("a branch that tracks another local branch keeps reading its base locally")
+    func tracksALocalBranch() {
+        let context = GitRepositoryContext.resolve(
+            config: Self.remotes.merging([
+                "branch.side.remote": ".", "branch.side.merge": "refs/heads/first",
+            ]) { _, new in new },
+            base: "release", branch: "side", baseIsBranchName: true
+        )
+
+        #expect(context.baseRemote == nil)
     }
 }
