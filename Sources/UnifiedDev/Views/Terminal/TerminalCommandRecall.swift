@@ -92,12 +92,15 @@ final class TerminalCommandRecall {
         guard let store else { return }
         let agentSession = CenterTabStore.shared.tabsByWorkspace.values.joined()
             .first { $0.id == pane }?.agentSessionID
-        let isRunning = await hasForegroundCommand(session: session, persistence: persistence)
-        if !isRunning, let agentSession,
-           let launch = try? await AgentAccountLaunch.terminal(of: agentSession, store: store),
-           await forgetRefusedResume(launch, inPane: pane, of: agentSession, store: store) {
+        let isRunning = await runsForegroundCommand(session: session, persistence: persistence)
+        var launch: AgentAccountLaunch?
+        if let agentSession { launch = try? await AgentAccountLaunch.terminal(of: agentSession, store: store) }
+        let decision = TerminalResumeOffer.decide(launch: launch, isRunning: isRunning)
+        if decision == .forget, let launch, let agentSession {
+            await forgetRefusedResume(launch, inPane: pane, of: agentSession, store: store)
             return
         }
+        if decision == .withdraw { offers[pane] = nil }
         guard offers[pane] == nil else { return }
         let stored = try? await store.setting(TerminalCommandMemory.key(paneID: pane))
         let isAgent = agentSession != nil
@@ -106,14 +109,14 @@ final class TerminalCommandRecall {
         ) else { return }
         if isAgent { resumeCommands[pane] = command }
         recorded[pane] = command
-        guard !isRunning, !withdrawn.contains(pane) else { return }
+        guard decision == .offer, !withdrawn.contains(pane) else { return }
         offers[pane] = command
     }
 
-    private func hasForegroundCommand(session: String?, persistence: TerminalPersistence?) async -> Bool {
+    private func runsForegroundCommand(session: String?, persistence: TerminalPersistence?) async -> Bool? {
         guard let session, let persistence else { return false }
         let pids = await persistence.panePIDs(notOlderThan: .zero)
-        guard let shell = pids[session], let table = await ProcessTable.recent(notOlderThan: .zero) else { return false }
+        guard let shell = pids[session], let table = await ProcessTable.recent(notOlderThan: .zero) else { return nil }
         return table.foregroundCommand(ofShell: shell) != nil
     }
 
