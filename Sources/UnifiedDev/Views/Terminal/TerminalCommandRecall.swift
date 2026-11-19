@@ -74,15 +74,6 @@ final class TerminalCommandRecall {
         }
     }
 
-    @discardableResult
-    func forgetRefusedResume(
-        _ launch: AgentAccountLaunch, inPane pane: String, of session: SessionID, store: Store
-    ) async -> Bool {
-        guard await launch.forgetsResume(inPane: pane, of: session, store: store) else { return false }
-        forget(panes: [pane], store: nil)
-        return true
-    }
-
     func considerOffer(
         inPane pane: String,
         session: String?,
@@ -96,8 +87,9 @@ final class TerminalCommandRecall {
         var launch: AgentAccountLaunch?
         if let agentSession { launch = try? await AgentAccountLaunch.terminal(of: agentSession, store: store) }
         let decision = TerminalResumeOffer.decide(launch: launch, isRunning: isRunning)
-        if decision == .forget, let launch, let agentSession {
-            await forgetRefusedResume(launch, inPane: pane, of: agentSession, store: store)
+        if decision == .forget, let launch, let agentSession,
+           await launch.forgetsResume(inPane: pane, of: agentSession, store: store) {
+            forget(panes: [pane], store: nil)
             return
         }
         if decision == .withdraw { offers[pane] = nil }

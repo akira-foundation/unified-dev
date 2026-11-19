@@ -997,12 +997,6 @@ final class WorkspaceModel {
                 chrome: chrome
             )
         } catch {
-            if let refusal = error as? AgentAccountRefusal, let store = app.store,
-               let pane = CenterTabStore.shared.terminal(for: session.id, in: workspace.id)?.id {
-                await TerminalSessionStore.shared.recall.forgetRefusedResume(
-                    .refused(refusal), inPane: pane, of: session.id, store: store
-                )
-            }
             app.alert = AppAlert(title: "Could not launch the agent", message: error.readableMessage)
             return nil
         }
