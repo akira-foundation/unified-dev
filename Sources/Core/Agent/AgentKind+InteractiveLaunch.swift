@@ -22,7 +22,7 @@ public extension AgentKind {
             chrome: chrome
         ) else { return nil }
         let folder = try Self.interactiveLaunchDirectory(sessionID: sessionID, base: base)
-        let file = folder.appendingPathComponent(resuming == nil ? "start.sh" : "resume.sh")
+        let file = folder.appendingPathComponent(resuming == nil ? "start.sh" : Self.resumeFileName)
         let command = TerminalLaunchScript.command(
             executable: "/bin/sh", arguments: [file.path]
         )
@@ -41,6 +41,8 @@ public extension AgentKind {
         }
         return command
     }
+
+    static let resumeFileName = "resume.sh"
 
     static func interactiveLaunchDirectory(sessionID: SessionID, base: URL? = nil) throws -> URL {
         let root = try base ?? URL(fileURLWithPath: Store.defaultPath()).deletingLastPathComponent()

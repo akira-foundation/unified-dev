@@ -80,26 +80,36 @@ final class TerminalCommandRecall {
         persistence: TerminalPersistence?,
         store: Store?
     ) async {
-        guard let store, offers[pane] == nil else { return }
-        let stored = try? await store.setting(TerminalCommandMemory.key(paneID: pane))
-        let isAgent = CenterTabStore.shared.tabsByWorkspace.values.joined().contains {
-            $0.id == pane && $0.agentSessionID != nil
+        guard let store else { return }
+        let agentSession = CenterTabStore.shared.tabsByWorkspace.values.joined()
+            .first { $0.id == pane }?.agentSessionID
+        let isRunning = await runsForegroundCommand(session: session, persistence: persistence)
+        var launch: AgentAccountLaunch?
+        if let agentSession { launch = try? await AgentAccountLaunch.terminal(of: agentSession, store: store) }
+        let decision = TerminalResumeOffer.decide(launch: launch, isRunning: isRunning)
+        if decision == .forget, let launch, let agentSession,
+           await launch.forgetsResume(inPane: pane, of: agentSession, store: store) {
+            forget(panes: [pane], store: nil)
+            return
         }
+        if decision == .withdraw { offers[pane] = nil }
+        guard offers[pane] == nil else { return }
+        let stored = try? await store.setting(TerminalCommandMemory.key(paneID: pane))
+        let isAgent = agentSession != nil
         guard let command = TerminalCommandMemory.offerable(
             stored, maximumLength: isAgent ? 262_144 : TerminalCommandMemory.lengthLimit
         ) else { return }
         if isAgent { resumeCommands[pane] = command }
         recorded[pane] = command
-
-        if let session, let persistence {
-            let pids = await persistence.panePIDs(notOlderThan: .zero)
-            if let shell = pids[session], let table = await ProcessTable.recent(notOlderThan: .zero),
-               table.foregroundCommand(ofShell: shell) != nil {
-                return
-            }
-        }
-        guard !withdrawn.contains(pane) else { return }
+        guard decision == .offer, !withdrawn.contains(pane) else { return }
         offers[pane] = command
+    }
+
+    private func runsForegroundCommand(session: String?, persistence: TerminalPersistence?) async -> Bool? {
+        guard let session, let persistence else { return false }
+        let pids = await persistence.panePIDs(notOlderThan: .zero)
+        guard let shell = pids[session], let table = await ProcessTable.recent(notOlderThan: .zero) else { return nil }
+        return table.foregroundCommand(ofShell: shell) != nil
     }
 
     func record(panes: [Pane], persistence: TerminalPersistence?, store: Store) async {
