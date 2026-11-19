@@ -50,4 +50,12 @@ struct FileDiscardTests {
                 == sentence)
         }
     }
+
+    @Test("a rename is undone by deleting the new name and bringing the old one back")
+    func renameNamesBothPaths() {
+        let renamed = ChangedFile(path: "new.txt", oldPath: "old.txt", change: .renamed, additions: 1)
+
+        #expect(FileDiscard.losses(of: renamed, base: "main", hasDraft: false)
+            == "This deletes new.txt and restores old.txt to the version on main, losing 1 added line.")
+    }
 }
