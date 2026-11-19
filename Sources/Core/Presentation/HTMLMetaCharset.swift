@@ -2,20 +2,23 @@ import Foundation
 
 enum HTMLMetaCharset {
     private static let comment = try? NSRegularExpression(pattern: "<!--(?:-?>|[\\s\\S]*?(?:-->|$))")
-    private static let tag = try? NSRegularExpression(pattern: "<meta[\\s/][^>]*>", options: [.caseInsensitive])
+    private static let space = "[\\t\\n\\f\\r ]"
+    private static let tag = try? NSRegularExpression(
+        pattern: "<meta[\\t\\n\\f\\r /](?:[^>\"']|\"[^\"]*\"|'[^']*')*>", options: [.caseInsensitive]
+    )
     private static let attribute = try? NSRegularExpression(
-        pattern: "([^\\s=/>]+)(?:\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s>]*))?"
+        pattern: "([^\\t\\n\\f\\r =/>]+)(?:\(space)*=\(space)*(\"[^\"]*\"|'[^']*'|[^\\t\\n\\f\\r >]*))?"
     )
     private static let contentCharset = try? NSRegularExpression(
-        pattern: "charset\\s*=\\s*[\"']?([^\"'\\s;]+)", options: [.caseInsensitive]
+        pattern: "charset\(space)*=\(space)*[\"']?([^\"'\\t\\n\\f\\r ;]+)", options: [.caseInsensitive]
     )
 
-    static func declared(in prescan: String) -> String? {
+    static func declared(in prescan: String, accepting accept: (String) -> String?) -> String? {
         guard let comment, let tag else { return nil }
         let text = comment.stringByReplacingMatches(in: prescan, range: whole(prescan), withTemplate: "")
         for match in tag.matches(in: text, range: whole(text)) {
             guard let range = Range(match.range, in: text) else { continue }
-            if let label = label(inTag: String(text[range])) { return label }
+            if let label = label(inTag: String(text[range])).flatMap(accept) { return label }
         }
         return nil
     }
@@ -39,13 +42,15 @@ enum HTMLMetaCharset {
             let name = body[nameRange].lowercased()
             guard found[name] == nil else { continue }
             let value = Range(match.range(at: 2), in: body).map { unquoted(String(body[$0])) } ?? ""
-            found[name] = value.trimmingCharacters(in: .whitespaces)
+            found[name] = value.trimmingCharacters(in: CharacterSet(charactersIn: "\t\n\u{0C}\r "))
         }
         return found
     }
 
     private static func unquoted(_ value: String) -> String {
-        guard let first = value.first, first == "\"" || first == "'", value.count >= 2 else { return value }
+        guard let first = value.first, first == "\"" || first == "'", value.count >= 2, value.last == first else {
+            return value
+        }
         return String(value.dropFirst().dropLast())
     }
 

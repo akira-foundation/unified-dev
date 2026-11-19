@@ -64,6 +64,37 @@ struct DocumentPreviewCharsetTests {
         #expect(try served(dataAttribute, as: "data.html").type == "text/html; charset=utf-8")
     }
 
+    @Test("a meta tag is read in every spelling a page may use")
+    func tagSpellings() throws {
+        for (name, tag) in [
+            ("unquoted", "<meta charset=iso-8859-1>"),
+            ("selfclosed", "<meta charset=\"iso-8859-1\" />"),
+            ("slash", "<meta/charset=iso-8859-1 >"),
+            ("upper", "<META CHARSET='ISO-8859-1'>"),
+            ("valueless", "<meta itemscope charset = \"iso-8859-1\">"),
+            ("quotedangle", "<meta name=\"a>b\" charset=\"iso-8859-1\">"),
+        ] {
+            let page = latin1(tag + "<p>caf\u{e9}</p>")
+            #expect(try served(page, as: "\(name).html").type == "text/html; charset=iso-8859-1", "\(name)")
+        }
+    }
+
+    @Test("a declaration that cannot be read is skipped and the next one is used")
+    func unreadableThenReadable() throws {
+        let empty = Array("<meta charset=\"\"><meta charset=\"koi8-r\"><p>x</p>".utf8)
+        #expect(try served(empty, as: "first-empty.html").type == "text/html; charset=koi8-r")
+        let odd = Array("<meta charset=\"latin(1)\"><meta charset=\"koi8-r\"><p>x</p>".utf8)
+        #expect(try served(odd, as: "first-odd.html").type == "text/html; charset=koi8-r")
+    }
+
+    @Test("a quote left open, or a non-breaking space in the tag name, declares nothing")
+    func malformedTags() throws {
+        let open = latin1("<meta charset=\"iso-8859-15><p class=\"x\">caf\u{e9}</p>")
+        #expect(try served(open, as: "openquote.html").type == "text/html")
+        let nbsp = latin1("<meta\u{a0}charset=koi8-r><p>caf\u{e9}</p>")
+        #expect(try served(nbsp, as: "nbsp.html").type == "text/html")
+    }
+
     @Test("the labels a browser reads differently from their name are translated")
     func translatedLabels() throws {
         let unicode = Array("<meta charset=\"unicode\"><p>x</p>".utf8)

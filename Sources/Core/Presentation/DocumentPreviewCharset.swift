@@ -20,17 +20,17 @@ public enum DocumentPreviewCharset {
 
     public static func label(for body: Data, path: String) -> String? {
         if let marked = byteOrderMark(body) { return marked }
-        if let declared = declared(in: body, path: path).flatMap(normalised) { return declared }
+        if let declared = declared(in: body, path: path) { return declared }
         return String(data: body, encoding: .utf8) == nil ? nil : "utf-8"
     }
 
     private static func declared(in body: Data, path: String) -> String? {
         guard let prescan = String(data: body.prefix(prescanLength), encoding: .isoLatin1) else { return nil }
-        if DocumentPreview.hasPreview(path: path) { return HTMLMetaCharset.declared(in: prescan) }
+        if DocumentPreview.hasPreview(path: path) { return HTMLMetaCharset.declared(in: prescan, accepting: normalised) }
         guard (path as NSString).pathExtension.lowercased() == "css", let stylesheet,
               let match = stylesheet.firstMatch(in: prescan, range: NSRange(prescan.startIndex..., in: prescan)),
               let range = Range(match.range(at: 1), in: prescan) else { return nil }
-        return String(prescan[range])
+        return normalised(String(prescan[range]))
     }
 
     private static func byteOrderMark(_ body: Data) -> String? {
