@@ -209,6 +209,26 @@ struct AgentAccountEnvironmentTests {
         #expect(AgentAccountEnvironment.shellArguments(for: nil, userHome: someone).isEmpty)
     }
 
+    @Test func aLaunchWithNoAccountUnsetsItsOwnProvidersDirectoryAndNoOther() {
+        #expect(AgentAccountEnvironment.shellArguments(launching: .claudeCode, as: nil, userHome: someone)
+            == ["-u", "CLAUDE_CONFIG_DIR"])
+        #expect(AgentAccountEnvironment.shellArguments(launching: .codex, as: nil, userHome: someone)
+            == ["-u", "CODEX_HOME"])
+        #expect(AgentAccountEnvironment.shellArguments(launching: .grok, as: nil, userHome: someone)
+            == ["-u", "GROK_HOME"])
+        #expect(AgentAccountEnvironment.shellArguments(launching: .cursor, as: nil, userHome: someone).isEmpty)
+    }
+
+    @Test func aLaunchWithAnAccountOfAnotherProviderStillUnsetsItsOwnDirectory() {
+        #expect(AgentAccountEnvironment.shellArguments(launching: .claudeCode, as: workCodex, userHome: someone)
+            == ["-u", "CLAUDE_CONFIG_DIR"])
+    }
+
+    @Test func aLaunchWithAnAccountNamesIt() {
+        #expect(AgentAccountEnvironment.shellArguments(launching: .codex, as: workCodex, userHome: someone)
+            == ["CODEX_HOME=\(workCodex.directory.path)"])
+    }
+
     @Test func theShellStillNamesADefaultHomeTheLaunchPointedElsewhere() {
         let elsewhere = AgentAccountHome(
             provider: .claudeCode,
