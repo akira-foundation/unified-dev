@@ -52,7 +52,6 @@ struct FileEditPane: View {
         }
         .task(id: absolutePath) {
             await session.load(path: absolutePath)
-            guard controls.watchesDisk else { return }
             await session.watch(path: absolutePath)
         }
     }

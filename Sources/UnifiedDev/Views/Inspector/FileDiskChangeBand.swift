@@ -51,7 +51,7 @@ struct FileDiskChangeBand: View {
                     comparing = false
                     isConfirmingReload = true
                 }
-                .disabled(!canOverwrite)
+                .disabled(session.saving.contains(absolutePath))
                 Button("Save my version over disk") {
                     Task {
                         guard await session.keepDraftOverDisk(path: absolutePath, reviewing: path, in: model) else {

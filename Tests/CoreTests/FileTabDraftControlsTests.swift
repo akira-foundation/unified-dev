@@ -66,6 +66,7 @@ struct FileTabDraftControlsTests {
         #expect(controls(.preview, isDirty: true, changedOnDisk: true).canOverwriteDisk)
         #expect(!controls(.edit, isDirty: true, isSaving: true, changedOnDisk: true).canOverwriteDisk)
         #expect(!controls(.edit, isDirty: true).canOverwriteDisk)
+        #expect(!controls(.edit, hasDraft: false, isDirty: true, changedOnDisk: true).canOverwriteDisk)
     }
 
     @Test("a draft that is not held cannot be saved, whatever the dirty flag says")
