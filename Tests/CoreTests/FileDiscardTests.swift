@@ -33,4 +33,21 @@ struct FileDiscardTests {
         #expect(FileDiscard.losses(of: bare, base: "main", hasDraft: true)
             == "This restores a.txt to the version on main, losing the unsaved edits open in it.")
     }
+
+    @Test("every change git reports says what discarding it does to the file")
+    func everyChangeSaysWhatHappens() {
+        let says: [(ChangedFile.Change, String)] = [
+            (.modified, "This restores a.txt to the version on main."),
+            (.deleted, "This restores a.txt to the version on main."),
+            (.renamed, "This restores a.txt to the version on main."),
+            (.typechange, "This restores a.txt to the version on main."),
+            (.added, "This deletes a.txt, which did not exist on main."),
+            (.copied, "This deletes a.txt, which did not exist on main."),
+            (.untracked, "This moves a.txt, which git does not track, to the Trash."),
+        ]
+        for (change, sentence) in says {
+            #expect(FileDiscard.losses(of: ChangedFile(path: "a.txt", change: change), base: "main", hasDraft: false)
+                == sentence)
+        }
+    }
 }

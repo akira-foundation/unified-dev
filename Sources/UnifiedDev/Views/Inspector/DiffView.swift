@@ -804,7 +804,7 @@ struct DiffView: View {
                     onRecheck: {
                         if let hunk, refusedHunks[hunk] != nil, !isCheckingHunks { checkHunks(in: document.file) }
                     },
-                    onDiscard: { if let asked = pendingHunk { discard(asked, in: document.file) } }
+                    onDiscard: { if let hunk { discard(hunk, in: document.file) } }
                 )
 
             case let .runExpander(runID, hidden):
