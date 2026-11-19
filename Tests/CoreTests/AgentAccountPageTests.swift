@@ -8,11 +8,12 @@ struct AgentAccountPageTests {
         _ home: AgentAccountHome,
         email: String? = nil,
         report: AgentAccountLiveness.CliReport = .unanswered,
-        exists: Bool = true
+        exists: Bool = true,
+        doubt: String? = nil
     ) -> AgentAccountStanding {
         AgentAccountStanding(
             home: home, identity: AgentAccountIdentity(email: email), cliReport: report,
-            isolationDoubt: nil, directoryExists: exists
+            isolationDoubt: doubt, directoryExists: exists
         )
     }
 
@@ -57,10 +58,23 @@ struct AgentAccountPageTests {
             standing(AccountFixture.defaultClaude, report: .claimsSession),
             standing(AccountFixture.work, report: .claimsNoSession),
             standing(AccountFixture.personal, exists: false),
+            standing(AccountFixture.extra("shared"), report: .claimsSession, doubt: "Its login is shared."),
         ])
+        let sessions = made.sections.compactMap { section -> String? in
+            guard case .account(let row) = section else { return nil }
+            return row.fields.first { $0.label == "Session" }?.value
+        }
 
-        #expect(made.entries.map(\.detail) == ["Signed in", "Not signed in", "Folder missing"])
-        #expect(made.entries.map(\.warns) == [false, false, true])
+        #expect(made.entries.map(\.detail) == ["Signed in", "Not signed in", "Folder missing", "Signed in"])
+        #expect(made.entries.map(\.detail) == sessions)
+        #expect(made.entries.map(\.warns) == [false, false, true, false])
+    }
+
+    @Test func aDefaultAccountThatIsNotSetUpDoesNotWarn() throws {
+        let entry = try #require(page([standing(AccountFixture.defaultClaude, exists: false)]).entries.first)
+
+        #expect(entry.detail == "Not set up")
+        #expect(!entry.warns)
     }
 
     @Test func anUnfinishedSignInIsListedAsOne() throws {
@@ -94,7 +108,17 @@ struct AgentAccountPageTests {
         #expect(!made.offer.isAvailable)
     }
 
-    @Test func theDefaultAccountsRoleIsANoteInItsOwnCardNotAFooter() throws {
+    @Test func anAgentThatCannotAddAnAccountStillSaysWhoseAccountsTheseAre() {
+        let owner = AgentAccountPanel.Owner(
+            name: "Heir", holderName: "Unified", inherits: true, refusesWithoutAccount: false,
+            defaultAccount: nil
+        )
+
+        #expect(page([], for: .cursor, owner: owner).listFooter
+            == "Heir uses the accounts of Unified. Choose its own in Profile Settings.")
+    }
+
+    @Test func theListFooterNeverRepeatsTheDefaultAccountsRole() throws {
         let owner = AgentAccountPanel.Owner(
             name: "Unified", holderName: "Unified", inherits: false, refusesWithoutAccount: false,
             defaultAccount: AccountFixture.defaultClaude.id

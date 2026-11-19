@@ -26,7 +26,6 @@ public struct AgentAccountPage: Sendable, Equatable {
     public let offer: AgentAccountOffer
     public let sections: [Section]
     public let listFooter: String?
-
     public static func make(_ panel: AgentAccountPanel) -> AgentAccountPage {
         AgentAccountPage(
             entries: panel.rows.map(entry),
@@ -40,8 +39,8 @@ public struct AgentAccountPage: Sendable, Equatable {
         Entry(
             id: row.id,
             title: row.title,
-            detail: row.fields.first { $0.label == AgentAccountPanel.sessionLabel }?.value ?? AgentAccountPanel.unknown,
-            warns: row.warns
+            detail: row.session,
+            warns: row.sessionWarns
         )
     }
 
