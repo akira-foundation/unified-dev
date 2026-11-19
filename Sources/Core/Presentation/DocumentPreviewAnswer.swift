@@ -22,10 +22,10 @@ public struct DocumentPreviewAnswer: Sendable, Equatable {
     )
 
     public static func read(_ file: URL, draft: String?, rendersMarkdown: Bool = false) -> DocumentPreviewAnswer {
-        let type = DocumentPreview.contentType(forFile: file.path)
         let markdown = rendersMarkdown && CanvasMarkdownPage.isMarkdown(path: file.path)
         if let draft {
             if markdown { return page(from: draft, file: file) }
+            let type = DocumentPreview.contentType(forFile: file.path)
             return DocumentPreviewAnswer(status: 200, type: type, body: Data(draft.utf8))
         }
         let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? NSNumber)??.intValue
@@ -33,6 +33,7 @@ public struct DocumentPreviewAnswer: Sendable, Equatable {
         do {
             let body = try Data(contentsOf: file, options: .mappedIfSafe)
             if markdown { return page(from: String(decoding: body, as: UTF8.self), file: file) }
+            let type = DocumentPreviewCharset.contentType(forFile: file.path, body: body)
             return DocumentPreviewAnswer(status: 200, type: type, body: body)
         } catch {
             return DocumentPreviewAnswer(
