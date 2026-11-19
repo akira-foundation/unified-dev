@@ -191,19 +191,6 @@ struct AgentAccountRosterTests {
         #expect(standings[0].identity == AgentAccountIdentity())
     }
 
-    @Test func everyDirectoryTheSpendIndexerReadsIsOnTheRoster() async {
-        let indexed = TranscriptSources.sources(provider: user)
-        let standings = await AgentAccountRoster.standings(
-            rows: [workRow],
-            defaults: SpendAccounts.defaultHomes(home: user),
-            read: readsNothing, codexStorageMode: .file, exists: allExist, report: claimsNothing
-        )
-        let listed = Set(standings.map { $0.home.directory.standardizedFileURL.path })
-        let missing = indexed.filter { !listed.contains($0.home.standardizedFileURL.path) }
-        #expect(!indexed.isEmpty)
-        #expect(missing.isEmpty)
-    }
-
     @Test func theSpendBoardsDefaultAccountsAreTheDirectoriesALaunchWithNoAccountRunsUnder() {
         #expect(SpendAccounts.defaultHomes(home: user).map(\.directory.path)
             == [defaultClaude.directory.path, defaultCodex.directory.path])

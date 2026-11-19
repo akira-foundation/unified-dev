@@ -29,13 +29,16 @@ struct AgentLaunchWithNoAccountTests {
         #expect(environment["CLAUDE_CONFIG_DIR"] == "/inherited/claude")
     }
 
-    @Test func anACPTurnUnsetsTheInheritedHome() {
-        let configuration = ACPClient.Configuration(
+    @Test func anACPTurnUnsetsTheInheritedHomeOfItsOwnProviderOnly() {
+        let grok = ACPClient.launch(ACPClient.Configuration(
             dialect: .grok, executable: "grok", cwd: "/tmp/w", environment: Self.inherited
-        )
-        let environment = ACPClient.launch(configuration).environment
-        #expect(environment["GROK_HOME"] == nil)
-        #expect(environment["CODEX_HOME"] == "/inherited/codex")
+        )).environment
+        let antigravity = ACPClient.launch(ACPClient.Configuration(
+            dialect: .antigravity, executable: "agy", cwd: "/tmp/w", environment: Self.inherited
+        )).environment
+        #expect(grok["GROK_HOME"] == nil)
+        #expect(grok["CODEX_HOME"] == "/inherited/codex")
+        #expect(antigravity["GROK_HOME"] == "/inherited/grok")
     }
 
     @Test func theNamerUnsetsTheInheritedConfigDirectory() {
@@ -76,6 +79,22 @@ struct AgentLaunchWithNoAccountTests {
         #expect(answers.pinned == ["opus": "claude-opus-own"])
         #expect(launches.launches.count == 1)
         #expect(launches.launches.allSatisfy { $0.environment["CLAUDE_CONFIG_DIR"] == nil })
+    }
+
+    @Test func theAliasFingerprintReadsTheCliOwnDirectory() async throws {
+        let userHome = URL(filePath: TestScratch.path("user"), directoryHint: .isDirectory)
+        let elsewhere = URL(filePath: TestScratch.path("elsewhere"), directoryHint: .isDirectory)
+        try pin("opus", to: "claude-opus-own", in: userHome.appending(path: ".claude"))
+        try pin("opus", to: "claude-opus-elsewhere", in: elsewhere)
+        let probe = ClaudeAliasProbe(
+            executable: "claude", workRoot: probeWorkRoot(),
+            environment: ["PATH": "/usr/bin:/bin", "CLAUDE_CONFIG_DIR": elsewhere.path],
+            managed: unmanaged(), activity: ClaudeAccountActivity(), userHome: userHome
+        )
+
+        let fingerprint = await probe.settingsFingerprint(["opus"], account: nil)
+
+        #expect(fingerprint == "managed=false;opus=claude-opus-own")
     }
 
     private func pin(_ alias: String, to model: String, in directory: URL) throws {
