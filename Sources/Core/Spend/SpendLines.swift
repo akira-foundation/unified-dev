@@ -60,7 +60,7 @@ public enum SpendLines {
     }
 
     public static func sessionCaption(_ session: SpendSessionLine) -> String {
-        session.modelLine + ", " + turns(session.turns)
+        withUnpriced(session.modelLine + ", " + turns(session.turns), session.spend)
     }
 
     public static func dearestLine(_ board: SpendBoard) -> String {
@@ -117,10 +117,18 @@ public enum SpendLines {
     public static let accountsFailed = "Could not read the accounts. Unified Dev will try again at the next refresh."
 
     public static func accountCaption(_ account: SpendAccountLine) -> String {
-        let chats = sessions(account.sessions.count)
+        let chats = withUnpriced(sessions(account.sessions.count), account.spend)
         return account.isKnown
             ? account.provider.label + ", " + chats
             : "Not an account Unified Dev knows. Historic " + account.provider.label + " spend, " + chats
+    }
+
+    public static func projectCaption(_ project: SpendProjectLine) -> String {
+        withUnpriced(sessions(project.sessions.count), project.spend)
+    }
+
+    private static func withUnpriced(_ caption: String, _ spend: Spend) -> String {
+        spend.hasUnpricedTokens ? caption + ", " + unpricedLine(spend.unpriced) : caption
     }
 
     public static func savedLine(_ cost: SpendCost) -> String {

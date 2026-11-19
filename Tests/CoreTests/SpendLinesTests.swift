@@ -194,4 +194,79 @@ struct SpendLinesTests {
         )
     }
 
+    @Test("an account half spent on an unpriced model names the tokens its cost leaves out")
+    func accountCaptionNamesUnpricedTokens() throws {
+        let lines = SpendBoard.accountLines(SpendBoard.Input(
+            days: [
+                row(0, model: "claude-opus-5", usage: TokenUsage(output: 1_000_000)),
+                row(0, model: "claude-unpublished", usage: TokenUsage(output: 2_000_000))
+            ],
+            now: now,
+            calendar: calendar
+        ))
+        let account = try #require(lines.first)
+        #expect(lines.count == 1)
+        #expect(SpendLines.cost(account.spend) == SpendFormat.money(25))
+        #expect(
+            SpendLines.accountCaption(account)
+                == "Not an account Unified Dev knows. Historic Claude Code spend, 1 chat, "
+                + SpendFormat.tokens(2_000_000) + " tokens had no published price"
+        )
+    }
+
+    @Test("a project half spent on an unpriced model names the tokens its cost leaves out")
+    func projectCaptionNamesUnpricedTokens() {
+        let mixed = SpendProjectLine(
+            repoID: nil,
+            name: "work",
+            spend: Spend(
+                usage: TokenUsage(output: 3_000_000),
+                cost: SpendCost(output: 25),
+                unpriced: TokenUsage(output: 2_000_000)
+            ),
+            sessions: []
+        )
+        let priced = SpendProjectLine(
+            repoID: nil,
+            name: "work",
+            spend: Spend(usage: TokenUsage(output: 1_000_000), cost: SpendCost(output: 25)),
+            sessions: []
+        )
+        #expect(
+            SpendLines.projectCaption(mixed)
+                == "0 chats, " + SpendFormat.tokens(2_000_000) + " tokens had no published price"
+        )
+        #expect(SpendLines.projectCaption(priced) == "0 chats")
+    }
+
+    @Test("a line with every token unpriced says so once in the cost and counts them in the caption, like the total")
+    func whollyUnpricedLineMatchesTheTotal() {
+        let spend = ModelPrices.spend(
+            of: TokenUsage(output: 2_000_000), model: "codex-auto-review", provider: .codex
+        )
+        let account = SpendAccountLine(
+            accountID: AgentAccountID("work"), name: "work", provider: .codex, spend: spend, sessions: []
+        )
+        #expect(SpendLines.cost(account.spend) == SpendLines.noPublishedPrice)
+        #expect(SpendLines.accountCaption(account).hasSuffix(SpendLines.unpricedLine(spend.unpriced)))
+    }
+
+    @Test("a chat half spent on an unpriced model names the tokens its cost leaves out")
+    func sessionCaptionNamesUnpricedTokens() throws {
+        let lines = SpendBoard.accountLines(SpendBoard.Input(
+            days: [
+                row(0, model: "claude-opus-5", usage: TokenUsage(output: 1_000_000)),
+                row(0, model: "claude-unpublished", usage: TokenUsage(output: 2_000_000))
+            ],
+            now: now,
+            calendar: calendar
+        ))
+        let session = try #require(lines.first?.sessions.first)
+        #expect(SpendLines.cost(session.spend) == SpendFormat.money(25))
+        #expect(
+            SpendLines.sessionCaption(session)
+                == "claude-opus-5, claude-unpublished, 2 turns, "
+                + SpendFormat.tokens(2_000_000) + " tokens had no published price"
+        )
+    }
 }
