@@ -7,6 +7,7 @@ struct FileEditPane: View {
     let session: FileEditSession
     var onSaved: () -> Void = {}
     var isEditable = true
+    var canEdit = true
     var absolutePathOverride: String?
 
     @Environment(\.colorScheme) private var colorScheme
@@ -18,7 +19,10 @@ struct FileEditPane: View {
     }
 
     private var state: SourceEditorState { SourceEditorState.file(absolutePath) }
-    @State private var comparing = false
+    private var language: Language { state.languageOverride ?? Language.detect(path: path) }
+    private var controls: FileTabDraftControls {
+        session.controls(for: absolutePath, mode: isEditable ? .edit : .source, canEdit: canEdit)
+    }
 
     private var filename: String { (path as NSString).lastPathComponent }
 
@@ -40,29 +44,16 @@ struct FileEditPane: View {
                 editor
             }
         }
-        .focusedValue(\.saveAction, isEditable ? SaveAction(subject: absolutePath, isEnabled: isDirty && !session.saving.contains(absolutePath), perform: save) : nil)
+        .focusedValue(\.saveAction, canEdit ? SaveAction(subject: absolutePath, isEnabled: controls.canSave, perform: save) : nil)
         .focusedValue(\.isTypingProse, isEditable)
         .onDisappear { state.navigationTask?.cancel() }
-        .confirmationDialog(
-            "Discard your edits to \(filename)?",
-            isPresented: $isConfirmingReload,
-            titleVisibility: .visible
-        ) {
-            Button("Discard and reload", role: .destructive) {
-                Task { await session.reload(path: absolutePath) }
-            }
-            Button("Keep editing", role: .cancel) {}
-        } message: {
-            Text("The file on disk replaces what you typed. There is no undo for this.")
+        .discardDraftDialog(filename: filename, isPresented: $isConfirmingReload) {
+            Task { await session.reload(path: absolutePath) }
         }
         .task(id: absolutePath) {
             await session.load(path: absolutePath)
-            while !Task.isCancelled {
-                do { try await Task.sleep(for: .seconds(3)) } catch { return }
-                await session.refresh(path: absolutePath)
-            }
+            await session.watch(path: absolutePath)
         }
-        .sheet(isPresented: $comparing) { comparison }
     }
 
     @ViewBuilder
@@ -73,7 +64,7 @@ struct FileEditPane: View {
                 Hairline()
                 SourceEditor(
                     text: session.binding(for: absolutePath),
-                    language: state.languageOverride ?? Language.detect(path: path),
+                    language: language,
                     colorScheme: colorScheme,
                     isEditable: isEditable,
                     editorState: state,
@@ -93,12 +84,11 @@ struct FileEditPane: View {
                         Button("Dismiss") { state.message = nil }
                     }.padding(InspectorLayout.inset)
                 }
-                if session.diskVersions[absolutePath] != nil {
-                    HStack {
-                        Text("Changed on disk. Your edits are safe.").font(Typo.caption)
-                        Spacer()
-                        Button("Compare") { comparing = true }
-                    }.padding(InspectorLayout.inset)
+                if controls.showsDiskChange {
+                    FileDiskChangeBand(
+                        model: model, path: path, absolutePath: absolutePath, session: session,
+                        language: language, canOverwrite: controls.canOverwriteDisk, onSaved: onSaved
+                    )
                 }
                 if isEditable { footer } else if case let .failed(reason) = session.status(for: absolutePath) {
                     Text(reason).font(Typo.caption).foregroundStyle(Palette.negative).padding(InspectorLayout.inset)
@@ -127,61 +117,16 @@ struct FileEditPane: View {
             Button("Save", action: save)
                 .controlSize(.small)
                 .keyboardShortcut("s", modifiers: .command)
-                .disabled(!isDirty || session.saving.contains(absolutePath))
+                .disabled(!controls.canSave)
         }
         .padding(.horizontal, InspectorLayout.inset)
         .frame(height: InspectorLayout.barHeight)
         .background(Palette.surfaceSunken)
     }
 
-    private var comparison: some View {
-        VStack(spacing: Metrics.spacing) {
-            Text("\(filename) changed on disk").font(Typo.bodyEmphasis)
-            HSplitView {
-                VStack {
-                    Text("Your draft")
-                    SourceEditor(text: session.binding(for: absolutePath),
-                                 language: state.languageOverride ?? Language.detect(path: path), colorScheme: colorScheme)
-                }
-                VStack {
-                    Text("Current file on disk")
-                    SourceEditor(text: .constant(session.diskVersions[absolutePath]?.text ?? ""),
-                                 language: state.languageOverride ?? Language.detect(path: path), colorScheme: colorScheme,
-                                 isEditable: false)
-                }
-            }
-            HStack {
-                Button("Keep editing") { comparing = false }.keyboardShortcut(.cancelAction)
-                Spacer()
-                Button("Use disk version") {
-                    comparing = false
-                    isConfirmingReload = true
-                }
-                Button("Save my version over disk") {
-                    Task {
-                        await session.keepDraftOverDisk(path: absolutePath)
-                        if case .saved = session.status(for: absolutePath) {
-                            comparing = false
-                            model.forgetHeldDiff(for: path)
-                            await model.refreshChanges()
-                            onSaved()
-                        }
-                    }
-                }
-                .disabled(session.diskVersions[absolutePath] == nil || session.saving.contains(absolutePath))
-            }
-            if case let .failed(reason) = session.status(for: absolutePath) {
-                Text(reason).foregroundStyle(Palette.negative).font(Typo.caption)
-            }
-        }.padding(Metrics.inset).frame(width: 950, height: 580)
-    }
-
     private func save() {
         Task {
-            await session.save(path: absolutePath)
-            guard case .saved = session.status(for: absolutePath) else { return }
-            model.forgetHeldDiff(for: path)
-            await model.refreshChanges()
+            guard await session.save(path: absolutePath, reviewing: path, in: model) else { return }
             onSaved()
         }
     }

@@ -59,7 +59,7 @@ private final class PreviewFilesHandler: NSObject, WKURLSchemeHandler {
         }
         let body = Data(file.utf8)
         let headers = DocumentPreview.responseHeaders(
-            contentType: DocumentPreview.contentType(forFile: url.path), length: body.count
+            contentType: DocumentPreviewCharset.contentType(forFile: url.path, body: body), length: body.count
         )
         guard let response = HTTPURLResponse(
             url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: headers

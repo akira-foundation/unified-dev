@@ -22,6 +22,14 @@ struct FilePreview: View {
             hasPreview: hasPreview, canEdit: canEditInApp
         )
     }
+    private var controls: FileTabDraftControls {
+        session.controls(for: absolutePath, mode: mode, canEdit: canEditInApp)
+    }
+
+    private struct DraftWatch: Equatable {
+        var path: String
+        var watches: Bool
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -61,26 +69,14 @@ struct FilePreview: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             Hairline()
             if mode == .preview {
-                DocumentPreviewView(
-                    path: absolutePath,
-                    worktree: absolutePathOverride == nil ? model.workspace.path : nil,
-                    revision: model.changesGeneration,
-                    openFile: { opened in
-                        FileReview.openInNewTab(
-                            path: DocumentPreview.worktreePath(of: opened, worktree: model.workspace.path),
-                            in: model
-                        )
-                    },
-                    opensLinkInside: { BrowserTab.staysInside($0) },
-                    openLinkInside: { BrowserTab.open($0, in: model) }
-                )
+                preview
             } else {
                 MarkdownPreviewContent(
                     path: absolutePath, revision: model.changesGeneration,
                     isPresented: $showsMarkdownPreview
                 ) {
-                    FileEditPane(model: model, path: path, session: session,
-                                 isEditable: mode == .edit, absolutePathOverride: absolutePathOverride)
+                    FileEditPane(model: model, path: path, session: session, isEditable: mode == .edit,
+                                 canEdit: canEditInApp, absolutePathOverride: absolutePathOverride)
                 }
                 .markdownLinkActions(TranscriptLink.actions(for: model, opensSourceLinks: false))
             }
@@ -104,6 +100,47 @@ struct FilePreview: View {
                 .disabled(!hasPreview)
                 .frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
         }
+    }
+
+    private var preview: some View {
+        VStack(spacing: 0) {
+            DocumentPreviewView(
+                path: absolutePath,
+                worktree: absolutePathOverride == nil ? model.workspace.path : nil,
+                revision: model.changesGeneration,
+                openFile: { opened in
+                    FileReview.openInNewTab(
+                        path: DocumentPreview.worktreePath(of: opened, worktree: model.workspace.path),
+                        in: model
+                    )
+                },
+                opensLinkInside: { BrowserTab.staysInside($0) },
+                openLinkInside: { BrowserTab.open($0, in: model) }
+            )
+            if controls.showsDiskChange {
+                Hairline()
+                FileDiskChangeBand(
+                    model: model, path: path, absolutePath: absolutePath, session: session,
+                    language: state.languageOverride ?? Language.detect(path: path),
+                    canOverwrite: controls.canOverwriteDisk
+                )
+            }
+        }
+        .focusedValue(\.saveAction, canEditInApp ? SaveAction(subject: absolutePath, isEnabled: controls.canSave, perform: save) : nil)
+        .background {
+            Button("Save", action: save)
+                .keyboardShortcut("s", modifiers: .command)
+                .disabled(!controls.canSave)
+                .frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
+        }
+        .task(id: DraftWatch(path: absolutePath, watches: controls.watchesDisk)) {
+            guard controls.watchesDisk else { return }
+            await session.watch(path: absolutePath)
+        }
+    }
+
+    private func save() {
+        Task { _ = await session.save(path: absolutePath, reviewing: path, in: model) }
     }
 
     private func choose(_ mode: FileTabMode) {
