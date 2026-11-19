@@ -12,9 +12,9 @@ public enum AgentsSettingsSection: Sendable, Hashable {
     public static func order(for agent: AgentKind, connection: AgentStatus.Connection) -> [AgentsSettingsSection] {
         var sections: [AgentsSettingsSection] = [.status]
         if !agent.canRunWorkspaces { sections.append(.capability) }
+        if connection == .notInstalled { sections.append(.notInstalled) }
         sections.append(.accounts)
         if agent == .claudeCode { sections.append(.chrome) }
-        if connection == .notInstalled { sections.append(.notInstalled) }
         return sections + [.gitHub, .advanced]
     }
 }

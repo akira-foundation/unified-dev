@@ -268,17 +268,14 @@ struct AgentsSettingsView: View {
         }
     }
 
-    @ViewBuilder
     private var capabilitySection: some View {
-        if !selection.canRunWorkspaces {
-            Section {
-                Label {
-                    Text("\(selection.label) cannot run workspaces in Unified Dev yet. Use \(AgentKind.runnableSentence).")
-                        .settingsFootnote()
-                } icon: {
-                    Image(systemName: "info.circle")
-                        .foregroundStyle(Palette.textTertiary)
-                }
+        Section {
+            Label {
+                Text("\(selection.label) cannot run workspaces in Unified Dev yet. Use \(AgentKind.runnableSentence).")
+                    .settingsFootnote()
+            } icon: {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(Palette.textTertiary)
             }
         }
     }
