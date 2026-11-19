@@ -46,18 +46,6 @@ public enum TranscriptSources {
         return parts.suffix(5).joined(separator: "-")
     }
 
-    public static func sources(
-        home: URL,
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) -> [TranscriptSource] {
-        let claude = claudeHome(home: home, environment: environment)
-        let codex = codexHome(home: home, environment: environment)
-        return [
-            source(provider: .claudeCode, home: claude),
-            source(provider: .codex, home: codex),
-        ].compactMap { $0 }
-    }
-
     public static func sources(accounts: [AgentAccountHome]) -> [TranscriptSource] {
         accounts.compactMap { source(provider: $0.provider, home: $0.directory) }
     }
@@ -76,7 +64,10 @@ public enum TranscriptSources {
     }
 
     public static func sources(provider home: URL) -> [TranscriptSource] {
-        sources(home: home, environment: [:])
+        [
+            source(provider: .claudeCode, home: claudeHome(home: home, environment: [:])),
+            source(provider: .codex, home: codexHome(home: home, environment: [:])),
+        ].compactMap { $0 }
     }
 
     static func claudeHome(home: URL, environment: [String: String]) -> URL {

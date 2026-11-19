@@ -191,18 +191,11 @@ struct AgentAccountRosterTests {
         #expect(standings[0].identity == AgentAccountIdentity())
     }
 
-    @Test(arguments: [
-        [:],
-        ["CLAUDE_CONFIG_DIR": "/elsewhere/claude"],
-        ["CODEX_HOME": "/elsewhere/codex"],
-        ["CLAUDE_CONFIG_DIR": "/elsewhere/claude", "CODEX_HOME": "/elsewhere/codex"],
-        ["CLAUDE_CONFIG_DIR": "", "CODEX_HOME": ""],
-    ] as [[String: String]])
-    func everyDirectoryTheSpendIndexerReadsIsOnTheRoster(environment: [String: String]) async {
-        let indexed = TranscriptSources.sources(home: user, environment: environment)
+    @Test func everyDirectoryTheSpendIndexerReadsIsOnTheRoster() async {
+        let indexed = TranscriptSources.sources(provider: user)
         let standings = await AgentAccountRoster.standings(
             rows: [workRow],
-            defaults: SpendAccounts.defaultHomes(home: user, environment: environment),
+            defaults: SpendAccounts.defaultHomes(home: user),
             read: readsNothing, codexStorageMode: .file, exists: allExist, report: claimsNothing
         )
         let listed = Set(standings.map { $0.home.directory.standardizedFileURL.path })
@@ -211,10 +204,8 @@ struct AgentAccountRosterTests {
         #expect(missing.isEmpty)
     }
 
-    @Test func theDefaultHomeThatIgnoresTheEnvironmentIsNotWhatTheIndexerReads() {
-        let environment = ["CLAUDE_CONFIG_DIR": "/elsewhere/claude"]
-        let indexed = TranscriptSources.sources(home: user, environment: environment)
-        #expect(indexed.first { $0.provider == .claudeCode }?.home.path == "/elsewhere/claude")
-        #expect(defaultClaude.directory.path != "/elsewhere/claude")
+    @Test func theSpendBoardsDefaultAccountsAreTheDirectoriesALaunchWithNoAccountRunsUnder() {
+        #expect(SpendAccounts.defaultHomes(home: user).map(\.directory.path)
+            == [defaultClaude.directory.path, defaultCodex.directory.path])
     }
 }

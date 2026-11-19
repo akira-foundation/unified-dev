@@ -42,7 +42,7 @@ struct PreviewTranscriptSeedTests {
         )
         #expect(written == 1)
 
-        let source = TranscriptSources.sources(home: home, environment: [:])[0]
+        let source = TranscriptSources.sources(provider: home)[0]
         let files = TranscriptSources.files(in: source)
         #expect(files.count == 1)
         let result = try TranscriptReader.read(try #require(files.first), from: 0, carry: TranscriptCarry())
@@ -60,7 +60,7 @@ struct PreviewTranscriptSeedTests {
             at: Date(),
             home: home
         )
-        let source = TranscriptSources.sources(home: home, environment: [:])[1]
+        let source = TranscriptSources.sources(provider: home)[1]
         let file = try #require(TranscriptSources.files(in: source).first)
         let result = try TranscriptReader.read(file, from: 0, carry: TranscriptCarry())
         #expect(result.records.count == 3)
@@ -73,7 +73,7 @@ struct PreviewTranscriptSeedTests {
         _ = try seeder().seedTranscripts(
             scenario([.init(project: "billing", turns: 6, truncated: true)]), at: Date(), home: home
         )
-        let source = TranscriptSources.sources(home: home, environment: [:])[0]
+        let source = TranscriptSources.sources(provider: home)[0]
         let file = try #require(TranscriptSources.files(in: source).first)
         let text = try String(decoding: Data(contentsOf: file.url), as: UTF8.self)
         let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
@@ -99,7 +99,7 @@ struct PreviewTranscriptSeedTests {
             at: Date(),
             home: home
         )
-        let source = TranscriptSources.sources(home: home, environment: [:])[0]
+        let source = TranscriptSources.sources(provider: home)[0]
         let sizes = TranscriptSources.files(in: source).map(\.size).sorted()
         #expect(sizes.count == 2)
         #expect(sizes[1] > sizes[0] * 2)
@@ -122,7 +122,7 @@ struct PreviewTranscriptSeedTests {
         try Data("{}".utf8).write(to: sessions.appending(path: "notes.jsonl"))
         try Data("{}".utf8).write(to: sessions.appending(path: "rollout-stray.txt"))
 
-        let source = TranscriptSources.sources(home: home, environment: [:])[1]
+        let source = TranscriptSources.sources(provider: home)[1]
         let names = TranscriptSources.files(in: source).map { $0.url.lastPathComponent }
         #expect(names.count == 1)
         #expect(names.allSatisfy { $0.hasPrefix("rollout-") && $0.hasSuffix(".jsonl") })
@@ -138,8 +138,8 @@ struct PreviewTranscriptSeedTests {
             home: home
         )
         #expect(written == 2)
-        let claude = TranscriptSources.sources(home: home, environment: [:])[0]
-        let codex = TranscriptSources.sources(home: home, environment: [:])[1]
+        let claude = TranscriptSources.sources(provider: home)[0]
+        let codex = TranscriptSources.sources(provider: home)[1]
         #expect(TranscriptSources.files(in: claude).count == 1)
         #expect(TranscriptSources.files(in: codex).count == 1)
     }
@@ -182,7 +182,7 @@ struct PreviewTranscriptSeedTests {
             scenario([.init(project: "billing"), .init(project: "billing")]), at: Date(), home: home
         )
         _ = try made.seedTranscripts(scenario([.init(project: "billing")]), at: Date(), home: home)
-        let source = TranscriptSources.sources(home: home, environment: [:])[0]
+        let source = TranscriptSources.sources(provider: home)[0]
         #expect(TranscriptSources.files(in: source).count == 1)
     }
 }

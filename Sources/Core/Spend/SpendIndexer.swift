@@ -3,17 +3,14 @@ import Foundation
 public actor SpendIndexer {
     private let store: Store
     private let home: URL
-    private let environment: [String: String]
     private var isRunning = false
 
     public init(
         store: Store,
-        home: URL = TranscriptHome.resolve(),
-        environment: [String: String] = TranscriptHome.environment()
+        home: URL = TranscriptHome.resolve()
     ) {
         self.store = store
         self.home = home
-        self.environment = environment
     }
 
     public func refresh(
@@ -31,7 +28,7 @@ public actor SpendIndexer {
 
         var census = SpendCensus()
         let sources = TranscriptSources.sources(accounts: try await SpendRoster.homes(
-            store: store, defaults: SpendAccounts.defaultHomes(home: home, environment: environment)
+            store: store, defaults: SpendAccounts.defaultHomes(home: home)
         ))
 
         for kind in AgentKind.allCases where !sources.contains(where: { $0.provider == kind }) {

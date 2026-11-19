@@ -12,7 +12,7 @@ struct SpendIndexerTests {
             .joined(separator: "\n") + "\n", to: home.codex)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         let outcome = try await indexer.refresh()
 
         #expect(outcome.finished)
@@ -38,7 +38,7 @@ struct SpendIndexerTests {
         )
 
         let store = try makeTestStore("indexer")
-        _ = try await SpendIndexer(store: store, home: home.root, environment: [:]).refresh()
+        _ = try await SpendIndexer(store: store, home: home.root).refresh()
 
         let days = try await store.spendDays(since: Date(timeIntervalSince1970: 0))
         #expect(Set(days.map(\.tier)) == [.base, .longPrompt])
@@ -55,7 +55,7 @@ struct SpendIndexerTests {
         try home.write([idlessLine(10), idlessLine(20)].joined(separator: "\n") + "\n", to: home.claude)
 
         let store = try makeTestStore("indexer")
-        _ = try await SpendIndexer(store: store, home: home.root, environment: [:]).refresh()
+        _ = try await SpendIndexer(store: store, home: home.root).refresh()
         let days = try await store.spendDays(since: Date(timeIntervalSince1970: 0))
         #expect(days.first?.turns == 2)
         #expect(try await spendTotals(in: store).output == 30)
@@ -71,7 +71,7 @@ struct SpendIndexerTests {
         defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: closed.path) }
 
         let store = try makeTestStore("indexer")
-        let outcome = try await SpendIndexer(store: store, home: home.root, environment: [:]).refresh()
+        let outcome = try await SpendIndexer(store: store, home: home.root).refresh()
         #expect(outcome.unreadable == 1)
         #expect(outcome.filesRead == 1)
         #expect(!outcome.finished)
@@ -85,7 +85,7 @@ struct SpendIndexerTests {
         try home.write(codexCount(1) + "\n", to: home.codex)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         _ = try await indexer.refresh()
         let second = try await indexer.refresh()
 
@@ -101,7 +101,7 @@ struct SpendIndexerTests {
         try home.write(codexCount(1) + "\n", to: home.codex)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         _ = try await indexer.refresh()
 
         try home.write([claudeLine(10), claudeLine(30)].joined(separator: "\n") + "\n", to: home.claude)
@@ -121,7 +121,7 @@ struct SpendIndexerTests {
         try home.write(codexCount(1) + "\n", to: home.codex)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         _ = try await indexer.refresh()
         #expect(try await spendTotals(in: store).output == 11)
 
@@ -140,7 +140,7 @@ struct SpendIndexerTests {
         try home.write(codexCount(1) + "\n", to: home.codex)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         _ = try await indexer.refresh()
         #expect(try await spendTotals(in: store).output == 61)
 
@@ -156,7 +156,7 @@ struct SpendIndexerTests {
         try home.write(codexCount(1) + "\n", to: home.codex)
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         let task = Task { () async throws -> SpendIndexOutcome in
             while !Task.isCancelled { await Task.yield() }
             return try await indexer.refresh()
@@ -183,7 +183,7 @@ struct SpendIndexerTests {
         )
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         _ = try await indexer.refresh()
 
         let days = try await store.spendDays(since: Date(timeIntervalSince1970: 0))
@@ -202,32 +202,12 @@ struct SpendIndexerTests {
         )
 
         let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(store: store, home: home.root, environment: [:])
+        let indexer = SpendIndexer(store: store, home: home.root)
         _ = try await indexer.refresh()
 
         let days = try await store.spendDays(since: Date(timeIntervalSince1970: 0))
         let spend = Spend.sum(days.map(\.spend))
         #expect(spend.hasUnpricedTokens)
         #expect(SpendLines.cost(spend) == SpendLines.noPublishedPrice)
-    }
-
-    @Test("a transcript home named in the environment is the one read")
-    func environmentHome() async throws {
-        let home = try SpendHome()
-        let elsewhere = URL(filePath: TestScratch.unique("codex-home"))
-        try FileManager.default.createDirectory(
-            at: elsewhere.appending(path: "sessions"), withIntermediateDirectories: true
-        )
-        try home.write(
-            [codexContext("gpt-6-sol", directory: "/Users/ada/api"), codexCount(9)].joined(separator: "\n") + "\n",
-            to: elsewhere.appending(path: "sessions/rollout-2026-10-11T11-00-00-0199a-7a22-a753-be11-87e74249.jsonl")
-        )
-
-        let store = try makeTestStore("indexer")
-        let indexer = SpendIndexer(
-            store: store, home: home.root, environment: ["CODEX_HOME": elsewhere.path]
-        )
-        _ = try await indexer.refresh()
-        #expect(try await spendTotals(in: store).output == 9)
     }
 }

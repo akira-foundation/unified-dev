@@ -24,13 +24,6 @@ public enum TranscriptHome {
         return seedable(overriddenBy: value, home: home, environment: environment) ?? nowhere
     }
 
-    public static func environment(
-        _ environment: [String: String] = ProcessInfo.processInfo.environment,
-        overriddenBy value: String? = overrideValue()
-    ) -> [String: String] {
-        value == nil ? environment : [:]
-    }
-
     public static func seedable(
         overriddenBy value: String? = overrideValue(),
         home: URL = FileManager.default.homeDirectoryForCurrentUser,
