@@ -45,20 +45,7 @@ struct AgentAccountsSection: View {
                 }
             }
 
-            switch page.offer {
-            case .available:
-                HStack(spacing: Metrics.gutter) {
-                    Button("Add account…", action: onAdd)
-                        .disabled(!canSignIn || activity == .confirmingSignIn)
-                    if let progress {
-                        ProgressView()
-                            .controlSize(.small)
-                            .accessibilityHidden(true)
-                        Text(progress)
-                            .settingsFootnote()
-                    }
-                }
-            case .unavailable(let reason):
+            if case .unavailable(let reason) = page.offer {
                 Label {
                     Text(reason)
                         .settingsFootnote()
@@ -68,7 +55,21 @@ struct AgentAccountsSection: View {
                 }
             }
         } header: {
-            Text(AgentAccountPage.listTitle)
+            HStack(spacing: Metrics.gutter) {
+                Text(AgentAccountPage.listTitle)
+                Spacer(minLength: 0)
+                if page.offer.isAvailable {
+                    if let progress {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityHidden(true)
+                        Text(progress)
+                            .settingsFootnote()
+                    }
+                    Button("Add account…", action: onAdd)
+                        .disabled(!canSignIn || activity == .confirmingSignIn)
+                }
+            }
         } footer: {
             if let footer = page.listFooter {
                 Text(footer).settingsFootnote()
