@@ -7,17 +7,19 @@ struct ModelPresetDraft: Identifiable {
 }
 
 struct ModelPresetEditor: View {
+    var reading: AppWideOutputStyles
     var onSave: (ModelPreset) -> Void
     var onCancel: () -> Void
 
     @State private var preset: ModelPreset
-    @State private var outputStyles = ComposerOutputStyleCatalog.forDefaultAccount()
 
     init(
         draft: ModelPresetDraft,
+        reading: AppWideOutputStyles,
         onSave: @escaping (ModelPreset) -> Void,
         onCancel: @escaping () -> Void
     ) {
+        self.reading = reading
         self.onSave = onSave
         self.onCancel = onCancel
         _preset = State(initialValue: draft.preset)
@@ -42,7 +44,7 @@ struct ModelPresetEditor: View {
                         }
                     } label: {
                         Text("Output style")
-                        Text("From the default Claude Code account")
+                        Text(reading.presetLabel)
                     }
                 }
 
@@ -70,7 +72,11 @@ struct ModelPresetEditor: View {
             .padding(Metrics.gutter)
         }
         .frame(width: 480, height: 300)
-        .task { await outputStyles.refreshIfStale(project: nil) }
+        .task(id: reading) { await outputStyles.refreshIfStale(project: nil) }
+    }
+
+    private var outputStyles: ComposerOutputStyleCatalog {
+        .appWide(reading)
     }
 
     private var backendBinding: Binding<AgentKind> {

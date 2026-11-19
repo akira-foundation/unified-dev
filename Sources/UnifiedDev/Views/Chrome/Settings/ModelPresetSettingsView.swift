@@ -68,7 +68,7 @@ struct ModelPresetSettingsView: View {
             await library.load(from: app.store)
         }
         .sheet(item: $editing) { draft in
-            ModelPresetEditor(draft: draft) { saved in
+            ModelPresetEditor(draft: draft, reading: app.appWideOutputStyles) { saved in
                 save(saved)
                 editing = nil
             } onCancel: {

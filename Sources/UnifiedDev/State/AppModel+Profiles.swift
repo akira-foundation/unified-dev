@@ -6,6 +6,10 @@ extension AppModel {
         profiles.first { $0.id == activeProfileID }
     }
 
+    var appWideOutputStyles: AppWideOutputStyles {
+        AppWideOutputStyles(accounts: accountChoices.accounts, profiles: profiles)
+    }
+
     var profileRepos: [Repo] {
         ProfileScope.repos(repos, in: activeProfileID)
     }

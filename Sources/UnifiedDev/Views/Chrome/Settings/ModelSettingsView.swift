@@ -4,7 +4,9 @@ import Core
 struct ModelSettingsView: View {
     @Environment(AppModel.self) private var app
     @Binding var defaults: AppDefaults
-    @State private var outputStyles = ComposerOutputStyleCatalog.forDefaultAccount()
+    private var outputStyles: ComposerOutputStyleCatalog {
+        .appWide(app.appWideOutputStyles)
+    }
 
     private var catalog: ComposerModelCatalog { .shared }
 
@@ -60,7 +62,7 @@ struct ModelSettingsView: View {
             } header: {
                 Text("Claude Code")
             } footer: {
-                Text("These are the output styles of the default Claude Code account. A project that runs another account may not have the style you choose.")
+                Text(app.appWideOutputStyles.settingsFooter)
                     .settingsFootnote()
             }
 
@@ -81,6 +83,8 @@ struct ModelSettingsView: View {
         .task {
             ComposerModelCatalog.shared.load()
             await ModelPresetLibrary.shared.load(from: app.store)
+        }
+        .task(id: app.appWideOutputStyles) {
             await outputStyles.refreshIfStale(project: nil)
         }
     }

@@ -119,6 +119,7 @@ extension AgentAccountProbe {
                     draft: ModelPresetDraft(preset: ModelPreset(
                         name: "Opus 5 High", model: "opus", effort: "high", backend: .claudeCode, permissionMode: .auto
                     )),
+                    reading: AppWideOutputStyles(accounts: ProfileAccounts(), profiles: []),
                     onSave: { _ in },
                     onCancel: {}
                 ))
