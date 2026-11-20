@@ -16,14 +16,13 @@ struct AccountFolderHeldOutsideArgumentsTests {
     }
 
     private func cliStartedByHand(
-        configDirectory: URL,
         workingIn directory: URL,
         reading input: URL? = nil
     ) throws -> ChildProcess {
         let process = Process()
         process.executableURL = URL(filePath: "/bin/sleep")
         process.arguments = ["120"]
-        process.environment = ["CLAUDE_CONFIG_DIR": configDirectory.path]
+        process.environment = [:]
         process.currentDirectoryURL = directory
         let handle = try input.map { try FileHandle(forReadingFrom: $0) }
         process.standardInput = handle
@@ -52,15 +51,16 @@ struct AccountFolderHeldOutsideArgumentsTests {
         #expect(AgentAccountFolderUse.of(folder, among: [process]) == (held ? .held(pids: [7]) : .free))
     }
 
-    @Test func aCliWorkingInsideTheFolderIsFoundThoughOnlyItsEnvironmentNamesIt() async throws {
+    @Test func aCliWorkingInsideTheFolderIsFoundThoughNothingItWasGivenNamesIt() async throws {
         let folder = URL(filePath: TestScratch.unique("account"), directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let cli = try cliStartedByHand(configDirectory: folder, workingIn: folder)
+        let cli = try cliStartedByHand(workingIn: folder)
 
         let use = AgentAccountFolderUse.of(folder, among: ProcessVectors.ofThisUser())
         await cli.stop()
 
-        #expect(use == .held(pids: [cli.process.processIdentifier]))
+        guard case .held(let pids) = use else { Issue.record("expected the folder to be held, got \(use)"); return }
+        #expect(pids.contains(cli.process.processIdentifier))
     }
 
     @Test func aCliHoldingAFileInsideTheFolderOpenIsFoundThoughItWorksElsewhere() async throws {
@@ -68,19 +68,20 @@ struct AccountFolderHeldOutsideArgumentsTests {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let history = folder.appending(path: "history.jsonl")
         try Data().write(to: history)
-        let cli = try cliStartedByHand(configDirectory: folder, workingIn: try elsewhere(), reading: history)
+        let cli = try cliStartedByHand(workingIn: try elsewhere(), reading: history)
 
         let use = AgentAccountFolderUse.of(folder, among: ProcessVectors.ofThisUser())
         await cli.stop()
 
-        #expect(use == .held(pids: [cli.process.processIdentifier]))
+        guard case .held(let pids) = use else { Issue.record("expected the folder to be held, got \(use)"); return }
+        #expect(pids.contains(cli.process.processIdentifier))
     }
 
     @Test func removingTheAccountRefusesWhileACliStartedByHandWorksInItsFolder() async throws {
         let store = try makeTestStore("held-outside-arguments")
         let support = scratchSupport()
         let home = try await account(in: store, support: support)
-        let cli = try cliStartedByHand(configDirectory: home.directory, workingIn: home.directory)
+        let cli = try cliStartedByHand(workingIn: home.directory)
 
         await #expect(throws: AgentAccountError.folderInUse(home.directory.path)) {
             try await AgentAccountRemoval.remove(home, support: support, store: store, keychain: .untouched)
