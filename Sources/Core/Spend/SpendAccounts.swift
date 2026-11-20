@@ -12,7 +12,8 @@ public enum SpendAccounts {
                 provider: $0.provider,
                 id: AgentAccountHome.defaultID(for: $0.provider),
                 directory: $0.home,
-                isDefault: true
+                isDefault: true,
+                identityBesideDirectory: AgentAccountHome.isTheCliOwnDirectory($0.home, of: $0.provider, under: home)
             )
         }
     }

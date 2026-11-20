@@ -6,13 +6,22 @@ public struct AgentAccountHome: Sendable, Hashable {
     public let directory: URL
     public let isDefault: Bool
     public let label: String
+    let identityBesideDirectory: Bool
 
-    public init(provider: AgentKind, id: AgentAccountID, directory: URL, isDefault: Bool, label: String = "") {
+    public init(
+        provider: AgentKind,
+        id: AgentAccountID,
+        directory: URL,
+        isDefault: Bool,
+        label: String = "",
+        identityBesideDirectory: Bool? = nil
+    ) {
         self.provider = provider
         self.id = id
         self.directory = directory
         self.isDefault = isDefault
         self.label = label
+        self.identityBesideDirectory = identityBesideDirectory ?? isDefault
     }
 
     public init(_ row: AgentAccountRow) {
@@ -48,7 +57,11 @@ public struct AgentAccountHome: Sendable, Hashable {
     }
 
     public func isTheCliOwnDirectory(under userHome: URL) -> Bool {
-        guard let name = Self.defaultDirectoryName(for: provider) else { return false }
+        Self.isTheCliOwnDirectory(directory, of: provider, under: userHome)
+    }
+
+    static func isTheCliOwnDirectory(_ directory: URL, of provider: AgentKind, under userHome: URL) -> Bool {
+        guard let name = defaultDirectoryName(for: provider) else { return false }
         return TranscriptHome.isSame(directory, as: userHome.appending(path: name, directoryHint: .isDirectory))
     }
 
@@ -62,7 +75,7 @@ public struct AgentAccountHome: Sendable, Hashable {
     }
 
     private var claudeIdentityDirectory: URL {
-        if isDefault { return directory.deletingLastPathComponent() }
+        if identityBesideDirectory { return directory.deletingLastPathComponent() }
         return directory
     }
 
