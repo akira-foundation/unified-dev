@@ -8,7 +8,8 @@ extension AgentAccountSwitch {
             id: account.id,
             directory: directory,
             isDefault: account.isDefault,
-            label: account.label
+            label: account.label,
+            identityBesideDirectory: account.identityBesideDirectory
         )
     }
 }

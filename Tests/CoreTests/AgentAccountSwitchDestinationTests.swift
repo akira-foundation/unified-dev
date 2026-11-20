@@ -26,6 +26,30 @@ struct AgentAccountSwitchDestinationTests {
         #expect(plan.destination(of: work)?.directory != defaultClaude.directory)
     }
 
+    @Test func aDefaultAccountFromTheEnvironmentStillReadsItsIdentityInsideItsDirectory() throws {
+        let home = URL(filePath: "/Users/someone", directoryHint: .isDirectory)
+        let alternate = URL(filePath: "/Users/someone/.claude-alt", directoryHint: .isDirectory)
+        let inherited = try #require(SpendAccounts.defaultHomes(
+            home: home, environment: ["CLAUDE_CONFIG_DIR": alternate.path]
+        ).first { $0.provider == .claudeCode })
+        let plan = AgentAccountSwitch.plan(session: session, from: work, to: inherited, isTurnInFlight: false)
+
+        let destination = plan.destination(of: inherited)
+
+        #expect(destination?.identityPath == alternate.appending(path: ".claude.json"))
+    }
+
+    @Test func theDefaultAccountInTheCliOwnDirectoryStillReadsItsIdentityInTheHome() throws {
+        let home = URL(filePath: "/Users/someone", directoryHint: .isDirectory)
+        let own = try #require(SpendAccounts.defaultHomes(home: home, environment: [:])
+            .first { $0.provider == .claudeCode })
+        let plan = AgentAccountSwitch.plan(session: session, from: work, to: own, isTurnInFlight: false)
+
+        let destination = plan.destination(of: own)
+
+        #expect(destination?.identityPath == home.appending(path: ".claude.json"))
+    }
+
     @Test func aPlanThatDoesNotRelaunchHasNoDestination() {
         let same = AgentAccountSwitch.plan(session: session, from: work, to: work, isTurnInFlight: false)
         let refused = AgentAccountSwitch.plan(
