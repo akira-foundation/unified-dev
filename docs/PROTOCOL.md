@@ -156,9 +156,13 @@ read, so nothing in them can send the request elsewhere: measured, an account `s
 its own base URL,
 Bedrock, an `HTTPS_PROXY` and an `apiKeyHelper` still sent the request to the local socket, and the
 helper never ran. The login is not a settings file and is still used. `--settings` puts back what the
-probe needs: both addresses, Bedrock, Vertex and Foundry switched off, `NO_PROXY`, `disableAllHooks`
-and `autoMemoryEnabled: false`. The same variables go into the environment, replacing any inherited
-proxy. `local` still reads `<cwd>/.claude/settings.local.json`, so each probe runs in a directory of
+probe needs: both addresses, Bedrock, Vertex and Foundry switched off, `NO_PROXY`, telemetry and
+error reporting switched off (`CLAUDE_CODE_ENABLE_TELEMETRY=0`, `DISABLE_TELEMETRY=1`,
+`DISABLE_ERROR_REPORTING=1`), `disableAllHooks` and `autoMemoryEnabled: false`. The same variables go
+into the environment, replacing any inherited proxy. Inherited `OTEL_*` variables and the gRPC proxy
+variables (`grpc_proxy` and `no_grpc_proxy`, in upper and lower case) are not passed on at all, so an exporter
+configured in the owner's shell has nothing to send to, whatever the CLI does with the telemetry
+switch. `local` still reads `<cwd>/.claude/settings.local.json`, so each probe runs in a directory of
 its own made with `mkdtemp` and removed when the last process has exited, never in the shared
 scratch directory. With `--strict-mcp-config`, `--no-session-persistence` and
 `--disable-slash-commands` nothing of anyone's runs.

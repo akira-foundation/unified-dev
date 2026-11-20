@@ -78,7 +78,7 @@ public struct ClaudeAliasProbe: Sendable {
 
     private func inheritedEnvironment() async -> [String: String] {
         await LoginShellPath.ready()
-        return (environment ?? Shell.environment()).filter { !Self.proxyVariables.contains($0.key) }
+        return (environment ?? Shell.environment()).filter { !Self.isWithheld($0.key) }
     }
 
     static func configurationDirectory(in environment: [String: String]) -> URL {
@@ -98,6 +98,16 @@ public struct ClaudeAliasProbe: Sendable {
     static let proxyVariables: Set<String> = [
         "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy",
     ]
+
+    static let withheldVariables: Set<String> = proxyVariables.union([
+        "GRPC_PROXY", "grpc_proxy", "NO_GRPC_PROXY", "no_grpc_proxy",
+    ])
+
+    static let withheldPrefixes = ["OTEL_"]
+
+    static func isWithheld(_ variable: String) -> Bool {
+        withheldVariables.contains(variable) || withheldPrefixes.contains { variable.hasPrefix($0) }
+    }
 
     static func arguments(alias: String, baseURL: String, proxy: String) -> [String] {
         [
@@ -120,6 +130,9 @@ public struct ClaudeAliasProbe: Sendable {
             "CLAUDE_CODE_USE_VERTEX": "0",
             "CLAUDE_CODE_USE_FOUNDRY": "0",
             "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+            "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
+            "DISABLE_TELEMETRY": "1",
+            "DISABLE_ERROR_REPORTING": "1",
             "DISABLE_AUTOUPDATER": "1",
             "NO_PROXY": "127.0.0.1,localhost",
             "no_proxy": "127.0.0.1,localhost",

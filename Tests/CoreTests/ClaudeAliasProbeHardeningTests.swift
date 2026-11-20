@@ -52,4 +52,38 @@ struct ClaudeAliasProbeHardeningTests {
         #expect(answers.probed == ["opus": "claude-opus-5-5"])
         #expect(released)
     }
+
+    @Test("no inherited telemetry exporter or gRPC proxy reaches the CLI, and telemetry is switched off")
+    func carriesNoTelemetry() async throws {
+        let launches = ProbeLaunches()
+        let inherited = [
+            "OTEL_EXPORTER_OTLP_ENDPOINT": "https://collector.example:4317",
+            "OTEL_METRICS_EXPORTER": "otlp",
+            "OTEL_LOGS_EXPORTER": "otlp",
+            "grpc_proxy": "http://proxy.example:8080",
+            "GRPC_PROXY": "http://proxy.example:8080",
+            "no_grpc_proxy": "collector.example",
+            "NO_GRPC_PROXY": "collector.example",
+            "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+            "DISABLE_TELEMETRY": "0",
+            "DISABLE_ERROR_REPORTING": "0",
+            "PATH": "/usr/bin",
+        ]
+        _ = await scriptedProbe(launches, inherited: inherited) { _ in [probeInitLine("claude-opus-5-5")] }
+            .resolve(["opus"], account: probeAccount())
+        let launch = try #require(launches.launches.first)
+        let launched = launch.environment
+        let index = try #require(launch.arguments.firstIndex(of: "--settings"))
+        let env = try #require(JSONValue.parse(launch.arguments[index + 1])?["env"])
+
+        #expect(launched.keys.filter { $0.hasPrefix("OTEL_") }.isEmpty)
+        for variable in ["grpc_proxy", "GRPC_PROXY", "no_grpc_proxy", "NO_GRPC_PROXY"] {
+            #expect(launched[variable] == nil)
+        }
+        for (variable, value) in ["CLAUDE_CODE_ENABLE_TELEMETRY": "0", "DISABLE_TELEMETRY": "1", "DISABLE_ERROR_REPORTING": "1"] {
+            #expect(launched[variable] == value)
+            #expect(env[variable]?.stringValue == value)
+        }
+        #expect(launched["PATH"] == "/usr/bin")
+    }
 }
