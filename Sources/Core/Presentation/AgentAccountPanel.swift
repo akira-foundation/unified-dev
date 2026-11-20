@@ -16,6 +16,8 @@ public struct AgentAccountPanel: Sendable, Equatable {
         public let home: AgentAccountHome
         public let title: String
         public let fields: [Field]
+        public let session: String
+        public let sessionWarns: Bool
         public let note: String?
         public let offersSignInAgain: Bool
         public let warns: Bool
@@ -161,11 +163,14 @@ public struct AgentAccountPanel: Sendable, Equatable {
 
     static func unfinishedRow(for home: AgentAccountHome) -> Row {
         let title = home.directory.lastPathComponent
+        let unfinished = "Sign-in did not finish"
         return Row(
             id: home.id,
             home: home,
             title: title,
-            fields: [Field(label: "Session", value: "Sign-in did not finish")],
+            fields: [Field(label: "Session", value: unfinished)],
+            session: unfinished,
+            sessionWarns: true,
             note: "Unified Dev never added this account, because its sign-in did not finish. The folder is still on this Mac.",
             offersSignInAgain: false,
             warns: true,
@@ -184,6 +189,7 @@ public struct AgentAccountPanel: Sendable, Equatable {
         let home = standing.home
         let title = AgentAccountNames.title(of: standing, among: standings)
         let note = note(for: standing, owner: owner)
+        let sessionText = session(of: standing)
         return Row(
             id: home.id,
             home: home,
@@ -195,8 +201,10 @@ public struct AgentAccountPanel: Sendable, Equatable {
                     label: "Expires",
                     value: standing.identity.expiresAt.map { expiry($0, locale: locale, timeZone: timeZone) } ?? unknown
                 ),
-                Field(label: "Session", value: session(of: standing)),
+                Field(label: "Session", value: sessionText),
             ],
+            session: sessionText,
+            sessionWarns: !standing.directoryExists && !home.isDefault,
             note: note.text,
             offersSignInAgain: AgentAccountSignInAgain.isOffered(for: standing),
             warns: note.warns,

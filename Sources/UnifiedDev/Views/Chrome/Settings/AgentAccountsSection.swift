@@ -11,33 +11,41 @@ struct AgentAccountsSection: View {
     let onRemove: (AgentAccountPanel.Row) -> Void
     let onSignInAgain: (AgentAccountPanel.Row) -> Void
 
-    var body: some View {
-        ForEach(panel.rows) { row in
-            AgentAccountRowSection(
-                row: row,
-                refusal: removalNotice.flatMap { $0.belongs(to: row) ? $0.message : nil },
-                canSignIn: canSignIn && activity != .confirmingSignIn,
-                onDismissRefusal: onDismissRemovalNotice,
-                onRemove: onRemove,
-                onSignInAgain: onSignInAgain
-            )
-        }
+    private var page: AgentAccountPage { AgentAccountPage.make(panel) }
 
+    var body: some View {
+        let page = page
+        ForEach(page.sections) { section in
+            switch section {
+            case .list:
+                listSection(page)
+            case .account(let row):
+                AgentAccountRowSection(
+                    row: row,
+                    refusal: removalNotice.flatMap { $0.belongs(to: row) ? $0.message : nil },
+                    canSignIn: canSignIn && activity != .confirmingSignIn,
+                    onDismissRefusal: onDismissRemovalNotice,
+                    onRemove: onRemove,
+                    onSignInAgain: onSignInAgain
+                )
+            }
+        }
+    }
+
+    private func listSection(_ page: AgentAccountPage) -> some View {
         Section {
-            switch panel.offer {
-            case .available:
-                HStack(spacing: Metrics.gutter) {
-                    Button("Add account…", action: onAdd)
-                        .disabled(!canSignIn || activity == .confirmingSignIn)
-                    if let progress {
-                        ProgressView()
-                            .controlSize(.small)
-                            .accessibilityHidden(true)
-                        Text(progress)
-                            .settingsFootnote()
-                    }
+            ForEach(page.entries) { entry in
+                LabeledContent {
+                    Text(entry.detail)
+                        .foregroundStyle(entry.warns ? Palette.warning : Palette.textSecondary)
+                } label: {
+                    Text(entry.title)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
-            case .unavailable(let reason):
+            }
+
+            if case .unavailable(let reason) = page.offer {
                 Label {
                     Text(reason)
                         .settingsFootnote()
@@ -46,16 +54,25 @@ struct AgentAccountsSection: View {
                         .foregroundStyle(Palette.textTertiary)
                 }
             }
+        } header: {
+            HStack(spacing: Metrics.gutter) {
+                Text(AgentAccountPage.listTitle)
+                Spacer(minLength: 0)
+                if page.offer.isAvailable {
+                    if let progress {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityHidden(true)
+                        Text(progress)
+                            .settingsFootnote()
+                    }
+                    Button("Add account…", action: onAdd)
+                        .disabled(!canSignIn || activity == .confirmingSignIn)
+                }
+            }
         } footer: {
-            VStack(alignment: .leading, spacing: Metrics.spacingSmall) {
-                if let footer = panel.footer {
-                    Text(footer)
-                        .settingsFootnote()
-                }
-                if panel.offer.isAvailable {
-                    Text("Sign in with another \(panel.provider.label) account. Each project can then choose which account runs.")
-                        .settingsFootnote()
-                }
+            if let footer = page.listFooter {
+                Text(footer).settingsFootnote()
             }
         }
     }
@@ -89,7 +106,7 @@ private struct AgentAccountRowSection: View {
                 }
             }
 
-            if !row.isDefault, let note = row.note {
+            if let note = row.note {
                 Text(note)
                     .font(Typo.caption)
                     .foregroundStyle(row.warns ? Palette.warning : Palette.textSecondary)
@@ -121,10 +138,6 @@ private struct AgentAccountRowSection: View {
             }
         } header: {
             Text(row.title)
-        } footer: {
-            if row.isDefault, let note = row.note {
-                Text(note).settingsFootnote()
-            }
         }
     }
 }

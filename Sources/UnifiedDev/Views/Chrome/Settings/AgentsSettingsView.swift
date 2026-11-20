@@ -76,42 +76,8 @@ struct AgentsSettingsView: View {
                 }
             }
             if !isLoading, let status {
-                statusSection(status)
-
-                capabilitySection
-
-                if selection == .claudeCode {
-                    ClaudeChromeSettingsSection()
-                }
-
-                AgentAccountsSection(
-                    panel: accountPanel,
-                    activity: accounts.activity,
-                    removalNotice: accounts.removalNotice,
-                    onDismissRemovalNotice: { accounts.dismissRemovalNotice() },
-                    canSignIn: status.executablePath != nil,
-                    onAdd: { accountsFlow.isNamingAccount = true },
-                    onRemove: { accountsFlow.removing = $0 },
-                    onSignInAgain: { accountsFlow.signInAgain($0, executable: status.executablePath) }
-                )
-
-                if status.connection == .notInstalled {
-                    notInstalledSection
-                }
-
-                Section("GitHub") {
-                    SettingsRow("Account") {
-                        Text(GitHubIdentity.cachedUsername ?? "Not available")
-                            .foregroundStyle(Palette.textSecondary)
-                            .textSelection(.enabled)
-                    }
-                }
-
-                Section {
-                    DisclosureGroup("Advanced configuration") {
-                        executableSection(status)
-                        configurationSection(status)
-                    }
+                ForEach(AgentsSettingsSection.order(for: selection, connection: status.connection), id: \.self) { section in
+                    settingsSection(section, status: status)
                 }
             }
         }
@@ -126,6 +92,46 @@ struct AgentsSettingsView: View {
             commitPathDraft()
             draftKind = kind
             pathDraft = overrides[kind] ?? ""
+        }
+    }
+
+    @ViewBuilder
+    private func settingsSection(_ section: AgentsSettingsSection, status: AgentStatus) -> some View {
+        switch section {
+        case .status:
+            statusSection(status)
+        case .capability:
+            capabilitySection
+        case .accounts:
+            AgentAccountsSection(
+                panel: accountPanel,
+                activity: accounts.activity,
+                removalNotice: accounts.removalNotice,
+                onDismissRemovalNotice: { accounts.dismissRemovalNotice() },
+                canSignIn: status.executablePath != nil,
+                onAdd: { accountsFlow.isNamingAccount = true },
+                onRemove: { accountsFlow.removing = $0 },
+                onSignInAgain: { accountsFlow.signInAgain($0, executable: status.executablePath) }
+            )
+        case .chrome:
+            ClaudeChromeSettingsSection()
+        case .notInstalled:
+            notInstalledSection
+        case .gitHub:
+            Section("GitHub") {
+                SettingsRow("Account") {
+                    Text(GitHubIdentity.cachedUsername ?? "Not available")
+                        .foregroundStyle(Palette.textSecondary)
+                        .textSelection(.enabled)
+                }
+            }
+        case .advanced:
+            Section {
+                DisclosureGroup("Advanced configuration") {
+                    executableSection(status)
+                    configurationSection(status)
+                }
+            }
         }
     }
 
@@ -262,17 +268,14 @@ struct AgentsSettingsView: View {
         }
     }
 
-    @ViewBuilder
     private var capabilitySection: some View {
-        if !selection.canRunWorkspaces {
-            Section {
-                Label {
-                    Text("\(selection.label) cannot run workspaces in Unified Dev yet. Use \(AgentKind.runnableSentence).")
-                        .settingsFootnote()
-                } icon: {
-                    Image(systemName: "info.circle")
-                        .foregroundStyle(Palette.textTertiary)
-                }
+        Section {
+            Label {
+                Text("\(selection.label) cannot run workspaces in Unified Dev yet. Use \(AgentKind.runnableSentence).")
+                    .settingsFootnote()
+            } icon: {
+                Image(systemName: "info.circle")
+                    .foregroundStyle(Palette.textTertiary)
             }
         }
     }
