@@ -9,6 +9,7 @@ public struct ClaudeManagedSettings: Sendable {
 
     static let preferencesDomain = "com.anthropic.claudecode"
     static let remoteFileName = "remote-settings.json"
+    static let mcpFileName = "managed-mcp.json"
 
     let root: URL
     let preferences: URL
@@ -16,7 +17,7 @@ public struct ClaudeManagedSettings: Sendable {
 
     func documents(accountDirectory: URL) -> [URL] {
         let dropIns = root.appending(path: "managed-settings.d", directoryHint: .isDirectory)
-        return [root.appending(path: "managed-settings.json")]
+        return [root.appending(path: "managed-settings.json"), root.appending(path: Self.mcpFileName)]
             + Self.dropIns(in: dropIns)
             + [
                 preferences.appending(path: user).appending(path: "\(Self.preferencesDomain).plist"),
