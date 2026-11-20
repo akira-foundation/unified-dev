@@ -2,14 +2,7 @@ import Darwin
 
 enum ProcessPaths {
     static func of(_ pid: Int32) -> [String] {
-        (workingDirectory(of: pid).map { [$0] } ?? []) + openFiles(of: pid)
-    }
-
-    private static func workingDirectory(of pid: Int32) -> String? {
-        var info = proc_vnodepathinfo()
-        let size = Int32(MemoryLayout<proc_vnodepathinfo>.size)
-        guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) == size else { return nil }
-        return path(in: info.pvi_cdir.vip_path)
+        (ProcessWorkingDirectory.of(pid).map { [$0] } ?? []) + openFiles(of: pid)
     }
 
     private static func openFiles(of pid: Int32) -> [String] {
@@ -30,11 +23,9 @@ enum ProcessPaths {
         var info = vnode_fdinfowithpath()
         let size = Int32(MemoryLayout<vnode_fdinfowithpath>.size)
         guard proc_pidfdinfo(pid, descriptor, PROC_PIDFDVNODEPATHINFO, &info, size) == size else { return nil }
-        return path(in: info.pvip.vip_path)
-    }
-
-    private static func path<Characters>(in characters: Characters) -> String? {
-        let path = withUnsafeBytes(of: characters) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        let path = withUnsafeBytes(of: &info.pvip.vip_path) { raw in
+            String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+        }
         return path.isEmpty ? nil : path
     }
 }
