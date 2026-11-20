@@ -51,6 +51,10 @@ public struct ClaudeAliasProbe: Sendable {
         let id = ClaudeResolvedModel.accountID(account)
         for alias in unpinned {
             guard activity.beginProbe(id) else { break }
+            guard !managed.governs(accountDirectory: configuration) else {
+                activity.endProbe(id)
+                break
+            }
             let launch = AgentLaunch(
                 executable: executable,
                 arguments: Self.arguments(alias: alias, baseURL: endpoint.url, proxy: proxy.url),
