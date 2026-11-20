@@ -3,10 +3,12 @@ import Darwin
 public struct ProcessVector: Sendable, Equatable, CustomStringConvertible, CustomDebugStringConvertible, CustomReflectable {
     public let pid: Int32
     public let strings: [String]?
+    public let paths: [String]
 
-    public init(pid: Int32, strings: [String]?) {
+    public init(pid: Int32, strings: [String]?, paths: [String] = []) {
         self.pid = pid
         self.strings = strings
+        self.paths = paths
     }
 
     public var description: String { "process \(pid)" }
@@ -36,7 +38,7 @@ public enum ProcessVectors {
             read: { read($0, into: &buffer) },
             isZombie: isZombie,
             pause: { usleep(rereadPause) }
-        )
+        ).map { ProcessVector(pid: $0.pid, strings: $0.strings, paths: ProcessPaths.of($0.pid)) }
     }
 
     static func settle(
