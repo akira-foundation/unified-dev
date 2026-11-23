@@ -156,22 +156,32 @@ read, so nothing in them can send the request elsewhere: measured, an account `s
 its own base URL,
 Bedrock, an `HTTPS_PROXY` and an `apiKeyHelper` still sent the request to the local socket, and the
 helper never ran. The login is not a settings file and is still used. `--settings` puts back what the
-probe needs: both addresses, Bedrock, Vertex and Foundry switched off, `NO_PROXY`, `disableAllHooks`
-and `autoMemoryEnabled: false`. The same variables go into the environment, replacing any inherited
-proxy. `local` still reads `<cwd>/.claude/settings.local.json`, so each probe runs in a directory of
+probe needs: both addresses, Bedrock, Vertex and Foundry switched off, `NO_PROXY`, telemetry and
+error reporting switched off (`CLAUDE_CODE_ENABLE_TELEMETRY=0`, `DISABLE_TELEMETRY=1`,
+`DISABLE_ERROR_REPORTING=1`), `disableAllHooks` and `autoMemoryEnabled: false`. The same variables go
+into the environment, replacing any inherited proxy. Inherited `OTEL_*` variables and the gRPC proxy
+variables (`grpc_proxy` and `no_grpc_proxy`, in upper and lower case) are not passed on at all, so an exporter
+configured in the owner's shell has nothing to send to, whatever the CLI does with the telemetry
+switch. `local` still reads `<cwd>/.claude/settings.local.json`, so each probe runs in a directory of
 its own made with `mkdtemp` and removed when the last process has exited, never in the shared
 scratch directory. With `--strict-mcp-config`, `--no-session-persistence` and
 `--disable-slash-commands` nothing of anyone's runs.
 
 Managed settings outrank every flag, so the probe does not start at all when one of them sets
-anything: `/Library/Application Support/ClaudeCode/managed-settings.json`, any `*.json` in its
-`managed-settings.d`, the `com.anthropic.claudecode` profile under `/Library/Managed Preferences`
+anything: `/Library/Application Support/ClaudeCode/managed-settings.json`, `managed-mcp.json`
+beside it, any `*.json` in its `managed-settings.d`, the `com.anthropic.claudecode` profile under
+`/Library/Managed Preferences`
 for this user or for the machine, or a `remote-settings.json` in the directory the CLI will use, which
 is where it keeps what the organisation's server sent it. That directory is the one the launch names in
 `CLAUDE_CONFIG_DIR`, including one the app inherited, and `~/.claude` only when nothing names one.
 An empty object, which is what a personal account's `remote-settings.json` holds, does not count; a
 file that cannot be read, or a `managed-settings.d` that cannot be listed, does. Those paths are the ones `claude 2.1.322` names; writing to `/Library` needs root, so the precedence
-itself was not reproduced here.
+itself was not reproduced here. `managed-mcp.json` is on the list because `claude 2.1.322` says of it
+that it "has exclusive control over MCP servers" and that it ignores servers supplied through
+`--mcp-config` while it is present, which is not a promise that `--strict-mcp-config` keeps its
+servers from starting. A stdio server is a process of its own that need not honour the proxy, so a
+file that might start one stops the probe. The sources are read again before every launch, not once
+per refresh, so a profile installed while the probe runs stops it before the next alias.
 
 An alias the account pins with `ANTHROPIC_DEFAULT_<ALIAS>_MODEL` in the `env` of its own
 `settings.json` is not asked: the probe reads that value from the file, since a turn would run it,
