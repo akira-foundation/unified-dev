@@ -45,6 +45,15 @@ enum AgentAccountChoiceColumns {
             """
         }
 
+        var stranded: String {
+            """
+            SELECT id FROM \(parent)
+            WHERE account_id IS NOT NULL
+              AND account_id NOT IN (SELECT id FROM agent_accounts)
+            ORDER BY id;
+            """
+        }
+
         var drop: String { "ALTER TABLE \(parent) DROP COLUMN account_id;" }
     }
 
@@ -80,6 +89,7 @@ enum AgentAccountChoiceColumns {
         try db.execute(repos.createTable)
         guard try columns(of: repos.parent, in: db).contains("account_id") else { return }
         try registerDefaults(named: repos, in: db, homes: &homes)
+        try LostAgentAccountChoices.record(stranded: repos.stranded, in: db)
         try db.execute(repos.carry)
         try db.execute(repos.drop)
     }

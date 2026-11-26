@@ -91,7 +91,7 @@ struct AgentAccountChoiceMigrationTests {
         #expect(try await reopened.agentAccounts().map(\.id) == [defaultCodex.id])
     }
 
-    @Test("a choice naming an account that is not there any more is not carried")
+    @Test("a choice naming an account that is not there any more cannot be carried")
     func aChoiceWithNoAccountIsLeftBehind() async throws {
         let path = TestScratch.unique("ghost") + ".sqlite"
         let (repo, _) = try await made(at: path)
@@ -103,6 +103,52 @@ struct AgentAccountChoiceMigrationTests {
 
         #expect(try await reopened.agentAccountChoices().repos[repo.id] == nil)
         #expect(try await reopened.agentAccounts().isEmpty)
+    }
+
+    @Test("a choice left behind is recorded, so the owner is told once which project lost it")
+    func aChoiceLeftBehindIsRecordedForTheOwner() async throws {
+        let path = TestScratch.unique("told") + ".sqlite"
+        let (repo, _) = try await made(at: path)
+        let kept = try await Store(path: path).upsert(Repo(name: "kept", path: TestScratch.unique("repo")))
+        let claude = AgentAccountRow(id: AgentAccountID("work"), provider: .claudeCode, directory: "/a/work")
+        try await Store(path: path).add(claude)
+        let raw = try SQLiteDatabase(path: path)
+        try reinstateOldColumns(raw)
+        try raw.run("UPDATE repos SET account_id = ? WHERE id = ?", [.text("ghost"), .text(repo.id)])
+        try raw.run("UPDATE repos SET account_id = ? WHERE id = ?", [.text(claude.id), .text(kept.id)])
+
+        let reopened = try Store(path: path)
+        let lost = try await reopened.takeLostAgentAccountChoices()
+        let again = try await reopened.takeLostAgentAccountChoices()
+
+        #expect(lost == [repo.id])
+        #expect(again.isEmpty)
+        #expect(try await reopened.agentAccountChoices().repos[kept.id] == [.claudeCode: claude.id])
+    }
+
+    @Test("a default account whose home cannot be found is recorded as lost rather than carried")
+    func aDefaultChoiceWithNoHomeIsRecordedAsLost() async throws {
+        let path = TestScratch.unique("homeless") + ".sqlite"
+        let (repo, _) = try await made(at: path)
+        let raw = try SQLiteDatabase(path: path)
+        try reinstateOldColumns(raw)
+        try raw.run("UPDATE repos SET account_id = ? WHERE id = ?", [.text(defaultCodex.id), .text(repo.id)])
+
+        try AgentAccountChoiceColumns.migrate(raw, defaults: [])
+
+        let reopened = try Store(path: path)
+        #expect(try await reopened.agentAccountChoices().repos[repo.id] == nil)
+        #expect(try await reopened.takeLostAgentAccountChoices() == [repo.id])
+    }
+
+    @Test("a move that carries every choice records nothing as lost")
+    func aCompleteMoveRecordsNothing() async throws {
+        let (raw, _, _) = try await reinstated(at: TestScratch.unique("whole") + ".sqlite")
+
+        try AgentAccountChoiceColumns.migrate(raw, defaults: [])
+
+        #expect(try raw.query("SELECT value FROM settings WHERE key = ?", [.text(LostAgentAccountChoices.settingKey)])
+            .isEmpty)
     }
 
     @Test("the move survives being replayed over a database it has already moved")

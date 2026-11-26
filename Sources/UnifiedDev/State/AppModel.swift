@@ -278,6 +278,7 @@ final class AppModel {
             Log.launchStep("bridge bound")
             await reload()
             Log.launchStep("reloaded")
+            await tellOfLostAgentAccountChoices()
             await loadDrafts()
             restoreLastSelection()
             isLoaded = true
