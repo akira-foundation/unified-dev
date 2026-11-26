@@ -26,6 +26,16 @@ struct NoticeGallery: View {
                 .clipped()
             }
 
+            group("A project whose chosen account no longer exists") {
+                if let notice = LostAgentAccountChoiceNotice.notice(
+                    [lostProject.id], repos: [lostProject]
+                ) {
+                    NoticeBanner(notice: notice, onDismiss: {})
+                        .background { backdrop }
+                        .clipped()
+                }
+            }
+
             group("The error in Settings") {
                 ErrorBanner(
                     title: "Could not save settings",
@@ -69,6 +79,8 @@ struct NoticeGallery: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    private let lostProject = Repo(name: "harbour", path: "/projects/harbour")
+
     private var backdrop: some View {
         VStack(alignment: .leading, spacing: Metrics.spacing) {
             ForEach(0..<12, id: \.self) { line in
@@ -102,7 +114,7 @@ extension Gallery {
     static let notices = Gallery(
         name: "notices",
         title: "Notices",
-        size: CGSize(width: 720, height: 1040),
+        size: CGSize(width: 720, height: 1200),
         needsFocus: false,
         view: { _ in AnyView(NoticeGallery()) }
     )

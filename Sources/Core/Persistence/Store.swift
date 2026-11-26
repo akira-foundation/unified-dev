@@ -3523,7 +3523,7 @@ public actor Store {
     }
 
     public func setting(_ key: String) throws -> String? {
-        try db.query("SELECT value FROM settings WHERE key = ?", [.text(key)]).first?.string("value")
+        try db.query(SettingsColumns.read, [.text(key)]).first?.string("value")
     }
 
     public func transcriptPlace(sessionID: SessionID) throws -> TranscriptPlace? {
@@ -3650,12 +3650,9 @@ public actor Store {
 
     public func setSetting(_ key: String, _ value: String?) throws {
         if let value {
-            try db.run(
-                "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                [.text(key), .text(value)]
-            )
+            try db.run(SettingsColumns.write, [.text(key), .text(value)])
         } else {
-            try db.run("DELETE FROM settings WHERE key = ?", [.text(key)])
+            try db.run(SettingsColumns.clear, [.text(key)])
         }
     }
 
