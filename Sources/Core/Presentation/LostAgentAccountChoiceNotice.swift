@@ -1,6 +1,23 @@
 import Foundation
 
 public enum LostAgentAccountChoiceNotice {
+    public enum Step: Equatable, Sendable {
+        case hold
+        case show(Notice)
+        case forget
+    }
+
+    public static func step(lost: [RepoID], repos: [Repo], slotIsFree: Bool) -> Step {
+        guard !lost.isEmpty else { return .hold }
+        guard let notice = notice(lost, repos: repos) else { return repos.isEmpty ? .hold : .forget }
+        return slotIsFree ? .show(notice) : .hold
+    }
+
+    public static func wasDismissed(_ shown: Notice.ID?, before: Notice?, after: Notice?) -> Bool {
+        guard let shown else { return false }
+        return before?.id == shown && after == nil
+    }
+
     public static func notice(_ ids: [RepoID], repos: [Repo]) -> Notice? {
         let names = ids.compactMap { id in repos.first { $0.id == id }?.name }
         guard !names.isEmpty else { return nil }

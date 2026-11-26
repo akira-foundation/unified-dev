@@ -1,9 +1,11 @@
 import Foundation
 
 extension Store {
-    public func takeLostAgentAccountChoices() throws -> [RepoID] {
-        guard let value = try setting(LostAgentAccountChoices.settingKey) else { return [] }
+    public func lostAgentAccountChoices() throws -> [RepoID] {
+        try setting(LostAgentAccountChoices.settingKey).map(LostAgentAccountChoices.decoded) ?? []
+    }
+
+    public func forgetLostAgentAccountChoices() throws {
         try setSetting(LostAgentAccountChoices.settingKey, nil)
-        return LostAgentAccountChoices.decoded(value).map { RepoID($0) }
     }
 }

@@ -92,7 +92,10 @@ final class AppModel {
     var isSidebarHidden = false
 
     var alert: AppAlert?
-    var notice: Notice?
+    var notice: Notice? {
+        didSet { forgetLostAgentAccountChoicesOnceDismissed(replacing: oldValue) }
+    }
+    @ObservationIgnored var lostAccountChoiceNoticeID: Notice.ID?
     var pendingArchive: ArchiveRequest?
     @ObservationIgnored var acknowledgedCanvasLosses: [RepoID: [String]] = [:]
     var foundTranscripts: [TranscriptWorkspaceMatches] = []

@@ -89,9 +89,10 @@ struct AgentAccountChoiceMigrationTests {
         let reopened = try Store(path: path)
         #expect(try await reopened.agentAccountChoices().repos[repo.id] == [.codex: defaultCodex.id])
         #expect(try await reopened.agentAccounts().map(\.id) == [defaultCodex.id])
+        #expect(try await reopened.lostAgentAccountChoices().isEmpty)
     }
 
-    @Test("a choice naming an account that is not there any more cannot be carried")
+    @Test("a choice naming an account that is not there any more is not carried")
     func aChoiceWithNoAccountIsLeftBehind() async throws {
         let path = TestScratch.unique("ghost") + ".sqlite"
         let (repo, _) = try await made(at: path)
@@ -105,7 +106,7 @@ struct AgentAccountChoiceMigrationTests {
         #expect(try await reopened.agentAccounts().isEmpty)
     }
 
-    @Test("a choice left behind is recorded, so the owner is told once which project lost it")
+    @Test("a choice left behind is recorded until the owner has been told which project lost it")
     func aChoiceLeftBehindIsRecordedForTheOwner() async throws {
         let path = TestScratch.unique("told") + ".sqlite"
         let (repo, _) = try await made(at: path)
@@ -118,11 +119,13 @@ struct AgentAccountChoiceMigrationTests {
         try raw.run("UPDATE repos SET account_id = ? WHERE id = ?", [.text(claude.id), .text(kept.id)])
 
         let reopened = try Store(path: path)
-        let lost = try await reopened.takeLostAgentAccountChoices()
-        let again = try await reopened.takeLostAgentAccountChoices()
+        let lost = try await reopened.lostAgentAccountChoices()
+        let stillThere = try await Store(path: path).lostAgentAccountChoices()
+        try await reopened.forgetLostAgentAccountChoices()
 
         #expect(lost == [repo.id])
-        #expect(again.isEmpty)
+        #expect(stillThere == [repo.id])
+        #expect(try await reopened.lostAgentAccountChoices().isEmpty)
         #expect(try await reopened.agentAccountChoices().repos[kept.id] == [.claudeCode: claude.id])
     }
 
@@ -138,7 +141,7 @@ struct AgentAccountChoiceMigrationTests {
 
         let reopened = try Store(path: path)
         #expect(try await reopened.agentAccountChoices().repos[repo.id] == nil)
-        #expect(try await reopened.takeLostAgentAccountChoices() == [repo.id])
+        #expect(try await reopened.lostAgentAccountChoices() == [repo.id])
     }
 
     @Test("a move that carries every choice records nothing as lost")
